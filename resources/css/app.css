@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add this to resources/css/app.css */
+.hover-pause:hover {
+    animation-play-state: paused;
+}
+
+.marquee-wrapper {
+  overflow: hidden;
+  position: relative;
+}
+
+.marquee-content {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.marquee-inner {
+  display: inline-block;
+  min-width: max-content;
+  animation: marquee 15s linear infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(100%);}
+  100% { transform: translateX(-100%);}
+}
+
+
+
+

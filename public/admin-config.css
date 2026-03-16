@@ -1,0 +1,15 @@
+/* public/css/admin-config.css */
+
+.config-block {
+    margin-bottom: 25px;
+}
+
+.add-option {
+    margin-top: 8px;
+    display: flex;
+    gap: 6px;
+}
+
+.add-option input {
+    flex: 1;
+}

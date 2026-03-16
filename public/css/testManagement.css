@@ -1,0 +1,310 @@
+/* ===============================
+   MAIN LAYOUT
+================================ */
+.management-layout {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 24px;
+    padding: 20px;
+}
+
+/* ===============================
+   FILTER PANEL
+================================ */
+.management-filters {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    height: fit-content;
+}
+
+.filter-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.filter-form label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    margin-top: 10px;
+    margin-bottom: 4px;
+    color: #374151;
+}
+
+.filter-form input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+
+/* MAIN MANAGEMENT LAYOUT */
+.management-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+/* LEFT FILTER PANEL */
+.management-filters {
+    flex: 0 0 28%;       /* was too wide before */
+    max-width: 28%;
+}
+
+/* RIGHT TABLE PANEL */
+.management-table {
+    flex: 1;            /* takes remaining space */
+    min-width: 0;       /* VERY IMPORTANT: prevents overflow squeeze */
+}
+
+
+
+/* ===============================
+   TABLE
+================================ */
+.management-table {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
+    overflow-x: auto;
+}
+
+.test-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.test-table thead {
+    background: #f9fafb;
+}
+
+.test-table th,
+.test-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.test-table th {
+    font-weight: 600;
+    font-size: 12px;
+    color: #374151;
+}
+
+.empty {
+    text-align: center;
+    padding: 20px;
+    color: #6b7280;
+}
+
+/* ===============================
+   PAGINATION
+================================ */
+.pagination-wrapper {
+    margin-top: 12px;
+}
+
+
+/* EDIT AND PUBLISH BUTTONS*/
+.action-icons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: #6b7280; /* gray-500 */
+    display: flex;
+    align-items: center;
+}
+
+.icon-btn i {
+    width: 16px;
+    height: 16px;
+}
+
+.icon-btn.edit:hover {
+    color: #2563eb; /* blue */
+}
+
+.icon-btn.publish:hover {
+    color: #16a34a; /* green */
+}
+
+.inline-form {
+    display: inline;
+}
+
+
+
+/*FIXING TABLE INSIDE CONTAINER*/
+/* Layout */
+.management-layout {
+    display: flex;
+    gap: 24px;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Filters */
+.management-filters {
+    flex: 0 0 280px;
+}
+
+/* Table container */
+.management-table {
+    flex: 1;
+    max-width: 100%;
+    overflow: hidden;   /* 🔒 HARD LOCK */
+}
+
+/* Table itself */
+.test-table {
+    width: 100%;
+    table-layout: fixed;   /* 🔥 FORCE FIT */
+    border-collapse: collapse;
+}
+
+/* Prevent text from breaking layout */
+.test-table th,
+.test-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+
+
+/* Tablet and smaller */
+@media (max-width: 1100px) {
+    .test-table th:nth-child(2),
+    .test-table td:nth-child(2), /* Program */
+
+    .test-table th:nth-child(4),
+    .test-table td:nth-child(4), /* Section */
+
+    .test-table th:nth-child(5),
+    .test-table td:nth-child(5), /* Term */
+
+    .test-table th:nth-child(6),
+    .test-table td:nth-child(6), /* Mode */
+
+    .test-table th:nth-child(9),
+    .test-table td:nth-child(9)  /* Schedule */ {
+        display: none;
+    }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .test-table th:nth-child(7),
+    .test-table td:nth-child(7), /* Total Items */
+
+    .test-table th:nth-child(8),
+    .test-table td:nth-child(8)  /* Duration */ {
+        display: none;
+    }
+}
+
+
+
+@media (max-width: 900px) {
+    .icon-only span {
+        display: none;
+    }
+}
+
+
+
+
+.actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+/* base button */
+.action-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background-color: #f1f3f5;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 18px 18px;
+    display: inline-flex;
+}
+
+/* edit icon */
+.edit-btn {
+    background-image: url('/images/icons/edit.svg');
+}
+
+/* publish icon */
+.publish-btn {
+    background-image: url('/images/icons/publish.svg');
+}
+
+/* hover */
+.action-btn:hover {
+    background-color: #e5e7eb;
+}
+
+
+.test-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+
+.actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    min-width: 88px; /* ensures icons never crush */
+}
+
+
+
+
+@media (max-width: 1100px) {
+    .management-layout {
+        flex-direction: column;
+    }
+
+    .management-filters,
+    .management-table {
+        max-width: 100%;
+        width: 100%;
+    }
+}
+
+
+
+
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    font-size: 12px;
+
+}
+
+
+

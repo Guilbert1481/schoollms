@@ -1,0 +1,121 @@
+
+.main-content-container {
+    background-color: #f9fafb;
+    min-height: 100vh;
+    padding: 40px 0;
+    margin-left:400px;
+}
+
+
+/* ================= PAGE CONTAINER ================= */
+.tm-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 32px 48px;
+}
+
+/* ================= ACTION BAR ================= */
+.tm-actions-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+/* ================= SECTIONS ================= */
+.tm-section {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 32px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+
+/* ================= CONFIG GRID ================= */
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    align-items: start;
+}
+
+
+.config-column {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* ================= CONFIG BOX ================= */
+.config-box {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    background: #fafafa;
+}
+
+.config-box h4 {
+    margin-bottom: 12px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* ================= CHECKBOX LIST ================= */
+.checkbox-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px 12px;
+    margin-bottom: 12px;
+}
+
+/* ================= ADD ROW ================= */
+.add-row {
+    display: flex;
+    gap: 8px;
+}
+
+/* ================= FOOTER ACTION ================= */
+.tm-section-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 24px;
+}
+
+.lock-btn {
+    padding: 12px 28px;
+    font-size: 15px;
+    border-radius: 8px;
+}
+
+/* Page heading polish */
+h1 {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+/* Buttons */
+.tm-actions-bar .tm-btn {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.tm-actions-bar .tm-btn:hover {
+    background: #f3f4f6;
+}
+
+/* Section titles */
+.tm-section h3 {
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* Checkbox labels */
+.checkbox-list label {
+    font-size: 14px;
+    color: #374151;
+}

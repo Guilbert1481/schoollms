@@ -1,0 +1,68 @@
+.filter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.filter-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.filter-form label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.filter-form input {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 13px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+}
+
+.filter-form input:focus {
+    outline: none;
+    border-color: #2563eb;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.btn-filter {
+    flex: 1;
+    background: #2563eb;
+    color: #ffffff;
+    border: none;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-filter:hover {
+    background: #1d4ed8;
+}
+
+.btn-reset {
+    flex: 1;
+    background: #f3f4f6;
+    color: #374151;
+    text-align: center;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.btn-reset:hover {
+    background: #e5e7eb;
+}
+
+

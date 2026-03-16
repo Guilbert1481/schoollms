@@ -1,0 +1,186 @@
+/* =================================
+   PRINT BUILDER CSS
+   Professional Exam Layout
+================================= */
+
+/* Base */
+body.print-page {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #ffffff;
+    color: #000;
+    margin: 0;
+}
+
+.print-btn {
+    background: #111827;
+    color: white;
+    padding: 10px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* Container */
+.print-container {
+    max-width: 750px;
+    margin: 40px auto;
+}
+
+/* Page margins */
+@page {
+    margin: 0.5in 0.5in;
+    size: A4;
+}
+
+/* Hide elements when printing */
+.no-print {
+    margin-bottom: 20px;
+}
+
+
+/* =================================
+   Exam header + info
+================================= */
+
+.exam-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.school-name {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.college-name {
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.exam-meta {
+    font-size: 15px;
+    margin-top: 5px;
+}
+
+.subject-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+.assessment-type {
+    font-size: 15px;
+    margin-top: 4px;
+    color: #444;
+}
+
+/* DARK GRAY SOLID LINES */
+.divider {
+    border: none;
+    border-top: 2px solid #555;
+    margin: 16px 0;
+}
+
+/* Student info lines */
+.exam-info {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    font-size: 15px;
+    margin-bottom: 20px;
+}
+
+.exam-info > div {
+    width: 48%;
+}
+
+.info-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 6px;
+}
+
+.info-row span {
+    white-space: nowrap;
+}
+
+/* LIGHT GRAY DOTTED LINES */
+.line-field {
+    flex: 1;
+    border-bottom: 1px dotted #bbb;
+    height: 18px;
+}
+
+/* =================================
+   Questions
+================================= */
+
+.section-title {
+    font-weight: bold;
+    margin-top: 10px;
+    margin-bottom: 6px;
+}
+
+.question-block {
+    margin-bottom: 4px;
+}
+
+.question-number {
+    font-weight: bold;
+}
+
+.choice-line {
+    margin-left: 20px;
+}
+
+/* =================================
+   PRINT MODE
+================================= */
+html {
+    display: block !important;
+}
+
+
+@media print {
+
+    .no-print {
+        display: none !important;
+    }
+
+    body.print-page {
+        margin: 0 !important;
+        background: #ffffff !important;
+        color: #000 !important;
+        font-family: Arial, Helvetica, sans-serif !important;
+    }
+
+    .print-container {
+        max-width: 750px !important;
+        margin: 0 auto !important;
+        width: 100% !important;
+    }
+
+    .question-block,
+    .choice-line,
+    .exam-info,
+    .exam-header {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    p, li {
+        orphans: 3;
+        widows: 3;
+    }
+
+    h1, h2, h3, h4 {
+        page-break-after: avoid;
+    }
+
+    .divider {
+        margin: 10px 0;
+    }
+}
+
+

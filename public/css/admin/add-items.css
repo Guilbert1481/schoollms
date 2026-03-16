@@ -1,0 +1,129 @@
+/* MODAL OVERLAY */
+.modal-overlay {
+    display: none;          /* ✅ hidden by default */
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+
+/* MODAL BOX */
+.modal {
+    background: #fff;
+    width: 100%;
+    max-width: 420px;   /* 👈 keeps it compact */
+    padding: 20px 22px;
+    border-radius: 10px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+
+    /* 🔑 THIS IS THE IMPORTANT PART */
+    height: auto;
+    min-height: unset;
+}
+
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+
+.modal-close {
+    cursor: pointer;
+    font-size: 18px;
+}
+
+
+.modal input,
+.modal select {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    font-size: 14px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+
+/* ================= ACTION BUTTONS ================= */
+.tm-actions {
+    display: flex;
+    gap: 14px;
+    margin: 20px 0 40px;
+    flex-wrap: wrap;
+}
+
+.tm-btn {
+    padding: 10px 16px;
+    border: 1px solid #cfd3d8;
+    background: #f8f9fa;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.tm-btn:hover {
+    background: #e9ecef;
+}
+
+/* ================= MODAL FORM ================= */
+.modal form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.btn-primary {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-secondary {
+    background: #e5e7eb;
+    color: #111;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background: #d1d5db;
+}
+
+
+/* ================= MODAL INPUTS ================= */
+.modal input[type="text"],
+.modal select {
+    width: 100%;          /* wider */
+    height: 38px;         /* shorter */
+    padding: 6px 10px;    /* tighter vertical spacing */
+    font-size: 14px;
+    border: 1px solid #cfd3d8;
+    border-radius: 6px;
+    box-sizing: border-box;
+}

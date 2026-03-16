@@ -1,0 +1,22 @@
+/* FORCE VISUAL CHANGE */
+body {
+    background: #f5f7fb !important;
+}
+
+.dashboard-container {
+    max-width: 800px !important;
+    margin: 0 auto !important;
+    border: 6px solid red !important;
+    background: rgba(255,0,0,0.1) !important;
+}
+
+/* SIDEBAR CHECK */
+.sidebar {
+    background: black !important;
+}
+
+/* BUTTON CHECK */
+.actions button {
+    background: red !important;
+    color: white !important;
+}

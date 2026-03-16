@@ -1,0 +1,160 @@
+/* ======================================================
+   TEST PREVIEW – PRINT-READY STYLES (A4)
+====================================================== */
+
+/* ---------- PAGE SETUP ---------- */
+@page {
+    size: A4;
+    margin: 0.25in 0.5in 0.7in 0.5in;
+}
+
+
+/* ---------- RESET ---------- */
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    color: #000;
+    font-family: "Times New Roman", Georgia, serif;
+    font-size: 12pt;
+}
+
+/* ---------- HEADER / LETTERHEAD ---------- */
+.exam-header {
+    text-align: center;
+    margin: 0;
+    padding-top: 0;          /* 🔥 REMOVE EXTRA PUSH */
+    line-height: 1.5;
+}
+
+.school-letterhead {
+    font-size: 11pt;
+    font-weight: bold;
+}
+
+.school-letterhead .note {
+    font-weight: normal;
+    font-size: 10pt;
+}
+
+.college-name {
+    margin-top: 6px;
+    font-size: 14pt;
+    font-weight: bold;
+}
+
+.exam-term {
+    margin-top: 4px;
+    font-size: 12pt;
+    font-weight: bold;
+}
+
+.exam-subject {
+    margin-top: 6px;
+    font-size: 12pt;
+    font-weight: bold;
+}
+
+/* ---------- DIVIDER ---------- */
+.divider {
+    margin: 14px 0 18px 0;
+    border: none;
+    border-top: 1px solid #000;
+}
+
+/* ---------- META TABLE ---------- */
+.exam-meta-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12pt;
+    margin-top: 10px;
+}
+
+.exam-meta-table td {
+    padding: 10px 6px;
+    vertical-align: middle;
+}
+
+.exam-meta-table .label {
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.exam-meta-table .right {
+    text-align: right;
+    padding-right: 10px;
+}
+
+.exam-meta-table .fill {
+    letter-spacing: 1px;
+}
+
+/* ---------- INSTRUCTIONS ---------- */
+.exam-instructions {
+    margin-top: 14px;
+    font-size: 11pt;
+    font-style: italic;
+}
+
+/* ---------- SECTIONS ---------- */
+.exam-section {
+    margin-top: 28px;
+    page-break-inside: avoid;
+}
+
+.section-title {
+    font-weight: bold;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+}
+
+/* ---------- QUESTIONS ---------- */
+.question {
+    margin-bottom: 10px;
+    line-height: 1.6;
+    text-align: justify;
+}
+
+/* ---------- PRINT CLEANUP ---------- */
+@media print {
+    button,
+    .no-print {
+        display: none !important;
+    }
+
+    a[href]:after {
+        content: none !important;
+    }
+}
+
+
+
+.exam-meta-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12pt;
+    margin-top: 20px;
+}
+
+.exam-meta-table td {
+    padding: 10px 6px;
+    vertical-align: middle; /* now safe */
+}
+
+.exam-meta-table .label {
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.exam-meta-table .right {
+    text-align: right;
+    padding-right: 10px;
+}
+
+.exam-meta-table .fill {
+    font-family: "Times New Roman", Georgia, serif;
+    letter-spacing: 1px; /* makes line look cleaner */
+}
+
+
+

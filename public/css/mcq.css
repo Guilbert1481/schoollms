@@ -1,0 +1,198 @@
+/* MCQ BUILDER - PREMIUM DESIGN */
+
+.main-content-container {
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    /* This ensures it doesn't hide under the header */
+    position: relative; 
+}
+
+.question-card {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+    border: 1px solid #f0f0f0;
+}
+
+/* TOP META BAR (Difficulty & Keyword) */
+.qb-meta-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.qb-meta-left, .qb-meta-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 500;
+    color: #4b5563;
+}
+
+.difficulty-select, .keyword-input {
+    padding: 8px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.difficulty-select:focus, .keyword-input:focus {
+    border-color: #6366f1;
+}
+
+/* QUESTION INPUT AREA */
+.question-input-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.question-number {
+    width: 35px;
+    height: 35px;
+    background: #eef2ff;
+    color: #6366f1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.question-input {
+    flex: 1;
+    padding: 12px 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 16px;
+}
+
+/* OPTIONS LIST */
+.option-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 12px;
+}
+
+.option-input {
+    flex: 1;
+    padding: 10px 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 15px;
+    background: #fff;
+}
+
+.tool-btn.delete-option {
+    color: #ef4444;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+/* BOTTOM ACTION BUTTONS INSIDE CARD */
+.option-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.action-item button {
+    height: 45px;
+    min-width: 80px;
+    border: none;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.add-option-btn { background: #f3f4ff; color: #6366f1; }
+.explanation-btn { background: #f3f4f6; color: #4b5563; }
+.delete-question-btn { background: #fff1f2; color: #ef4444; }
+
+.action-item button:active { transform: scale(0.95); }
+
+/* MAIN PAGE ACTIONS */
+.test-builder-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    padding-bottom: 50px;
+}
+
+.tb-btn {
+    padding: 12px 28px;
+    border-radius: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tb-btn.primary { background: #6366f1; color: white; }
+.tb-btn.dark { background: #111827; color: white; }
+
+/* EXPLANATION STYLES */
+.explanation-container {
+    margin-top: 15px;
+    width: 100%;
+}
+
+.explanation-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6366f1; /* Using your primary purple theme */
+    margin-bottom: 5px;
+    margin-left: 5px;
+}
+
+.explanation-row {
+    display: flex;
+    align-items: center; /* Vertically centers the X with the bar */
+    gap: 12px;
+}
+
+.explanation-input {
+    flex: 1;
+    min-height: 45px; /* Makes it a single-line bar initially */
+    height: 45px;
+    padding: 10px 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 14px;
+    resize: none; /* Prevents manual resizing from breaking layout */
+    background: #fdfdff;
+}
+
+.remove-explanation-btn {
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.remove-explanation-btn:hover {
+    transform: scale(1.2);
+}
+
+

@@ -1,0 +1,32 @@
+/* ================================
+   DESKTOP STICKY LAYOUT
+================================ */
+
+@media (min-width: 769px) {
+
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 260px;
+        z-index: 10000;
+    }
+
+    .dashboard-header-wrapper-sticky {
+        position: fixed;
+        top: 0;
+        left: 260px;
+        right: 0;
+        background: #fff;
+        z-index: 9999;
+    }
+
+    .dashboard-content-rail {
+        margin-left: 260px;
+    }
+
+    .main {
+        margin-top: calc(var(--header-height, 96px));
+    }
+}

@@ -1,0 +1,72 @@
+/* CASCADING DROPDOWN MODULE STYLES */
+
+.cd-wrapper,
+.tpl-cd-wrapper {
+    max-width: 760px;
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 24px 28px;
+    border: 1px solid #e9edf3;
+}
+
+/* FORM ROW */
+.cd-wrapper .form-row,
+.tpl-cd-wrapper .form-row {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 0;
+}
+
+/* SUBTLE SEPARATORS */
+.cd-wrapper .form-row:not(:last-child),
+.tpl-cd-wrapper .form-row:not(:last-child) {
+    border-bottom: 1px solid #f1f3f7;
+}
+
+/* LABELS */
+.cd-wrapper label,
+.tpl-cd-wrapper label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3a3f4b;
+}
+
+/* SELECTS */
+.cd-wrapper select,
+.tpl-cd-wrapper select {
+    width: 100%;
+    height: 42px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid #d4dae6;
+    background-color: #fbfcff;
+    font-size: 14px;
+    transition: all 0.15s ease;
+}
+
+/* HOVER */
+.cd-wrapper select:hover,
+.tpl-cd-wrapper select:hover {
+    border-color: #b8c3d9;
+    background-color: #ffffff;
+}
+
+/* FOCUS */
+.cd-wrapper select:focus,
+.tpl-cd-wrapper select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+    background-color: #ffffff;
+}
+
+/* DISABLED (cascade effect) */
+.cd-wrapper select:disabled,
+.tpl-cd-wrapper select:disabled {
+    background-color: #f3f5f9;
+    color: #9aa3b2;
+    border-color: #e1e6ef;
+    cursor: not-allowed;
+}

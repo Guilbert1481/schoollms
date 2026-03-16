@@ -1,0 +1,146 @@
+/* ============================
+   MODAL OVERLAY (HIDDEN BY DEFAULT)
+============================ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+/* Active state */
+.modal-overlay.active {
+    display: flex !important;
+}
+
+
+/* ============================
+   MODAL BOX
+============================ */
+.modal-box {
+    background: #fff;
+    padding: 24px;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 420px;
+}
+
+/* ============================
+   MODAL ACTION ROW
+============================ */
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    justify-content: flex-end;
+}
+
+/* ============================
+   PRIMARY ACTION BUTTON
+============================ */
+action-btn {
+    background-color: #e8f0ff;   /* same as Add Program */
+    color: #2563eb;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.action-btn:hover {
+    background-color: #dbe7ff;
+}
+
+
+
+
+
+.action-btn:hover {
+    background: #1e4fd8;
+}
+
+/* ============================
+   SECONDARY / CANCEL BUTTON
+============================ */
+.action-btn.cancel {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.action-btn.cancel:hover {
+    background: #e2e8f0;
+}
+
+/* ============================
+   UNIFORM ACTION BUTTON
+============================ */
+.action-btn {
+    background-color: #e8f0ff;  /* same as Add Program */
+    color: #2563eb;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.action-btn:hover {
+    background-color: #dbe7ff;
+}
+
+
+
+
+
+.modal-overlay {
+    pointer-events: auto;
+}
+
+.modal-overlay.active {
+    pointer-events: auto;
+}
+
+.modal-box {
+    pointer-events: auto;
+    position: relative;
+    z-index: 10000;
+}
+
+
+.modal-box form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.modal-box label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+}
+
+.modal-box input,
+.modal-box select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+
+
+
+

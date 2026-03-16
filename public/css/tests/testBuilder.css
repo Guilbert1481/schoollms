@@ -1,0 +1,1238 @@
+
+
+/* ======================================================
+   PAGE CONTAINER
+====================================================== */
+.test-builder {
+    max-width: 1100px;
+    margin: 40px auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+.page-title {
+    margin-bottom: 20px;
+}
+
+
+/* ======================================================
+   CARD WRAPPER
+====================================================== */
+.card {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+
+/* ======================================================
+   TEST CONTEXT BAR
+====================================================== */
+.test-context-bar {
+    display: flex;
+    gap: 30px;
+}
+
+.context-item {
+    font-size: 14px;
+}
+
+.context-link {
+    margin-left: 6px;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+
+/* ======================================================
+   SECTION TITLES
+====================================================== */
+.section-title {
+    margin-top: 0;
+    margin-bottom: 14px;
+}
+
+
+/* ======================================================
+   FILTER BAR
+====================================================== */
+.competency-filters {
+    margin-bottom: 12px;
+}
+
+.competency-filters input {
+    width: 260px;
+    padding: 6px;
+}
+
+
+/* ======================================================
+   BUILDER TABLE
+====================================================== */
+.builder-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.builder-table th,
+.builder-table td {
+    border-bottom: 1px solid #e5e5e5;
+    padding: 10px;
+    vertical-align: middle;
+}
+
+.builder-table th {
+    background: #f7f7f7;
+    text-align: left;
+}
+
+.builder-table input,
+.builder-table select {
+    width: 100%;
+    padding: 6px;
+}
+
+
+/* ======================================================
+   FEEDBACK STRIP
+====================================================== */
+.builder-feedback {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #555;
+}
+
+
+/* ======================================================
+   ASSIGNMENT FORM
+====================================================== */
+.form-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.form-row label {
+    width: 180px;
+    font-weight: bold;
+}
+
+.form-row input,
+.form-row select {
+    padding: 6px;
+    width: 240px;
+}
+
+.checkbox-row label {
+    width: auto;
+    font-weight: normal;
+}
+
+
+/* ======================================================
+   ACTION BAR
+====================================================== */
+.builder-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn-link {
+    margin-right: auto;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+
+/* ======================================================
+   BUTTONS (MINIMAL)
+====================================================== */
+button {
+    padding: 6px 14px;
+    cursor: pointer;
+}
+
+.btn-primary {
+    font-weight: bold;
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    height:40px;
+    border-radius:4px;
+}
+
+
+/* ===============================
+   TEST PURPOSE CARD
+================================ */
+
+.test-purpose-card {
+    padding: 20px 24px;
+    margin-bottom: 20px;
+}
+
+.test-purpose-card .section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 14px;
+}
+
+/* Container for options */
+.purpose-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Individual option */
+.purpose-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid #e0e4ea;
+    border-radius: 6px;
+    background: #fafbfc;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+/* Hover state */
+.purpose-option:hover {
+    background: #f4f7fb;
+    border-color: #cfd8e3;
+}
+
+/* Radio input */
+.purpose-option input[type="radio"] {
+    margin-top: 4px;
+    transform: scale(1.1);
+    cursor: pointer;
+}
+
+/* Title text */
+.purpose-option strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+/* Description text */
+.purpose-desc {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+/* Selected state (visual clarity) */
+.purpose-option input[type="radio"]:checked + strong {
+    color: #1d4ed8;
+}
+
+/* Optional: highlight selected card */
+.purpose-option:has(input[type="radio"]:checked) {
+    background: #eef4ff;
+    border-color: #93c5fd;
+}
+
+
+
+
+
+
+/* ===============================
+   BUILDER TABLE – FINAL LAYOUT
+=============================== */
+
+.builder-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+/* First column (Source / Question Type) */
+.builder-table th:first-child,
+.builder-table td:first-child {
+    width: 22%;
+    text-align: left;
+    padding-right: 12px;
+    white-space: normal;
+    word-break: break-word;
+}
+
+/* All other columns INCLUDING Difficulty */
+.builder-table th:not(:first-child),
+.builder-table td:not(:first-child) {
+    width: 8.6%; /* calculated to fit all columns */
+    text-align: center;
+}
+
+/* Inputs & dropdowns – uniform size */
+.builder-table input,
+.builder-table select {
+    width: 100%;
+    height: 34px;
+    padding: 4px 6px;
+    border: 1px solid #777;
+    border-radius: 4px;
+    box-sizing: border-box;
+    background: #fff;
+    font-size: 13px;
+}
+
+/* Remove any forced scrolling */
+.card {
+    overflow-x: hidden;
+}
+
+
+/* Difficulty column – just enough for text */
+.builder-table th:last-child,
+.builder-table td:last-child {
+    width: 10%;
+}
+
+.builder-table th:first-child,
+.builder-table td:first-child {
+    width: 22%;
+}
+
+
+.source-cell {
+    vertical-align: top;
+}
+
+.source-list {
+    margin: 0;
+    padding-left: 16px;
+}
+
+.source-list li {
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+
+
+.source-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.source-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.source-item input[type="checkbox"] {
+    cursor: pointer;
+}
+
+
+
+
+
+
+/* ===== FORCE checkbox + text layout in Question Settings ===== */
+.builder-table .source-item {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    white-space: nowrap;
+}
+
+/* Make checkbox smaller */
+.builder-table .source-item input[type="checkbox"] {
+    width: 13px !important;
+    height: 13px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: scale(0.85); /* works in all browsers */
+}
+
+/* Tighten text */
+.builder-table .source-item .source-text {
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+/* Align checkbox source with bullet source above */
+.builder-table td .source-list {
+    padding-left: 16px;   /* SAME as <ul> bullet padding */
+}
+
+.builder-table td .source-item {
+    margin-left: -16px;   /* pull checkbox back to align text */
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+
+
+
+
+.source-checkbox {
+    width: 14px !important;
+    height: 14px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+/* Force Source column width */
+.builder-table th:first-child,
+.builder-table td:first-child {
+    width: 260px;
+    min-width: 260px;
+    white-space: normal;
+    vertical-align: middle;
+}
+
+
+/* Force vertical centering in Source column */
+.builder-table td:first-child {
+    vertical-align: middle !important;
+}
+
+.source-cell-wrap {
+    display: inline-flex;
+    align-items: center;
+}
+
+.source-cell-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px; /* ← this is the spacing you want */
+}
+
+
+
+
+
+/* ===============================
+   TEST SETTINGS – TEACHER FRIENDLY
+================================ */
+
+.test-settings-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 24px;
+    margin-top: 24px;
+}
+
+.test-settings-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 18px;
+    color: #1f2937;
+}
+
+/* GRID SYSTEM */
+.ts-grid {
+    display: grid;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.ts-grid.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ts-grid.center {
+    align-items: center;
+}
+
+/* ROW */
+.ts-row {
+    display: flex;
+    flex-direction: column;
+}
+
+.ts-row.full {
+    margin-bottom: 18px;
+}
+
+/* LABELS */
+.ts-row label,
+.ts-check {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #374151;
+}
+
+/* INPUTS */
+.test-settings-card input[type="number"],
+.test-settings-card input[type="datetime-local"],
+.test-settings-card select {
+    max-width: 320px;          /* 🔑 NOT TOO LONG */
+    padding: 8px 10px;
+    font-size: 14px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+}
+
+/* CHECKBOXES */
+.ts-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.ts-check input {
+    width: 16px;
+    height: 16px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+    .ts-grid.two {
+        grid-template-columns: 1fr;
+    }
+
+    .test-settings-card input,
+    .test-settings-card select {
+        max-width: 100%;
+    }
+}
+
+
+/* Add proper spacing after Passing Score */
+.test-settings-card .ts-row:last-of-type {
+    margin-bottom: 18px;
+}
+
+/* Explicit spacing before shuffle section */
+.test-settings-card .ts-grid.center {
+    margin-top: 18px;
+    margin-bottom: 18px;
+}
+
+.ts-shuffle {
+    margin-top: 14px;
+    margin-bottom: 18px;
+}
+
+
+/* Bottom Action Bar – Teacher Friendly */
+.test-builder-actions {
+    display: flex;
+    justify-content: center; /* or flex-end if you want right */
+    align-items: center;
+    gap: 12px;
+    margin-top: 32px;
+}
+
+/* ===============================
+   TEST BUILDER ACTIONS (SAVE / PREVIEW)
+================================ */
+
+.test-builder-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 14px;
+
+    margin-top: 40px;
+    padding: 24px 0;
+
+    border-top: 1px solid #e5e7eb; /* subtle separation */
+}
+
+/* Preview button – secondary */
+.btn-preview {
+    padding: 10px 22px;
+    border-radius: 10px;
+
+    border: 1.5px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+
+    font-size: 14px;
+    font-weight: 500;
+
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-preview:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+/* Save button – primary */
+.btn-save {
+    padding: 10px 26px;
+    border-radius: 10px;
+
+    border: none;
+    background: #2563eb;
+    color: #ffffff;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-save:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+/* Optional: subtle focus */
+.btn-save:focus,
+.btn-preview:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+
+
+
+
+.test-builder {
+    padding-bottom: 100px; /* space for fixed Save button */
+}
+
+
+/* Preview Button */
+.btn-preview {
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.btn-preview:hover {
+    background: #f8fafc;
+}
+
+/* Save Button (Primary) */
+.btn-save {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: none;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.btn-save:hover {
+    background: #1d4ed8;
+}
+
+
+
+/* Center numeric inputs */
+.builder-table td {
+    vertical-align: middle;
+}
+
+.builder-table input[type="number"] {
+    text-align: center;
+    width: 60px;
+    padding: 6px 4px;
+
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+
+    /* soft shadow */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+/* Dropdown alignment */
+.builder-table select {
+    text-align: center;
+    padding: 6px;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+/* Checkbox + source alignment */
+.source-cell-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Placeholder (availability number) */
+.builder-table input::placeholder {
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+
+
+
+
+.ts-divider {
+    margin: 24px 0;
+    border-top: 1px solid #e5e7eb;
+}
+
+.ts-subtitle {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.ts-checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 8px;
+}
+
+
+.ts-checkbox-column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mt-2 {
+    margin-top: 12px;
+}
+
+
+/* Darker input boxes for QUESTION SETTINGS (quantity table) */
+.builder-table input[type="number"] {
+    background-color: #ffffff;
+    border: 1.5px solid #0c0c0c; /* darker border */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+}
+
+/* Keep content unchanged */
+.builder-table input[type="number"]:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 1px rgba(37,99,235,0.4);
+}
+
+
+
+.ts-row.mt-3 {
+    margin-top: 18px;
+}
+
+.ts-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ts-checkbox.mt-1 {
+    margin-top: 6px;
+}
+
+
+
+/* Availability hint inside inputs */
+.builder-table input::placeholder {
+    color: #9ca3af;              /* light gray */
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* Keep typed values darker */
+.builder-table input:not(:placeholder-shown) {
+    color: #111827;
+}
+
+
+
+
+
+
+
+
+
+
+/* Shared row layout (LEFT + RIGHT cards) */
+.form-pair {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+/* Labels */
+.form-pair label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* Inputs – SAME width everywhere */
+.form-pair select {
+    width: 280px;
+    max-width: 280px;
+}
+
+/* Render button – styled like an input */
+.btn-render {
+    width: 280px;
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+}
+
+.btn-render:hover {
+    background: #f8fafc;
+}
+
+/* Instruction text */
+.render-help {
+    margin-left: 160px; /* aligns with inputs */
+    font-size: 12.5px;
+    color: #6b7280;
+    line-height: 1.4;
+    justify-items: center;
+    margin-top: 10px;
+}
+
+.click-render{
+    margin-left:11px;
+}
+
+
+
+
+
+
+
+
+/* Two cards already handled by your grid */
+.test-source-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+/* Each row inside a card */
+.form-pair {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+/* Labels */
+.form-pair label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* Inputs */
+.form-pair select {
+    max-width: 280px;
+    width: 100%;
+}
+
+/* Render button – NOT full width */
+.btn-render {
+    width: 280px;          /* SAME as select */
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.btn-render:hover {
+    background: #f8fafc;
+}
+
+/* Mobile stacking */
+@media (max-width: 900px) {
+    .test-source-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-pair {
+        grid-template-columns: 1fr;
+    }
+
+    .btn-render,
+    .form-pair select {
+        max-width: 100%;
+    }
+}
+
+
+/* Render Availability Button Enhancements */
+
+#renderAvailabilityBtn {
+    padding: 0.5rem 1rem;          /* px-4 py-2 */
+    border-radius: 6px;            /* rounded-md */
+    background-color: #2563eb;     /* modern blue */
+    color: #ffffff;                /* white text */
+    border: none;                  /* clean look */
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#renderAvailabilityBtn:hover {
+    background-color: #1e4fcf;     /* slightly darker on hover */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+#renderAvailabilityBtn:active {
+    background-color: #183fa8;     /* pressed state */
+}
+
+
+.diff-assessment-render-grid{
+    height:290px; 
+    border-radius:6px; 
+    border: 1px solid lightgray; 
+    padding: 20px;
+}
+
+.diff-assessment-render{
+    border-radius:6px; 
+    border: 1px solid lightgray; 
+    padding: 20px;
+}
+
+.form-pair1,
+.form-pair2,
+.form-pair3 {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    align-items: center;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+
+.form-pair2{
+    margin-top: 35px;
+}
+
+.form-pair3{
+    margin-top: 35px;
+}
+
+
+#difficulty,
+#academic_level {
+    background-color: #f9fafb;       /* lightest neutral gray */
+    color: #111827;                  /* readable dark text */
+    border: 1px solid #d1d5db;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    appearance: auto;
+}
+
+
+/* Base input style */
+.builder-table input[type="number"],
+.builder-table input[type="text"] {
+    text-align: center;
+    color: #c2c8cf;              /* gray by default */
+    background-color: #ffffff;
+    border: 1px solid #cfd4dc;
+    border-radius: 6px;
+    height: 36px;
+}
+
+/* DEFAULT STATE – placeholder visible */
+input:placeholder-shown,
+textarea:placeholder-shown {
+    font-weight: 400 !important;
+    color: #9ca3af !important;
+    -webkit-text-fill-color: #9ca3af !important;
+}
+
+/* USER HAS TYPED */
+input:not(:placeholder-shown),
+textarea:not(:placeholder-shown) {
+    font-weight: 700 !important;
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+}
+
+/* HARD FORCE PLACEHOLDER */
+input::placeholder,
+textarea::placeholder {
+    color: #9ca3af !important;
+    -webkit-text-fill-color: #9ca3af !important;
+    opacity: 1 !important;
+}
+
+
+
+/* Optional: clearer focus */
+.builder-table input:focus {
+    outline: none;
+    border-color: #6b8cff;
+}
+
+
+
+
+.ts-section {
+    max-width: 760px;     /* SAME as ts-grid */
+    margin: 0 auto;       /* centers section */
+}
+
+
+.ts-row{
+    margin-top:20px;
+}
+
+
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.modal-box {
+    background: #fff;
+    padding: 24px;
+    border-radius: 8px;
+    width: 360px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+
+.modal-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+
+/* ===== CREATE TEST MODAL OVERLAY ===== */
+#createTestModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+/* ===== MODAL CARD ===== */
+#createTestModal .modal-card {
+    background: #fff;
+    width: 420px;              /* 👈 bigger */
+    max-width: 90%;
+    padding: 32px 36px;        /* 👈 more breathing room */
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+}
+
+/* ===== TITLE ===== */
+#createTestModal h3 {
+    margin: 0 0 12px;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+/* ===== SUBTEXT ===== */
+#createTestModal p {
+    margin: 0 0 28px;
+    font-size: 14px;
+    color: #555;
+}
+
+/* ===== BUTTON ROW ===== */
+#createTestModal .modal-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+}
+
+/* ===== BUTTONS ===== */
+#createTestModal button {
+    min-width: 100px;
+    padding: 10px 18px;
+    font-size: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+}
+
+#createTestModal .btn-yes {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+}
+
+#createTestModal .btn-no {
+    background: #f9fafb;
+}
+
+
+/* Container that holds both the Label and the Grid */
+.form-pair-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.section-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* The Grid that splits into two columns */
+.levels-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Forces the 50/50 split */
+    gap: 15px;
+    padding: 12px;
+    background: #fdfdff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+}
+
+.grid-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Individual Checkbox Styling */
+.ts-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #4b5563;
+}
+
+.ts-check input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+}
+
+
+
+/* This overrides the grid and forces a single line */
+.render-row-container {
+    display: flex;
+    flex-direction: row; /* Force horizontal */
+    align-items: center; /* Center button and text vertically */
+    gap: 15px;           /* Space between button and text */
+    margin: 10px 10px 20px; /* Adjust margins as needed */
+    width: 100%;
+}
+
+.btn-render-slim {
+    width: auto !important; /* Overrides the 280px width in your CSS */
+    padding: 8px 20px;
+    background-color: #2563eb;
+    color: #fff;
+    border-radius: 6px;
+    border: none;
+    font-weight: 600;
+    white-space: nowrap; /* Prevents text inside button from wrapping */
+    cursor: pointer;
+}
+
+.render-text-hint {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0; /* Remove that 160px margin-left */
+}
+
+/* ===============================
+   TEST BUILDER ACTION BUTTONS
+================================ */
+
+.test-builder-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn {
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* Save */
+.btn-save {
+    background: #2563eb;
+    color: white;
+}
+
+.btn-save:hover {
+    background: #1d4ed8;
+}
+
+/* Print */
+.btn-print {
+    background: #059669;
+    color: white;
+}
+
+.btn-print:hover {
+    background: #047857;
+}
+
+/* Edit */
+.btn-edit {
+    background: #f59e0b;
+    color: white;
+}
+
+.btn-edit:hover {
+    background: #d97706;
+}

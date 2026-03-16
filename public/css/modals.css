@@ -1,0 +1,37 @@
+/* Dashboard modal shared styles */
+.dashboard-modal {
+    border-radius: 12px;
+}
+
+.dashboard-modal .modal-header {
+    background: #f8f9fa;
+    font-weight: 600;
+}
+
+/* etc */
+
+
+
+/* ===== MODALS ===== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 1000;
+    display: none;
+}
+
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    padding: 26px;
+    border-radius: 18px;
+    width: 420px;
+    max-width: 92%;
+    z-index: 1001;
+    display: none;
+}
