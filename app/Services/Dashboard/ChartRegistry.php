@@ -48,19 +48,17 @@ class ChartRegistry
                         ->toArray(),
                 ];
 
-                $roleCharts  = config("charts.roles.$role.trend_charts", []);
-                $definitions = config('charts.definitions');
+                $roleCharts  = config("dashboard.charts.roles.$role.trend_charts", []);
+                $definitions = config("dashboard.charts.definitions", []);
 
                 $charts = [];
 
                 foreach ($roleCharts as $key) {
-
                     if (!isset($definitions[$key])) {
                         continue;
                     }
 
-                    $charts[] = [
-                        'key'   => $key,
+                    $charts[$key] = [
                         'title' => $definitions[$key]['title'],
                         'type'  => $definitions[$key]['type'],
                         'color' => $definitions[$key]['color'],

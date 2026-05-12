@@ -1,355 +1,337 @@
-@extends('layouts.superadmin')
+﻿@extends('layouts.superadmin')
 
 @section('content')
-<div class="max-w-[1600px] mx-auto">
-    {{-- Header Section --}}
-    <div class="flex justify-between items-center mb-10">
+<div class="max-w-[1600px] mx-auto px-6 py-8">
+
+    {{-- Header --}}
+    <div class="flex justify-between items-center mb-6">
         <div>
-            <h2 class="text-3xl font-black text-slate-800 tracking-tight">Partner Institutions</h2>
-            <p class="text-slate-500 font-medium mt-1">Manage global feature access for schools and freelancers.</p>
+            <h2 class="text-2xl font-bold text-slate-800">Partner Institutions</h2>
+            <p class="text-slate-500 text-sm mt-1">Manage registered schools and freelancers.</p>
         </div>
-        
-        <a href="{{ route('superadmin.schools.create') }}" 
-           class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all flex items-center gap-3">
-            <i class="fas fa-plus-circle"></i>
-            <span>Add New Partner</span>
-        </a>
     </div>
 
-    {{-- Elegant Table Container --}}
-    <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-visible">
-        <table class="w-full text-left border-collapse">
-            <thead>
-                <tr class="bg-slate-50/50 border-b border-slate-100">
-                    <th class="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Institution Name</th>
-                    <th class="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</th>
-                    <th class="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Plan</th>
-                    <th class="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Add-ons</th>
-                    <th class="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                    <th class="px-8 py-5 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">Actions</th>
-                </tr>
-            </thead>
+    {{-- Flash --}}
+    @if(session('success'))
+        <div class="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded">
+            {{ session('success') }}
+        </div>
+    @endif
 
-            <tbody class="divide-y divide-slate-50">
-                @forelse($schools as $school)
-                <tr x-data="{ openModal: false }" class="hover:bg-slate-50/30 transition-colors">
-                    {{-- Institution Name --}}
-                    <td class="px-8 py-6 align-middle">
-                        <a href="{{ route('superadmin.schools.show', $school->id) }}" class="group block no-underline">
-                            <div class="font-bold text-slate-700 text-lg group-hover:text-indigo-600 transition-colors">{{ $school->name }}</div>
-                            <div class="text-[11px] text-slate-400 font-bold uppercase tracking-tighter mt-1">
-                                ID: #{{ $school->id }}
-                            </div>
-                        </a>
-                    </td>
+    @if($errors->any())
+        <div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <ul class="list-disc pl-5 text-sm">
+                @foreach($errors->all() as $err)
+                    <li>{{ $err }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
-                    {{-- Type --}}
-                    <td class="px-8 py-6 align-middle">
-                        <span class="text-slate-600 text-[11px] font-black uppercase tracking-widest">
-                            {{ $school->type }}
-                        </span>
-                    </td>
+    {{-- Shared Table --}}
+    <x-table.table
+        tableKey="superadmin_schools"
+        :columns="$columns"
+        :data="$data"
+        :actions="config('tables.table-actions.superadmin_schools')"
+        createModal="schoolCreateModal"
+        createLabel="Add New Partner"
+        deleteRoute="superadmin.schools.destroy"
+    />
 
-                    {{-- Active Plan badge --}}
-                    <td class="px-8 py-6 align-middle">
-                        <div class="inline-flex items-center px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100">
-                            <span class="text-indigo-600 font-black text-[10px] uppercase tracking-wider">
-                                {{ $school->plan_name ?? 'Basic' }}
-                            </span>
-                        </div>
-                    </td>
+    {{-- Create Modal (Draggable) --}}
+    <x-modal.form id="schoolCreateModal" title="Register New Partner" widthClass="w-[560px]">
+        <form method="POST" action="{{ route('superadmin.schools.store') }}">
+            @csrf
 
-                    {{-- Add-ons Column --}}
-                    <td class="px-8 py-6 align-middle relative">
-                        @if($school->modules_count > 0)
-                            @php
-                                $hasExpired = false;
-                                $hasCritical = false;
-                                $hasWarning = false;
-                                
-                                foreach($school->modules as $m) {
-                                    if ($m->pivot->expires_at && now()->greaterThan($m->pivot->expires_at)) {
-                                        $hasExpired = true;
-                                        break;
-                                    }
-                                }
-                                
-                                if (!$hasExpired) {
-                                    foreach($school->modules as $m) {
-                                        if ($m->pivot->expires_at) {
-                                            $days = now()->diffInDays($m->pivot->expires_at, false);
-                                            if ($days <= 5 && $days >= 0) {
-                                                $hasCritical = true;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                if (!$hasExpired && !$hasCritical) {
-                                    foreach($school->modules as $m) {
-                                        if ($m->pivot->expires_at) {
-                                            $days = now()->diffInDays($m->pivot->expires_at, false);
-                                            if ($days <= 10 && $days >= 6) {
-                                                $hasWarning = true;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                            @endphp
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                    <label class="block text-sm mb-1">{{ $labels['school_name'] }}</label>
+                    <input type="text" name="school_name" class="border p-2 w-full rounded" required>
+                </div>
 
-                            <button @click="$dispatch('open-modules-modal', { schoolId: {{ $school->id }} })"
-                                class="flex items-center gap-2 px-3 py-1 bg-white rounded-full border transition-all shadow-sm
-                                {{ $hasExpired ? 'border-red-200 text-red-600' : ($hasCritical ? 'border-red-200 text-red-600' : ($hasWarning ? 'border-amber-200 text-amber-600' : 'border-emerald-100 text-emerald-600')) }}">
-                                
-                                <span class="text-[10px] font-black">{{ $school->modules_count }}</span>
-                                <span class="text-[9px] font-bold uppercase tracking-tighter">Add-ons</span>
+                <div>
+                    <label class="block text-sm mb-1">{{ $labels['code'] }}</label>
+                    <input type="text" name="code" class="border p-2 w-full rounded">
+                </div>
 
-                                @if($hasExpired || $hasCritical)
-                                    <i class="fas fa-exclamation-circle text-[10px] {{ $hasExpired || $hasCritical ? 'animate-pulse' : '' }}"></i>
-                                @elseif($hasWarning)
-                                    <i class="fas fa-exclamation-triangle text-[10px]"></i>
-                                @else
-                                    <i class="fas fa-check-circle text-[10px] opacity-40"></i>
-                                @endif
-                            </button>
-                        @else
-                            <span class="text-[11px] text-slate-300 italic font-medium">No add-ons</span>
-                        @endif
-                    </td>
+                <div>
+                    <label class="block text-sm mb-1">{{ $labels['domain'] }}</label>
+                    <input type="text" name="domain" class="border p-2 w-full rounded">
+                </div>
 
-                    {{-- Status --}}
-                    <td class="px-8 py-6 align-middle">
-                        @if($school->is_active)
-                            <div class="flex items-center gap-2 text-emerald-600 font-black text-[10px] uppercase tracking-widest">
-                                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                                Active
-                            </div>
-                        @else
-                            <div class="flex items-center gap-2 text-red-500 font-black text-[10px] uppercase tracking-widest">
-                                <span class="w-2 h-2 bg-red-400 rounded-full"></span>
-                                Inactive
-                            </div>
-                        @endif
-                    </td>
-                    
-                    {{-- Actions --}}
-                    <td class="px-8 py-6 align-middle text-center">
-                        <div class="inline-flex items-center gap-4 whitespace-nowrap">
-                            <a href="{{ route('superadmin.schools.show', $school->id) }}" 
-                               class="text-[12px] font-black uppercase tracking-widest no-underline text-indigo-500 hover:text-indigo-800 transition-colors">
-                               View
-                            </a>
+                <div class="col-span-2">
+                    <label class="block text-sm mb-1">{{ $labels['slug'] }}</label>
+                    <input type="text" name="slug"
+                           pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                           placeholder="e.g. memory-ridge"
+                           class="border p-2 w-full rounded">
+                    <p class="text-xs text-slate-400 mt-1">
+                        Lowercase letters, numbers, and dashes only. Used in school URLs (e.g. <code>/memory-ridge/login</code>). Leave blank to auto-generate.
+                    </p>
+                </div>
 
-                            <span class="text-slate-200 opacity-50">|</span>
+                <div>
+                    <label class="block text-sm mb-1">{{ $labels['country'] }}</label>
+                    <select name="country" class="border p-2 w-full rounded">
+                        <option value="">-- Select Country --</option>
+                        <option value="Philippines">Philippines</option>
+                        <option value="United States">United States</option>
+                        <option value="United Kingdom">United Kingdom</option>
+                        <option value="Canada">Canada</option>
+                        <option value="Australia">Australia</option>
+                        <option value="Singapore">Singapore</option>
+                        <option value="Malaysia">Malaysia</option>
+                        <option value="Indonesia">Indonesia</option>
+                        <option value="Thailand">Thailand</option>
+                        <option value="Vietnam">Vietnam</option>
+                        <option value="Japan">Japan</option>
+                        <option value="South Korea">South Korea</option>
+                        <option value="China">China</option>
+                        <option value="India">India</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
 
-                            <form action="{{ route('superadmin.schools.destroy', $school->id) }}" 
-                                  method="POST" 
-                                  class="m-0 p-0 leading-none" 
-                                  onsubmit="return confirm('Permanently remove this institution?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" 
-                                        class="text-[12px] font-black text-red-500 hover:text-red-700 border-0 bg-transparent p-0 m-0 uppercase tracking-widest cursor-pointer">
-                                    Delete
-                                </button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="6" class="p-20 text-center text-slate-400 font-medium italic">
-                        No partners found.
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
+                <div>
+                    <label class="block text-sm mb-1">{{ $labels['type'] }}</label>
+                    <select name="type" class="border p-2 w-full rounded" required>
+                        <option value="school">School</option>
+                        <option value="freelance">Freelance</option>
+                    </select>
+                </div>
 
-        <div x-data="modalData()" 
-             @open-modules-modal.window="openModal($event.detail.schoolId)"
-             @keydown.escape.window="open = false"
-             x-show="open"
-             x-cloak
-             style="display: none; position: fixed; inset: 0; z-index: 9999; overflow-y: auto;">
-            
-            <!-- Premium Backdrop with blur -->
-            <div style="position: fixed; inset: 0; background: linear-gradient(135deg, rgba(79, 70, 229, 0.4) 0%, rgba(236, 72, 153, 0.3) 100%); backdrop-filter: blur(8px);" 
-                 @click="open = false"></div>
-            
-            <!-- Modal Container -->
-            <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem;">
-                <div style="position: relative; background: linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%); border-radius: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1); width: 100%; max-width: 42rem; overflow: hidden;" 
-                     @click.stop
-                     x-transition:enter="transition ease-out duration-300"
-                     x-transition:enter-start="opacity-0 transform scale-95"
-                     x-transition:enter-end="opacity-100 transform scale-100">
-                    
-                    <!-- Elegant Header with gradient -->
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem 2.5rem; position: relative; overflow: hidden;">
-                        <!-- Decorative elements -->
-                        <div style="position: absolute; top: -50%; right: -10%; width: 200px; height: 200px; background: rgba(255, 255, 255, 0.1); border-radius: 50%; filter: blur(40px);"></div>
-                        <div style="position: absolute; bottom: -30%; left: -5%; width: 150px; height: 150px; background: rgba(255, 255, 255, 0.05); border-radius: 50%; filter: blur(30px);"></div>
-                        
-                        <div style="display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1;">
+                <div class="col-span-2 pt-3 border-t mt-2">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Primary Admin</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">{{ $labels['first_name'] }}</label>
+                    <input type="text" name="first_name" class="border p-2 w-full rounded" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">{{ $labels['last_name'] }}</label>
+                    <input type="text" name="last_name" class="border p-2 w-full rounded" required>
+                </div>
+
+                <div class="col-span-2">
+                    <label class="block text-sm mb-1">{{ $labels['email'] }}</label>
+                    <input type="email" name="email" class="border p-2 w-full rounded" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">{{ $labels['password'] }}</label>
+                    <input type="password" name="password" class="border p-2 w-full rounded" required minlength="8">
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">{{ $labels['password_confirmation'] }}</label>
+                    <input type="password" name="password_confirmation" class="border p-2 w-full rounded" required minlength="8">
+                </div>
+            </div>
+        </form>
+    </x-modal.form>
+
+    {{-- Edit Modal (Draggable) --}}
+    <x-modal.form id="schoolEditModal" title="Edit Institution" widthClass="w-[560px]">
+        <form id="schoolEditForm" method="POST" action="">
+            @csrf
+            @method('PUT')
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                    <label class="block text-sm mb-1">{{ $labels['school_name'] }}</label>
+                    <input type="text" name="school_name" class="border p-2 w-full rounded" required>
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">{{ $labels['code'] }}</label>
+                    <input type="text" name="code" class="border p-2 w-full rounded">
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">{{ $labels['domain'] }}</label>
+                    <input type="text" name="domain" class="border p-2 w-full rounded">
+                </div>
+
+                <div class="col-span-2">
+                    <label class="block text-sm mb-1">{{ $labels['slug'] }}</label>
+                    <input type="text" name="slug"
+                           pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                           class="border p-2 w-full rounded">
+                    <p class="text-xs text-slate-400 mt-1">Lowercase letters, numbers, and dashes only.</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">{{ $labels['country'] }}</label>
+                    <select name="country" class="border p-2 w-full rounded">
+                        <option value="">-- Select Country --</option>
+                        <option value="Philippines">Philippines</option>
+                        <option value="United States">United States</option>
+                        <option value="United Kingdom">United Kingdom</option>
+                        <option value="Canada">Canada</option>
+                        <option value="Australia">Australia</option>
+                        <option value="Singapore">Singapore</option>
+                        <option value="Malaysia">Malaysia</option>
+                        <option value="Indonesia">Indonesia</option>
+                        <option value="Thailand">Thailand</option>
+                        <option value="Vietnam">Vietnam</option>
+                        <option value="Japan">Japan</option>
+                        <option value="South Korea">South Korea</option>
+                        <option value="China">China</option>
+                        <option value="India">India</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">{{ $labels['type'] }}</label>
+                    <select name="type" class="border p-2 w-full rounded" required>
+                        <option value="school">School</option>
+                        <option value="freelance">Freelance</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">Plan</label>
+                    <input type="text" name="plan_name" class="border p-2 w-full rounded">
+                </div>
+
+                <div class="flex items-center gap-2 pt-6">
+                    <input type="checkbox" name="is_active" value="1" id="schoolEditActive" class="w-4 h-4">
+                    <label for="schoolEditActive" class="text-sm">Active</label>
+                </div>
+            </div>
+        </form>
+    </x-modal.form>
+
+    {{-- Add-ons / Modules Modal --}}
+    <div x-data="modulesModalData()"
+         @open-modules-modal.window="openModal($event.detail.schoolId)"
+         @keydown.escape.window="open = false"
+         x-show="open"
+         x-cloak
+         style="display:none; position:fixed; inset:0; z-index:9999; overflow-y:auto;">
+
+        <div style="position:fixed; inset:0; background:rgba(15,23,42,0.5); backdrop-filter:blur(6px);"
+             @click="open = false"></div>
+
+        <div style="display:flex; align-items:center; justify-content:center; min-height:100vh; padding:2rem;">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden" @click.stop>
+                <div class="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+                    <div>
+                        <h3 class="text-lg font-bold">Module Subscriptions</h3>
+                        <p class="text-xs opacity-80">School ID: <span x-text="currentSchoolId"></span></p>
+                    </div>
+                    <button @click="open = false" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30">&times;</button>
+                </div>
+
+                <div class="p-6 max-h-[28rem] overflow-y-auto">
+                    <template x-for="module in currentModules" :key="module.id">
+                        <div class="border rounded-lg p-4 mb-3 flex items-center justify-between">
                             <div>
-                                <h3 style="font-size: 1.5rem; font-weight: 700; color: white; margin: 0; letter-spacing: -0.025em;">
-                                    Module Subscriptions
-                                </h3>
-                                <p style="font-size: 0.875rem; color: rgba(255, 255, 255, 0.8); margin: 0.5rem 0 0 0; font-weight: 500;">
-                                    School ID: <span style="font-weight: 700;" x-text="currentSchoolId"></span>
-                                </p>
+                                <h4 class="font-semibold text-slate-800" x-text="module.name"></h4>
+                                <p class="text-xs text-slate-400">Module #<span x-text="module.id"></span></p>
                             </div>
-                            <button @click="open = false" 
-                                    style="color: white; background: rgba(255, 255, 255, 0.2); width: 2.5rem; height: 2.5rem; border: none; border-radius: 0.75rem; cursor: pointer; font-size: 1.25rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; backdrop-filter: blur(10px);"
-                                    onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'; this.style.transform='rotate(90deg)'" 
-                                    onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'; this.style.transform='rotate(0deg)'">
-                                ✕
-                            </button>
+                            <span class="px-3 py-1 rounded-full text-xs font-bold"
+                                  :class="statusClass(module)"
+                                  x-text="statusText(module)"></span>
                         </div>
-                    </div>
-                    
-                    <!-- Premium Content Area -->
-                    <div style="padding: 2rem 2.5rem; max-height: 28rem; overflow-y: auto;">
-                        <template x-for="module in currentModules" :key="module.id">
-                            <div style="background: white; border-radius: 1rem; padding: 1.5rem 1.75rem; margin-bottom: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); transition: all 0.3s ease; position: relative; overflow: hidden;"
-                                 :style="'border-left: 4px solid ' + getStatusColor(module)"
-                                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'"
-                                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'">
-                                
-                                <!-- Subtle background gradient based on status -->
-                                <div style="position: absolute; inset: 0; opacity: 0.03; z-index: 0;"
-                                     :style="'background: linear-gradient(135deg, ' + getStatusColor(module) + ' 0%, transparent 100%)'"></div>
-                                
-                                <div style="position: relative; z-index: 1;">
-                                    <!-- Module Header -->
-                                    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 0.875rem;">
-                                        <div style="flex: 1; min-width: 0;">
-                                            <h4 style="font-size: 1.125rem; font-weight: 600; color: #0f172a; margin: 0 0 0.5rem 0; letter-spacing: -0.025em; line-height: 1.4;" 
-                                                x-text="module.name"></h4>
-                                            <p style="font-size: 0.75rem; color: #64748b; margin: 0; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;">
-                                                Module ID: <span style="font-weight: 700;" x-text="module.id"></span>
-                                            </p>
-                                        </div>
-                                        
-                                        <!-- Premium Status Badge -->
-                                        <span style="padding: 0.625rem 1.25rem; border-radius: 2rem; font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); flex-shrink: 0;"
-                                              :style="'color: ' + getStatusTextColor(module) + '; background: ' + getStatusBgColor(module) + '; border: 2px solid ' + getStatusColor(module) + '20'"
-                                              x-text="getStatusText(module)"></span>
-                                    </div>
-                                    
-                                    <!-- Progress Bar for expiration -->
-                                    <template x-if="getDaysRemaining(module) !== null && getDaysRemaining(module) >= 0">
-                                        <div style="margin-top: 1rem; padding: 0 0.25rem;">
-                                            <div style="height: 6px; background: #e2e8f0; border-radius: 1rem; overflow: hidden; position: relative;">
-                                                <div style="height: 100%; border-radius: 1rem; transition: all 0.3s ease;"
-                                                     :style="'width: ' + Math.min(100, (getDaysRemaining(module) / 30) * 100) + '%; background: linear-gradient(90deg, ' + getStatusColor(module) + ' 0%, ' + getStatusColor(module) + 'cc 100%)'"></div>
-                                            </div>
-                                        </div>
-                                    </template>
-                                </div>
-                            </div>
-                        </template>
-                        
-                        <!-- Premium Empty State -->
-                        <template x-if="currentModules.length === 0">
-                            <div style="text-align: center; padding: 4rem 2rem;">
-                                <div style="width: 5rem; height: 5rem; margin: 0 auto 1.5rem; background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%); border-radius: 1.5rem; display: flex; align-items: center; justify-content: center; font-size: 2.5rem;">
-                                    📦
-                                </div>
-                                <h4 style="font-size: 1.25rem; font-weight: 600; color: #334155; margin: 0 0 0.5rem 0;">No Modules Found</h4>
-                                <p style="font-size: 0.875rem; color: #94a3b8; margin: 0;">This school doesn't have any add-on modules yet.</p>
-                            </div>
-                        </template>
-                    </div>
-                    
-                    <!-- Elegant Footer -->
-                    <div style="background: linear-gradient(to top, #f8fafc 0%, #ffffff 100%); padding: 1.5rem 2.5rem; border-top: 1px solid #e2e8f0;">
-                        <div style="display: flex; justify-content: flex-end; gap: 1rem;">
-                            <button @click="open = false" 
-                                    style="padding: 0.75rem 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 0.75rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(102, 126, 234, 0.4); text-transform: uppercase; letter-spacing: 0.05em;"
-                                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(102, 126, 234, 0.4)'" 
-                                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(102, 126, 234, 0.4)'">
-                                Close
-                            </button>
-                        </div>
-                    </div>
+                    </template>
+
+                    <template x-if="currentModules.length === 0">
+                        <p class="text-center text-slate-400 italic py-8">No add-ons for this school.</p>
+                    </template>
+                </div>
+
+                <div class="flex justify-end gap-2 px-6 py-4 border-t bg-slate-50">
+                    <button @click="open = false" class="px-4 py-2 rounded bg-indigo-600 text-white">Close</button>
                 </div>
             </div>
         </div>
-
-        <script>
-        function modalData() {
-            return {
-                open: false,
-                currentSchoolId: null,
-                allSchools: @json($schools->keyBy('id')),
-                currentModules: [],
-                
-                openModal(schoolId) {
-                    this.currentSchoolId = schoolId;
-                    this.currentModules = this.allSchools[schoolId]?.modules || [];
-                    this.open = true;
-                },
-                
-                getDaysRemaining(module) {
-                    if (!module.pivot.expires_at) return null;
-                    const expiresAt = new Date(module.pivot.expires_at);
-                    const now = new Date();
-                    const diffTime = expiresAt - now;
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    return diffDays;
-                },
-                
-                isExpired(module) {
-                    const days = this.getDaysRemaining(module);
-                    return days !== null && days < 0;
-                },
-                
-                isCritical(module) {
-                    const days = this.getDaysRemaining(module);
-                    return days !== null && days >= 0 && days <= 5;
-                },
-                
-                isWarning(module) {
-                    const days = this.getDaysRemaining(module);
-                    return days !== null && days >= 6 && days <= 10;
-                },
-                
-                getStatusColor(module) {
-                    if (this.isExpired(module) || this.isCritical(module)) return '#ef4444';
-                    if (this.isWarning(module)) return '#f59e0b';
-                    return '#10b981';
-                },
-                
-                getStatusTextColor(module) {
-                    if (this.isExpired(module) || this.isCritical(module)) return '#dc2626';
-                    if (this.isWarning(module)) return '#d97706';
-                    return '#059669';
-                },
-                
-                getStatusBgColor(module) {
-                    if (this.isExpired(module) || this.isCritical(module)) return '#fee2e2';
-                    if (this.isWarning(module)) return '#fef3c7';
-                    return '#d1fae5';
-                },
-                
-                getStatusText(module) {
-                    if (!module.pivot.expires_at) return 'Active';
-                    
-                    const days = this.getDaysRemaining(module);
-                    
-                    if (days < 0) return 'Expired';
-                    if (days === 0) return 'Today';
-                    if (days === 1) return '1 Day';
-                    return days + ' Days';
-                }
-            }
-        }
-        </script>
-
     </div>
 </div>
+
+{{-- Scripts --}}
+<script src="{{ asset('js/modules/draggable.js') }}"></script>
+<script src="{{ asset('js/modules/table-pagination.js') }}"></script>
+<script src="{{ asset('js/table/table-columns.js') }}"></script>
+
+<script>
+function openSchoolModulesModal(schoolId) {
+    window.dispatchEvent(new CustomEvent('open-modules-modal', { detail: { schoolId } }));
+}
+
+const schoolsData = @json($schools->keyBy('id'));
+
+function openSchoolEditModal(schoolId) {
+    const s = schoolsData[schoolId];
+    if (!s) return;
+
+    const modal = document.getElementById('schoolEditModal');
+    const form  = document.getElementById('schoolEditForm');
+
+    form.action = '{{ url('superadmin/schools') }}/' + schoolId;
+
+    form.querySelector('[name="school_name"]').value = s.school_name ?? '';
+    form.querySelector('[name="code"]').value        = s.code ?? '';
+    form.querySelector('[name="domain"]').value      = s.domain ?? '';
+    form.querySelector('[name="slug"]').value        = s.slug ?? '';
+    form.querySelector('[name="country"]').value     = s.country ?? '';
+    form.querySelector('[name="type"]').value        = (s.type || 'school').toLowerCase();
+    form.querySelector('[name="plan_name"]').value   = s.plan_name ?? '';
+    form.querySelector('[name="is_active"]').checked = !!s.is_active;
+
+    openModal('schoolEditModal');
+}
+
+function modulesModalData() {
+    return {
+        open: false,
+        currentSchoolId: null,
+        currentModules: [],
+        allSchools: @json($schools->keyBy('id')),
+
+        openModal(id) {
+            this.currentSchoolId = id;
+            this.currentModules = this.allSchools[id]?.modules || [];
+            this.open = true;
+        },
+
+        daysLeft(m) {
+            if (!m.pivot?.expires_at) return null;
+            const diff = new Date(m.pivot.expires_at) - new Date();
+            return Math.ceil(diff / (1000 * 60 * 60 * 24));
+        },
+
+        statusClass(m) {
+            const d = this.daysLeft(m);
+            if (d === null) return 'bg-emerald-100 text-emerald-700';
+            if (d < 0) return 'bg-red-100 text-red-700';
+            if (d <= 5) return 'bg-red-100 text-red-700';
+            if (d <= 10) return 'bg-amber-100 text-amber-700';
+            return 'bg-emerald-100 text-emerald-700';
+        },
+
+        statusText(m) {
+            const d = this.daysLeft(m);
+            if (d === null) return 'Active';
+            if (d < 0) return 'Expired';
+            if (d === 0) return 'Today';
+            return d + ' Days';
+        },
+    };
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof makeDraggable === 'function') {
+        makeDraggable('schoolCreateModal', 'schoolCreateModalHeader');
+        makeDraggable('schoolEditModal', 'schoolEditModalHeader');
+    }
+    if (typeof initTable === 'function') {
+        initTable('superadmin_schools');
+    }
+});
+</script>
 @endsection

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Staff\ProgramHead\SubjectController;
 use App\Http\Controllers\Staff\ProgramHead\SubjectTopicController;
+use App\Http\Controllers\Staff\ProgramHead\LessonStudioController;
 use App\Models\Topic;
 use App\Models\Lesson;
 
@@ -12,11 +13,35 @@ Route::middleware(['auth'])
     ->group(function () {
 
     // ===============================
-    // Subject Management
+    // Lesson Studio (folder browser) — replaces the old subjects.index page
     // ===============================
-    Route::get('/subjects', [SubjectController::class, 'index'])
+    Route::get('/subjects', [LessonStudioController::class, 'index'])
         ->name('subjects.index');
 
+    Route::get('/lesson-studio/s/{subject}', [LessonStudioController::class, 'index'])
+        ->name('lesson-studio.subject');
+
+    Route::get('/lesson-studio/s/{subject}/t/{topic}', [LessonStudioController::class, 'index'])
+        ->name('lesson-studio.topic');
+
+    Route::get('/lesson-studio/s/{subject}/t/{topic}/l/{lesson}', [LessonStudioController::class, 'index'])
+        ->name('lesson-studio.lesson');
+
+    Route::post('/lesson-studio/folder', [LessonStudioController::class, 'createFolder'])
+        ->name('lesson-studio.folder.store');
+
+    Route::delete('/lesson-studio/folder/{type}/{id}', [LessonStudioController::class, 'destroyFolder'])
+        ->name('lesson-studio.folder.destroy');
+
+    Route::put('/lesson-studio/folder/{type}/{id}', [LessonStudioController::class, 'updateFolder'])
+        ->name('lesson-studio.folder.update');
+
+    Route::post('/lesson-studio/folder/reorder', [LessonStudioController::class, 'reorder'])
+        ->name('lesson-studio.folder.reorder');
+
+    // ===============================
+    // Legacy CRUD endpoints kept for compatibility
+    // ===============================
     Route::post('/subjects', [SubjectController::class, 'store'])
         ->name('subjects.store');
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Question;
 use App\Models\Subject;
 use App\Models\Topic;
+use App\Support\SubjectScope;
 use Illuminate\Http\Request;
 
 class QuestionController extends Controller
@@ -21,8 +22,8 @@ class QuestionController extends Controller
 
     public function create()
     {
-        $subjects = Subject::all();
-        $topics   = Topic::all();
+        $subjects = SubjectScope::applyTo(Subject::query())->orderBy('name')->get();
+        $topics   = Topic::whereIn('subject_id', $subjects->pluck('id'))->get();
 
         return view('teacher.questions.create', compact('subjects','topics'));
     }

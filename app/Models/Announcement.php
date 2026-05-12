@@ -3,9 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Traits\BelongsToSchool;
+use App\Models\AnnouncementAssignment;
+use App\Models\Profile;
+use App\Models\GroupMember;
 
 
 class Announcement extends Model
@@ -81,6 +85,75 @@ class Announcement extends Model
     {
         return $this->hasMany(AnnouncementAssignment::class);
     }
+
+
+    
+
+public function getSentCount()
+{
+    $assignments = AnnouncementAssignment::where('announcement_id', $this->id)->get();
+
+    $profileIds = collect();
+
+    foreach ($assignments as $assignment) {
+
+        // OFFICE → profiles.office_id
+                if ($assignment->assignable_type == 'office') {
+
+            $userIds = DB::table('account_access')
+                ->where('office_id', $assignment->assignable_id)
+                ->whereDate('start_date', '<=', now())
+                ->where(function ($q) {
+                    $q->whereNull('end_date')
+                    ->orWhereDate('end_date', '>=', now());
+                })
+                ->pluck('user_id');
+
+            $profiles = Profile::whereIn('user_id', $userIds)
+                ->pluck('id');
+
+            $profileIds = $profileIds->merge($profiles);
+        }
+
+        // PROGRAM → enrollments.student_id → profiles.user_id
+        if ($assignment->assignable_type == 'program') {
+            $studentIds = DB::table('enrollments')
+                ->where('program_id', $assignment->assignable_id)
+                ->pluck('student_id');
+
+            $profiles = Profile::whereIn('user_id', $studentIds)
+                ->pluck('id');
+
+            $profileIds = $profileIds->merge($profiles);
+        }
+
+        // GROUP
+        if ($assignment->assignable_type == 'group') {
+            $profiles = DB::table('group_members')
+                ->where('group_id', $assignment->assignable_id)
+                ->pluck('profile_id');
+
+            $profileIds = $profileIds->merge($profiles);
+        }
+    }
+
+    return $profileIds->unique()->count();
+}
+
+public function getStatus()
+{
+    if (!$this->published_at) return 'Draft';
+
+    if ($this->expires_at && now()->gt($this->expires_at)) {
+        return 'Expired';
+    }
+
+    if (now()->lt($this->published_at)) {
+        return 'Scheduled';
+    }
+
+    return 'Active';
+}
 
 
 

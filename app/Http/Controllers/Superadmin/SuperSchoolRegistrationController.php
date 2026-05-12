@@ -20,17 +20,38 @@ class SuperSchoolRegistrationController extends Controller
 {
     $schools = School::with('modules')
         ->withCount('modules')
+        ->orderByDesc('id')
         ->get();
 
-    return view('superadmin.schools.index', compact('schools'));
+    // decorate rows for the shared table component (plain-text labels)
+    $schools->each(function ($s) {
+        $s->plan_name    = $s->plan_name ?: 'Basic';
+        $s->status_label = $s->is_active ? 'Active' : 'Inactive';
+        $s->type_label   = ucfirst($s->type);
+    });
+
+    $config      = config('tables.superadmin_schools');
+    $columns     = $config['columns'] ?? [];
+    $labels      = $config['labels'] ?? [];
+    $formColumns = $config['form'] ?? [];
+    $fieldTypes  = $config['types'] ?? [];
+
+    return view('superadmin.schools.index', [
+        'schools'     => $schools,
+        'data'        => $schools,
+        'columns'     => $columns,
+        'labels'      => $labels,
+        'formColumns' => $formColumns,
+        'fieldTypes'  => $fieldTypes,
+    ]);
 }
 
     /**
-     * Show the form for the Superadmin to manually add a school.
+     * The create form lives inside a modal on the index page now.
      */
     public function create()
     {
-        return view('superadmin.schools.create');
+        return redirect()->route('superadmin.schools.index');
     }
 
     /**
@@ -39,34 +60,55 @@ class SuperSchoolRegistrationController extends Controller
      */
     public function register(Request $request)
     {
-        $request->validate([
-            'school_name' => 'required|string|max:255',
-            'type'        => 'required|in:school,freelance',
-            'admin_name'  => 'required|string|max:255',
-            'email'       => 'required|email|unique:users,email',
-            'password'    => 'required|min:8|confirmed',
+        $data = $request->validate([
+            'school_name'  => 'required|string|max:255',
+            'code'         => 'nullable|string|max:50',
+            'domain'       => 'nullable|string|max:255',
+            'slug'         => 'nullable|string|max:100|regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/|unique:schools,slug',
+            'country'      => 'nullable|string|max:100',
+            'type'         => 'required|in:school,freelance',
+            'first_name'   => 'required|string|max:255',
+            'last_name'    => 'required|string|max:255',
+            'email'        => 'required|email|unique:users,email',
+            'password'     => 'required|min:8|confirmed',
+        ], [
+            'slug.regex'  => 'The slug may only contain lowercase letters, numbers, and dashes (e.g. "memory-ridge").',
+            'slug.unique' => 'That slug is already taken by another school.',
         ]);
 
         try {
             DB::beginTransaction();
 
-            // Create the Entity with subscription defaults
+            $slug = !empty($data['slug'])
+                ? $data['slug']
+                : Str::slug($data['school_name']) . '-' . rand(1000, 9999);
+
             $school = School::create([
-                'name'            => $request->school_name,
-                'slug'            => Str::slug($request->school_name) . '-' . rand(1000, 9999),
-                'type'            => $request->type, 
+                'school_name'     => $data['school_name'],
+                'code'            => $data['code'] ?? null,
+                'domain'          => $data['domain'] ?? null,
+                'slug'            => $slug,
+                'type'            => $data['type'],
+                'country'         => $data['country'] ?? null,
                 'is_active'       => true,
-                'plan_name'       => 'basic', 
-                'plan_expires_at' => now()->addMonth(), // Default 1-month trial
+                'plan_name'       => 'basic',
+                'plan_expires_at' => now()->addMonth(),
             ]);
 
-            // Create the Primary Admin account
             User::create([
-                'school_id' => $school->id,
-                'name'      => $request->admin_name,
-                'email'     => $request->email,
-                'password'  => Hash::make($request->password),
-                'role'      => 'admin', 
+                'school_id'  => $school->id,
+                'first_name' => $data['first_name'],
+                'last_name'  => $data['last_name'],
+                'email'      => $data['email'],
+                'password'   => Hash::make($data['password']),
+                'role'       => 'admin',
+            ]);
+
+            DB::table('school_profiles')->insert([
+                'school_id'   => $school->id,
+                'school_name' => $data['school_name'],
+                'created_at'  => now(),
+                'updated_at'  => now(),
             ]);
 
             $this->initializeModules($school);
@@ -140,26 +182,34 @@ class SuperSchoolRegistrationController extends Controller
      */
     public function update(Request $request, School $school)
     {
-        // Updated validation to include the plan change
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'pricing_id' => 'nullable|exists:pricings,id',
-            'contact_person' => 'nullable|string|max:255',
+        $data = $request->validate([
+            'school_name' => 'required|string|max:255',
+            'code'        => 'nullable|string|max:50',
+            'domain'      => 'nullable|string|max:255',
+            'slug'        => 'nullable|string|max:100|regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/|unique:schools,slug,' . $school->id,
+            'country'     => 'nullable|string|max:100',
+            'type'        => 'required|in:school,freelance',
+            'plan_name'   => 'nullable|string|max:100',
+            'is_active'   => 'nullable|boolean',
+        ], [
+            'slug.regex'  => 'The slug may only contain lowercase letters, numbers, and dashes.',
+            'slug.unique' => 'That slug is already taken by another school.',
         ]);
 
-        // If a new plan was selected from the dropdown
-        if ($request->has('pricing_id')) {
-            $plan = Pricing::find($request->pricing_id);
-            // Update the school's plan name based on the pricing table
-            $school->plan_name = $plan->plan_name;
-            // You might also want to link the ID if you have a pricing_id column on schools
-            // $school->pricing_id = $plan->id; 
-        }
+        $data['is_active'] = $request->boolean('is_active');
 
-        $school->update($request->only(['name', 'contact_person']));
+        $school->update($data);
 
-        return redirect()->route('superadmin.schools.show', $school->id)
-                         ->with('success', 'School updated successfully!');
+        // keep school_profiles.school_name in sync
+        DB::table('school_profiles')
+            ->where('school_id', $school->id)
+            ->update([
+                'school_name' => $data['school_name'],
+                'updated_at'  => now(),
+            ]);
+
+        return redirect()->route('superadmin.schools.index')
+                         ->with('success', 'Institution updated successfully.');
     }
 
     /**
@@ -171,7 +221,19 @@ class SuperSchoolRegistrationController extends Controller
             $q->where('role', 'admin');
         }])->findOrFail($id);
 
-        return view('superadmin.schools.show', compact('school'));
+        $profile = \App\Models\SchoolProfile::where('school_id', $school->id)->first();
+
+        $logoUrl = null;
+        if ($profile && $profile->school_logo) {
+            $path = $profile->school_logo;
+            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, 'data:') || str_starts_with($path, '/')) {
+                $logoUrl = $path;
+            } else {
+                $logoUrl = \Illuminate\Support\Facades\Storage::url($path);
+            }
+        }
+
+        return view('superadmin.schools.show', compact('school', 'profile', 'logoUrl'));
     }
     
     public function destroy($id)

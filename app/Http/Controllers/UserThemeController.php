@@ -12,56 +12,45 @@ class UserThemeController extends Controller
     }
 
     public function update(Request $request)
-    {
-        $themeColors = \Config::get('theme.colors');
-        $allowedColors = implode(',', array_keys($themeColors));
-        $accentColors = implode(',', [
-            'slate','blue','emerald','purple','rose','amber','cyan','indigo','teal','fuchsia'
-        ]);
+{
+    $themeColors = config('theme.colors');
+    $user = auth()->user();
 
-        $request->validate([
-            'sidebar_mode'   => 'required|in:dark,light',
-            'sidebar_style'  => 'required|in:solid,gradient',
-            'sidebar_color'  => 'required|in:' . $allowedColors,
+    // THE FIX: Convert "Soft Gray" to "soft-gray" to match your config keys
+    $sidebarKey = \Illuminate\Support\Str::slug($request->sidebar_color);
+    $headerKey = \Illuminate\Support\Str::slug($request->header_color);
+    $kpiKey = \Illuminate\Support\Str::slug($request->kpi_accent_color);
 
-            'header_mode'    => 'required|in:dark,light',
-            'header_style'   => 'required|in:solid,gradient',
-            'header_color'   => 'required|in:' . $allowedColors,
+    // 1. SAVE SIDEBAR HEX
+    // Now it finds $themeColors['soft-gray']['hex'] correctly!
+    $user->sidebar_color = $themeColors[$sidebarKey]['hex'] ?? '#1e293b';
 
-            'kpi_card_style'      => 'required|in:soft,glass,flat',
-            'kpi_border_style'    => 'required|in:subtle,bold,none',
-            'kpi_background_tint' => 'required|in:neutral,brand,dark',
-            'kpi_accent_color'    => 'required|in:' . $accentColors,
-        ]);
-
-        $user = auth()->user();
-        $identity = $user->dashboard_identity ?? [];
-
-        // SAVE SIDEBAR
-        $identity['sidebar'] = [
+    // 2. SAVE FULL IDENTITY
+    $user->dashboard_identity = [
+        'sidebar' => [
             'mode'  => $request->sidebar_mode,
             'style' => $request->sidebar_style,
-            'color' => $request->sidebar_color,
-        ];
-
-        // SAVE HEADER
-        $identity['header'] = [
+            'color' => $sidebarKey, // Save the cleaned key
+        ],
+        'header' => [
             'mode'  => $request->header_mode,
             'style' => $request->header_style,
-            'color' => $request->header_color,
-        ];
-
-        // SAVE KPI
-        $identity['kpi'] = [
+            'color' => $headerKey,
+        ],
+        'kpi' => [
             'card_style'      => $request->kpi_card_style,
             'border_style'    => $request->kpi_border_style,
             'background_tint' => $request->kpi_background_tint,
-            'accent_color'    => $request->kpi_accent_color,
-        ];
+            'accent_color'    => $kpiKey,
+        ],
+    ];
 
-        $user->dashboard_identity = $identity;
-        $user->save();
+    $user->save();
 
-        return back()->with('success', 'Theme updated successfully.');
-    }
+    // 3. CLEAR CACHE IMMEDIATELY
+    // This ensures your new laptop doesn't show the old cached sidebar
+    \Illuminate\Support\Facades\Artisan::call('view:clear');
+
+    return back()->with('success', 'Theme updated successfully.');
+}
 }

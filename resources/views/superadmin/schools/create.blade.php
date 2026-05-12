@@ -12,7 +12,7 @@
                 
                 <div class="card-body p-4">
                     {{-- Updated action to match your SuperSchoolRegistrationController route --}}
-                    <form action="{{ route('superadmin.schools.register.school.post') }}" method="POST">
+                    <form action="{{ route('superadmin.schools.store') }}" method="POST">
                         @csrf
                         
                         {{-- Validation Error Alert --}}

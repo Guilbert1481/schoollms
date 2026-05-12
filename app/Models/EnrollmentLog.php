@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class EnrollmentLog extends Model
@@ -18,7 +19,7 @@ class EnrollmentLog extends Model
 
     public function enrollment()
     {
-        return $this->belongsTo(Enrollment::class);
+        return $this->belongsTo(StudentEnrollment::class, 'enrollment_id');
     }
 
     public function changedBy()

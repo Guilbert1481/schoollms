@@ -11,27 +11,34 @@
         @endif
     </title>
 
-    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
     <script src="{{ asset('js/assignable-dropdown.js') }}"></script>
+    <link rel="stylesheet" href="{{ asset('css/modal/modal.css') }}">
 
-    <style>[x-cloak] { display: none !important; }</style>
+    <style>
+    [x-cloak] { display: none !important; }
+
+    .hidden {
+        display: none;
+    }
+
+    .modal-overlay {
+        display: none;
+    }
+
+    .modal-overlay.active {
+        display: flex;
+    }
+    </style>
 
     @stack('styles')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    
 </head>
-
-
-
-
 
 <body class="bg-gray-100 min-h-screen">
 
 <div x-data="{ sidebarOpen: false }" class="flex min-h-screen relative">
 
-    <!-- Sidebar toggle button (shows only on small screens/zoomed) -->
+    <!-- Sidebar toggle -->
     <button
         @click="sidebarOpen = true"
         class="fixed top-4 left-4 z-40 rounded p-2 border transition-all duration-300
@@ -42,8 +49,7 @@
         class="h-6 w-6 {{ $superPriority ? 'text-white' : 'text-gray-700' }}"></i>
     </button>
 
-    <!-- Sidebar: Drawer for mobile, fixed for desktop -->
-    <!-- Mobile drawer -->
+    <!-- Mobile sidebar -->
     <aside
         x-show="sidebarOpen"
         @keydown.window.escape="sidebarOpen = false"
@@ -66,20 +72,19 @@
         @include('layouts.sidebar')
     </aside>
 
-    <!-- Main Content (unchanged) -->
+    <!-- Main -->
     <div class="flex-1 flex flex-col min-w-0">
-        <!-- HEADER -->
         <div class="sticky top-0 z-30">
             @include('layouts.header')
         </div>
-        <!-- CONTENT -->
+
         <div class="flex-1 p-6 overflow-y-auto">
             @yield('content')
         </div>
     </div>
 </div>
 
-{{-- THEME SETTINGS MODAL (unchanged) --}}
+{{-- THEME MODAL --}}
 <div 
     x-data="{ open: false }"
     x-on:open-theme-modal.window="open = true"
@@ -101,13 +106,85 @@
     </div>
 </div>
 
-{{-- LUCIDE ICONS --}}
+{{-- COLUMN SETTINGS --}}
+<div id="columnSettingsModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center">
+    <div class="bg-white p-6 rounded w-96">
+        <h2 class="text-lg font-bold mb-4">Column Settings</h2>
+
+        <div id="columnSettingsContent"></div>
+
+        <div class="flex justify-end mt-4 gap-2">
+            <button onclick="closeColumnSettings()" class="px-4 py-2 border rounded">
+                Cancel
+            </button>
+            <button onclick="saveColumnSettings()" class="px-4 py-2 bg-blue-600 text-white rounded">
+                Save
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- ✅ GLOBAL CONFIRM MODAL (FIXED) --}}
+<div id="globalConfirmModal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span>Confirm Action</span>
+            <span class="modal-close" onclick="closeModal('globalConfirmModal')">✕</span>
+        </div>
+
+        <div class="modal-body">
+            <p id="confirmMessage">Are you sure?</p>
+        </div>
+
+        <div class="modal-footer">
+            <button onclick="closeModal('globalConfirmModal')" class="px-4 py-2 border rounded">
+                Cancel
+            </button>
+            <button id="confirmBtn" class="px-4 py-2 bg-red-600 text-white rounded">
+                Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- ✅ GLOBAL INFO MODAL (FIXED) --}}
+<div id="globalInfoModal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-header">
+            <span>Information</span>
+            <span class="modal-close" onclick="closeModal('globalInfoModal')">✕</span>
+        </div>
+
+        <div class="modal-body">
+            <p id="infoMessage">Saved successfully.</p>
+        </div>
+
+        <div class="modal-footer">
+            <button onclick="closeModal('globalInfoModal')" class="px-4 py-2 bg-blue-600 text-white rounded">
+                OK
+            </button>
+        </div>
+    </div>
+</div>
+
+{{-- ICONS --}}
 <script src="https://unpkg.com/lucide@latest"></script>
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        lucide.createIcons();
-    });
+document.addEventListener("DOMContentLoaded", function () {
+    lucide.createIcons();
+});
 </script>
+
+<script src="{{ asset('js/global-search.js') }}"></script>
 @stack('scripts')
+
+<x-header.global-search />
+
+<script src="{{ asset('js/table/table.js') }}"></script>
+<script src="{{ asset('js/table/table-pagination.js') }}"></script>
+<script src="{{ asset('js/table/table-columns.js') }}?v={{ filemtime(public_path('js/table/table-columns.js')) }}"></script>
+<script src="{{ asset('js/modal/modal.js') }}"></script>
+
+
 </body>
 </html>

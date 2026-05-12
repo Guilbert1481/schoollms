@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Universal Enrollment System')</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    {{-- Tailwind / app.css FIRST so the inline <style> below wins specificity-ties.
+         Step 2 (React + Tailwind) needs the utility classes; Step 1's inline rules
+         must override Tailwind's preflight reset on inputs. --}}
+    @vite(['resources/css/app.css'])
+
     <style>
         /* Base Reset */
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
@@ -102,17 +108,21 @@
         .input-group { display: flex; flex-direction: column; gap: 8px; }
         .input-group label { font-size: 11px; color: #475569; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
         
-        input, select { 
-            padding: 14px; 
-            border: 1px solid #e2e8f0; 
-            border-radius: 10px; 
-            font-size: 14px; 
-            background: white; 
-            width: 100%; 
+        input, select, textarea {
+            padding: 0 14px;
+            height: 48px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            background: white;
+            width: 100%;
             color: #1e293b;
+            line-height: normal;
             transition: border 0.2s;
         }
-        input:focus, select:focus { outline: none; border-color: #5a57d6; box-shadow: 0 0 0 3px rgba(90, 87, 214, 0.1); }
+        textarea { padding: 12px 14px; height: auto; min-height: 96px; }
+        input[type="file"] { height: auto; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #5a57d6; box-shadow: 0 0 0 3px rgba(90, 87, 214, 0.1); }
 
         /* Action Buttons */
         .form-footer { 

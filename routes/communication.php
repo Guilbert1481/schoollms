@@ -53,10 +53,25 @@ Route::middleware(['auth'])
         */
         Route::prefix('chat')->name('chat.')->group(function () {
             Route::get('/', [ChatController::class, 'index'])->name('index');
+            Route::get('/users/search', [ChatController::class, 'searchUsers'])->name('users.search');
+            Route::post('/direct/{user}', [ChatController::class, 'startDirect'])->name('direct');
             Route::get('/create', [ChatController::class, 'create'])->name('create');
             Route::post('/', [ChatController::class, 'store'])->name('store');
+
+            // Attachment routes MUST be declared before /{thread} so the
+            // model-binding catch-all does not swallow /attachments/* URLs.
+            Route::get('/attachments/{message}', [ChatController::class, 'attachment'])->name('attachment');
+            Route::get('/attachments/{message}/preview', [ChatController::class, 'attachmentPreview'])->name('attachment.preview');
+            Route::get('/attachments/{message}/download', [ChatController::class, 'downloadAttachment'])->name('attachment.download');
+
             Route::get('/{thread}', [ChatController::class, 'show'])->name('show');
+            Route::get('/{thread}/messages', [ChatController::class, 'threadMessages'])->name('messages');
             Route::post('/{thread}/message', [ChatController::class, 'storeMessage'])->name('message.store');
+
+            Route::delete('/{thread}', [ChatController::class, 'destroy'])->name('destroy');
+            Route::get('/{thread}/members', [ChatController::class, 'members'])->name('members');
+            Route::post('/{thread}/members', [ChatController::class, 'addMembers'])->name('members.add');
+            Route::delete('/{thread}/members/{user}', [ChatController::class, 'removeMember'])->name('members.remove');
 
         });
 

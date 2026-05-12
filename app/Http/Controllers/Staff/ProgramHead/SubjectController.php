@@ -13,6 +13,9 @@ use App\Models\AcademicLevel;
 
 class SubjectController extends Controller
 {
+    /** Allowed subject category values (kept in sync with the DB ENUM). */
+    public const CATEGORIES = ['gen_ed', 'prof_ed', 'major', 'pe', 'nstp', 'internship'];
+
     protected $subjectRepo;
 
     public function __construct(SubjectRepository $subjectRepo)
@@ -20,16 +23,63 @@ class SubjectController extends Controller
         $this->subjectRepo = $subjectRepo;
     }
 
-    public function index()
+    public function index(Request $request)
 {
-    $subjects = Subject::where('school_id', auth()->user()->school_id)
+    $userId = auth()->id();
+    $status = $request->query('status', 'all'); // all|active|inactive
+
+    // Programs assigned to this Program Head
+    $programIds = \App\Models\Program::where('program_head_id', $userId)
+        ->pluck('id');
+
+    // Pull program_subjects rows for those programs, with the pivot's is_active
+    // collapsed per subject: a subject is "active" if ANY of its mappings are active.
+    $pivotQuery = \DB::table('program_subjects')
+        ->whereIn('program_id', $programIds)
+        ->select('subject_id', \DB::raw('MAX(is_active) as ps_active'))
+        ->groupBy('subject_id');
+
+    if ($status === 'active') {
+        $pivotQuery->havingRaw('MAX(is_active) = 1');
+    } elseif ($status === 'inactive') {
+        $pivotQuery->havingRaw('MAX(is_active) = 0');
+    }
+
+    $pivotRows = $pivotQuery->get();
+    $subjectIds = $pivotRows->pluck('subject_id');
+    $activeMap  = $pivotRows->pluck('ps_active', 'subject_id'); // [subject_id => 0|1]
+
+    $subjects = Subject::query()
+        ->when($programIds->isNotEmpty(), function ($q) use ($subjectIds) {
+            $q->whereIn('id', $subjectIds);
+        }, function ($q) {
+            $q->whereRaw('1 = 0');
+        })
         ->withCount(['topics', 'lessons', 'competencies'])
-        ->paginate(10);
+        ->orderBy('name')
+        ->get();
 
-    
+    // Overlay pivot active flag onto each subject so the view shows the pivot status
+    $subjects->transform(function ($s) use ($activeMap) {
+        $s->is_active = (int) ($activeMap[$s->id] ?? 0);
+        return $s;
+    });
 
-    return view('program_head.subjects.index', compact('subjects'));
+    return view('program_head.subjects.index', compact('subjects', 'status'))
+        ->with('categories', self::CATEGORIES);
 }
+
+    /**
+     * Resolve the data scope for the current user.
+     * - program_head           => 'academic'
+     * - training_program_head  => 'training'
+     */
+    protected function currentScope(): string
+    {
+        return auth()->user()->role === 'training_program_head'
+            ? 'training'
+            : 'academic';
+    }
 
 
 
@@ -41,6 +91,7 @@ class SubjectController extends Controller
         'code' => 'required|string|max:32|unique:subjects,code', // Keep unique code if every sub has a unique ID
         'description' => 'nullable|string|max:1000',
         'active' => 'required|boolean',
+        'category' => 'required|in:' . implode(',', self::CATEGORIES),
     ]);
 
     $name = AcademicNormalizer::normalize($request->name);
@@ -55,6 +106,7 @@ class SubjectController extends Controller
     // 3. Prepare and Save
     $data = $request->all();
     $data['name'] = $name; 
+    $data['scope'] = $this->currentScope();
  
 
     try {
@@ -68,14 +120,36 @@ class SubjectController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->subjectRepo->update($id, $request->only(['name', 'code', 'description', 'active']));
+        $request->validate([
+            'category' => 'nullable|in:' . implode(',', self::CATEGORIES),
+        ]);
+        $subject = $this->scopedSubjectQuery()->findOrFail($id);
+        $subject->update($request->only(['name', 'code', 'description', 'is_active', 'category']));
         return redirect()->route('program_head.subjects.index')->with('success', 'Subject updated!');
     }
 
     public function destroy($id)
     {
-        $this->subjectRepo->delete($id);
+        $subject = $this->scopedSubjectQuery()->findOrFail($id);
+        $subject->delete();
         return redirect()->route('program_head.subjects.index')->with('success', 'Subject deleted!');
+    }
+
+    /**
+     * Base query for the current user's scope + school.
+     */
+    protected function scopedSubjectQuery()
+    {
+        $scope = $this->currentScope();
+
+        return Subject::where('school_id', auth()->user()->school_id)
+            ->where(function ($q) use ($scope) {
+                if ($scope === 'academic') {
+                    $q->where('scope', 'academic')->orWhereNull('scope');
+                } else {
+                    $q->where('scope', $scope);
+                }
+            });
     }
 
     public function getTopics($subjectId)

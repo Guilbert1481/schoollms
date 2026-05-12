@@ -29,9 +29,24 @@
 <body class="bg-[#f4f7fe] h-screen w-full overflow-hidden font-['Plus_Jakarta_Sans']">
 
     {{-- 1. Sidebar: Fixed to the left --}}
-    <div class="fixed inset-y-0 left-0 w-72 h-screen z-50 bg-[#1E293B]">
-        <div class="h-full w-full flex flex-col">
-            @include('superadmin.partials.sidebar')
+    <div class="fixed inset-y-0 left-0 w-72 h-screen z-50 bg-[#1E293B] overflow-y-auto custom-scrollbar">
+        <div class="h-full w-full flex flex-col text-white">
+
+            {{-- Branding --}}
+            <div class="p-6 border-b border-white/10">
+                <h2 class="font-bold text-indigo-300 text-lg tracking-wider">LMS ENGINE v1.0</h2>
+                <p class="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Super Admin Portal</p>
+            </div>
+
+            {{-- Shared, config-driven sidebar --}}
+            <div class="flex-1 overflow-y-auto">
+                @include('partials.sidebar', ['hoverClass' => 'hover:bg-white/10', 'textClass' => 'text-slate-200'])
+            </div>
+
+            {{-- Footer --}}
+            <div class="p-6 text-xs text-slate-500 border-t border-white/10">
+                Logged in as: <span class="font-bold text-slate-300">Superadmin</span>
+            </div>
         </div>
     </div>
 

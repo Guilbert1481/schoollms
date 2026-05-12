@@ -6,7 +6,7 @@
     $school = $user->school;
 @endphp
 
-<div x-data="userModals()" class="p-6 lg:p-8 w-full mx-auto">
+<div x-data="userModals()" class="p-6 lg:p-4 w-full mx-auto">
 
     {{-- Header --}}
     <div class="mb-8">
@@ -25,30 +25,61 @@
         {{-- Add New User Button and Filter --}}
         <div class="flex justify-between items-center mb-4">
             {{-- Search / Filter --}}
-            <div class="flex items-center border border-blue-300 rounded-full px-4 h-10">
-                <span class="mr-2 text-gray-500">
-                    <i class="fa fa-search"></i>
-                </span>
-                <input 
-                    id="tableFilter"
-                    type="text" 
-                    class="focus:ring-0 bg-transparent outline-none h-full py-2"
-                    placeholder="Filter..."
-                >
-            </div>
+            <input type="text"
+                id="sessionFilter"
+                placeholder="Filter session"
+                class="border rounded px-3 py-2 mb-3 w-64">
 
-            {{-- Add New User Button --}}
-            <button 
-                class="py-2 px-5 h-10 bg-indigo-600 text-white rounded-lg font-bold text-xs uppercase hover:bg-indigo-700 transition flex items-center"
-                @click="openCreateModal()"
+            <div class="flex gap-2">
+                {{-- Add New Role Button --}}
+                <button
+                    class="py-2 px-5 h-10 bg-green-600 text-white rounded-lg font-bold text-xs uppercase hover:bg-green-700 transition flex items-center"
+                    @click="openRoleModal()"
+                >
+                    + New Role
+                </button>
+
+                {{-- Add New User Button --}}
+                <button 
+                    class="py-2 px-5 h-10 bg-indigo-600 text-white rounded-lg font-bold text-xs uppercase hover:bg-indigo-700 transition flex items-center"
+                    @click="openCreateModal()"
+                >
+                    + New User
+                </button>
+            </div>
+            {{-- ===== Create Role Modal ===== --}}
+            <div x-show="showRoleModal"
+                 class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+                 x-transition
+                 style="display: none;"
+                 @click.away="closeRoleModal()"
             >
-                Add New User
-            </button>
+                <div class="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
+                    <button class="absolute top-3 right-3 text-slate-500 hover:text-slate-800 text-lg" @click="closeRoleModal()">&times;</button>
+                    <h3 class="font-bold text-slate-800 mb-6 text-lg">Create New Role</h3>
+                    <form method="POST" action="{{ route('roles.store') }}" class="space-y-5">
+                        @csrf
+                        <div class="flex items-center gap-2 mb-4">
+                            <input type="text" name="role_name" x-model="roleForm.role_name" required placeholder="Role name..."
+                                class="w-full rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+                            <select name="is_head_role" x-model="roleForm.is_head_role" class="rounded-lg border border-slate-200 px-2 py-2 text-sm">
+                                <option value="0">Regular</option>
+                                <option value="1">Head</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2 justify-end">
+                            <button type="button" @click="addRoleField()" class="px-4 py-2 bg-slate-200 text-slate-700 rounded font-bold text-xs uppercase tracking-widest hover:bg-slate-300 transition-all">Add Role</button>
+                            <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-green-700 transition-all shadow-md active:scale-95">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
-        {{-- Users Table --}}
+        {{-- Users Table --}} 
+            
         <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
+            <table id="sessionTable" class="min-w-full text-sm">
                 <thead class="border-b border-slate-200 text-slate-500 uppercase text-xs tracking-wider">
                     <tr>
                         <th class="text-left py-3 px-4">Full Name</th>
@@ -63,12 +94,18 @@
                 <tbody class="divide-y divide-slate-100">
                     @forelse($users as $user)
                         <tr class="table-row-item hover:bg-slate-50 transition">
-                            <td class="py-3 px-4 font-medium text-slate-800">{{ $user->full_name }}</td>
+                            <td class="py-3 px-4 font-medium text-slate-800">{{ trim($user->first_name . ' ' . $user->middle_name . ' ' . $user->last_name) }}</td>
                             <td class="py-3 px-4 text-slate-600">{{ $user->email }}</td>
                             <td class="py-3 px-4">**************</td>
                             <td class="py-3 px-4">
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $user->role_badge_class }}">
-                                    {{ ucfirst($user->role) }}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                                    {{ $user->badge_color ?? 'bg-gray-100' }} 
+                                    {{ $user->badge_text_color ?? 'text-gray-700' }}">
+                                    
+                                    {{ $user->role_name 
+                                        ? ucfirst(str_replace('_', ' ', $user->role_name)) 
+                                        : 'No Role' 
+                                    }}
                                 </span>
                             </td>
                             <td class="py-3 px-4">{{ $user->phone ?? '' }}</td>
@@ -77,16 +114,17 @@
                                 <div class="flex gap-2">
                                     {{-- Edit: load user data in modal --}}
                                     <button type="button"
-                                            class="text-indigo-500 hover:text-indigo-700 focus:outline-none"
-                                            title="Edit"
-                                            @click="openEditModal({{ $user->toJson() }})">
+                                        class="text-indigo-500 hover:text-indigo-700 focus:outline-none"
+                                        title="Edit"
+                                        @click='openEditModal(@json($user))'>
                                         <i data-lucide="pencil" class="w-5 h-5"></i>
                                     </button>
                                     {{-- View: load user data in modal --}}
                                     <button type="button"
-                                            class="text-sky-500 hover:text-sky-700 focus:outline-none"
-                                            title="View"
-                                            @click="openViewModal({{ $user->toJson() }})">
+                                        class="text-sky-500 hover:text-sky-700 focus:outline-none"
+                                        title="View"
+                                        @click='openViewModal(@json($user))'>
+
                                         <i data-lucide="inspect" class="w-5 h-5"></i>
                                     </button>
                                     {{-- Delete: form post --}}
@@ -168,14 +206,14 @@
                             <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Role</label>
                             <select name="role" required x-model="userForm.role"
                                 class="mt-1 w-full rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+
                                 <option value="">Select Role</option>
-                                <option value="admission">Admission Manager</option>
-                                <option value="academics">VP Academics</option>
-                                <option value="teacher">Teacher</option>
-                                <option value="student">Student</option>
-                                <option value="admin">Administrator</option>
-                                <option value="program_head">Program Head</option>
-                                <option value="dean">Dean</option>
+
+                                @foreach($roles as $role)
+                                    <option value="{{ $role->name }}">
+                                        {{ ucfirst(str_replace('_', ' ', $role->name)) }}
+                                    </option>
+                                @endforeach
 
                             </select>
                         </div>
@@ -239,6 +277,7 @@ function userModals() {
     return {
         showUserModal: false,
         showViewModal: false,
+        showRoleModal: false,
         userForm: {
             id: null,
             first_name: '',
@@ -249,6 +288,10 @@ function userModals() {
             phone: '',
             address: '',
             birthday: '',
+        },
+        roleForm: {
+            role_name: '',
+            is_head_role: '0',
         },
         viewUser: {
             full_name: '',
@@ -271,6 +314,19 @@ function userModals() {
                 address: '',
                 birthday: '',
             };
+        },
+        openRoleModal() {
+            this.showRoleModal = true;
+            this.roleForm = {
+                role_name: '',
+                is_head_role: '0',
+            };
+        },
+        closeRoleModal() {
+            this.showRoleModal = false;
+        },
+        addRoleField() {
+            // Placeholder for adding more role fields if needed in the future
         },
         openEditModal(user) {
             this.showUserModal = true;
@@ -307,42 +363,16 @@ function userModals() {
 }
 </script>
 
-<script>
-// Table filter/search script
-document.addEventListener('DOMContentLoaded', function () {
-    const filterInput = document.getElementById('tableFilter');
-    const tableRows = document.querySelectorAll('.table-row-item');
-    const noResults = document.getElementById('noResults');
-    // Lucide icons
-    lucide.createIcons();
-
-    let debounceTimeout = null;
-    filterInput.addEventListener('input', function(e) {
-        clearTimeout(debounceTimeout);
-        debounceTimeout = setTimeout(() => {
-            const searchTerm = e.target.value.toLowerCase();
-            let visibleCount = 0;
-
-            tableRows.forEach(row => {
-                const textContent = row.innerText.toLowerCase();
-                if (textContent.includes(searchTerm)) {
-                    row.style.display = '';
-                    visibleCount++;
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-
-            if (noResults) {
-                noResults.style.display = (visibleCount === 0 && searchTerm !== '') ? '' : 'none';
-            }
-        }, 100);
-    });
-});
-</script>
-
 {{-- Make sure lucide and alpinejs are included in your main blade layout: --}}
 {{-- <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script> --}}
 {{-- <script src="//unpkg.com/alpinejs" defer></script> --}}
 
+
+
+<script src="{{ asset('js/modules/table-pagination.js') }}"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    initTable("session");
+});
+</script>
 @endsection

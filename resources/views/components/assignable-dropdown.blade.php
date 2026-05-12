@@ -72,7 +72,7 @@
                         this.fetchUsers();
                         this.$watch('search', () => {
                             clearTimeout(this.timer);
-                            this.timer = setTimeout(() => this.fetchUsers(), 300);
+                            this.timer = setTimeout(() => this.fetchUsers(), 150);
                         });
                     },
                     toggle(id) {
@@ -89,14 +89,22 @@
                         <svg class="w-4 h-4 ml-1 flex-shrink-0 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
 
-                    <div x-show="open" x-transition class="absolute left-0 right-0 z-50 mt-2 bg-white border rounded-xl shadow-xl p-3 max-h-64 overflow-y-auto" style="display: none;">
+                    <div x-show="open" x-transition class="absolute left-0 right-0 z-50 mt-2 bg-white border rounded-xl shadow-xl p-3" style="display: none;">
                         <input type="text" x-model="search" placeholder="Search..." class="w-full border rounded-lg px-3 py-1.5 mb-2 text-sm focus:outline-none focus:border-indigo-500">
-                        <template x-for="u in users" :key="u.id">
-                            <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-indigo-50 rounded-lg cursor-pointer">
-                                <input type="checkbox" :checked="selected.includes(`user:${u.id}`)" @change="toggle(u.id)" class="w-4 h-4 text-indigo-600 rounded border-gray-300">
-                                <span class="text-sm text-gray-700 truncate" x-text="u.name"></span>
-                            </label>
-                        </template>
+                        <div class="overflow-y-auto" style="max-height: 320px;">
+                            <template x-for="u in users" :key="u.id">
+                                <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-indigo-50 rounded-lg cursor-pointer">
+                                    <input type="checkbox" :checked="selected.includes(`user:${u.id}`)" @change="toggle(u.id)" class="w-4 h-4 text-indigo-600 rounded border-gray-300">
+                                    <span class="text-sm text-gray-700 truncate" x-text="u.name"></span>
+                                </label>
+                            </template>
+                            <template x-if="!loading && users.length === 0">
+                                <div class="text-xs text-gray-400 py-2 text-center">No matching users</div>
+                            </template>
+                            <template x-if="loading">
+                                <div class="text-xs text-gray-400 py-2 text-center">Searching...</div>
+                            </template>
+                        </div>
                     </div>
 
                     <template x-for="val in selected" :key="val">

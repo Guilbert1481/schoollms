@@ -25,8 +25,15 @@ class Subject extends Model
         'school_id',
         'academic_level_id',
         'code',
-        'active',
+        'is_active',
         'description',
+        'scope',
+        'category',
+        'created_by',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 
     /* =====================

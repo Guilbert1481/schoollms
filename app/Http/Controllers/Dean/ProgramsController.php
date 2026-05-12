@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dean;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Program;
+use App\Models\EducationNode;
 
 class ProgramsController extends Controller
 {
@@ -23,7 +24,18 @@ class ProgramsController extends Controller
 
         $programs = $query->paginate(10)->withQueryString();
 
-        return view('dean.programs.index', compact('programs'));
+        // Education nodes the program can be filed under (e.g., Bachelor's,
+        // Master's Degree, etc.). Grouped by their root level for the dropdown.
+        $programTypeOptions = EducationNode::with('parent.parent.parent.parent')
+            ->whereIn('node_type', ['program_type', 'level', 'stage', 'track', 'strand'])
+            ->where('is_active', true)
+            ->orderBy('order_index')
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($n) => ['id' => $n->id, 'label' => $n->full_path])
+            ->values();
+
+        return view('dean.programs.index', compact('programs', 'programTypeOptions'));
     }
 
     public function store(Request $request)
@@ -33,6 +45,7 @@ class ProgramsController extends Controller
             'code' => 'required|string|max:32',
             'description' => 'nullable|string|max:1000',
             'active' => 'required|boolean',
+            'education_node_id' => 'nullable|integer|exists:education_nodes,id',
         ]);
         $validated['active'] = (int) $request->active; // ensure it's 0 or 1
         $validated['school_id'] = auth()->user()->school_id;
@@ -49,6 +62,7 @@ class ProgramsController extends Controller
             'code' => 'required|string|max:32',
             'description' => 'nullable|string|max:1000',
             'active' => 'required|boolean',
+            'education_node_id' => 'nullable|integer|exists:education_nodes,id',
         ]);
         $validated['active'] = (int) $request->active; // ensure it's 0 or 1
 

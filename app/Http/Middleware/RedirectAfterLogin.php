@@ -21,8 +21,12 @@ class RedirectAfterLogin
                 return redirect()->route('admin.dashboard');
             }
 
-            if ($user->role === 'admission') {
+            if (in_array($user->role, ['admission', 'admission_manager'], true)) {
                 return redirect()->route('staff.admissions.dashboard');
+            }
+
+            if ($user->role === 'guidance_counselor') {
+                return redirect()->route('guidance_counselor.dashboard');
             }
         }
 

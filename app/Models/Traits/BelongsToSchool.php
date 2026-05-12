@@ -20,7 +20,7 @@ trait BelongsToSchool
             $user = Auth::user();
 
             // Superadmin sees everything
-            if ($user->role === 'superadmin') {
+            if ($user->role('super_admin')) {
                 return;
             }
 

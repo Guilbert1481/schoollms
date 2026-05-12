@@ -16,6 +16,7 @@ return [
             'faculty',
             'finance',
             'analytics',
+            'tools',
             'communication',
             'settings',
             'logout',
@@ -27,6 +28,27 @@ return [
             'screening',
             'endorsement',
             'communication',
+            'tools',
+            'settings',
+            'logout',
+        ],
+
+        'admission_manager' => [
+            'applicants',
+            'screening',
+            'endorsement',
+            'communication',
+            'tools',
+            'settings',
+            'logout',
+        ],
+
+        'registrar' => [
+            'registrar_tasks',
+            'communication',
+            'tools',
+            'settings',
+            'logout',
         ],
 
         'program_head' => [
@@ -39,6 +61,7 @@ return [
             'quality_assurance',
             'approvals',
             'communication',
+            'tools',
             'settings',
             'logout',
         ],
@@ -53,23 +76,100 @@ return [
             'quality_assurance',
             'approvals',
             'communication',
+            'tools',
             'settings',
             'logout',
         ],
 
         'teacher' => [
+            'lesson_studio',
             'my_classes',
             'tests',
             'grading',
             'communication',
+            'tools',
             'settings',
             'logout',
         ],
 
         'student' => [
-            'mysubjects',
-            'grades',
+            'schedules_student', 
+            'academics_student', 
+            'finance_student', 
+            'services_student',
             'communication',
+            'tools',
+            'settings',
+            'logout',
+        ],
+
+        'trainee' => [
+            'available_courses',
+            'training_courses',
+            'training_materials',
+            'training_sessions',
+            'training_assessment',
+            'training_progress',
+            'training_certificates',
+            'communication',
+            'tools',
+            'logout',
+        ],
+
+        'trainor' => [
+            'trainor_dashboard',
+            'trainor_courses',
+            'trainor_sessions',
+            'trainor_materials',
+            'trainor_trainees',
+            'trainor_attendance',
+            'tests',
+            'trainor_assessments',
+            'trainor_gradebook',
+            'trainor_certificates',
+            'communication',
+            'tools',
+            'settings',
+            'logout',
+        ],
+
+        'training_program_head' => [
+            'tph_dashboard',
+            'tph_training_courses',
+            'programs',
+            'tph_trainors',
+            'communication',
+            'tools',
+            'settings',
+            'logout',
+        ],
+
+        'superadmin' => [
+            'platform_home',
+            'manage_partners',
+            'pricing',
+            'system_settings_super',
+            'my_profile_super',
+            'logout',
+        ],
+
+        'course_architect' => [
+            'ca_workspace',
+            'tests',
+            'ca_construction',
+            'ca_assets',
+            'ca_intelligence',
+            'communication',
+            'tools',
+            'settings',
+            'logout',
+        ],
+
+        'guidance_counselor' => [
+            'flagged_interventions',
+            'communication',
+            'tools',
+            'settings',
             'logout',
         ],
     ],
@@ -82,6 +182,41 @@ return [
     */
 
     'menu' => [
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUPERADMIN
+        |--------------------------------------------------------------------------
+        */
+        'platform_home' => [
+            'icon'  => 'home',
+            'label' => 'Platform Home',
+            'route' => 'superadmin.dashboard',
+        ],
+
+        'manage_partners' => [
+            'icon'  => 'building-2',
+            'label' => 'Manage Partners',
+            'route' => 'superadmin.schools.index',
+        ],
+
+        'pricing' => [
+            'icon'  => 'badge-dollar-sign',
+            'label' => 'Pricing',
+            'route' => 'superadmin.pricing.index',
+        ],
+
+        'system_settings_super' => [
+            'icon'  => 'settings',
+            'label' => 'System Settings',
+            'route' => '#',
+        ],
+
+        'my_profile_super' => [
+            'icon'  => 'user',
+            'label' => 'My Profile',
+            'route' => 'superadmin.profile.edit',
+        ],
 
         /*
         |--------------------------------------------------------------------------
@@ -147,6 +282,23 @@ return [
             ],
         ],
 
+
+        'lesson_studio' => [
+            'icon'  => 'book-marked',
+            'label' => 'Lesson Studio',
+            'children' => [
+                [
+                    'label' => 'Lessons',
+                    'route' => 'teacher.lessons.index',
+                    'icon'  => 'notebook-pen',
+                ],
+                [
+                    'label' => 'Resources',
+                    'route' => 'teacher.lessons.resources.index',
+                    'icon'  => 'folder-open',
+                ],
+            ],
+        ],
 
         'my_classes' => [
             'icon'  => 'book-open',
@@ -256,12 +408,14 @@ return [
             'children' => [
                 [
                     'label' => 'Billing',
-                    'route' => '#',
+                    'route' => 'finance.billing.index',
+                    'active' => 'finance.billing.*',
                     'icon'  => 'receipt',
                 ],
                 [
                     'label' => 'Payments',
-                    'route' => '#',
+                    'route' => 'finance.payments.index',
+                    'active' => 'finance.payments.*',
                     'icon'  => 'credit-card',
                 ],
                 [
@@ -306,6 +460,18 @@ return [
 
         /*
         |--------------------------------------------------------------------------
+        | TOOLS
+        |--------------------------------------------------------------------------
+        */
+        'tools' => [
+            'icon' => 'wrench',
+            'label' => 'Tools',
+            'route' => 'tools.index',
+            'roles' => ['admin'],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
         | ADMISSION OFFICE MODULES
         |--------------------------------------------------------------------------
         */
@@ -327,6 +493,27 @@ return [
                     'label' => 'Requirements',
                     'route' => '#',
                     'icon'  => 'folder-check',
+                ],
+            ],
+        ],
+
+        'registrar_tasks' => [
+            'icon' => 'clipboard-list',
+            'label' => 'Registrar',
+            'children' => [
+                [
+                    'label' => 'Validate Enrollment',
+                    'route' => 'registrar.enrollments.index',
+                    'active' => 'registrar.enrollments.*',
+                    'icon'  => 'check-square',
+                    'roles' => ['registrar'],
+                ],
+                [
+                    'label' => 'Subject Credit Evaluation',
+                    'route' => 'registrar.subject-credits.index',
+                    'active' => 'registrar.subject-credits.*',
+                    'icon'  => 'book-open',
+                    'roles' => ['registrar'],
                 ],
             ],
         ],
@@ -378,29 +565,19 @@ return [
         'communication' => [
             'icon' => 'mail',
             'label' => 'Communication',
-            'children' => [
+            'route' => 'communication.chat.index',
+            'roles' => ['admin','dean','admission','admission_manager','teacher','student','trainee','guidance_counselor'],
+        ],
 
-                [
-                    'label' => 'Announcements',
-                    'route' => 'communication.announcements.index',
-                    'active' => 'communication.announcements.*',
-                    'icon'  => 'megaphone',
-                ],
-
-                [
-                    'label' => 'Deadlines',
-                    'route' => 'communication.deadlines.index',
-                    'active' => 'communication.deadlines.*',
-                    'icon'  => 'calendar-clock',
-                ],
-
-                [
-                    'label' => 'Chat',
-                    'route' => 'communication.chat.index',
-                    'active' => 'communication.chat.*',
-                    'icon'  => 'message-circle',
-                ],
-            ],
+        /*
+        |--------------------------------------------------------------------------
+        | FLAGGED INTERVENTIONS (Guidance Counselor)
+        |--------------------------------------------------------------------------
+        */
+        'flagged_interventions' => [
+            'icon'  => 'shield-alert',
+            'label' => 'Flagged Interventions',
+            'route' => 'guidance_counselor.flagged.index',
         ],
 
         /*
@@ -423,25 +600,17 @@ return [
 
                 [
                     'label' => 'Assignment Management',
-                    'route' => 'admin.assignments.index',
+                    'route' => 'admin.assignments.indexColleges',
                     'active' => 'admin.assignments.*',
                     'icon'  => 'git-branch',
                     'roles' => ['admin'],
                 ],
 
                 [
-                    'label' => 'Subscription',
-                    'route' => '#',
-                    'active' => 'settings.subscription.*',
+                    'label' => 'Service Plan',
+                    'route' => 'admin.service-plan.features',
+                    'active' => 'admin.service-plan.*',
                     'icon'  => 'credit-card',
-                    'roles' => ['admin'],
-                ],
-
-                [
-                    'label' => 'Add-ons',
-                    'route' => '#',
-                    'active' => 'settings.addons.*',
-                    'icon'  => 'puzzle',
                     'roles' => ['admin'],
                 ],
 
@@ -454,10 +623,18 @@ return [
                 ],
 
                 [
+                    'label' => 'School Settings',
+                    'route' => 'school.settings.system.index',
+                    'icon'  => 'user',
+                    'roles' => ['admin'],
+                ],
+
+                [
                     'label' => 'Profile Settings',
                     'route' => '#',
+                    
                     'icon'  => 'user',
-                    'roles' => ['admin','dean','admission','teacher','student'],
+                    'roles' => ['admin','dean','admission','admission_manager','teacher','student'],
                 ],
 
                 [
@@ -467,6 +644,34 @@ return [
                     'roles' => ['admin','dean'],
                 ],
 
+
+                [
+                    'label' => 'Account Access',
+                    'route' => 'school.account-access.index',
+                    'icon'  => 'users',
+                    'roles' => ['admin'],
+                ],
+
+                [
+                    'label' => 'Enrollment Settings',
+                    'route' => 'admission.enrollment-settings.index',
+                    'icon'  => 'graduation-cap',
+                    'roles' => ['admission','admission_manager'],
+                ],
+
+                [
+                    'label' => 'Sections (Publish)',
+                    'route' => 'admission.sections.index',
+                    'icon'  => 'layers',
+                    'roles' => ['admission','admission_manager'],
+                ],
+                
+                [
+                    'label' => 'Master Data',
+                    'route' => 'school.settings.master-data.academic_year.index',
+                    'icon'  => 'graduation-cap',
+                    'roles' => ['admin'],
+                ],
             ], // closes children
         ], // closes settings
 
@@ -552,27 +757,45 @@ return [
             ],
 
             [
+                'label' => 'Curricula',
+                'route' => 'dean.curricula-panel.index',
+                'icon'  => 'book',
+                'roles' => ['dean'],
+            ],
+
+            [
+                'label' => 'Academic Policies',
+                'route' => 'dean.academic_policies.index',
+                'icon'  => 'shield',
+                'roles' => ['dean'],
+            ],
+
+            [
                 'label' => 'Subjects',
                 'route' => 'program_head.subjects.index',
                 'icon'  => 'book-open',
+                'roles' => ['program_head', 'training_program_head'],
             ],
 
             [
                 'label' => 'Prospectus',
                 'route' => '#',
                 'icon'  => 'file-text',
+                'roles' => ['program_head'],
             ],
 
             [
                 'label' => 'Curriculum Mapping',
                 'route' => '#',
                 'icon'  => 'git-merge',
+                'roles' => ['program_head'],
             ],
 
             [
                 'label' => 'Revisions',
                 'route' => '#',
                 'icon'  => 'refresh-cw',
+                'roles' => ['program_head'],
             ],
 
         ],
@@ -591,33 +814,324 @@ return [
             'method' => 'post', // special handling
         ],
 
+        /*
+        |--------------------------------------------------------------------------
+        | COURSE ARCHITECT
+        |--------------------------------------------------------------------------
+        */
+        'ca_workspace' => [
+            'icon'  => 'layout-dashboard',
+            'label' => 'Workspace',
+            'children' => [
+
+                [
+                    'label' => 'Path Visualizer',
+                    'route' => 'course-architect.path-visualizer.index',
+                    'icon'  => 'git-branch',
+                ],
+                [
+                    'label' => 'Preview Mode',
+                    'route' => 'course-architect.preview.index',
+                    'icon'  => 'play-circle',
+                ],
+            ],
+        ],
+
+        'ca_construction' => [
+            'icon'  => 'wrench',
+            'label' => 'Construction',
+            'children' => [
+                [
+                    'label' => 'Lesson Studio',
+                    'route' => 'course-architect.lesson-studio.index',
+                    'icon'  => 'notebook-pen',
+                ],
+                [
+                    'label' => 'Assessment Lab',
+                    'route' => 'course-architect.assessment-lab.index',
+                    'icon'  => 'flask-conical',
+                ],
+            ],
+        ],
+
+        'ca_assets' => [
+            'icon'  => 'archive',
+            'label' => 'Assets',
+            'children' => [
+                [
+                    'label' => 'Resource Vault',
+                    'route' => 'course-architect.resource-vault.index',
+                    'icon'  => 'folder-lock',
+                ],
+                [
+                    'label' => 'Media Optimizer',
+                    'route' => 'course-architect.media-optimizer.index',
+                    'icon'  => 'film',
+                ],
+            ],
+        ],
+
+        'ca_intelligence' => [
+            'icon'  => 'brain-circuit',
+            'label' => 'Intelligence',
+            'children' => [
+                [
+                    'label' => 'Learning Analytics',
+                    'route' => 'course-architect.learning-analytics.index',
+                    'icon'  => 'line-chart',
+                ],
+                [
+                    'label' => 'Production Reports',
+                    'route' => 'course-architect.production-reports.index',
+                    'icon'  => 'clipboard-check',
+                ],
+            ],
+        ],
+
 
     
 
-    'curriculum' => [
-        'icon'  => 'book',
-        'label' => 'Curriculum',
-        'children' => [
+        'curriculum' => [
+            'icon'  => 'book',
+            'label' => 'Curriculum',
+            'children' => [
 
-            [
-                'label' => 'Prospectus Review',
-                'route' => '#',
-                'icon'  => 'file-text',
+                [
+                    'label' => 'Prospectus Review',
+                    'route' => '#',
+                    'icon'  => 'file-text',
+                ],
+
+                [
+                    'label' => 'Curriculum Mapping',
+                    'route' => '#',
+                    'icon'  => 'git-merge',
+                ],
+
+                [
+                    'label' => 'Revision Requests',
+                    'route' => '#',
+                    'icon'  => 'refresh-cw',
+                ],
+
             ],
-
-            [
-                'label' => 'Curriculum Mapping',
-                'route' => '#',
-                'icon'  => 'git-merge',
-            ],
-
-            [
-                'label' => 'Revision Requests',
-                'route' => '#',
-                'icon'  => 'refresh-cw',
-            ],
-
         ],
+
+        
+
+        /*
+        |--------------------------------------------------------------------------
+        | STUDENT SPECIFIC MODULES (Non-Shared)
+        |--------------------------------------------------------------------------
+        */
+        'schedules_student' => [
+            'icon'  => 'book',
+            'label' => 'My Schedule',
+            'route' => '#',
+        ],
+
+        
+        'academics_student' => [
+            'icon' => 'graduation-cap',
+            'label' => 'Academics',
+            'children' => [
+                [
+                    'label' => 'My Subjects',
+                    'route' => 'student.subjects.index',
+                    'icon'  => 'book',
+                ],
+                [
+                    'label' => 'Grades',
+                    'route' => '#',
+                    'icon'  => 'file-text',
+                ],
+                [
+                    'label' => 'Transcript',
+                    'route' => 'student.transcript.index',
+                    'icon'  => 'scroll-text',
+                ],
+                [
+                    'label' => 'Tasks',
+                    'route' => '#',
+                    'icon'  => 'clipboard-list',
+                ],
+                [
+                    'label' => 'Attendance',
+                    'route' => '#',
+                    'icon'  => 'user-check',
+                    // Logic note: You can later hide this if user is 'modular'
+                ],
+            ],
+        ],
+
+        'finance_student' => [
+            'icon' => 'wallet',
+            'label' => 'Finance',
+            'children' => [
+                [
+                    'label' => 'Balance & SOA',
+                    'route' => '#',
+                    'icon'  => 'receipt',
+                ],
+                [
+                    'label' => 'Payment History',
+                    'route' => '#',
+                    'icon'  => 'history',
+                ],
+                [
+                    'label' => 'Billing Details',
+                    'route' => '#',
+                    'icon'  => 'invoice',
+                ],
+            ],
+        ],
+
+        'services_student' => [
+            'icon' => 'git-pull-request',
+            'label' => 'Services',
+            'children' => [
+                [
+                    'label' => 'Modality Request',
+                    'route' => '#',
+                    'icon'  => 'refresh-cw',
+                ],
+                [
+                    'label' => 'Document Request',
+                    'route' => '#',
+                    'icon'  => 'file-plus',
+                ],
+                [
+                    'label' => 'Clearance Status',
+                    'route' => '#',
+                    'icon'  => 'check-circle',
+                ],
+            ],
+        ],
+
+        
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TRAINEE SPECIFIC MODULES (Non-Shared)
+        |--------------------------------------------------------------------------
+        */
+        'available_courses' => [
+            'icon'  => 'layout-grid',
+            'label' => 'Available Courses',
+            'route' => 'training.trainee.available-courses',
+        ],
+
+        'training_courses' => [
+            'icon'  => 'book-open',
+            'label' => 'My Courses',
+            'route' => 'training.trainee.courses',
+        ],
+
+        'training_materials' => [
+            'icon'  => 'file-text',
+            'label' => 'Materials',
+            'route' => 'training.trainee.materials',
+        ],
+
+        'training_sessions' => [
+            'icon'  => 'calendar',
+            'label' => 'Sessions',
+            'route' => 'training.trainee.sessions',
+        ],
+
+        'training_assessment' => [
+            'icon'  => 'clipboard-check',
+            'label' => 'Assessment',
+            'route' => 'training.trainee.assessment',
+        ],
+
+        'training_progress' => [
+            'icon'  => 'bar-chart-3',
+            'label' => 'Progress',
+            'route' => 'training.trainee.progress',
+        ],
+
+        'training_certificates' => [
+            'icon'  => 'award',
+            'label' => 'Certificates',
+            'route' => 'training.trainee.certificates',
+        ],
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TRAINOR SPECIFIC MODULES (Non-Shared)
+        |--------------------------------------------------------------------------
+        */
+
+        'trainor_courses' => [
+            'icon'  => 'book-open',
+            'label' => 'My Courses',
+            'route' => 'training.trainor.courses',
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | TRAINING PROGRAM HEAD MODULES
+        |--------------------------------------------------------------------------
+        */
+
+        'tph_training_courses' => [
+            'icon'  => 'book',
+            'label' => 'Training Courses',
+            'route' => 'training.program_head.courses.index',
+        ],
+
+        'tph_trainors' => [
+            'icon'  => 'users',
+            'label' => 'Trainors',
+            'route' => 'training.program_head.trainors.index',
+        ],
+
+        'trainor_sessions' => [
+            'icon'  => 'calendar',
+            'label' => 'Sessions',
+            'route' => 'training.trainor.sessions',
+        ],
+
+        'trainor_materials' => [
+            'icon'  => 'file-text',
+            'label' => 'Materials',
+            'route' => 'training.trainor.materials',
+        ],
+
+        'trainor_trainees' => [
+            'icon'  => 'users',
+            'label' => 'Trainees',
+            'route' => 'training.trainor.trainees',
+        ],
+
+        'trainor_attendance' => [
+            'icon'  => 'check-square',
+            'label' => 'Attendance',
+            'route' => 'training.trainor.attendance',
+        ],
+
+        'trainor_assessments' => [
+            'icon'  => 'clipboard-check',
+            'label' => 'Assessments',
+            'route' => 'training.trainor.assessments',
+        ],
+
+        'trainor_gradebook' => [
+            'icon'  => 'bar-chart-3',
+            'label' => 'Gradebook',
+            'route' => 'training.trainor.gradebook',
+        ],
+
+        'trainor_certificates' => [
+            'icon'  => 'award',
+            'label' => 'Certificates',
+            'route' => 'training.trainor.certificates',
+        ],
+
+
+        
     ],
-        ],
 ];

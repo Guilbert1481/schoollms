@@ -21,12 +21,10 @@ class SchoolRegistrationController extends Controller
     public function register(Request $request)
     {
         $validated = $request->validate([
-            // School
             'entity_name' => 'required|string|max:255',
             'code'        => 'required|string|max:10|unique:schools,code',
             'type'        => 'required|in:school,freelancer',
 
-            // User
             'first_name'  => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name'   => 'required|string|max:255',
@@ -50,7 +48,7 @@ class SchoolRegistrationController extends Controller
                 $slug = $baseSlug . '-' . $counter++;
             }
 
-            // Create School WITH CODE
+            // Create School
             $school = School::create([
                 'school_name'     => $validated['entity_name'],
                 'slug'            => $slug,
@@ -61,7 +59,7 @@ class SchoolRegistrationController extends Controller
                 'plan_expires_at' => now()->addMonth(),
             ]);
 
-            // Create Admin User with full name fields
+            // Create Admin User
             $user = User::create([
                 'school_id'   => $school->id,
                 'first_name'  => $validated['first_name'],
@@ -72,9 +70,59 @@ class SchoolRegistrationController extends Controller
                 'role'        => 'admin',
             ]);
 
+            // Create Profile
+            $profileId = DB::table('profiles')->insertGetId([
+                'user_id'      => $user->id,
+                'school_id'    => $school->id,
+                'profile_type' => 'employee',
+                'first_name'   => $validated['first_name'],
+                'middle_name'  => $validated['middle_name'],
+                'last_name'    => $validated['last_name'],
+                'status'       => 'active',
+                'created_at'   => now(),
+                'updated_at'   => now(),
+            ]);
+
+            // Get Admin Role ID
+            $adminRole = DB::table('roles')
+                ->where('school_id', $school->id)
+                ->where('name', 'admin')
+                ->first();
+
+            // If no admin role yet, create one
+            if (!$adminRole) {
+                $adminRoleId = DB::table('roles')->insertGetId([
+                    'school_id'  => $school->id,
+                    'name'       => 'admin',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                $adminRoleId = $adminRole->id;
+            }
+
+            // Create Account Access
+            DB::table('account_access')->insert([
+                'user_id'     => $user->id,
+                'role_id'     => $adminRoleId,
+                'person_id'   => $profileId,
+                'start_date'  => now(),
+                'assigned_by' => $user->id,
+                'remarks'     => 'School Owner Admin Access',
+                'is_active'   => 1,
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+
             DB::commit();
 
             Auth::login($user);
+
+            // Set Active Session
+            session([
+                'active_profile_id' => $profileId,
+                'active_role_id'    => $adminRoleId
+            ]);
 
             return redirect()->route('dashboard')
                 ->with('success', 'Welcome! Your 1-month free trial has started.');

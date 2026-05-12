@@ -1,3 +1,5 @@
+{{-- views/components/pagionation.blade.php --}}
+
 @props(['paginator'])
 
 @if ($paginator instanceof \Illuminate\Pagination\LengthAwarePaginator && $paginator->hasPages())

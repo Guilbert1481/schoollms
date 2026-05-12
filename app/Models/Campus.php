@@ -29,7 +29,7 @@ class Campus extends Model
 
     public function enrollments()
     {
-        return $this->hasMany(Enrollment::class);
+        return $this->hasMany(StudentEnrollment::class);
     }
 }
 

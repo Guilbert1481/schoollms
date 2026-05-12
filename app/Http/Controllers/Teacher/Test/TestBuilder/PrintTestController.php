@@ -115,14 +115,17 @@ class PrintTestController extends Controller
 
                 $answers = $sectionQuestions->map(function($q) {
                     return optional($q->question->choices->first())->choice_text ?? '';
-                })->values()->toArray(); // No shuffle
+                })->values();
+
+                // ✅ SHUFFLE HERE
+                $shuffledAnswers = $answers->shuffle()->values()->toArray();
 
                 $final[] = [
                     'roman'      => $roman[$index],
                     'title'      => $title,
                     'direction'  => $directions[$type],
                     'prompts'    => $prompts,
-                    'shuffledAnswers' => $answers, // Note: name retained for template compatibility
+                    'shuffledAnswers' => $shuffledAnswers, // Note: name retained for template compatibility
                     'questions'  => $sectionQuestions,
                     'points'     => $sectionPoints,
                 ];

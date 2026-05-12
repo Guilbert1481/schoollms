@@ -46,7 +46,6 @@
             <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">
                 {{ $title }}
             </p>
-
             <div class="text-3xl font-black mt-2 text-gray-900 dark:text-gray">
                 {{ $slot }}
             </div>

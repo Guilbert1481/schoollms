@@ -11,7 +11,9 @@ class Student extends Model
 
     protected $fillable = [
         'school_id',
+        'home_school_id',
         'user_id',
+        'student_number',
         'first_name',
         'middle_name',
         'last_name',
@@ -38,6 +40,10 @@ class Student extends Model
         'city_municipality',
         'province',
         'region',
+        'country',
+        'country_code',
+        'address_line_1',
+        'address_line_2',
         'zip_code',
     ];
 
@@ -69,6 +75,21 @@ class Student extends Model
         return $this->belongsToMany(ClassModel::class, 'class_student')
             ->withPivot(['enrollment_id', 'status'])
             ->withTimestamps();
+    }
+
+    public function guardians()
+    {
+        return $this->hasMany(Guardian::class);
+    }
+
+    public function academicBackgrounds()
+    {
+        return $this->hasMany(StudentAcademicBackground::class);
+    }
+
+    public function studentEnrollments()
+    {
+        return $this->hasMany(StudentEnrollment::class);
     }
 
 }

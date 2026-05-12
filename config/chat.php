@@ -7,7 +7,7 @@ return [
     | Tiered Moderation System
     |--------------------------------------------------------------------------
     |
-    | warning  = discipline-related
+    | warning  = discipline / profanity / bullying
     | critical = safety / mental health / severe threats
     |
     */
@@ -21,7 +21,18 @@ return [
             'moron',
             'loser',
             'hate',
+            'hate you',
             'worthless',
+            'fuck',
+            'bitch',
+            'asshole',
+            'damn',
+            'bastard',
+            'shit',
+            'dick',
+            'piss',
+            'cunt',
+            'dumbass',
         ],
 
         'critical' => [
@@ -39,37 +50,33 @@ return [
             'attack',
         ],
 
-        'warning' => [
-            'idiot',
-            'stupid',
-            'moron',
-            'loser',
-            'hate you',
-            'worthless',
-            'fuck',
-            'bitch',
-            'asshole',
-            'damn',
-            'bastard',
-            'shit',
-            'dick',
-            'piss',
-            'cunt',
-            'dumbass',
-
-        ],
-
     ],
 
     /*
     |--------------------------------------------------------------------------
     | Notification Targets
     |--------------------------------------------------------------------------
+    |
+    | When a flagged message is detected, every user whose `users.role`
+    | matches one of the listed roles will receive a FlaggedChatNotification.
+    | Keep these role keys aligned with the strings stored in users.role.
+    |
     */
 
     'notify_roles' => [
-        'warning'  => ['admin'],
-        'critical' => ['admin', 'guidance'],
+        'warning'  => ['admin', 'guidance_counselor'],
+        'critical' => ['admin', 'guidance_counselor'],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Office Document Preview (LibreOffice headless)
+    |--------------------------------------------------------------------------
+    | Path to the `soffice` executable used to convert Word/Excel/PowerPoint
+    | documents to PDF on the fly so they can be previewed in the browser.
+    | Leave the default null/false-y if LibreOffice is not installed — the
+    | preview modal will then just show a "Preview unavailable" message.
+    */
+    'libreoffice_path' => env('LIBREOFFICE_PATH', 'C:\\Program Files\\LibreOffice\\program\\soffice.exe'),
 
 ];

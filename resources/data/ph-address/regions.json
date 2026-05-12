@@ -1,0 +1,70 @@
+[
+    {
+        "value":  "010000000",
+        "label":  "Ilocos Region"
+    },
+    {
+        "value":  "020000000",
+        "label":  "Cagayan Valley"
+    },
+    {
+        "value":  "030000000",
+        "label":  "Central Luzon"
+    },
+    {
+        "value":  "040000000",
+        "label":  "CALABARZON"
+    },
+    {
+        "value":  "170000000",
+        "label":  "MIMAROPA Region"
+    },
+    {
+        "value":  "050000000",
+        "label":  "Bicol Region"
+    },
+    {
+        "value":  "060000000",
+        "label":  "Western Visayas"
+    },
+    {
+        "value":  "070000000",
+        "label":  "Central Visayas"
+    },
+    {
+        "value":  "080000000",
+        "label":  "Eastern Visayas"
+    },
+    {
+        "value":  "090000000",
+        "label":  "Zamboanga Peninsula"
+    },
+    {
+        "value":  "100000000",
+        "label":  "Northern Mindanao"
+    },
+    {
+        "value":  "110000000",
+        "label":  "Davao Region"
+    },
+    {
+        "value":  "120000000",
+        "label":  "SOCCSKSARGEN"
+    },
+    {
+        "value":  "130000000",
+        "label":  "NCR"
+    },
+    {
+        "value":  "140000000",
+        "label":  "CAR"
+    },
+    {
+        "value":  "160000000",
+        "label":  "Caraga"
+    },
+    {
+        "value":  "150000000",
+        "label":  "BARMM"
+    }
+]

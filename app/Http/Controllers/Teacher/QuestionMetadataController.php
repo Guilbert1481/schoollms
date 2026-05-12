@@ -18,12 +18,28 @@ class QuestionMetadataController extends Controller
         $user = $request->user();
         $schoolId = $user->school_id ?? null;
 
-        $subjects = Subject::when(
-            $schoolId,
-            fn ($q) => $q->where('school_id', $schoolId)
-        )->get();
+        // Scope subjects by the current user's domain:
+        //   trainor / training_program_head -> training subjects only
+        //   everyone else (teacher, program_head, etc.) -> academic only
+        $scope = in_array($user->role, ['trainor', 'training_program_head'], true)
+            ? 'training'
+            : 'academic';
 
-        $academicLevels = AcademicLevel::orderBy('sequence_order')->get();
+        $subjects = Subject::when(
+                $schoolId,
+                fn ($q) => $q->where('school_id', $schoolId)
+            )
+            ->where(function ($q) use ($scope) {
+                if ($scope === 'academic') {
+                    $q->where('scope', 'academic')->orWhereNull('scope');
+                } else {
+                    $q->where('scope', $scope);
+                }
+            })
+            ->get();
+
+        $academicLevels = AcademicLevel::where('school_id', auth()->user()->school_id)
+            ->orderBy('sequence_order')->get();
 
         $questionTypes = [
             'mcq'                     => 'Multiple Choice',

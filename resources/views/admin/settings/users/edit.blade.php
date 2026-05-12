@@ -25,11 +25,13 @@
             </div>
             <div>
                 <label>Role</label>
-                <select name="role" class="w-full border rounded p-2" required>
-                    <option value="admission" @selected($user->role == 'admission')>Admission Manager</option>
-                    <option value="academics" @selected($user->role == 'academics')>VP Academics</option>
-                    <option value="teacher" @selected($user->role == 'teacher')>Teacher</option>
-                    <option value="student" @selected($user->role == 'student')>Student</option>
+                <select name="roles[]" multiple class="w-full border rounded p-2">
+                    @foreach($roles as $role)
+                        <option value="{{ $role->id }}"
+                            @if(isset($user) && $user->roles->contains($role->id)) selected @endif>
+                            {{ ucfirst(str_replace('_',' ', $role->name)) }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
             <div>

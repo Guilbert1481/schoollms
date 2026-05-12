@@ -26,6 +26,18 @@ return [
                 'application_trend',
             ],
         ],
+
+        'admission_manager' => [
+            'trend_charts' => [
+                'application_trend',
+            ],
+        ],
+
+        'student' => [
+            'trend_charts' => [
+                'application_trend',
+            ],
+        ],
     ],
 
     'definitions' => [

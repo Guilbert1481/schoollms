@@ -38,7 +38,7 @@
             <div class="space-y-4">
                 <div>
                     <label class="mb-1.5 block text-xs font-semibold text-gray-500">New Availability</label>
-                    <select name="active" 
+                    <select name="is_active" 
                             x-model="statusValue" 
                             class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all">
                         <option :value="1">Visible (Active)</option>

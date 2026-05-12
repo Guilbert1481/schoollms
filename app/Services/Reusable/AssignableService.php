@@ -52,30 +52,46 @@ class AssignableService
      */
     public function getUsers(int $schoolId, ?string $search = null)
 {
-    return User::where('school_id', $schoolId)
+    $search = trim((string) $search);
 
-        ->when($search, function ($query) use ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%");
+    $query = User::where('users.school_id', $schoolId)
+        ->with('profile')
+        ->when($search !== '', function ($q) use ($search) {
+            $q->where(function ($inner) use ($search) {
+                $inner->whereHas('profile', function ($p) use ($search) {
+                    $p->where('first_name', 'like', "%{$search}%")
+                      ->orWhere('middle_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%");
+                })
+                ->orWhere('users.email', 'like', "%{$search}%");
             });
         })
+        ->leftJoin('profiles', 'profiles.user_id', '=', 'users.id')
+        ->orderByRaw('COALESCE(profiles.last_name, users.email) ASC')
+        ->select('users.*')
+        ->limit(50)
+        ->get();
 
-        ->orderBy('last_name')
-        ->limit(10)
-        ->get()
-        ->map(function ($user) {
+    return $query->map(function ($user) {
+        $profile = $user->profile;
 
-            $middle = $user->middle_name
-                ? ' ' . strtoupper(substr($user->middle_name, 0, 1)) . '.'
+        if ($profile) {
+            $middle = $profile->middle_name
+                ? ' ' . strtoupper(substr($profile->middle_name, 0, 1)) . '.'
                 : '';
+            $full = trim(($profile->first_name ?? '') . $middle . ' ' . ($profile->last_name ?? ''));
+        } else {
+            $full = '';
+        }
 
-            return [
-                'id'   => $user->id,
-                'name' => trim(
-                    $user->first_name . $middle . ' ' . $user->last_name
-                ),
-            ];
-        });
+        if ($full === '') {
+            $full = $user->email ?: ('User #' . $user->id);
+        }
+
+        return [
+            'id'   => $user->id,
+            'name' => $full,
+        ];
+    })->values();
 }
 }

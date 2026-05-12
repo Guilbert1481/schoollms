@@ -54,9 +54,11 @@ return [
         'admin' => [
             'summary_cards' => [
                 'students',
+                'drop_out_students',
+                'student_at_risk',
                 'teachers',
                 'revenue',
-                'outstanding',
+                'outstanding_total',
             ],
         ],
 
@@ -73,6 +75,12 @@ return [
             ],
         ],
 
+        'admission_manager' => [
+            'summary_cards' => [
+                'new_applications',
+            ],
+        ],
+
         'teacher' => [
             'summary_cards' => [
                 'students',
@@ -81,7 +89,12 @@ return [
 
         'student' => [
             'summary_cards' => [
-                // future KPIs for student dashboard
+                'outstanding_student',
+                'attendance_student',
+                'GWA_student',
+                'task_student',
+                'subject_at_risk',
+                
             ],
         ],
     ],
@@ -120,14 +133,56 @@ return [
             'color' => 'green',
         ],
 
-        'outstanding' => [
+        'outstanding_student' => [
             'title' => 'Outstanding Balance',
             'icon'  => 'alert-circle',
             'color' => 'red',
         ],
 
-        'new_applications' => [
+        'outstanding_total' => [
+            'title' => 'Outstanding Balance',
+            'icon'  => 'alert-circle',
+            'color' => 'red',
+        ],
+
+        'new_applications_student' => [
             'title' => 'New Applications',
+            'icon'  => 'file-text',
+            'color' => 'orange',
+        ],
+
+        'attendance_student' => [
+            'title' => 'Attendance',
+            'icon'  => 'file-text',
+            'color' => 'orange',
+        ],
+
+        'GWA_student' => [
+            'title' => 'GWA',
+            'icon'  => 'file-text',
+            'color' => 'orange',
+        ],
+
+        'task_student' => [
+            'title' => 'Task Completion',
+            'icon'  => 'file-text',
+            'color' => 'orange',
+        ],
+
+        'subject_at_risk' => [
+            'title' => 'Subject At Risk',
+            'icon'  => 'file-text',
+            'color' => 'orange',
+        ],
+
+        'drop_out_students' => [
+            'title' => 'Drop Out',
+            'icon'  => 'file-text',
+            'color' => 'orange',
+        ],
+
+        'student_at_risk' => [
+            'title' => 'Student At Risk',
             'icon'  => 'file-text',
             'color' => 'orange',
         ],

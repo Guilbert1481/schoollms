@@ -22,3 +22,19 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Local dev / debug artifacts
+cookies.txt
+test.txt
+routes.txt
+lms_db.sql
+diag_*.php
+*.sql
+*.sqlite
+*.sqlite-journal
+/storage/logs/*.log
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/framework/testing/*
+!**/.gitkeep

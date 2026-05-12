@@ -15,6 +15,7 @@ class College extends Model
         'school_id',
         'description',
         'is_active',
+        'dean_id',
     ];
 
     protected $casts = [

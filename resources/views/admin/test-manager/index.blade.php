@@ -243,7 +243,7 @@
 <div id="subjectModal" class="modal-overlay">
     <div class="modal">
         <div class="modal-header">
-            <h3>Add Subjects (Bulk)</h3>
+            <h3>+ Subjects (Bulk)</h3>
             <span class="modal-close" onclick="closeModal('subjectModal')">✖</span>
         </div>
 

@@ -3,17 +3,41 @@
         width: 100%;
         padding: 15px 40px; 
         display: flex; 
-        justify-content: flex-end; /* Keeps the name box on the right side */
+        justify-content: space-between;
         align-items: center;
-        background: transparent; /* Allows the dark container color to show through */
+        background: transparent;
+        gap: 16px;
+    }
+
+    .school-badge {
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .school-badge .dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #5a57d6;
+        box-shadow: 0 0 0 3px rgba(90,87,214,0.25);
+    }
+    .school-badge small {
+        display: block;
+        font-size: 11px;
+        font-weight: 500;
+        color: rgba(255,255,255,0.6);
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
     }
 
     /* The Rectangle Box for the User Name */
     .user-profile-box { 
-        background: #ffffff; /* White box as requested */
-        color: #000000;      /* Black name text */
+        background: #ffffff;
+        color: #000000;
         padding: 8px 20px; 
-        border-radius: 20px; /* Rectangle with rounded corners */
+        border-radius: 20px;
         font-size: 13px; 
         font-weight: 600;
         display: flex; 
@@ -24,10 +48,16 @@
     }
 
     .user-avatar-circle { 
-        width: 20px; 
-        height: 20px; 
-        background: #cbd5e1; 
-        border-radius: 50%; 
+        width: 24px; 
+        height: 24px; 
+        background: #5a57d6;
+        color: #ffffff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 800;
     }
 
     /* Auth Action Buttons (Login/Sign Up) */
@@ -43,22 +73,41 @@
     .btn-indigo { background: #5a57d6; color: #ffffff; }
 </style>
 
+@php
+    $authUser     = auth()->user();
+    $school       = $authUser?->school;
+    $schoolName   = $school?->school_name ?? config('app.name', 'SchoolLMS');
+    $displayName  = trim((string) ($authUser?->full_name ?: ''))
+                     ?: ($authUser?->student?->full_name ?? null)
+                     ?: ($authUser?->email ?? 'Student');
+    $initials = collect(explode(' ', $displayName))
+        ->filter()
+        ->map(fn ($p) => mb_substr($p, 0, 1))
+        ->take(2)
+        ->implode('');
+    $initials = strtoupper($initials ?: 'S');
+@endphp
+
 <div class="header-bar">
+    {{-- LEFT: School --}}
+    <div class="school-badge">
+        <span class="dot"></span>
+        <div>
+            <small>School</small>
+            {{ $schoolName }}
+        </div>
+    </div>
+
+    {{-- RIGHT: User --}}
     <div style="display: flex; align-items: center; gap: 15px;">
         @auth
-            {{-- Rectangle with border radius for the authenticated user --}}
-            <div class="user-profile-box">
-                <div class="user-avatar-circle"></div>
-                {{ auth()->user()->name }}
+            <div class="user-profile-box" title="{{ $authUser->email }}">
+                <div class="user-avatar-circle">{{ $initials }}</div>
+                {{ $displayName }}
             </div>
         @else
-            <a href="{{ url('/login') }}" class="auth-button btn-white">
-                Login
-            </a>
-
-            <a href="{{ url('/register/1') }}" class="auth-button btn-indigo">
-                Sign Up
-            </a>
+            <a href="{{ url('/login') }}" class="auth-button btn-white">Login</a>
+            <a href="{{ url('/register/1') }}" class="auth-button btn-indigo">Sign Up</a>
         @endauth
     </div>
 </div>

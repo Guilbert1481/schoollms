@@ -64,9 +64,27 @@ class AppServiceProvider extends ServiceProvider
             $globalQuote = null;
 
             if (!$superPriority) {
-                $globalQuote = \App\Models\Quote::where('is_active', true)
-                    ->orderBy('activated_at', 'desc')
-                    ->first();
+                $activeQuotes = \App\Models\Quote::where('is_active', true)
+                    ->orderBy('id', 'asc')
+                    ->get();
+
+                if ($activeQuotes->isNotEmpty()) {
+                    $anchor = $activeQuotes->first();
+                    $duration = max(1, (int) ($anchor->display_duration ?? 1));
+
+                    // Days elapsed since activation
+                    $daysSince = $anchor->activated_at
+                        ? (int) now()->startOfDay()->diffInDays(
+                            \Illuminate\Support\Carbon::parse($anchor->activated_at)->startOfDay()
+                        )
+                        : 0;
+
+                    // Rotate through the active quotes, one per day, wrapping by duration
+                    $cycleLength = min($duration, $activeQuotes->count());
+                    $index = $cycleLength > 0 ? ($daysSince % $cycleLength) : 0;
+
+                    $globalQuote = $activeQuotes[$index] ?? $anchor;
+                }
             }
 
             $view->with([

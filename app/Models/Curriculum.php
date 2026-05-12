@@ -18,10 +18,20 @@ class Curriculum extends Model
         'program_id',
         'name',
         'version',
+        'terms_per_year',
+        'has_summer_term',
         'effective_from',
         'effective_to',
         'is_active',
         'description',
+    ];
+
+    protected $casts = [
+        'terms_per_year'   => 'integer',
+        'has_summer_term'  => 'boolean',
+        'is_active'        => 'boolean',
+        'effective_from'   => 'date',
+        'effective_to'     => 'date',
     ];
 
     /*

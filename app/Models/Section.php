@@ -16,10 +16,13 @@ class Section extends Model
         'program_id',
         'name',
         'code',
-        'semester_id',
+        'term_id',
         'academic_year_id',
+        'year_level',
+        'adviser_id',
         'capacity',
         'is_active',
+        'status',
     ];
 
     /*

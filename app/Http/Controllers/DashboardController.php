@@ -35,7 +35,35 @@ class DashboardController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        return view("$role.dashboard", compact(
+        $role = strtolower(auth()->user()->role_name ?? auth()->user()->role ?? '');
+        // normalize hyphenated/spaced variants (e.g. "course-architect" or "Course Architect")
+        $role = str_replace(['-', ' '], '_', $role);
+
+        // ✅ ROLE → VIEW MAPPING
+        $viewMap = [
+            'superadmin'           => 'superadmin.dashboard',
+            'student'               => 'student.dashboard',
+            'teacher'               => 'teacher.dashboard',
+            'admin'                 => 'admin.dashboard',
+            'dean'                  => 'dean.dashboard',
+            'trainee'               => 'training.trainee.dashboard',
+            'trainor'               => 'training.trainor.dashboard',
+            'admission'             => 'admission.dashboard',
+            'admission_manager'     => 'admission.dashboard',
+            'program_head'          => 'program_head.dashboard',
+            'training_program_head' => 'training.program_head.dashboard',
+            'course_architect'      => 'course-architect.dashboard',
+            'registrar'             => 'registrar.dashboard',
+            'finance'               => 'finance.dashboard',
+            'counselor'             => 'counselor.dashboard',
+            'guidance_counselor'    => 'guidance_counselor.dashboard',
+            'staff'                 => 'staff.dashboard',
+        ];
+
+        // fallback if role not mapped
+        $view = $viewMap[$role] ?? 'dashboard.default';
+
+        return view($view, compact(
             'cards',
             'trendCharts',
             'riskAlerts'

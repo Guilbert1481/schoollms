@@ -125,7 +125,8 @@
                 name: `{{ e($program->name) }}`,
                 code: `{{ e($program->code) }}`,
                 description: `{{ e($program->description) }}`,
-                active: {{ $program->active ? 'true' : 'false' }}
+                active: {{ $program->active ? 'true' : 'false' }},
+                education_node_id: {{ $program->education_node_id ?? 'null' }}
             })">
             Edit
         </button>
@@ -220,6 +221,22 @@
             </div>
 
             <div class="mb-3">
+                <label class="block text-sm">Program Type / Category</label>
+                <select name="education_node_id"
+                        x-model="editProgram.education_node_id"
+                        class="w-full border rounded px-3 py-2">
+                    <option value="">— Select where this program belongs —</option>
+                    @foreach ($programTypeOptions ?? [] as $opt)
+                        <option value="{{ $opt['id'] }}">{{ $opt['label'] }}</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-gray-500 mt-1">
+                    Determines where this program appears under the Education Structure tree
+                    (e.g., College / Undergraduate, Graduate Programs &gt; Master’s Degree).
+                </p>
+            </div>
+
+            <div class="mb-3">
                 <label class="block text-sm">Description</label>
                 <textarea name="description"
                           x-model="editProgram.description"
@@ -269,6 +286,7 @@ function programPage() {
             code: '',
             description: '',
             active: '1',
+            education_node_id: '',
         },
 
         openAddModal() {
@@ -277,7 +295,8 @@ function programPage() {
                 name: '',
                 code: '',
                 description: '',
-                active: '1'
+                active: '1',
+                education_node_id: ''
             };
             this.addModal = true;
         },
@@ -288,7 +307,8 @@ function programPage() {
                 name: program.name,
                 code: program.code,
                 description: program.description,
-                active: program.active ? '1' : '0'
+                active: program.active ? '1' : '0',
+                education_node_id: program.education_node_id ?? ''
             };
             this.editModal = true;
         },

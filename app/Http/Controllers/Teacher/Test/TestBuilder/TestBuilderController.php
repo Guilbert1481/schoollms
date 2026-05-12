@@ -13,6 +13,7 @@ use App\Models\Topic;
 use App\Models\Lesson;
 use App\Models\Competency;
 use App\Models\ClassModel;
+use App\Support\SubjectScope;
 
 use Illuminate\Support\Facades\DB;
 
@@ -25,11 +26,11 @@ class TestBuilderController extends Controller
     {
         $test = Test::with(['testSources', 'testSettings'])->findOrFail($testId);
 
-        $academicLevels = \App\Models\AcademicLevel::orderBy('sequence_order')->get();
+        $academicLevels = \App\Models\AcademicLevel::where('school_id', auth()->user()->school_id)->orderBy('sequence_order')->get();
 
         return view('teacher.tests.testBuilder', [
             'test'           => $test,
-            'subjects'       => Subject::orderBy('name')->get(),
+            'subjects'       => SubjectScope::applyTo(Subject::query())->orderBy('name')->get(),
             'academicLevels' => $academicLevels,
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
@@ -42,11 +43,11 @@ class TestBuilderController extends Controller
 
     public function create()
     {
-        $academicLevels = \App\Models\AcademicLevel::orderBy('sequence_order')->get();
+        $academicLevels = \App\Models\AcademicLevel::where('school_id', auth()->user()->school_id)->orderBy('sequence_order')->get();
 
         return view('teacher.tests.testBuilder', [
             'test'           => null,
-            'subjects'       => Subject::orderBy('name')->get(),
+            'subjects'       => SubjectScope::applyTo(Subject::query())->orderBy('name')->get(),
             'academicLevels' => $academicLevels,
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
@@ -60,11 +61,11 @@ class TestBuilderController extends Controller
     {
         $test->load(['testSources', 'testSettings', 'testQuestions.question']);
 
-        $academicLevels = \App\Models\AcademicLevel::orderBy('sequence_order')->get();
+        $academicLevels = \App\Models\AcademicLevel::where('school_id', auth()->user()->school_id)->orderBy('sequence_order')->get();
 
         return view('teacher.tests.testBuilder', [
             'test'           => $test,
-            'subjects'       => Subject::orderBy('name')->get(),
+            'subjects'       => SubjectScope::applyTo(Subject::query())->orderBy('name')->get(),
             'academicLevels' => $academicLevels,
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())

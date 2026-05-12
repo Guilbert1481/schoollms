@@ -15,10 +15,18 @@
         {{-- Left Column: Institution Identity --}}
         <div class="md:col-span-1 space-y-6">
             <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 text-center">
-                <div class="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center text-3xl font-black mx-auto mb-4">
-                    {{ substr($school->name, 0, 1) }}
-                </div>
-                <h1 class="text-2xl font-black text-slate-800 tracking-tight">{{ $school->name }}</h1>
+                @if($logoUrl)
+                    <div class="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mx-auto mb-4 overflow-hidden ring-1 ring-slate-100">
+                        <img src="{{ $logoUrl }}"
+                             alt="{{ $school->school_name }} logo"
+                             class="w-full h-full object-contain">
+                    </div>
+                @else
+                    <div class="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center text-3xl font-black mx-auto mb-4">
+                        {{ strtoupper(substr($school->school_name, 0, 1)) }}
+                    </div>
+                @endif
+                <h1 class="text-2xl font-black text-slate-800 tracking-tight">{{ $school->school_name }}</h1>
                 <span class="inline-block mt-2 px-4 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest">
                     {{ $school->type }}
                 </span>
@@ -49,7 +57,10 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     <div>
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Contact Person</label>
-                        <p class="text-slate-700 font-bold">{{ $school->users->first()->name ?? 'Not Assigned' }}</p>
+                        <p class="text-slate-700 font-bold">
+                            @php($admin = $school->users->first())
+                            {{ $admin ? trim(($admin->first_name ?? '').' '.($admin->last_name ?? '')) : 'Not Assigned' }}
+                        </p>
                     </div>
                     <div>
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Email Address</label>
@@ -57,7 +68,7 @@
                     </div>
                     <div>
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mobile Number</label>
-                        <p class="text-slate-700 font-bold">{{ $school->phone_number ?? 'No data' }}</p>
+                        <p class="text-slate-700 font-bold">{{ $profile->mobile_number ?? $profile->contact_number ?? 'No data' }}</p>
                     </div>
                     <div>
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Institution ID</label>
@@ -67,7 +78,24 @@
 
                 <div class="mt-8 pt-8 border-t border-slate-50">
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Physical Address</label>
-                    <p class="text-slate-600 leading-relaxed">{{ $school->address ?? 'No address registered yet.' }}</p>
+                    @php
+                        $addressParts = array_filter([
+                            $profile->unit_number ?? null,
+                            $profile->building ?? null,
+                            $profile->phase ?? null,
+                            $profile->street ?? null,
+                            $profile->barangay ?? null,
+                            $profile->district ?? null,
+                            $profile->city ?? null,
+                            $profile->province ?? null,
+                            $profile->region ?? null,
+                            $profile->country ?? null,
+                            $profile->zip_code ?? null,
+                        ]);
+                        $composedAddress = implode(', ', $addressParts);
+                        $displayAddress = $composedAddress ?: ($profile->address ?? null);
+                    @endphp
+                    <p class="text-slate-600 leading-relaxed">{{ $displayAddress ?: 'No address registered yet.' }}</p>
                 </div>
             </div>
 

@@ -1,4 +1,8 @@
+
 <?php
+// Role management (for modal role creation)
+// Role management (for modal role creation)
+Route::post('/settings/roles', [App\Http\Controllers\UserManagementController::class, 'storeRole'])->name('roles.store');
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
@@ -12,6 +16,8 @@ use App\Http\Controllers\AssignableController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\PDFController;
+use App\Http\Controllers\GlobalSearchController;
+
 
 /*
 |-------------------------------------------------------------------------------------------
@@ -116,10 +122,10 @@ Route::prefix('settings')
 |--------------------------------------------------------------------------
 */
 
-Route::get('/register/{semester}', [StudentRegisterController::class, 'show'])
+Route::get('/register/{term}', [StudentRegisterController::class, 'show'])
     ->name('student.register');
 
-Route::post('/register/{semester}', [StudentRegisterController::class, 'store'])
+Route::post('/register/{term}', [StudentRegisterController::class, 'store'])
     ->name('student.register.store');
 
 
@@ -177,7 +183,6 @@ Route::prefix('admin')
             ->name('quotes.destroy');
 
     });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -238,3 +243,61 @@ Route::get('/assignable-groups', function () {
     |--------------------------------------------------------------------------*/
     Route::get('/tests/{test}/pdf', [PDFController::class, 'downloadTestPdf'])
     ->name('tests.pdf');
+
+
+
+    
+    /*|--------------------------------------------------------------------------
+    | GLOBAL SEARCH
+    |--------------------------------------------------------------------------*/
+        Route::get('/global-search', [GlobalSearchController::class, 'search'])
+        ->name('global.search');
+    
+
+
+
+    Route::post('/notifications/{id}/read', function ($id) {
+        $notification = auth()->user()
+            ->notifications()
+            ->where('id', $id)
+            ->firstOrFail();
+
+        $notification->markAsRead();
+
+        return response()->json(['success' => true]);
+    })->name('notifications.read');
+
+    Route::get('/notifications/feed', function () {
+        $user = auth()->user();
+
+        $notifications = \Illuminate\Support\Facades\DB::table('notifications')
+            ->where('notifiable_id', $user->id)
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get()
+            ->map(function ($n) {
+                $data = json_decode($n->data);
+                return [
+                    'id'           => $n->id,
+                    'title'        => $data->title ?? 'Notification',
+                    'message'      => $data->message ?? '',
+                    'type'         => $data->type ?? 'announcement',
+                    'reference_id' => $data->reference_id ?? 0,
+                    'read'         => !is_null($n->read_at),
+                    'created_at'   => $n->created_at,
+                ];
+            });
+
+        $count = \Illuminate\Support\Facades\DB::table('notifications')
+            ->where('notifiable_id', $user->id)
+            ->whereNull('read_at')
+            ->count();
+
+        return response()->json([
+            'count'         => $count,
+            'notifications' => $notifications,
+        ]);
+    })->name('notifications.feed');
+    
+    
+    

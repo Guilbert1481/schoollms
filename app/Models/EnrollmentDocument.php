@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class EnrollmentDocument extends Model
@@ -17,13 +18,13 @@ class EnrollmentDocument extends Model
         'uploaded_at',
     ];
 
-    protected $dates = [
-        'uploaded_at',
+    protected $casts = [
+        'uploaded_at' => 'datetime',
     ];
 
     public function enrollment()
     {
-        return $this->belongsTo(Enrollment::class);
+        return $this->belongsTo(StudentEnrollment::class, 'enrollment_id');
     }
 }
 

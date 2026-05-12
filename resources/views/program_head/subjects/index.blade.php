@@ -1,194 +1,261 @@
 @extends('layouts.app')
 @section('content')
 
-<div x-data="subjectBuilder" class="space-y-4">
+@php
+    $subjectsConfig  = config('tables.tables.subjects');
+    $subjectsColumns = $subjectsConfig['columns'] ?? [];
+    $subjectsLabels  = $subjectsConfig['labels']  ?? [];
+    $subjectsActions = config('tables.table-actions.subjects', []);
+    $statusFilter    = $status ?? request('status', 'all');
+    $statusLabel     = ['all' => 'All', 'active' => 'Active', 'inactive' => 'Inactive'][$statusFilter] ?? 'All';
+@endphp
 
+<div x-data="subjectBuilder" class="space-y-4 p-6">
+
+    {{-- TOP BAR --}}
     <div class="flex items-center justify-between mb-4">
         <div class="relative">
-            <input 
-                    type="text" 
-                    x-model.debounce.100ms="filter" 
-                    placeholder="Search subjects..." 
-                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
+            <input
+                type="text"
+                id="subjectsFilter"
+                placeholder="Filter..."
+                class="w-72 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
         </div>
 
-        <button @click="openAddModal()" 
-                class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"></path></svg>
+        <button type="button"
+                onclick="openModal('subjectCreateModal')"
+                class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm shadow-sm">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Add New Subject
         </button>
     </div>
 
-    <div class="overflow-x-auto rounded shadow mt-6">
-        <table class="min-w-full bg-white border border-gray-300">
-            <thead class="bg-gray-100">
-                <tr>
-                    <th class="px-4 py-3 text-left">Subject Name</th>
-                    <th class="px-4 py-3 text-left">Code</th>
-                    <th class="px-4 py-3 text-left">Topics</th>
-                    <th class="px-4 py-3 text-left">Lessons</th>
-                    <th class="px-4 py-3 text-left">Competencies</th>
-                    <th class="px-4 py-3 text-left">Status</th>
-                    <th class="px-4 py-3 text-left">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($subjects as $subject)
-               <tr x-show="filter === '' || $el.innerText.toLowerCase().includes(filter.toLowerCase())"
-                    class="subject-row"
-                    x-transition:enter="transition ease-out duration-200"
-                    x-transition:enter-start="opacity-0 transform scale-95"
-                    x-transition:enter-end="opacity-100 transform scale-100">
-                    
-                    <td class="px-4 py-3">{{ $subject->name }}</td>
+    {{-- TABLE --}}
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div class="overflow-x-auto">
+            <table id="subjectsTable" class="min-w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        @foreach($subjectsColumns as $col)
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                @if($col['key'] === 'is_active')
+                                    <div class="relative inline-block" x-data="{ open: false }" @click.outside="open = false">
+                                        <button type="button"
+                                                @click="open = !open"
+                                                class="inline-flex items-center gap-1 hover:text-indigo-600 focus:outline-none">
+                                            <span>{{ $col['label'] ?? 'Status' }}</span>
+                                            <span class="normal-case text-[10px] text-indigo-600 font-bold">({{ $statusLabel }})</span>
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                        </button>
+                                        <div x-show="open" x-cloak x-transition
+                                             class="absolute left-0 mt-1 z-20 w-36 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
+                                            @foreach(['all' => 'All', 'active' => 'Active', 'inactive' => 'Inactive'] as $val => $lbl)
+                                                <a href="{{ request()->fullUrlWithQuery(['status' => $val, 'page' => 1]) }}"
+                                                   class="block px-3 py-1.5 text-xs normal-case {{ $statusFilter === $val ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-700 hover:bg-gray-50' }}">
+                                                    {{ $lbl }}
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @else
+                                    {{ $col['label'] ?? ($subjectsLabels[$col['key']] ?? $col['key']) }}
+                                @endif
+                            </th>
+                        @endforeach
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($subjects as $subject)
+                        <tr class="subject-row border-t border-gray-100 hover:bg-slate-50">
 
-                    <td class="px-4 py-3">
-                        <button type="button" class="text-blue-600 hover:underline font-medium"
-                                @click="openTopicModal({{ $subject->id }}, '{{ $subject->code }}')">
-                            {{ $subject->code }}
-                        </button>
-                    </td>
+                            @foreach($subjectsColumns as $col)
+                                @php $key = $col['key']; @endphp
+                                <td class="px-4 py-3 text-sm" data-table="subjects" data-column="{{ $key }}">
+                                    @switch($key)
+                                        @case('name')
+                                            <span class="font-medium text-gray-800">{{ $subject->name }}</span>
+                                            @break
 
-                    <td class="px-6 py-4">
-                        <button type="button" 
-                                class="text-indigo-600 hover:underline font-medium"
-                                @click="openLessonModal({{ $subject->id }}, '{{ addslashes($subject->code) }}')">
-                            {{ $subject->topics_count ?? 0 }} Topics
-                        </button>
-                    </td>
+                                        @case('code')
+                                            <button type="button"
+                                                    class="text-blue-600 hover:underline font-medium"
+                                                    @click="openTopicModal({{ $subject->id }}, '{{ addslashes($subject->code) }}')">
+                                                {{ $subject->code }}
+                                            </button>
+                                            @break
 
-                    <td class="px-4 py-3">
-                        <button type="button" 
-                                class="text-blue-600 hover:underline font-medium"
-                                @click="openCompetencyModal({{ $subject->id }}, '{{ addslashes($subject->code) }}')">
-                            {{ $subject->lessons_count ?? 0 }} Lessons
-                        </button>
-                    </td>
+                                        @case('topics_count')
+                                            <button type="button"
+                                                    class="text-indigo-600 hover:underline font-medium"
+                                                    @click="openLessonModal({{ $subject->id }}, '{{ addslashes($subject->code) }}')">
+                                                {{ $subject->topics_count ?? 0 }} Topics
+                                            </button>
+                                            @break
 
-                    <td class="px-4 py-3">
-                        <span class="text-sm text-gray-600">{{ $subject->competencies_count ?? 0 }} Competencies</span>
-                    </td>
+                                        @case('lessons_count')
+                                            <button type="button"
+                                                    class="text-blue-600 hover:underline font-medium"
+                                                    @click="openCompetencyModal({{ $subject->id }}, '{{ addslashes($subject->code) }}')">
+                                                {{ $subject->lessons_count ?? 0 }} Lessons
+                                            </button>
+                                            @break
 
-                    <td class="px-4 py-3">
-                        <button type="button" 
-                                @click="openEditStatusModal({{ $subject->id }}, {{ $subject->active }}, '{{ $subject->code }}')"
-                                class="hover:opacity-80 transition-opacity focus:outline-none">
-                            @if($subject->active)
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                                    Active
-                                </span>
-                            @else
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>                    
-                                    Inactive
-                                </span>
-                            @endif
-                        </button>
-                    </td>
-                    <td class="px-4 py-3 text-right">
-                        <div class="flex justify-start gap-2">
-                            <button class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" 
-                                    width="15" 
-                                    height="15" 
-                                    viewBox="0 0 24 24" 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    stroke-width="2.5" 
-                                    stroke-linecap="round" 
-                                    stroke-linejoin="round" 
-                                    class="lucide lucide-eye">
-                                    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/>
-                                    <circle cx="12" cy="12" r="3"/>
-                                </svg>
-                            </button>
-                            <button type="button" 
-                                @click="openDeleteModal({{ $subject->id }}, '{{ $subject->code }}')"
-                                class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" 
-                                    width="15" 
-                                    height="15" 
-                                    viewBox="0 0 24 24" 
-                                    fill="none" 
-                                    stroke="currentColor" 
-                                    stroke-width="2.5" 
-                                    stroke-linecap="round" 
-                                    stroke-linejoin="round" 
-                                    class="lucide lucide-trash-2">
-                                    <path d="M3 6h18"/>
-                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-                                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-                                    <line x1="10" x2="10" y1="11" y2="17"/>
-                                    <line x1="14" x2="14" y1="11" y2="17"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                
-                @endforeach
+                                        @case('competencies_count')
+                                            <span class="text-sm text-gray-600">
+                                                {{ $subject->competencies_count ?? 0 }} Competencies
+                                            </span>
+                                            @break
 
-                <tr x-show="filter !== '' && Array.from($el.closest('tbody').querySelectorAll('.subject-row')).every(row => row.style.display === 'none')" 
-                    x-cloak>
-                    <td colspan="7" class="px-4 py-8 text-center text-gray-500 italic">
-                        No subjects matching "<span x-text="filter"></span>" found.
-                    </td>
-                </tr>
+                                        @case('category')
+                                            @php
+                                                $catColors = [
+                                                    'gen_ed'     => 'bg-blue-100 text-blue-700',
+                                                    'prof_ed'    => 'bg-purple-100 text-purple-700',
+                                                    'major'      => 'bg-amber-100 text-amber-700',
+                                                    'pe'         => 'bg-pink-100 text-pink-700',
+                                                    'nstp'       => 'bg-red-100 text-red-700',
+                                                    'internship' => 'bg-emerald-100 text-emerald-700',
+                                                ];
+                                                $catLabels = [
+                                                    'gen_ed'     => 'Gen Ed',
+                                                    'prof_ed'    => 'Prof Ed',
+                                                    'major'      => 'Major',
+                                                    'pe'         => 'PE',
+                                                    'nstp'       => 'NSTP',
+                                                    'internship' => 'Internship',
+                                                ];
+                                                $catKey = $subject->category ?? 'major';
+                                            @endphp
+                                            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium {{ $catColors[$catKey] ?? 'bg-slate-100 text-slate-600' }}">
+                                                {{ $catLabels[$catKey] ?? $catKey }}
+                                            </span>
+                                            @break
 
-            </tbody>
-        </table>
+                                        @case('is_active')
+                                            <button type="button"
+                                                    @click="openEditStatusModal({{ $subject->id }}, {{ (int) $subject->is_active }}, '{{ addslashes($subject->code) }}')"
+                                                    class="hover:opacity-80 transition-opacity focus:outline-none">
+                                                @if($subject->is_active)
+                                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                                        Active
+                                                    </span>
+                                                @else
+                                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                                                        Inactive
+                                                    </span>
+                                                @endif
+                                            </button>
+                                            @break
+
+                                        @default
+                                            {{ data_get($subject, $key) }}
+                                    @endswitch
+                                </td>
+                            @endforeach
+
+                            {{-- ACTIONS (config-driven) --}}
+                            <td class="px-4 py-3 text-sm" data-table="subjects" data-column="actions">
+                                <div class="flex gap-1">
+                                    @foreach($subjectsActions as $action)
+                                        @if($action['type'] === 'modal')
+                                            @php
+                                                $onclick = isset($action['handler'])
+                                                    ? strtr($action['handler'], ['{id}' => $subject->id])
+                                                    : "openEditModal('{$action['modal']}', {$subject->id}, 'subjects')";
+                                            @endphp
+                                            <button type="button"
+                                                    onclick="{{ $onclick }}"
+                                                    class="inline-flex items-center justify-center h-7 px-2 rounded text-xs {{ $action['class'] }}">
+                                                {{ $action['label'] }}
+                                            </button>
+
+                                        @elseif($action['type'] === 'js')
+                                            <button type="button"
+                                                    onclick="{{ $action['handler'] }}({{ $subject->id }}, '{{ addslashes($subject->code) }}')"
+                                                    class="inline-flex items-center justify-center h-7 px-2 rounded text-xs {{ $action['class'] }}">
+                                                {{ $action['label'] }}
+                                            </button>
+
+                                        @elseif($action['type'] === 'delete')
+                                            <form method="POST"
+                                                  class="inline-flex m-0"
+                                                  action="{{ route('program_head.subjects.destroy', $subject->id) }}"
+                                                  onsubmit="return confirm('Delete this subject?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                        class="inline-flex items-center justify-center h-7 px-2 rounded text-xs {{ $action['class'] }}">
+                                                    {{ $action['label'] }}
+                                                </button>
+                                            </form>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="{{ count($subjectsColumns) + 1 }}" class="px-4 py-8 text-center text-gray-500 italic">
+                                No subjects yet.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        {{-- Pagination is rendered automatically by table-pagination.js below this table --}}
     </div>
 
-    {{ $subjects->links() }}
-
+    {{-- Create / Edit modals (draggable) --}}
     @include('program_head.subjects.partials.modals.subjects')
+    @include('program_head.subjects.partials.modals.edit-subject')
+
+    {{-- Existing rich sub-modals --}}
     @include('program_head.subjects.partials.modals.topics')
     @include('program_head.subjects.partials.modals.lessons')
     @include('program_head.subjects.partials.modals.competency')
     @include('program_head.subjects.partials.modals.edit-status')
     @include('program_head.subjects.partials.modals.delete-confirm')
 
-    
-
-    <div class="flex items-center justify-between mt-6 px-4 py-3 bg-white border-t border-gray-100 rounded-b-xl">
-        <div class="flex items-center space-x-4">
-            <button type="button"
-                    @click="openAssignPreviewModal()"
-                    class="inline-flex items-center px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-all active:scale-95">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                </svg>
-                Assign to Program
-            </button>
-            
-            <div class="h-6 w-px bg-gray-200"></div> <span class="text-sm text-gray-500 font-medium italic" 
-                x-show="selectedSubjects.length > 0"
-                x-transition>
-                <span x-text="selectedSubjects.length" class="text-indigo-600 font-bold"></span> subjects selected for assignment
-            </span>
-        </div>
-
-        <!-- Pagination Controls -->
-        <nav class="flex items-center space-x-1" aria-label="Pagination">
-            <button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-30">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-            </button>
-            
-            <button class="w-9 h-9 flex items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-sm shadow-sm">1</button>
-            <button class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 font-medium text-sm transition-colors">2</button>
-            <button class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 font-medium text-sm transition-colors">3</button>
-            <span class="px-2 text-gray-400">...</span>
-            <button class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 font-medium text-sm transition-colors">12</button>
-
-            <button class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-            </button>
-        </nav>
-    </div>
-
 </div>
+
+{{-- Bridge: globals used by config-driven action buttons --}}
+<script>
+    window.__SUBJECTS__ = @json($subjects);
+
+    function findSubject(id) {
+        return (window.__SUBJECTS__ || []).find(s => s.id == id);
+    }
+
+    function openSubjectEditModal(id) {
+        const s = findSubject(id);
+        if (!s) return;
+        const form = document.getElementById('subjectEditForm');
+        form.action = "{{ url('staff/program-head/subjects') }}/" + id;
+        document.getElementById('subjectEdit_name').value         = s.name ?? '';
+        document.getElementById('subjectEdit_code').value         = s.code ?? '';
+        document.getElementById('subjectEdit_description').value  = s.description ?? '';
+        document.getElementById('subjectEdit_active').value       = s.is_active ? '1' : '0';
+        const catSel = document.getElementById('subjectEdit_category');
+        if (catSel) catSel.value = s.category ?? 'major';
+        openModal('subjectEditModal');
+    }
+
+    function confirmDeleteSubject(id, code) {
+        const root = document.querySelector('[x-data="subjectBuilder"]');
+        if (!root) return;
+        const data = Alpine.$data(root);
+        if (data && typeof data.openDeleteModal === 'function') {
+            data.openDeleteModal(id, code);
+        }
+    }
+</script>
 <script>
 document.addEventListener('alpine:init', () => {
     Alpine.data('subjectBuilder', () => ({

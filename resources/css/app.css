@@ -31,3 +31,16 @@
 
 
 
+:root {
+    /* Default Slate Theme */
+    --sidebar-bg: #1e293b;
+    --sidebar-text: #f8fafc;
+    --sidebar-border: rgba(255,255,255,0.1);
+    --sidebar-hover: rgba(255,255,255,0.05);
+}
+
+/* Add these utility classes that use the variables */
+.custom-sidebar-bg { background-color: var(--sidebar-bg); }
+.custom-sidebar-text { color: var(--sidebar-text); }
+.custom-sidebar-border { border-color: var(--sidebar-border); }
+.custom-sidebar-hover:hover { background-color: var(--sidebar-hover); }

@@ -20,7 +20,7 @@ class InitialSetupSeeder extends Seeder
         $school = School::firstOrCreate(
             ['slug' => 'memory-ridge'],
             [
-                'school_name' => 'Memory Ridge International Schools',
+                'school_name' => 'Memory Ridge International Schools and Colleges',
                 'code' => 'MRIS',
                 'domain' => 'memoryridge.local',
                 'type' => 'school',
@@ -38,13 +38,18 @@ class InitialSetupSeeder extends Seeder
 
         User::firstOrCreate(
             [
-                'email' => 'superadmin@lms.test',
+                'email' => 'superadmin@sophentis.edu.ph',
             ],
             [
-                'name' => 'System Owner',
-                'password' => Hash::make('password123'),
+                'first_name' => 'Guilbert',
+                'middle_name' => 'Llantos',
+                'last_name' => 'Jabinar',
+                'email' => 'admin@system.com', // ⚠️ add if required
+                'password' => Hash::make('123456789'),
                 'role' => 'superadmin',
                 'school_id' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]
         );
 
@@ -53,48 +58,21 @@ class InitialSetupSeeder extends Seeder
         | 3. Create School Admin
         |--------------------------------------------------------------------------
         */
-
+        
         User::firstOrCreate(
             [
-                'email' => 'admin@memoryridge.test',
+                'email' => 'admin@memoryridge.edu.ph',
             ],
             [
-                'name' => 'School Admin',
-                'password' => Hash::make('password123'),
+                'first_name' => 'Guilbert',
+                'middle_name' => 'Llantos',
+                'last_name' => 'Jabinar',
+                'email' => 'admin@memoryridge.edu.ph', // ⚠️ add if required
+                'password' => Hash::make('123456789'),
                 'role' => 'admin',
                 'school_id' => $school->id,
             ]
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | 4. Create Admission Manager
-        |--------------------------------------------------------------------------
-        */
-
-        User::firstOrCreate(
-            [
-                'email' => 'admission@memoryridge.test',
-            ],
-            [
-                'name' => 'Admission Manager',
-                'password' => Hash::make('password123'),
-                'role' => 'admission',
-                'school_id' => $school->id,
-            ]
-        );
-
-
-        User::firstOrCreate(
-            [
-                'email' => 'vp.academics@schoollms.test',
-            ],
-            [
-                'name' => 'VP Academics',
-                'password' => Hash::make('password'),
-                'role' => 'academics',
-                'school_id' => $school->id,
-            ]
-        );
     }
 }

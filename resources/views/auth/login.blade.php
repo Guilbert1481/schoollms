@@ -32,14 +32,20 @@
         {{-- LEFT SIDE (IMAGE) --}}
 <div class="relative hidden md:block md:w-1/2">
 
-    @if(isset($school) && $school && $school->school_image)
-        <img 
-            src="{{ asset('storage/' . $school->school_image) }}" 
+    @if(isset($schoolProfile) && $schoolProfile && $schoolProfile->school_hero)
+        <img
+            src="{{ \Illuminate\Support\Facades\Storage::url($schoolProfile->school_hero) }}"
+            class="absolute inset-0 h-full w-full object-cover"
+        />
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-slate-900/10 to-transparent"></div>
+    @elseif(isset($school) && $school && $school->school_image)
+        <img
+            src="{{ asset('storage/' . $school->school_image) }}"
             class="absolute inset-0 h-full w-full object-cover"
         />
     @elseif($superadmin && $superadmin->profile_photo)
-        <img 
-            src="{{ asset('storage/' . $superadmin->profile_photo) }}" 
+        <img
+            src="{{ asset('storage/' . $superadmin->profile_photo) }}"
             class="absolute inset-0 h-full w-full object-cover"
         />
     @endif

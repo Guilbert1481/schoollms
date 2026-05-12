@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\School;
 use App\Models\User;
 use App\Models\Course;
-use App\Models\Enrollment;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\Response;
 

@@ -4,29 +4,37 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 
 class CheckRole
 {
     /**
-     * Handle an incoming request.
+     * Verify the authenticated user has one of the required roles.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * Role values are normalized (lowercased, hyphens/spaces → underscores)
+     * so "Course Architect", "course-architect", and "course_architect"
+     * all match the same allowed role.
      */
-    public function handle(Request $request, Closure $next, string $role)
+    public function handle(Request $request, Closure $next, ...$roles)
     {
-        // 1. Check if the user is even logged in
-        if (!$request->user()) {
+        $user = $request->user();
+
+        if (! $user) {
             return redirect()->route('login');
         }
 
-        // 2. Compare the user's role to the required role
-        // Note: This assumes you have a 'role' column in your 'users' table
-        if ($request->user()->role !== $role) {
+        $normalize = fn ($r) => str_replace(['-', ' '], '_', strtolower((string) $r));
+
+        $userRole = $normalize($user->role);
+        $allowed  = array_map($normalize, $roles);
+
+        if (! in_array($userRole, $allowed, true)) {
             abort(403, 'You do not have the correct permissions to access this page.');
         }
 
-        // 3. If everything is correct, let the request continue
+        if ($userRole !== 'superadmin' && ! $user->school_id) {
+            abort(403, 'No school assigned.');
+        }
+
         return $next($request);
     }
 }

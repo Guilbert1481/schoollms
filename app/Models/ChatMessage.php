@@ -16,11 +16,17 @@ class ChatMessage extends Model
         'user_id',
         'message',
         'deleted_by_user',
+        'attachment_path',
+        'attachment_name',
+        'attachment_mime',
+        'attachment_size',
+        'is_flagged',
+        'flag_level',
     ];
 
     public function thread()
     {
-        return $this->belongsTo(ChatThread::class);
+        return $this->belongsTo(ChatThread::class, 'chat_thread_id');
     }
 
     public function user()

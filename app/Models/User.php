@@ -59,6 +59,34 @@ class User extends Authenticatable
 
     /*
     |--------------------------------------------------------------------------
+    | ROLE NORMALIZATION
+    |--------------------------------------------------------------------------
+    | Admins entering free-form labels in user management ("Course Architect",
+    | "Program Head", "course-architect") are normalized to canonical
+    | snake_case at write time so middleware checks match consistently.
+    */
+
+    public function setRoleAttribute($value): void
+    {
+        $this->attributes['role'] = self::normalizeRole($value);
+    }
+
+    public static function normalizeRole($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = strtolower(trim((string) $value));
+
+        // Collapse any whitespace or hyphens into a single underscore.
+        $value = preg_replace('/[\s\-]+/', '_', $value);
+
+        return $value === '' ? null : $value;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | SCHOOL RELATIONSHIP
     |--------------------------------------------------------------------------
     */
@@ -91,7 +119,7 @@ class User extends Authenticatable
 
     public function isAdmissionManager(): bool
     {
-        return $this->role === 'admission';
+        return in_array($this->role, ['admission', 'admission_manager'], true);
     }
 
     public function isTeacher(): bool
@@ -126,19 +154,40 @@ class User extends Authenticatable
     |--------------------------------------------------------------------------
     */
 
+    /**
+     * Enrolments where this user is the student. NOTE: student_enrollments.student_id
+     * references students.id (not users.id), so this hasMany routes through the
+     * student profile via hasManyThrough.
+     */
     public function enrollments()
     {
-        return $this->hasMany(Enrollment::class, 'student_id');
+        return $this->hasManyThrough(
+            StudentEnrollment::class,
+            Student::class,
+            'user_id',   // FK on students table
+            'student_id', // FK on student_enrollments table
+            'id',        // PK on users table
+            'id'         // PK on students table
+        );
     }
 
     public function approvedEnrollments()
     {
-        return $this->hasMany(Enrollment::class, 'approved_by');
+        return $this->hasMany(StudentEnrollment::class, 'approved_by');
     }
 
     public function profile()
     {
-        return $this->hasOne(Profile::class);
+        return $this->hasOne(\App\Models\Profile::class);
+    }
+
+    /**
+     * The student profile row for this user (created on enrolment Step 1).
+     * Used throughout the public enrolment wizard.
+     */
+    public function student()
+    {
+        return $this->hasOne(\App\Models\Student::class, 'user_id');
     }
 
     /*
@@ -180,6 +229,7 @@ class User extends Authenticatable
             'student'      => 'bg-slate-100 text-slate-600',
             'program_head' => 'bg-blue-100 text-blue-600',
             'dean'         => 'bg-rose-100 text-rose-600', // Add this line
+            'guidance_counselor' => 'bg-teal-100 text-teal-600',
             default        => 'bg-gray-100 text-gray-600',
         };
     }
@@ -193,8 +243,56 @@ class User extends Authenticatable
         return trim($this->first_name . $middle . ' ' . $this->last_name);
     }
 
-protected $appends = ['full_name'];
+    protected $appends = ['full_name'];
 
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class, 'user_roles');
+    }
+
+    public function accountAccess()
+    {
+        return $this->hasMany(\App\Models\AccountAccess::class, 'user_id');
+    }
+
+    public function colleges()
+    {
+        return $this->belongsToMany(College::class, 'user_colleges');
+    }
+
+    public function programs()
+    {
+        return $this->belongsToMany(Program::class, 'user_programs');
+    }
+
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    public function handledOffice()
+    {
+        return $this->hasOne(Office::class, 'office_head_id');
+    }
+
+    public function handledCollege()
+    {
+        return $this->hasOne(College::class, 'dean_id');
+    }
+
+    public function handledProgram()
+    {
+        return $this->hasOne(Program::class, 'program_head_id');
+    }
+
+    public function hasTraining()
+    {
+        if (!$this->profile) return false;
+
+        return \App\Models\TrainingEnrollment::where('trainee_id', $this->profile->id)->exists();
+    }
+
+    
 
 
 

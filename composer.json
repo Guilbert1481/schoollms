@@ -7,11 +7,13 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "barryvdh/laravel-dompdf": "^3.1",
         "barryvdh/laravel-snappy": "^1.0",
         "blade-ui-kit/blade-heroicons": "^2.6",
         "doctrine/dbal": "^4.4",
         "intervention/image": "^3.11",
         "laravel/framework": "^12.0",
+        "laravel/reverb": "^1.0",
         "laravel/tinker": "^2.10.1",
         "pragmarx/google2fa-laravel": "^2.3"
     },
@@ -30,7 +32,11 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
-        }
+        },
+        "files": [
+            "app/helpers.php",
+            "app/Helpers/MasterDataHelper.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

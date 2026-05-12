@@ -18,6 +18,7 @@ class School extends Model
         'requires_admission_test',
         'primary_color',
         'type',
+        'country',
         'is_active',
         'plan_name',
         'pricing_id',
@@ -79,6 +80,21 @@ class School extends Model
     public function colleges()
     {
         return $this->hasMany(College::class);
+    }
+
+    public function modalities()
+    {
+        return $this->belongsToMany(Modality::class, 'school_modalities');
+    }
+
+    public function banks()
+{
+    return $this->hasMany(Bank::class);
+}
+
+    public function certificateEvents()
+    {
+        return $this->hasMany(CertificateEvent::class);
     }
 
 }

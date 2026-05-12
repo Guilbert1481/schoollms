@@ -27,8 +27,15 @@ class QuoteController extends Controller
         ->orderBy('activated_at', 'desc')
         ->first();
 
+    $columns = [
+        ['key' => 'theme',   'label' => 'Category'],
+        ['key' => 'author',  'label' => 'Author'],
+        ['key' => 'content', 'label' => 'Content'],
+    ];
+
     return view('admin.quotes.index', [
-        'quotes' => $quotes->paginate(10)->withQueryString(),
+        'quotes'      => $quotes->get(),
+        'columns'     => $columns,
         'bannerQuote' => $bannerQuote,
     ]);
 }
@@ -69,13 +76,15 @@ class QuoteController extends Controller
     public function updateDisplay(Request $request)
     {
         $selectedDisplay = $request->display;
-        $duration = $request->display_duration ?? 1;
+        $duration = max(1, (int) ($request->display_duration ?? 1));
 
         Quote::where('is_active', true)->update([
             'is_active' => false,
             'activated_at' => null
         ]);
 
+        // Stamp all quotes of the selected theme with the same activation timestamp
+        // so the daily rotation cycles consistently across the requested duration.
         Quote::where('theme', $selectedDisplay)->update([
             'is_active' => true,
             'display_duration' => $duration,

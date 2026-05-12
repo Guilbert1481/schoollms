@@ -87,12 +87,6 @@
                     : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700' }}">
 
                 Chat
-
-                @if(isset($unreadChats) && $unreadChats > 0)
-                    <span class="ml-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-[10px] font-semibold">
-                        {{ $unreadChats }}
-                    </span>
-                @endif
             </a>
         </nav>
     </div>

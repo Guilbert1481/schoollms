@@ -12,6 +12,9 @@ class Program extends Model
     protected $fillable = [
         'school_id',
         'campus_id',
+        'college_id',
+        'education_node_id',
+        'program_head_id',
         'name',
         'code',
         'capacity',
@@ -35,7 +38,7 @@ class Program extends Model
 
     public function enrollments()
     {
-        return $this->hasMany(Enrollment::class);
+        return $this->hasMany(StudentEnrollment::class);
     }
 
     public function college()
@@ -58,5 +61,9 @@ class Program extends Model
         return $this->belongsTo(User::class, 'program_head_id');
     }
 
+    public function educationNode()
+    {
+        return $this->belongsTo(EducationNode::class, 'education_node_id');
+    }
 
 }

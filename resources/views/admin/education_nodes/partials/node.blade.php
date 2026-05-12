@@ -1,0 +1,137 @@
+@php
+    /** @var \App\Models\EducationNode $node */
+    $depth = $depth ?? 0;
+    $kids = $node->relationLoaded('childrenRecursive') ? $node->childrenRecursive : $node->children;
+
+    // Programs (from `programs` table) attached to THIS specific node id.
+    $programsByNode = $programsByNode ?? collect();
+    $programList    = $programsByNode->get($node->id, collect());
+
+    // Legacy fallback: any programs with NULL education_node_id are surfaced
+    // under the root "College / Undergraduate / Bachelor" node so nothing is hidden.
+    $nameLower = strtolower($node->name);
+    $isCollegeRoot = $node->parent_id === null && (
+        str_contains($nameLower, 'college')
+        || str_contains($nameLower, 'undergrad')
+        || str_contains($nameLower, 'bachelor')
+    );
+    if ($isCollegeRoot) {
+        $programList = $programList->concat($programsByNode->get(0, collect()));
+    }
+
+    $hasChildren = ($kids && $kids->count() > 0) || $programList->isNotEmpty();
+    $typeColors = [
+        'level'        => 'bg-blue-100 text-blue-700',
+        'stage'        => 'bg-emerald-100 text-emerald-700',
+        'track'        => 'bg-amber-100 text-amber-700',
+        'strand'       => 'bg-violet-100 text-violet-700',
+        'program_type' => 'bg-teal-100 text-teal-700',
+    ];
+    $typeClass = $typeColors[$node->node_type] ?? 'bg-slate-100 text-slate-700';
+@endphp
+
+<li>
+    <div class="flex items-center gap-2 py-1.5 hover:bg-slate-50 rounded px-1"
+         style="padding-left: {{ $depth * 20 }}px;">
+
+        {{-- Expand/Collapse --}}
+        @if ($hasChildren)
+            <button type="button"
+                    data-tree-toggle="{{ $node->id }}"
+                    data-open="0"
+                    class="w-5 h-5 inline-flex items-center justify-center text-slate-500 hover:text-slate-800 text-xs">▸</button>
+        @else
+            <span class="w-5 h-5 inline-block"></span>
+        @endif
+
+        {{-- Offered checkbox --}}
+        <input type="checkbox"
+               class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+               @checked($node->is_offered)
+               @click="toggleOffered({{ $node->id }}, $event.target.checked)">
+
+        {{-- Node icon (clickable when has children) --}}
+        @if ($hasChildren)
+            <span class="text-slate-400 text-sm cursor-pointer select-none"
+                  data-tree-toggle="{{ $node->id }}">📁</span>
+
+            {{-- Name (clickable when has children) --}}
+            <span class="text-sm text-slate-800 flex-1 cursor-pointer select-none"
+                  data-tree-toggle="{{ $node->id }}">{{ $node->name }}</span>
+        @else
+            <span class="text-slate-400 text-sm">📄</span>
+            <span class="text-sm text-slate-800 flex-1">{{ $node->name }}</span>
+        @endif
+
+        {{-- Type pill --}}
+        <span class="text-[10px] px-1.5 py-0.5 rounded font-mono {{ $typeClass }}">{{ $node->node_type }}</span>
+
+        {{-- Actions --}}
+        <button type="button"
+                @click="openCreate({{ $node->id }}, @js($node->name))"
+                class="text-xs px-2 py-1 rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50">
+            + Add Child
+        </button>
+        <button type="button"
+                @click="openEdit({{ $node->id }}, @js($node->name), @js($node->node_type), {{ (int) $node->order_index }})"
+                class="text-xs px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">
+            ✎
+        </button>
+        <button type="button"
+                @click="destroy({{ $node->id }})"
+                class="text-xs px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50">
+            🗑
+        </button>
+    </div>
+
+    @if ($hasChildren)
+        <ul data-tree-children="{{ $node->id }}" class="space-y-1 hidden">
+            @foreach ($kids as $child)
+                @include('admin.education_nodes.partials.node', ['node' => $child, 'depth' => $depth + 1, 'programsByNode' => $programsByNode])
+            @endforeach
+
+            {{-- Dean/Admin programs (sourced from `programs` table) — rendered
+                 with the same UI as native EducationNode rows. --}}
+            @foreach ($programList as $program)
+                <li>
+                    <div class="flex items-center gap-2 py-1.5 hover:bg-slate-50 rounded px-1"
+                         style="padding-left: {{ ($depth + 1) * 20 }}px;">
+
+                        {{-- Spacer where chevron would be (no children) --}}
+                        <span class="w-5 h-5 inline-block"></span>
+
+                        {{-- Active/Offered checkbox --}}
+                        <input type="checkbox"
+                               class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                               @checked((bool) ($program->active ?? true))
+                               @click="toggleProgram({{ $program->id }}, $event.target.checked)">
+
+                        <span class="text-slate-400 text-sm">📄</span>
+
+                        <span class="text-sm text-slate-800 flex-1 truncate">
+                            {{ $program->code ?: $program->name }}
+                        </span>
+
+                        <span class="text-[10px] px-1.5 py-0.5 rounded font-mono bg-indigo-100 text-indigo-700">program</span>
+
+                        <button type="button"
+                                @click="openCreate({{ $node->id }}, @js($node->name))"
+                                class="text-xs px-2 py-1 rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50">
+                            + Add Child
+                        </button>
+                        <button type="button"
+                                @click="openEditProgram({{ $program->id }}, @js($program->name), @js($program->code))"
+                                class="text-xs px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">
+                            ✎
+                        </button>
+                        <button type="button"
+                                @click="destroyProgram({{ $program->id }})"
+                                class="text-xs px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50">
+                            🗑
+                        </button>
+                    </div>
+                </li>
+            @endforeach
+        </ul>
+    @endif
+</li>

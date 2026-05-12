@@ -10,6 +10,7 @@ class AcademicLevel extends Model
     use HasFactory;
 
     protected $fillable = [
+        'school_id',
         'name',
         'sequence_order',
         'type'
