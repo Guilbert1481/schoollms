@@ -50,11 +50,94 @@
             <a href="{{ route('public.apply.step2', $term->id) }}" class="text-xs font-bold text-indigo-600 hover:underline">Edit</a>
         </div>
         <div class="{{ $row }}"><span class="{{ $lbl }}">Email</span>
-            <span class="{{ $val }}">{{ $student->user->email ?? '—' }}</span></div>
+            <span class="{{ $val }}">{{ $student->email ?? $student->user->email ?? '—' }}</span></div>
         <div class="{{ $row }}"><span class="{{ $lbl }}">Mobile</span>
             <span class="{{ $val }}">{{ $student->mobile_number ?? $student->phone ?? '—' }}</span></div>
-        <div class="{{ $row }}"><span class="{{ $lbl }}">Address</span>
-            <span class="{{ $val }}">{{ $student->address ?? '—' }}</span></div>
+        @php
+            $addr1     = $student->address_line_1 ?? null;
+            $addr2     = $student->address_line_2 ?? null;
+            $barangay  = $student->barangay ?? null;
+            $city      = $student->city_municipality ?? null;
+            $province  = $student->province ?? null;
+            $region    = $student->region ?? null;
+            $zip       = $student->zip_code ?? null;
+            $country   = $student->country ?? null;
+            $addrParts = array_values(array_filter([$addr1, $addr2, $barangay, $city, $province, $region, $zip, $country], fn ($v) => filled($v)));
+            $fullAddr  = $addrParts ? implode(', ', $addrParts) : ($student->address ?? null);
+        @endphp
+        <div class="{{ $row }}"><span class="{{ $lbl }}">Address Line 1</span>
+            <span class="{{ $val }}">{{ $addr1 ?: '—' }}</span></div>
+        @if ($addr2)
+        <div class="{{ $row }}"><span class="{{ $lbl }}">Address Line 2</span>
+            <span class="{{ $val }}">{{ $addr2 }}</span></div>
+        @endif
+        <div class="{{ $row }}"><span class="{{ $lbl }}">Barangay</span>
+            <span class="{{ $val }}">{{ $barangay ?: '—' }}</span></div>
+        <div class="{{ $row }}"><span class="{{ $lbl }}">City / Municipality</span>
+            <span class="{{ $val }}">{{ $city ?: '—' }}</span></div>
+        <div class="{{ $row }}"><span class="{{ $lbl }}">Province</span>
+            <span class="{{ $val }}">{{ $province ?: '—' }}</span></div>
+        <div class="{{ $row }}"><span class="{{ $lbl }}">Region</span>
+            <span class="{{ $val }}">{{ $region ?: '—' }}</span></div>
+        <div class="{{ $row }}"><span class="{{ $lbl }}">Zip Code</span>
+            <span class="{{ $val }}">{{ $zip ?: '—' }}</span></div>
+        <div class="{{ $row }}"><span class="{{ $lbl }}">Country</span>
+            <span class="{{ $val }}">{{ $country ?: '—' }}</span></div>
+    </div>
+
+    {{-- Family & Emergency --}}
+    <div class="{{ $box }}">
+        <div class="flex items-center justify-between mb-2">
+            <div class="{{ $hd }}">Family &amp; Emergency Contact</div>
+            <a href="{{ route('public.apply.family', $term->id) }}" class="text-xs font-bold text-indigo-600 hover:underline">Edit</a>
+        </div>
+
+        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mt-1 mb-1">Parents / Guardians</div>
+        @if ($parents->isEmpty())
+            <p class="text-sm text-slate-500 italic">No parents or guardians on record.</p>
+        @else
+            <div class="space-y-2">
+                @foreach ($parents as $p)
+                    <div class="border border-slate-100 rounded-lg p-2 text-sm">
+                        <div class="font-bold">
+                            {{ trim(($p->first_name ?? '').' '.($p->middle_name ?? '').' '.($p->last_name ?? '')) ?: '—' }}
+                            @if ($p->relationship)
+                                <span class="text-xs text-slate-500 font-normal">({{ ucfirst($p->relationship) }})</span>
+                            @endif
+                            @if ($p->is_primary)
+                                <span class="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold">PRIMARY</span>
+                            @endif
+                        </div>
+                        <div class="text-xs text-slate-500">
+                            @if ($p->occupation) {{ $p->occupation }} @endif
+                            @if ($p->employer) · {{ $p->employer }} @endif
+                            @if ($p->mobile_number) · {{ $p->mobile_number }} @endif
+                            @if ($p->email) · {{ $p->email }} @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
+        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mt-3 mb-1">Emergency Contact</div>
+        @if (! $emergencyContact)
+            <p class="text-sm text-slate-500 italic">No emergency contact on record.</p>
+        @else
+            <div class="{{ $row }}"><span class="{{ $lbl }}">Name</span>
+                <span class="{{ $val }}">{{ trim(($emergencyContact->first_name ?? '').' '.($emergencyContact->last_name ?? '')) ?: '—' }}</span></div>
+            <div class="{{ $row }}"><span class="{{ $lbl }}">Relationship</span>
+                <span class="{{ $val }}">{{ ucfirst($emergencyContact->relationship ?? '—') }}</span></div>
+            <div class="{{ $row }}"><span class="{{ $lbl }}">Mobile</span>
+                <span class="{{ $val }}">{{ $emergencyContact->mobile_number ?? '—' }}</span></div>
+            @if ($emergencyContact->email)
+            <div class="{{ $row }}"><span class="{{ $lbl }}">Email</span>
+                <span class="{{ $val }}">{{ $emergencyContact->email }}</span></div>
+            @endif
+            @if ($emergencyContact->address)
+            <div class="{{ $row }}"><span class="{{ $lbl }}">Address</span>
+                <span class="{{ $val }}">{{ $emergencyContact->address }}</span></div>
+            @endif
+        @endif
     </div>
 
     {{-- Pathway --}}
@@ -64,7 +147,11 @@
             <a href="{{ route('public.apply.pathway', $term->id) }}" class="text-xs font-bold text-indigo-600 hover:underline">Edit</a>
         </div>
         <div class="{{ $row }}"><span class="{{ $lbl }}">Education Level</span>
-            <span class="{{ $val }}">{{ $node?->name ?? '—' }}</span></div>
+            <span class="{{ $val }}">{{ $rootLevel?->name ?? '—' }}</span></div>
+        @if (! empty($pathLabel))
+        <div class="{{ $row }}"><span class="{{ $lbl }}">Path</span>
+            <span class="{{ $val }}">{{ $pathLabel }}</span></div>
+        @endif
         <div class="{{ $row }}"><span class="{{ $lbl }}">Programme</span>
             <span class="{{ $val }}">{{ $program ? ($program->code ? $program->code.' — ' : '').$program->name : '—' }}</span></div>
         <div class="{{ $row }}"><span class="{{ $lbl }}">Year Level</span>

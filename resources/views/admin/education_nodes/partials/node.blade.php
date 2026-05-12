@@ -48,7 +48,8 @@
         <input type="checkbox"
                class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                @checked($node->is_offered)
-               @click="toggleOffered({{ $node->id }}, $event.target.checked)">
+               data-action="toggle-offered"
+               data-id="{{ $node->id }}">
 
         {{-- Node icon (clickable when has children) --}}
         @if ($hasChildren)
@@ -68,17 +69,24 @@
 
         {{-- Actions --}}
         <button type="button"
-                @click="openCreate({{ $node->id }}, @js($node->name))"
+                data-action="add-child"
+                data-parent-id="{{ $node->id }}"
+                data-parent-name="{{ $node->name }}"
                 class="text-xs px-2 py-1 rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50">
             + Add Child
         </button>
         <button type="button"
-                @click="openEdit({{ $node->id }}, @js($node->name), @js($node->node_type), {{ (int) $node->order_index }})"
+                data-action="edit-node"
+                data-id="{{ $node->id }}"
+                data-name="{{ $node->name }}"
+                data-node-type="{{ $node->node_type }}"
+                data-order-index="{{ (int) $node->order_index }}"
                 class="text-xs px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">
             ✎
         </button>
         <button type="button"
-                @click="destroy({{ $node->id }})"
+                data-action="delete-node"
+                data-id="{{ $node->id }}"
                 class="text-xs px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50">
             🗑
         </button>
@@ -104,7 +112,8 @@
                         <input type="checkbox"
                                class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                @checked((bool) ($program->active ?? true))
-                               @click="toggleProgram({{ $program->id }}, $event.target.checked)">
+                               data-action="toggle-program"
+                               data-id="{{ $program->id }}">
 
                         <span class="text-slate-400 text-sm">📄</span>
 
@@ -115,17 +124,23 @@
                         <span class="text-[10px] px-1.5 py-0.5 rounded font-mono bg-indigo-100 text-indigo-700">program</span>
 
                         <button type="button"
-                                @click="openCreate({{ $node->id }}, @js($node->name))"
+                                data-action="add-child"
+                                data-parent-id="{{ $node->id }}"
+                                data-parent-name="{{ $node->name }}"
                                 class="text-xs px-2 py-1 rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50">
                             + Add Child
                         </button>
                         <button type="button"
-                                @click="openEditProgram({{ $program->id }}, @js($program->name), @js($program->code))"
+                                data-action="edit-program"
+                                data-id="{{ $program->id }}"
+                                data-name="{{ $program->name }}"
+                                data-code="{{ $program->code }}"
                                 class="text-xs px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">
                             ✎
                         </button>
                         <button type="button"
-                                @click="destroyProgram({{ $program->id }})"
+                                data-action="delete-program"
+                                data-id="{{ $program->id }}"
                                 class="text-xs px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50">
                             🗑
                         </button>

@@ -221,7 +221,10 @@ class SuperSchoolRegistrationController extends Controller
             $q->where('role', 'admin');
         }])->findOrFail($id);
 
-        $profile = \App\Models\SchoolProfile::where('school_id', $school->id)->first();
+        $profile = \App\Models\SchoolProfile::firstOrCreate(
+            ['school_id' => $school->id],
+            ['school_name' => $school->school_name]
+        );
 
         $logoUrl = null;
         if ($profile && $profile->school_logo) {

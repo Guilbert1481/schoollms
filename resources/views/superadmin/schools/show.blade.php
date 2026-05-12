@@ -68,7 +68,7 @@
                     </div>
                     <div>
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mobile Number</label>
-                        <p class="text-slate-700 font-bold">{{ $profile->mobile_number ?? $profile->contact_number ?? 'No data' }}</p>
+                        <p class="text-slate-700 font-bold">{{ ($profile ?? null)?->mobile_number ?? ($profile ?? null)?->contact_number ?? 'No data' }}</p>
                     </div>
                     <div>
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Institution ID</label>
@@ -78,24 +78,7 @@
 
                 <div class="mt-8 pt-8 border-t border-slate-50">
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Physical Address</label>
-                    @php
-                        $addressParts = array_filter([
-                            $profile->unit_number ?? null,
-                            $profile->building ?? null,
-                            $profile->phase ?? null,
-                            $profile->street ?? null,
-                            $profile->barangay ?? null,
-                            $profile->district ?? null,
-                            $profile->city ?? null,
-                            $profile->province ?? null,
-                            $profile->region ?? null,
-                            $profile->country ?? null,
-                            $profile->zip_code ?? null,
-                        ]);
-                        $composedAddress = implode(', ', $addressParts);
-                        $displayAddress = $composedAddress ?: ($profile->address ?? null);
-                    @endphp
-                    <p class="text-slate-600 leading-relaxed">{{ $displayAddress ?: 'No address registered yet.' }}</p>
+                    <p class="text-slate-600 leading-relaxed">{{ \App\Support\AddressFormatter::forProfile($profile ?? null) ?: 'No address registered yet.' }}</p>
                 </div>
             </div>
 

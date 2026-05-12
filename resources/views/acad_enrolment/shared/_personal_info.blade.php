@@ -76,15 +76,60 @@
                 </select>
             </div>
             <div class="input-group">
-                <label>Sexual Orientation</label>
-                @php $so = old('sexual_orientation', $student->sexual_orientation ?? ''); @endphp
-                <select name="sexual_orientation">
+                <label>Religion</label>
+                @php
+                    $religion = old('religion', $student->religion ?? '');
+                    $religionSubs = old('religion_subcategories', $student->religion_subcategories ?? []);
+                    if (! is_array($religionSubs)) { $religionSubs = []; }
+                    $christianSubs = [
+                        'Catholic', 'Protestant', 'Baptist', 'Lutheran',
+                        'Pentecostal', 'Evangelical', 'Presbyterian',
+                        'Iglesia Ni Cristo',
+                    ];
+                @endphp
+                <select name="religion" id="religionSelect">
                     <option value="">— Select —</option>
-                    <option value="straight" @selected($so === 'straight')>Straight</option>
-                    <option value="gay"      @selected($so === 'gay')>Gay</option>
-                    <option value="lesbian"  @selected($so === 'lesbian')>Lesbian</option>
-                    <option value="bisexual" @selected($so === 'bisexual')>Bisexual</option>
+                    @foreach (['Christian','Islam','Buddhism','Hinduism','Atheist','Others'] as $rel)
+                        <option value="{{ $rel }}" @selected($religion === $rel)>{{ $rel }}</option>
+                    @endforeach
                 </select>
+
+                {{-- Floating list anchored to the Religion select; visible
+                     only when "Christian" is selected. Click an item to pick
+                     it (single-select). Click outside or press Esc to dismiss. --}}
+                <div id="christianPopoverHost" class="relative">
+                    <div id="christianSummary"
+                         class="mt-1 text-xs text-slate-500 {{ $religion === 'Christian' && count($religionSubs) ? '' : 'hidden' }}">
+                        Selected: <span id="christianSummaryText">{{ implode(', ', $religionSubs) }}</span>
+                        <button type="button" id="christianEditBtn"
+                                class="ml-2 text-indigo-600 hover:underline">Change</button>
+                    </div>
+
+                    <div id="christianPopover"
+                         class="hidden absolute z-50 mt-2 w-64 rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
+                        <div class="px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-600 border-b border-slate-100">
+                            Christian Denomination
+                        </div>
+                        <ul class="max-h-64 overflow-y-auto py-1 text-sm" id="christianList">
+                            @foreach ($christianSubs as $sub)
+                                <li>
+                                    <button type="button"
+                                            data-value="{{ $sub }}"
+                                            class="christian-sub-item w-full text-left px-3 py-2 hover:bg-indigo-50 hover:text-indigo-700 {{ in_array($sub, $religionSubs, true) ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-700' }}">
+                                        {{ $sub }}
+                                    </button>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+
+                    {{-- Hidden field that actually submits the selection.
+                         Kept as religion_subcategories[] so the existing
+                         server-side array validation keeps working. --}}
+                    <input type="hidden" name="religion_subcategories[]"
+                           id="christianSubInput"
+                           value="{{ $religionSubs[0] ?? '' }}">
+                </div>
             </div>
 
             <div class="input-group">
@@ -157,6 +202,81 @@
 @push('scripts')
 <script>
 (function () {
+    // Religion dropdown — floating single-select list for Christian
+    // denomination. Click an item to pick it; click outside / Esc to close.
+    const religionSel  = document.getElementById('religionSelect');
+    const popover      = document.getElementById('christianPopover');
+    const summary      = document.getElementById('christianSummary');
+    const summaryText  = document.getElementById('christianSummaryText');
+    const editBtn      = document.getElementById('christianEditBtn');
+    const hiddenInput  = document.getElementById('christianSubInput');
+    const listItems    = () => popover ? popover.querySelectorAll('.christian-sub-item') : [];
+
+    if (religionSel && popover) {
+        const openPopover  = () => popover.classList.remove('hidden');
+        const closePopover = () => popover.classList.add('hidden');
+
+        const highlight = (value) => {
+            listItems().forEach(btn => {
+                const isSel = btn.dataset.value === value;
+                btn.classList.toggle('bg-indigo-50', isSel);
+                btn.classList.toggle('text-indigo-700', isSel);
+                btn.classList.toggle('font-semibold', isSel);
+                btn.classList.toggle('text-slate-700', !isSel);
+            });
+        };
+
+        const refreshSummary = () => {
+            const val = hiddenInput.value;
+            if (!val) {
+                summary.classList.add('hidden');
+                summaryText.textContent = '';
+            } else {
+                summary.classList.remove('hidden');
+                summaryText.textContent = val;
+            }
+            highlight(val);
+        };
+
+        const syncReligion = (autoOpen) => {
+            const isChristian = religionSel.value === 'Christian';
+            if (!isChristian) {
+                closePopover();
+                hiddenInput.value = '';
+                summary.classList.add('hidden');
+                summaryText.textContent = '';
+                return;
+            }
+            refreshSummary();
+            if (autoOpen) openPopover();
+        };
+
+        religionSel.addEventListener('change', () => syncReligion(true));
+        editBtn && editBtn.addEventListener('click', openPopover);
+
+        listItems().forEach(btn => {
+            btn.addEventListener('click', () => {
+                hiddenInput.value = btn.dataset.value;
+                refreshSummary();
+                closePopover();
+            });
+        });
+
+        // Dismiss on outside click.
+        document.addEventListener('click', (e) => {
+            if (popover.classList.contains('hidden')) return;
+            if (popover.contains(e.target)) return;
+            if (e.target === religionSel) return;
+            if (editBtn && editBtn.contains(e.target)) return;
+            closePopover();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closePopover();
+        });
+
+        syncReligion(false);
+    }
+
     const photoTrigger = document.getElementById('photo-trigger');
     const idTrigger    = document.getElementById('id-trigger');
     const photoInput   = document.getElementById('photoInput');

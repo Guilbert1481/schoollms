@@ -17,6 +17,11 @@ use App\Models\StudentEnrollment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Mail\EnrollmentSubmittedMail;
 
 class EnrollmentController extends Controller
 {
@@ -126,7 +131,9 @@ class EnrollmentController extends Controller
 
             'middle_name'          => 'nullable|string|max:255',
             'preferred_name'       => 'nullable|string|max:255',
-            'sexual_orientation'   => 'nullable|string',
+            'religion'             => 'nullable|string|max:64',
+            'religion_subcategories'   => 'nullable|array',
+            'religion_subcategories.*' => 'string|max:64',
             'government_id_type'   => 'nullable|string',
             'government_id_number' => 'nullable|string',
         ]);
@@ -178,6 +185,25 @@ class EnrollmentController extends Controller
         foreach ($incoming as $column => $value) {
             if (blank($student->{$column}) && filled($value)) {
                 $student->{$column} = $value;
+            }
+        }
+
+        // Religion: when "Christian" is chosen, store the picked denomination
+        // (e.g. "Catholic") directly in the `religion` column so we don't need
+        // a separate subcategory column. For all other religions, store the
+        // top-level value as-is.
+        $religion = $request->input('religion');
+        if (filled($religion)) {
+            if ($religion === 'Christian') {
+                $subs = $request->input('religion_subcategories', []);
+                if (is_array($subs)) {
+                    $subs = array_values(array_filter($subs));
+                }
+                $student->religion = (is_array($subs) && count($subs) > 0)
+                    ? $subs[0]
+                    : 'Christian';
+            } else {
+                $student->religion = $religion;
             }
         }
 
@@ -372,13 +398,36 @@ class EnrollmentController extends Controller
         $rootLevels = EducationNode::query()
             ->whereNull('parent_id')
             ->where('is_active', true)
+            ->where('is_offered', true)
             ->orderBy('order_index')
             ->orderBy('id')
             ->get(['id', 'name', 'node_type']);
 
         $modalities = Modality::orderBy('id')->get(['id', 'name', 'code']);
 
-        $saved = session("apply.pathway.{$term->id}", []);
+        // Load saved pathway: DB draft is authoritative; fall back to session
+        // (older flows may have stored to session only).
+        $draft = EnrollmentDraft::where('student_id', $student->id)
+            ->where('term_id', $term->id)
+            ->first();
+
+        $saved = $draft?->data['pathway']
+            ?? session("apply.pathway.{$term->id}", []);
+
+        // Reconstruct the cascade chain (root → … → leaf) so the JS can
+        // replay the dropdowns and pre-select what the student picked before.
+        $savedChain = [];
+        if (! empty($saved['education_node_id'])) {
+            $cursor = EducationNode::find($saved['education_node_id']);
+            while ($cursor) {
+                array_unshift($savedChain, [
+                    'id'   => $cursor->id,
+                    'name' => $cursor->name,
+                    'type' => $cursor->node_type,
+                ]);
+                $cursor = $cursor->parent_id ? EducationNode::find($cursor->parent_id) : null;
+            }
+        }
 
         return view('acad_enrolment.shared.pathway', [
             'term'        => $term,
@@ -386,6 +435,7 @@ class EnrollmentController extends Controller
             'rootLevels'  => $rootLevels,
             'modalities'  => $modalities,
             'saved'       => $saved,
+            'savedChain'  => $savedChain,
         ]);
     }
 
@@ -399,6 +449,7 @@ class EnrollmentController extends Controller
 
         $children = $node->children
             ->where('is_active', true)
+            ->where('is_offered', true)
             ->values()
             ->map(fn ($c) => [
                 'id'   => $c->id,
@@ -510,10 +561,18 @@ class EnrollmentController extends Controller
         $modalityCode = optional(Modality::find($request->input('modality_id')))->code;
         $isAsync      = $modalityCode === 'async_online';
 
+        // Determine whether the selected education node has any programs.
+        // Basic-ed leaf nodes (e.g. "Grade 2") have no programs, so program_id
+        // is optional there. Higher-ed and SHS strands always have programs.
+        $nodeId = $request->input('education_node_id');
+        $nodeHasPrograms = $nodeId
+            ? \App\Models\Program::where('education_node_id', $nodeId)->exists()
+            : false;
+
         $rules = [
             'education_node_id' => 'required|integer|exists:education_nodes,id',
-            'program_id'        => 'required|integer|exists:programs,id',
-            'year_level'        => 'nullable|integer|min:1|max:6',
+            'program_id'        => ($nodeHasPrograms ? 'required|' : 'nullable|') . 'integer|exists:programs,id',
+            'year_level'        => 'nullable|integer|min:1|max:12',
             'modality_id'       => 'required|integer|exists:modalities,id',
             'picked_subjects'   => 'nullable|array',
             'picked_subjects.*' => 'integer|exists:subjects,id',
@@ -533,6 +592,19 @@ class EnrollmentController extends Controller
         }
 
         session()->put("apply.pathway.{$term->id}", $data);
+
+        // Persist to DB so the wizard survives session expiry / logout.
+        $student = auth()->user()->student;
+        if ($student) {
+            $draft = EnrollmentDraft::firstOrNew([
+                'student_id' => $student->id,
+                'term_id'    => $term->id,
+            ]);
+            $existing = $draft->data ?? [];
+            $existing['pathway'] = $data;
+            $draft->data = $existing;
+            $draft->save();
+        }
 
         // Convenience flag for sidebar progress gating.
         session()->put("apply.pathway_done.{$term->id}", true);
@@ -575,10 +647,46 @@ class EnrollmentController extends Controller
             ->orderBy('year_ended', 'desc')
             ->get();
 
+        // Root-level (offered) education nodes for the cascade picker — same
+        // source as the Learning Pathway step.
+        $rootLevels = EducationNode::query()
+            ->whereNull('parent_id')
+            ->where('is_active', true)
+            ->where('is_offered', true)
+            ->orderBy('order_index')
+            ->orderBy('id')
+            ->get(['id', 'name', 'node_type']);
+
+        // For each saved background, reconstruct the root→leaf chain so the
+        // cascade JS can replay each level's dropdown and pre-select.
+        $hydrated = $backgrounds->map(function ($b) {
+            $chain  = [];
+            $cursor = $b->education_node_id ? EducationNode::find($b->education_node_id) : null;
+            while ($cursor) {
+                array_unshift($chain, ['id' => $cursor->id, 'name' => $cursor->name]);
+                $cursor = $cursor->parent_id ? EducationNode::find($cursor->parent_id) : null;
+            }
+            return [
+                'education_level'   => $b->education_level,
+                'education_node_id' => $b->education_node_id,
+                'chain'             => $chain,
+                'school_name'       => $b->school_name,
+                'school_address'    => $b->school_address,
+                'school_type'       => $b->school_type,
+                'last_grade_level'  => $b->last_grade_level,
+                'year_started'      => $b->year_started,
+                'year_ended'        => $b->year_ended,
+                'gpa'               => $b->gpa,
+                'honors'            => $b->honors,
+            ];
+        })->values()->all();
+
         return view('acad_enrolment.shared.academic_background', [
             'term'        => $term,
             'student'     => $student,
             'backgrounds' => $backgrounds,
+            'hydrated'    => $hydrated,
+            'rootLevels'  => $rootLevels,
         ]);
     }
 
@@ -588,21 +696,37 @@ class EnrollmentController extends Controller
         $student = auth()->user()->student;
 
         $data = $request->validate([
-            'backgrounds'                    => 'required|array|min:1',
-            'backgrounds.*.education_level'  => 'required|string|max:32',
-            'backgrounds.*.school_name'      => 'required|string|max:255',
-            'backgrounds.*.school_address'   => 'nullable|string|max:255',
-            'backgrounds.*.school_type'      => 'nullable|in:public,private,home',
-            'backgrounds.*.last_grade_level' => 'nullable|string|max:64',
-            'backgrounds.*.year_started'     => 'nullable|integer|min:1950|max:2100',
-            'backgrounds.*.year_ended'       => 'nullable|integer|min:1950|max:2100',
-            'backgrounds.*.gpa'              => 'nullable|numeric|min:0|max:100',
-            'backgrounds.*.honors'           => 'nullable|string|max:255',
+            'backgrounds'                       => 'required|array|min:1',
+            'backgrounds.*.education_node_id'   => 'nullable|integer|exists:education_nodes,id',
+            'backgrounds.*.education_level'     => 'nullable|string|max:64',
+            'backgrounds.*.school_name'         => 'required|string|max:255',
+            'backgrounds.*.school_address'      => 'nullable|string|max:255',
+            'backgrounds.*.school_type'         => 'nullable|in:public,private,home',
+            'backgrounds.*.last_grade_level'    => 'nullable|string|max:64',
+            'backgrounds.*.year_started'        => 'nullable|integer|min:1950|max:2100',
+            'backgrounds.*.year_ended'          => 'nullable|integer|min:1950|max:2100',
+            'backgrounds.*.gpa'                 => 'nullable|numeric|min:0|max:100',
+            'backgrounds.*.honors'              => 'nullable|string|max:255',
         ]);
 
         DB::transaction(function () use ($student, $data) {
             $student->academicBackgrounds()->delete();
             foreach ($data['backgrounds'] as $bg) {
+                // Derive education_level from the root of the chain if not
+                // supplied (so legacy reports keep working).
+                if (empty($bg['education_level']) && ! empty($bg['education_node_id'])) {
+                    $cursor = EducationNode::find($bg['education_node_id']);
+                    while ($cursor && $cursor->parent_id) {
+                        $cursor = EducationNode::find($cursor->parent_id);
+                    }
+                    if ($cursor) {
+                        $bg['education_level'] = \Illuminate\Support\Str::slug($cursor->name, '_');
+                    }
+                }
+                if (empty($bg['education_level'])) {
+                    $bg['education_level'] = 'other';
+                }
+
                 StudentAcademicBackground::create(array_merge($bg, [
                     'student_id' => $student->id,
                     'is_current' => false,
@@ -629,18 +753,38 @@ class EnrollmentController extends Controller
             return redirect()->route('public.apply.show', $term->id);
         }
 
-        $pathway     = session("apply.pathway.{$term->id}", []);
-        $skipped     = (bool) session("apply.academic_skipped.{$term->id}");
+        // Prefer DB draft over session (survives logout/session expiry).
+        $draft   = EnrollmentDraft::where('student_id', $student->id)
+            ->where('term_id', $term->id)
+            ->first();
+
+        $pathway = $draft?->data['pathway']
+            ?? session("apply.pathway.{$term->id}", []);
+        $skipped = (bool) session("apply.academic_skipped.{$term->id}");
 
         $program     = !empty($pathway['program_id'])        ? Program::find($pathway['program_id'])           : null;
         $modality    = !empty($pathway['modality_id'])       ? Modality::find($pathway['modality_id'])         : null;
         $node        = !empty($pathway['education_node_id']) ? EducationNode::find($pathway['education_node_id']) : null;
 
-        $backgrounds = $skipped ? collect() : $student->academicBackgrounds()->get();
+        // Build cascade chain (root → leaf) so we can show "Education Level"
+        // as the top-level (e.g. "Senior High School") and the path under it.
+        $chain = [];
+        $cursor = $node;
+        while ($cursor) {
+            array_unshift($chain, $cursor);
+            $cursor = $cursor->parent_id ? EducationNode::find($cursor->parent_id) : null;
+        }
+        $rootLevel = $chain[0] ?? null;
+        $pathLabel = collect($chain)->skip(1)->pluck('name')->implode(' › ');
+
+        $backgrounds      = $skipped ? collect() : $student->academicBackgrounds()->get();
+        $parents          = $student->guardians()->whereIn('type', ['parent', 'guardian'])->get();
+        $emergencyContact = $student->guardians()->where('is_emergency_contact', true)->first();
 
         return view('acad_enrolment.shared.review', compact(
             'term', 'student', 'pathway', 'program', 'modality', 'node',
-            'backgrounds', 'skipped'
+            'rootLevel', 'pathLabel', 'chain',
+            'backgrounds', 'skipped', 'parents', 'emergencyContact'
         ));
     }
 
@@ -704,10 +848,97 @@ class EnrollmentController extends Controller
             }
         }
 
+        // ---- Generate PDF & email guardians/emergency contact ----
+        try {
+            $this->generateAndMailEnrollmentPdf($enrollment, $student, $term, $pathway);
+        } catch (\Throwable $e) {
+            Log::error('Enrolment PDF/mail failed', [
+                'enrollment_id' => $enrollment->id,
+                'error'         => $e->getMessage(),
+            ]);
+        }
+
         return redirect()->route('public.apply.confirmation', [
             'term'       => $term->id,
             'enrollment' => $enrollment->id,
         ]);
+    }
+
+    /**
+     * Build the application PDF (A4) and send it as an attachment to every
+     * guardian/parent and the emergency contact with a valid email address.
+     */
+    protected function generateAndMailEnrollmentPdf(
+        StudentEnrollment $enrollment,
+        Student $student,
+        Term $term,
+        array $pathway,
+    ): void {
+        // Re-load draft so we get the canonical pathway data even if session
+        // was already cleared above.
+        $draft   = EnrollmentDraft::where('student_id', $student->id)
+            ->where('term_id', $term->id)
+            ->first();
+        $pathway = $draft?->data['pathway'] ?? $pathway;
+
+        $program  = !empty($pathway['program_id'])        ? Program::find($pathway['program_id'])           : null;
+        $modality = !empty($pathway['modality_id'])       ? Modality::find($pathway['modality_id'])         : null;
+        $node     = !empty($pathway['education_node_id']) ? EducationNode::find($pathway['education_node_id']) : null;
+        $skipped  = ($pathway['student_type'] ?? null) === 'regular';
+
+        $backgrounds      = $skipped
+            ? collect()
+            : StudentAcademicBackground::where('student_id', $student->id)->orderBy('year_ended', 'desc')->get();
+        $parents          = $student->guardians()->whereIn('type', ['parent', 'guardian'])->get();
+        $emergencyContact = $student->guardians()->where('is_emergency_contact', true)->first();
+        $school           = $student->school;
+
+        $pdf = Pdf::loadView('acad_enrolment.pdf.enrollment', [
+            'enrollment'       => $enrollment,
+            'student'          => $student,
+            'term'             => $term,
+            'pathway'          => $pathway,
+            'program'          => $program,
+            'modality'         => $modality,
+            'node'             => $node,
+            'backgrounds'      => $backgrounds,
+            'skipped'          => $skipped,
+            'parents'          => $parents,
+            'emergencyContact' => $emergencyContact,
+            'school'           => $school,
+        ])->setPaper('a4');
+
+        $filename = sprintf(
+            'enrollments/%d/ENR-%s-%s.pdf',
+            $student->id,
+            str_pad($enrollment->id, 6, '0', STR_PAD_LEFT),
+            now()->format('Ymd_His'),
+        );
+        Storage::disk('public')->put($filename, $pdf->output());
+        $absPath = Storage::disk('public')->path($filename);
+
+        // Collect unique recipients.
+        $recipients = [];
+        foreach ($parents as $p) {
+            if (filter_var($p->email ?? null, FILTER_VALIDATE_EMAIL)) {
+                $recipients[$p->email] = trim(($p->first_name ?? '').' '.($p->last_name ?? ''));
+            }
+        }
+        if ($emergencyContact && filter_var($emergencyContact->email ?? null, FILTER_VALIDATE_EMAIL)) {
+            $recipients[$emergencyContact->email] = trim(($emergencyContact->first_name ?? '').' '.($emergencyContact->last_name ?? ''));
+        }
+
+        foreach ($recipients as $email => $name) {
+            try {
+                Mail::to($email)->send(new EnrollmentSubmittedMail($enrollment, $absPath, $name));
+            } catch (\Throwable $e) {
+                Log::warning('Enrolment mail recipient failed', [
+                    'enrollment_id' => $enrollment->id,
+                    'email'         => $email,
+                    'error'         => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /* =================================================================

@@ -10,6 +10,7 @@ class StudentAcademicBackground extends Model
     protected $fillable = [
         'student_id',
         'education_level',
+        'education_node_id',
         'school_name',
         'school_address',
         'school_type',

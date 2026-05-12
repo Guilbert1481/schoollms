@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useForm, Controller } from 'react-hook-form';
 import Select from 'react-select';
@@ -154,6 +154,52 @@ function ContactDetailsForm({ action, csrf, backUrl, initial = {} }) {
         getJson(api(`/api/address/barangays?city=${encodeURIComponent(city.value)}`))
             .then(setBarangays).catch(() => setBarangays([]));
     }, [city, isPh, setValue]);
+
+    /* -------------------------------------------------------------- */
+    /*  Prefill the cascade from saved values (one-shot per level).    */
+    /*  Saved values are stored as labels; match against loaded lists. */
+    /* -------------------------------------------------------------- */
+    const prefilledRef = useRef({ region: false, province: false, city: false, barangay: false });
+
+    useEffect(() => {
+        if (prefilledRef.current.region) return;
+        if (!initial.region || regions.length === 0) return;
+        const match = regions.find((r) => r.label === initial.region || r.value === initial.region);
+        if (match) {
+            setValue('region', match);
+            prefilledRef.current.region = true;
+        }
+    }, [regions, initial.region, setValue]);
+
+    useEffect(() => {
+        if (prefilledRef.current.province) return;
+        if (!initial.province || provinces.length === 0) return;
+        const match = provinces.find((p) => p.label === initial.province || p.value === initial.province);
+        if (match) {
+            setValue('province', match);
+            prefilledRef.current.province = true;
+        }
+    }, [provinces, initial.province, setValue]);
+
+    useEffect(() => {
+        if (prefilledRef.current.city) return;
+        if (!initial.city_municipality || cities.length === 0) return;
+        const match = cities.find((c) => c.label === initial.city_municipality || c.value === initial.city_municipality);
+        if (match) {
+            setValue('city', match);
+            prefilledRef.current.city = true;
+        }
+    }, [cities, initial.city_municipality, setValue]);
+
+    useEffect(() => {
+        if (prefilledRef.current.barangay) return;
+        if (!initial.barangay || barangays.length === 0) return;
+        const match = barangays.find((b) => b.label === initial.barangay || b.value === initial.barangay);
+        if (match) {
+            setValue('barangay', match);
+            prefilledRef.current.barangay = true;
+        }
+    }, [barangays, initial.barangay, setValue]);
 
     /* City changes -> try to auto-fill ZIP. PH uses code+name lookup; non-PH
        uses city name only. */

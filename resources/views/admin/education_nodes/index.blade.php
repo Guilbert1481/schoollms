@@ -15,7 +15,7 @@
         </div>
     @endif
 
-    <div x-data="educationTree()" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {{-- LEFT — TREE --}}
         <div class="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -28,15 +28,15 @@
                     </p>
                 </div>
                 <div class="flex gap-2">
-                    <button type="button" @click="collapseAll"
+                    <button type="button" data-action="collapse-all"
                         class="px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white hover:bg-slate-50">
                         Collapse All
                     </button>
-                    <button type="button" @click="expandAll"
+                    <button type="button" data-action="expand-all"
                         class="px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white hover:bg-slate-50">
                         Expand All
                     </button>
-                    <button type="button" @click="openCreate(null, null)"
+                    <button type="button" data-action="add-root"
                         class="px-3 py-1.5 text-xs rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
                         + Add Root
                     </button>
@@ -80,31 +80,31 @@
     </div>
 
     {{-- CREATE / EDIT MODAL --}}
-    <div x-show="modalOpen" x-cloak
-         class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div id="nodeModal" class="hidden fixed inset-0 bg-black/40 items-center justify-center z-50"
+         data-action="modal-backdrop">
         <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5"
-             @click.outside="modalOpen = false">
+             data-modal-box>
             <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold text-slate-900" x-text="isEdit ? 'Edit Node' : 'Add New Node'"></h3>
-                <button type="button" @click="modalOpen = false" class="text-slate-400 hover:text-slate-600">✕</button>
+                <h3 class="font-bold text-slate-900" id="modalTitle">Add New Node</h3>
+                <button type="button" data-action="close-modal" class="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
             <div class="space-y-3">
-                <div x-show="!isEdit && parentName">
+                <div id="parentRow" class="hidden">
                     <label class="block text-xs font-medium text-slate-700 mb-1">Parent</label>
-                    <input type="text" :value="parentName" disabled
+                    <input type="text" id="parentInput" disabled
                            class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-sm">
                 </div>
 
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">Name <span class="text-red-500">*</span></label>
-                    <input type="text" x-model="form.name" placeholder="Enter node name"
+                    <input type="text" id="nameInput" placeholder="Enter node name"
                            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
 
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">Node Type <span class="text-red-500">*</span></label>
-                    <select x-model="form.node_type"
+                    <select id="nodeTypeInput"
                             class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
                         <option value="">Select node type</option>
                         @foreach ($nodeTypes as $key => $label)
@@ -115,17 +115,17 @@
 
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">Order Index</label>
-                    <input type="number" x-model.number="form.order_index"
+                    <input type="number" id="orderInput" value="0"
                            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
                 </div>
             </div>
 
             <div class="flex justify-end gap-2 mt-5">
-                <button type="button" @click="modalOpen = false"
+                <button type="button" data-action="close-modal"
                         class="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">
                     Cancel
                 </button>
-                <button type="button" @click="save"
+                <button type="button" data-action="save"
                         class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700">
                     Save
                 </button>
@@ -135,149 +135,199 @@
 </div>
 
 <script>
-function educationTree() {
-    return {
-        modalOpen: false,
-        isEdit: false,
-        editingId: null,
-        parentName: '',
-        form: { name: '', parent_id: null, node_type: '', order_index: 0 },
+(function () {
+    const base       = "{{ url('admin/education-nodes') }}";
+    const progBase   = base + '/programs';
+    const modal      = document.getElementById('nodeModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const parentRow  = document.getElementById('parentRow');
+    const parentInp  = document.getElementById('parentInput');
+    const nameInp    = document.getElementById('nameInput');
+    const typeInp    = document.getElementById('nodeTypeInput');
+    const orderInp   = document.getElementById('orderInput');
 
-        csrf: () => document.querySelector('meta[name="csrf-token"]')?.content
-            || document.querySelector('input[name="_token"]')?.value,
+    let state = { isEdit: false, editingId: null, programCode: '' };
 
-        async req(url, method, body) {
-            const res = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': this.csrf(),
-                },
-                body: body ? JSON.stringify(body) : null,
-            });
-            if (!res.ok) throw new Error(await res.text());
-            return res.json();
-        },
+    const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content
+        || document.querySelector('input[name="_token"]')?.value;
 
-        openCreate(parentId, parentName) {
-            this.isEdit = false;
-            this.editingId = null;
-            this.parentName = parentName || '';
-            this.form = { name: '', parent_id: parentId, node_type: '', order_index: 0 };
-            this.modalOpen = true;
-        },
+    async function req(url, method, body) {
+        const res = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type':     'application/json',
+                'Accept':           'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN':     csrf(),
+            },
+            body: body ? JSON.stringify(body) : null,
+        });
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+    }
 
-        openEdit(id, name, nodeType, orderIndex) {
-            this.isEdit = true;
-            this.editingId = id;
-            this.parentName = '';
-            this.form = { name, parent_id: null, node_type: nodeType, order_index: orderIndex };
-            this.modalOpen = true;
-        },
+    function openModal() {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+    function closeModal() {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
 
-        async save() {
-            if (!this.form.name.trim() || !this.form.node_type) {
-                alert('Name and Node Type are required.');
-                return;
+    function openCreate(parentId, parentName) {
+        state = { isEdit: false, editingId: null, programCode: '' };
+        modalTitle.textContent = 'Add New Node';
+        if (parentName) {
+            parentRow.classList.remove('hidden');
+            parentInp.value = parentName;
+        } else {
+            parentRow.classList.add('hidden');
+            parentInp.value = '';
+        }
+        nameInp.value  = '';
+        typeInp.value  = '';
+        orderInp.value = 0;
+        // Stash parent id on the modal so save() can read it.
+        modal.dataset.parentId = parentId == null ? '' : String(parentId);
+        openModal();
+    }
+
+    function openEdit(id, name, nodeType, orderIndex) {
+        state = { isEdit: true, editingId: id, programCode: '' };
+        modalTitle.textContent = 'Edit Node';
+        parentRow.classList.add('hidden');
+        parentInp.value = '';
+        nameInp.value   = name || '';
+        typeInp.value   = nodeType || '';
+        orderInp.value  = orderIndex || 0;
+        modal.dataset.parentId = '';
+        openModal();
+    }
+
+    function openEditProgram(id, name, code) {
+        state = { isEdit: true, editingId: 'program:' + id, programCode: code || '' };
+        modalTitle.textContent = 'Edit Program';
+        parentRow.classList.add('hidden');
+        parentInp.value = '';
+        nameInp.value   = name || '';
+        typeInp.value   = 'program_type';
+        orderInp.value  = 0;
+        modal.dataset.parentId = '';
+        openModal();
+    }
+
+    async function save() {
+        const name = nameInp.value.trim();
+        const type = typeInp.value;
+        if (!name || !type) { alert('Name and Node Type are required.'); return; }
+
+        const order = parseInt(orderInp.value, 10) || 0;
+
+        try {
+            if (state.isEdit && typeof state.editingId === 'string' && state.editingId.startsWith('program:')) {
+                const pid = state.editingId.slice('program:'.length);
+                await req(`${progBase}/${pid}`, 'PUT', { name, code: state.programCode });
+            } else if (state.isEdit) {
+                await req(`${base}/${state.editingId}`, 'PUT', {
+                    name, node_type: type, order_index: order,
+                });
+            } else {
+                const parentId = modal.dataset.parentId
+                    ? parseInt(modal.dataset.parentId, 10)
+                    : null;
+                await req(base, 'POST', {
+                    name, parent_id: parentId, node_type: type, order_index: order,
+                });
             }
-            try {
-                if (this.isEdit && typeof this.editingId === 'string' && this.editingId.startsWith('program:')) {
-                    const pid = this.editingId.slice('program:'.length);
-                    await this.req(`{{ url('admin/education-nodes/programs') }}/${pid}`, 'PUT', {
-                        name: this.form.name,
-                        code: this.form._code || '',
-                    });
-                } else if (this.isEdit) {
-                    await this.req(`{{ url('admin/education-nodes') }}/${this.editingId}`, 'PUT', this.form);
-                } else {
-                    await this.req(`{{ url('admin/education-nodes') }}`, 'POST', this.form);
-                }
-                location.reload();
-            } catch (e) {
-                console.error(e);
-                alert('Failed to save.');
-            }
-        },
+            location.reload();
+        } catch (e) {
+            console.error(e);
+            alert('Failed to save.');
+        }
+    }
 
-        async toggleOffered(id, checked) {
-            try {
-                await this.req(`{{ url('admin/education-nodes') }}/${id}/toggle-offered`, 'POST', { is_offered: checked });
-            } catch (e) {
-                console.error(e);
-                alert('Failed to update.');
-                location.reload();
-            }
-        },
+    async function toggleOffered(id, checked) {
+        try { await req(`${base}/${id}/toggle-offered`, 'POST', { is_offered: checked }); }
+        catch (e) { console.error(e); alert('Failed to update.'); location.reload(); }
+    }
+    async function destroy(id) {
+        if (!confirm('Delete this node and ALL its descendants?')) return;
+        try { await req(`${base}/${id}`, 'DELETE'); location.reload(); }
+        catch (e) { console.error(e); alert('Failed to delete.'); }
+    }
+    async function toggleProgram(id, checked) {
+        try { await req(`${progBase}/${id}/toggle-offered`, 'POST', { is_offered: checked }); }
+        catch (e) { console.error(e); alert('Failed to update program.'); location.reload(); }
+    }
+    async function destroyProgram(id) {
+        if (!confirm('Delete this program?')) return;
+        try { await req(`${progBase}/${id}`, 'DELETE'); location.reload(); }
+        catch (e) { console.error(e); alert('Failed to delete program.'); }
+    }
 
-        async destroy(id) {
-            if (!confirm('Delete this node and ALL its descendants?')) return;
-            try {
-                await this.req(`{{ url('admin/education-nodes') }}/${id}`, 'DELETE');
-                location.reload();
-            } catch (e) {
-                console.error(e);
-                alert('Failed to delete.');
-            }
-        },
+    function expandAll() {
+        document.querySelectorAll('[data-tree-children]').forEach(el => el.classList.remove('hidden'));
+        document.querySelectorAll('button[data-tree-toggle]').forEach(el => {
+            el.dataset.open = '1'; el.textContent = '▾';
+        });
+    }
+    function collapseAll() {
+        document.querySelectorAll('[data-tree-children]').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('button[data-tree-toggle]').forEach(el => {
+            el.dataset.open = '0'; el.textContent = '▸';
+        });
+    }
 
-        // ---- Program proxy actions ----
-        async toggleProgram(id, checked) {
-            try {
-                await this.req(`{{ url('admin/education-nodes/programs') }}/${id}/toggle-offered`, 'POST', { is_offered: checked });
-            } catch (e) {
-                console.error(e);
-                alert('Failed to update program.');
-                location.reload();
-            }
-        },
+    // Single delegated click handler for all data-action buttons.
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        const action = btn.dataset.action;
 
-        openEditProgram(id, name, code) {
-            // Reuse the same modal but route the save to programs endpoint.
-            this.isEdit = true;
-            this.editingId = 'program:' + id;
-            this.parentName = '';
-            this.form = { name, parent_id: null, node_type: 'program_type', order_index: 0, _code: code };
-            this.modalOpen = true;
-        },
+        switch (action) {
+            case 'add-root':       openCreate(null, null); break;
+            case 'add-child':      openCreate(parseInt(btn.dataset.parentId, 10), btn.dataset.parentName); break;
+            case 'edit-node':      openEdit(parseInt(btn.dataset.id, 10), btn.dataset.name, btn.dataset.nodeType, parseInt(btn.dataset.orderIndex, 10) || 0); break;
+            case 'edit-program':   openEditProgram(parseInt(btn.dataset.id, 10), btn.dataset.name, btn.dataset.code); break;
+            case 'delete-node':    destroy(parseInt(btn.dataset.id, 10)); break;
+            case 'delete-program': destroyProgram(parseInt(btn.dataset.id, 10)); break;
+            case 'expand-all':     expandAll(); break;
+            case 'collapse-all':   collapseAll(); break;
+            case 'add-root':       openCreate(null, null); break;
+            case 'close-modal':    closeModal(); break;
+            case 'save':           save(); break;
+            case 'modal-backdrop':
+                // Only close if the click landed on the backdrop itself (not the box).
+                if (e.target === btn) closeModal();
+                break;
+        }
+    });
 
-        async destroyProgram(id) {
-            if (!confirm('Delete this program?')) return;
-            try {
-                await this.req(`{{ url('admin/education-nodes/programs') }}/${id}`, 'DELETE');
-                location.reload();
-            } catch (e) {
-                console.error(e);
-                alert('Failed to delete program.');
-            }
-        },
+    // Checkbox toggles use change event.
+    document.addEventListener('change', (e) => {
+        const cb = e.target;
+        if (!(cb instanceof HTMLInputElement) || cb.type !== 'checkbox') return;
+        if (cb.dataset.action === 'toggle-offered') {
+            toggleOffered(parseInt(cb.dataset.id, 10), cb.checked);
+        } else if (cb.dataset.action === 'toggle-program') {
+            toggleProgram(parseInt(cb.dataset.id, 10), cb.checked);
+        }
+    });
 
-        expandAll() {
-            document.querySelectorAll('[data-tree-children]').forEach(el => el.classList.remove('hidden'));
-            document.querySelectorAll('button[data-tree-toggle]').forEach(el => {
-                el.dataset.open = '1';
-                el.textContent = '▾';
-            });
-        },
-        collapseAll() {
-            document.querySelectorAll('[data-tree-children]').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('button[data-tree-toggle]').forEach(el => {
-                el.dataset.open = '0';
-                el.textContent = '▸';
-            });
-        },
-    };
-}
+    // Esc closes modal.
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+    });
+})();
 
 // Plain-JS expand/collapse — works for chevron, folder icon, and node name.
 // Each click toggles ONLY that specific branch, independent of siblings.
 document.addEventListener('click', (e) => {
     const trigger = e.target.closest('[data-tree-toggle]');
     if (!trigger) return;
-    // Ignore clicks on buttons/inputs inside the row (checkbox, action buttons).
-    if (e.target.closest('input, button[onclick], button[\\@click], [x-on\\:click]')
-        && !e.target.closest('button[data-tree-toggle]')) return;
+    // Don't trigger when the click came from a data-action button or a checkbox.
+    if (e.target.closest('[data-action], input[type="checkbox"]')) return;
 
     const id   = trigger.dataset.treeToggle;
     const wrap = document.querySelector(`[data-tree-children="${id}"]`);
@@ -286,7 +336,6 @@ document.addEventListener('click', (e) => {
     const willCollapse = !wrap.classList.contains('hidden');
     wrap.classList.toggle('hidden', willCollapse);
 
-    // Sync the chevron button (if any) for this same node id.
     const chevron = document.querySelector(`button[data-tree-toggle="${id}"]`);
     if (chevron) {
         chevron.dataset.open = willCollapse ? '0' : '1';

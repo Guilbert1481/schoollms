@@ -11,13 +11,17 @@
     $backUrl     = $backUrl     ?? null;
 
     $initial = [
-        'mobile_number'   => old('mobile_number',   $student->mobile_number   ?? ''),
-        'email'           => old('email',           $student->email ?? auth()->user()->email ?? ''),
-        'country'         => old('country',         $student->country         ?? 'PH'),
-        'country_code'    => old('country_code',    $student->country_code    ?? '+63'),
-        'zip_code'        => old('zip_code',        $student->zip_code        ?? ''),
-        'address_line_1'  => old('address_line_1',  $student->address_line_1  ?? ''),
-        'address_line_2'  => old('address_line_2',  $student->address_line_2  ?? ''),
+        'mobile_number'     => old('mobile_number',     $student->mobile_number   ?? ''),
+        'email'             => old('email',             $student->email ?? auth()->user()->email ?? ''),
+        'country'           => old('country',           $student->country         ?? 'PH'),
+        'country_code'      => old('country_code',      $student->country_code    ?? '+63'),
+        'region'            => old('region',            $student->region          ?? ''),
+        'province'          => old('province',          $student->province        ?? ''),
+        'city_municipality' => old('city_municipality', $student->city_municipality ?? ''),
+        'barangay'          => old('barangay',          $student->barangay        ?? ''),
+        'zip_code'          => old('zip_code',          $student->zip_code        ?? ''),
+        'address_line_1'    => old('address_line_1',    $student->address_line_1  ?? ''),
+        'address_line_2'    => old('address_line_2',    $student->address_line_2  ?? ''),
     ];
 
     $reactProps = [

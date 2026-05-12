@@ -15,6 +15,10 @@ class EnrollmentDraft extends Model
         'data',
     ];
 
+    protected $casts = [
+        'data' => 'array',
+    ];
+
     public function student()
     {
         return $this->belongsTo(Student::class);

@@ -17,9 +17,16 @@ class EducationNodeSeeder extends Seeder
                 'name' => 'Basic Education', 'type' => 'level',
                 'children' => [
                     [
+                        'name' => 'Preschool', 'type' => 'stage',
+                        'children' => [
+                            ['name' => 'Toddler',      'type' => 'stage'],
+                            ['name' => 'Nursery',      'type' => 'stage'],
+                            ['name' => 'Kindergarten', 'type' => 'stage'],
+                        ],
+                    ],
+                    [
                         'name' => 'Elementary', 'type' => 'stage',
                         'children' => [
-                            ['name' => 'Kindergarten', 'type' => 'stage'],
                             ['name' => 'Grade 1', 'type' => 'stage'],
                             ['name' => 'Grade 2', 'type' => 'stage'],
                             ['name' => 'Grade 3', 'type' => 'stage'],

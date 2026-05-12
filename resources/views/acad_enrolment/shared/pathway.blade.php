@@ -42,26 +42,15 @@
             </select>
         </div>
 
-        {{-- Cascading dropdowns appear here (rendered 2-up by JS via grid wrapper) --}}
-        <div id="cascadeContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-
-        {{-- Selected program (filled by JS) — full width because labels are long --}}
-        <div id="programWrap" class="hidden">
-            <label class="block text-sm font-bold mb-1">Programme <span class="text-red-500">*</span></label>
-            <select name="program_id" id="programSelect" required class="w-full rounded-lg border border-slate-300 p-2.5">
-                <option value="" disabled selected>— Select programme —</option>
-            </select>
-        </div>
-
-        {{-- Hidden — final selected education node id (deepest node before program) --}}
-        <input type="hidden" name="education_node_id" id="finalNodeId"
-               value="{{ $saved['education_node_id'] ?? '' }}">
-
-        {{-- 2-up grid: Year Level + Modality --}}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {{-- Cascading dropdowns + Year Level live in the same 2-up grid.
+             JS keeps Year Level pinned as the 2nd child so it sits next to
+             the first cascade dropdown (e.g. Basic Ed sub-category | Year Level,
+             then Senior High sub-cat | Track sub-cat, etc.) --}}
+        <div id="cascadeContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div id="yearLevelWrap">
                 <label class="block text-sm font-bold mb-1">Year Level <span class="text-red-500">*</span></label>
-                <select name="year_level" id="yearLevelSelect" required class="w-full rounded-lg border border-slate-300 p-2.5">
+                <select name="year_level" id="yearLevelSelect" required class="w-full rounded-lg border border-slate-300 p-2.5"
+                        data-saved="{{ $saved['year_level'] ?? '' }}">
                     <option value="" disabled {{ empty($saved['year_level']) ? 'selected' : '' }}>— Select year level —</option>
                     @foreach ([1=>'1st Year',2=>'2nd Year',3=>'3rd Year',4=>'4th Year',5=>'5th Year',6=>'6th Year'] as $lv => $lbl)
                         <option value="{{ $lv }}" @selected(($saved['year_level'] ?? null) == $lv)>{{ $lbl }}</option>
@@ -71,7 +60,22 @@
                     Not applicable — grade level is taken from your selected programme.
                 </p>
             </div>
+        </div>
 
+        {{-- Selected program (filled by JS) — full width because labels are long --}}
+        <div id="programWrap" class="hidden">
+            <label class="block text-sm font-bold mb-1">Programme <span class="text-red-500">*</span></label>
+            <select name="program_id" id="programSelect" class="w-full rounded-lg border border-slate-300 p-2.5">
+                <option value="" disabled selected>— Select programme —</option>
+            </select>
+        </div>
+
+        {{-- Hidden — final selected education node id (deepest node before program) --}}
+        <input type="hidden" name="education_node_id" id="finalNodeId"
+               value="{{ $saved['education_node_id'] ?? '' }}">
+
+        {{-- 2-up grid: Modality + Student Type --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-bold mb-1">Modality <span class="text-red-500">*</span></label>
                 <select name="modality_id" id="modalitySelect" required class="w-full rounded-lg border border-slate-300 p-2.5">
@@ -83,24 +87,24 @@
                     @endforeach
                 </select>
             </div>
-        </div>
 
-        {{-- Student Type — hidden when modality = Asynchronous Online --}}
-        <div id="studentTypeWrap">
-            <label class="block text-sm font-bold mb-1">Student Type <span class="text-red-500">*</span></label>
-            <select name="student_type" id="studentTypeSelect" class="w-full rounded-lg border border-slate-300 p-2.5">
-                <option value="" disabled {{ empty($saved['student_type']) ? 'selected' : '' }}>— Select student type —</option>
-                @foreach (['new'=>'New Student','transferee'=>'Transferee','returnee'=>'Returnee','regular'=>'Regular','irregular'=>'Irregular'] as $val => $lbl)
-                    <option value="{{ $val }}" @selected(($saved['student_type'] ?? null) === $val)>{{ $lbl }}</option>
-                @endforeach
-            </select>
-            <p class="text-xs text-slate-500 mt-1">
-                Regular students will skip the Academic Background step automatically.
-            </p>
+            {{-- Student Type — hidden when modality = Asynchronous Online --}}
+            <div id="studentTypeWrap">
+                <label class="block text-sm font-bold mb-1">Student Type <span class="text-red-500">*</span></label>
+                <select name="student_type" id="studentTypeSelect" class="w-full rounded-lg border border-slate-300 p-2.5">
+                    <option value="" disabled {{ empty($saved['student_type']) ? 'selected' : '' }}>— Select student type —</option>
+                    @foreach (['new'=>'New Student','transferee'=>'Transferee','returnee'=>'Returnee','regular'=>'Regular','irregular'=>'Irregular'] as $val => $lbl)
+                        <option value="{{ $val }}" @selected(($saved['student_type'] ?? null) === $val)>{{ $lbl }}</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-slate-500 mt-1">
+                    Regular students will skip the Academic Background step automatically.
+                </p>
+            </div>
         </div>
 
         {{-- ============== SUBJECTS (below Student Type) ============== --}}
-        <div class="pt-2">
+        <div id="subjectsSection" class="pt-2">
             <div class="flex items-baseline justify-between mb-2 px-1">
                 <h2 class="text-lg font-extrabold text-slate-800">Subjects</h2>
                 <span id="subjectsCurriculum" class="text-xs text-slate-400 font-mono"></span>
@@ -166,35 +170,94 @@
     const yearHint     = document.getElementById('yearLevelHint');
 
     function syncYearLevelVisibility() {
-        const opt = rootSel.options[rootSel.selectedIndex];
-        const name = (opt && opt.dataset.name || '').toLowerCase();
-        // Year Level (1st-6th Year) is a higher-ed concept. Basic Ed and SHS
-        // already have their grade level baked into the cascade selection,
-        // so hide it to avoid redundancy.
-        const isBasicOrShs = /basic|kinder|elementary|junior|senior\s*high|grade\s*school|shs/.test(name);
-        if (isBasicOrShs) {
+        // Build a combined string from the root selection PLUS every selected
+        // cascade dropdown's option text, so we can detect "Senior High School"
+        // etc. even when it's a sub-category of "Basic Education".
+        const rootOpt   = rootSel.options[rootSel.selectedIndex];
+        const rootName  = (rootOpt && rootOpt.dataset.name || '').toLowerCase();
+
+        const cascadeTexts = Array.from(cascade.querySelectorAll('select'))
+            .map(s => (s.options[s.selectedIndex]?.textContent || '').toLowerCase());
+        const combined = (rootName + ' ' + cascadeTexts.join(' ')).toLowerCase();
+
+        const isShs        = /senior\s*high|shs|grade\s*1[12]\b/.test(combined);
+        const isBasicLower = /(kinder|preschool|elementary|junior\s*high|grade\s*school|grade\s*[1-9]\b|grade\s*10\b)/.test(combined) && !isShs;
+        const isBasicAny   = isBasicLower || isShs || /^basic|\bbasic\s*education\b/.test(combined);
+        const saved        = yearSel.dataset.saved || '';
+
+        // ---- Year Level dropdown ----
+        if (isBasicLower) {
+            // Kinder/Elem/JHS: grade is implied by cascade selection.
             yearWrap.querySelector('label').classList.add('text-slate-400');
             yearSel.classList.add('hidden');
             yearSel.removeAttribute('required');
             yearSel.value = '';
             yearHint.classList.remove('hidden');
-        } else {
+        } else if (isShs) {
+            // SHS: student must choose Grade 11 or Grade 12.
             yearWrap.querySelector('label').classList.remove('text-slate-400');
             yearSel.classList.remove('hidden');
             yearSel.setAttribute('required', 'required');
             yearHint.classList.add('hidden');
+            yearSel.innerHTML =
+                '<option value="" disabled selected>— Select grade level —</option>' +
+                '<option value="11">Grade 11</option>' +
+                '<option value="12">Grade 12</option>';
+            if (saved === '11' || saved === '12') yearSel.value = saved;
+        } else {
+            // Higher ed: 1st–6th Year.
+            yearWrap.querySelector('label').classList.remove('text-slate-400');
+            yearSel.classList.remove('hidden');
+            yearSel.setAttribute('required', 'required');
+            yearHint.classList.add('hidden');
+            yearSel.innerHTML =
+                '<option value="" disabled selected>— Select year level —</option>' +
+                '<option value="1">1st Year</option>' +
+                '<option value="2">2nd Year</option>' +
+                '<option value="3">3rd Year</option>' +
+                '<option value="4">4th Year</option>' +
+                '<option value="5">5th Year</option>' +
+                '<option value="6">6th Year</option>';
+            if (['1','2','3','4','5','6'].includes(saved)) yearSel.value = saved;
+        }
+
+        // ---- Subjects panel ----
+        // Hide for ALL basic education (kinder → SHS). Higher-ed only.
+        const subjectsSection = document.getElementById('subjectsSection');
+        if (subjectsSection) {
+            subjectsSection.classList.toggle('hidden', isBasicAny);
         }
     }
 
     function clearFromDepth(depth) {
-        // Remove all child dropdowns at depth >= depth
+        // Remove all child dropdowns at depth >= depth. yearLevelWrap has no
+        // dataset.depth so its NaN comparison is false and it survives.
         Array.from(cascade.children).forEach(el => {
             if (parseInt(el.dataset.depth, 10) >= depth) el.remove();
         });
         if (depth === 0) {
             programWrap.classList.add('hidden');
+            programSel.removeAttribute('required');
             programSel.innerHTML = '<option value="" disabled selected>— Select programme —</option>';
             finalNodeId.value = '';
+        }
+        positionYearLevel();
+    }
+
+    /**
+     * Keep yearLevelWrap pinned as the 2nd child of the cascade grid so it
+     * always lands in column-2 of row-1 (next to the first cascade dropdown).
+     * If the cascade is empty, year level becomes the sole grid item.
+     */
+    function positionYearLevel() {
+        if (yearWrap.parentNode === cascade) cascade.removeChild(yearWrap);
+        const cascadeKids = Array.from(cascade.children); // excludes yearWrap now
+        if (cascadeKids.length === 0) {
+            cascade.appendChild(yearWrap);
+        } else if (cascadeKids.length === 1) {
+            cascade.appendChild(yearWrap); // after the only cascade dropdown
+        } else {
+            cascade.insertBefore(yearWrap, cascadeKids[1]); // slot it as 2nd
         }
     }
 
@@ -220,8 +283,11 @@
                 programSel.appendChild(opt);
             });
             programWrap.classList.remove('hidden');
+            programSel.setAttribute('required', 'required');
         } else {
             programWrap.classList.add('hidden');
+            programSel.removeAttribute('required');
+            programSel.value = '';
             programSel.innerHTML = '<option value="" disabled selected>— Select programme —</option>';
         }
 
@@ -236,9 +302,18 @@
                     ${data.children.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
                 </select>`;
             const sel = wrap.querySelector('select');
-            sel.addEventListener('change', () => loadBranch(sel.value, depth + 1));
+            sel.addEventListener('change', () => {
+                loadBranch(sel.value, depth + 1);
+                syncYearLevelVisibility();
+            });
             cascade.appendChild(wrap);
+            positionYearLevel();
         }
+
+        // After populating this branch's programs/children, re-sync UI so SHS
+        // selected as a sub-category of Basic Ed shows Grade 11/12 properly.
+        positionYearLevel();
+        syncYearLevelVisibility();
     }
 
     function escapeHtml(s) {
@@ -265,6 +340,7 @@
     }
     modalitySel.addEventListener('change', syncStudentTypeVisibility);
     syncStudentTypeVisibility();
+    positionYearLevel();
     syncYearLevelVisibility();
 
     /* =====================================================================
@@ -385,11 +461,40 @@
     // Initial fetch when the page loads with a saved programme.
     if (programSel.value) refreshSubjects();
 
-    // If we have a saved root level, pre-load its branch.
-    @if (!empty($saved['education_node_id']))
-        // Best-effort: walk down from root using the saved node id; we just set
-        // the hidden field and let the user re-pick if they want to change.
-    @endif
+    // Replay the saved cascade so the student sees their previous picks.
+    const savedChain   = @json($savedChain ?? []);
+    const savedProgram = @json($saved['program_id'] ?? null);
+    if (savedChain.length > 0) {
+        (async () => {
+            // 1) Select the root.
+            rootSel.value = String(savedChain[0].id);
+            syncYearLevelVisibility();
+            await loadBranch(rootSel.value, 1);
+
+            // 2) Walk down the chain, selecting each child level.
+            for (let i = 1; i < savedChain.length; i++) {
+                const depth = i; // first child dropdown has data-depth = 1
+                const wrap = Array.from(cascade.children)
+                    .find(el => parseInt(el.dataset.depth, 10) === depth);
+                if (!wrap) break;
+                const sel = wrap.querySelector('select');
+                if (!sel) break;
+                sel.value = String(savedChain[i].id);
+                syncYearLevelVisibility();
+                await loadBranch(sel.value, depth + 1);
+            }
+
+            // 3) Restore the saved programme + refresh the subjects panel.
+            if (savedProgram) {
+                const opt = Array.from(programSel.options)
+                    .find(o => String(o.value) === String(savedProgram));
+                if (opt) {
+                    programSel.value = String(savedProgram);
+                    refreshSubjects();
+                }
+            }
+        })();
+    }
 })();
 </script>
 @endsection
