@@ -33,27 +33,17 @@ class EducationNodeController extends Controller
         $tree      = EducationNode::tree();
         $nodeTypes = EducationNode::TYPES;
 
-        // Programs created by Deans / Admin — surfaced as children of whichever
-        // education_node they link to (`programs.education_node_id`). Legacy
-        // rows with NULL fall back to a virtual "Undergraduate / College" root
-        // bucket so they stay visible.
         $schoolId = $request->user()?->school_id;
-        $programsAll = Program::query()
-            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-            ->orderBy('name')
-            ->get(['id', 'name', 'code', 'active', 'education_node_id']);
 
-        $programsByNode = $programsAll->groupBy(
-            fn ($p) => (int) ($p->education_node_id ?? 0)
-        );
-
-        // Colleges (this school) for the "Add Program" modal's College picker.
+        // The tree is a structure editor and a program CREATOR — it does not
+        // display programs (those are managed on the Programs page). It only
+        // needs the colleges for the "Add Program" modal's College picker.
         $colleges = College::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('admin.education_nodes.index', compact('tree', 'nodeTypes', 'programsByNode', 'colleges'));
+        return view('admin.education_nodes.index', compact('tree', 'nodeTypes', 'colleges'));
     }
 
     public function store(Request $request): JsonResponse|RedirectResponse

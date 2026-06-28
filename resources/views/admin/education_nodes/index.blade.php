@@ -43,9 +43,14 @@
                 </div>
             </div>
 
+            {{-- Success banner for programs created from the tree (the tree itself
+                 does not list programs — they live on the Programs page). --}}
+            <div id="programCreatedBanner"
+                 class="hidden rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-2 text-sm text-emerald-800 mb-3"></div>
+
             <ul class="space-y-1">
                 @foreach ($tree as $node)
-                    @include('admin.education_nodes.partials.node', ['node' => $node, 'depth' => 0, 'programsByNode' => $programsByNode ?? collect()])
+                    @include('admin.education_nodes.partials.node', ['node' => $node, 'depth' => 0])
                 @endforeach
             </ul>
 
@@ -361,6 +366,8 @@
         progModal.classList.add('hidden');
         progModal.classList.remove('flex');
     }
+    const programsPageUrl = "{{ route('admin.assignments.indexPrograms') }}";
+
     async function saveProgram() {
         const code = progCodeInp.value.trim();
         const name = progNameInp.value.trim();
@@ -369,10 +376,19 @@
         if (!code || !name) { alert('Program code and name are required.'); return; }
         if (!collegeId)     { alert('Please select or add a college first.'); return; }
         try {
-            await req(progBase, 'POST', {
+            const res = await req(progBase, 'POST', {
                 code, name, college_id: collegeId, education_node_id: nodeId,
             });
-            location.reload();
+            closeAddProgram();
+            // The tree doesn't list programs, so confirm with a banner that links
+            // to where they're managed.
+            const banner = document.getElementById('programCreatedBanner');
+            const verb = res.created ? 'created' : 'updated';
+            const safeCode = code.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+            banner.innerHTML = `Program <strong>${safeCode}</strong> ${verb}. `
+                + `<a href="${programsPageUrl}" class="font-semibold underline">View it on the Programs page</a>.`;
+            banner.classList.remove('hidden');
+            banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         } catch (e) { console.error(e); alert(errMessage(e, 'Failed to add program.')); }
     }
     async function saveCollege() {

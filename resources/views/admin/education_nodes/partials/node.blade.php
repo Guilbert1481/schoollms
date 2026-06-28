@@ -3,23 +3,10 @@
     $depth = $depth ?? 0;
     $kids = $node->relationLoaded('childrenRecursive') ? $node->childrenRecursive : $node->children;
 
-    // Programs (from `programs` table) attached to THIS specific node id.
-    $programsByNode = $programsByNode ?? collect();
-    $programList    = $programsByNode->get($node->id, collect());
-
-    // Legacy fallback: any programs with NULL education_node_id are surfaced
-    // under the root "College / Undergraduate / Bachelor" node so nothing is hidden.
-    $nameLower = strtolower($node->name);
-    $isCollegeRoot = $node->parent_id === null && (
-        str_contains($nameLower, 'college')
-        || str_contains($nameLower, 'undergrad')
-        || str_contains($nameLower, 'bachelor')
-    );
-    if ($isCollegeRoot) {
-        $programList = $programList->concat($programsByNode->get(0, collect()));
-    }
-
-    $hasChildren = ($kids && $kids->count() > 0) || $programList->isNotEmpty();
+    // The tree shows STRUCTURE only (levels/stages/tracks/strands/program_types).
+    // Programs live in the `programs` table and are managed on the Programs page —
+    // the tree creates them (via "+ Add Program") but never displays them.
+    $hasChildren = $kids && $kids->count() > 0;
     $typeColors = [
         'level'        => 'bg-blue-100 text-blue-700',
         'stage'        => 'bg-emerald-100 text-emerald-700',
@@ -107,53 +94,7 @@
     @if ($hasChildren)
         <ul data-tree-children="{{ $node->id }}" class="space-y-1 hidden">
             @foreach ($kids as $child)
-                @include('admin.education_nodes.partials.node', ['node' => $child, 'depth' => $depth + 1, 'programsByNode' => $programsByNode])
-            @endforeach
-
-            {{-- Dean/Admin programs (sourced from `programs` table) — rendered
-                 with the same UI as native EducationNode rows. --}}
-            @foreach ($programList as $program)
-                <li>
-                    <div class="flex items-center gap-2 py-1.5 hover:bg-slate-50 rounded px-1"
-                         style="padding-left: {{ ($depth + 1) * 20 }}px;">
-
-                        {{-- Spacer where chevron would be (no children) --}}
-                        <span class="w-5 h-5 inline-block"></span>
-
-                        {{-- Active/Offered checkbox --}}
-                        <input type="checkbox"
-                               class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                               @checked((bool) ($program->active ?? true))
-                               data-action="toggle-program"
-                               data-id="{{ $program->id }}">
-
-                        <span class="text-slate-400 text-sm">📄</span>
-
-                        <span class="text-sm text-slate-800 flex-1 truncate">
-                            {{ $program->code ?: $program->name }}
-                        </span>
-
-                        <span class="text-[10px] px-1.5 py-0.5 rounded font-mono bg-indigo-100 text-indigo-700">program</span>
-
-                        {{-- No "Add Child": a program is a leaf from the `programs`
-                             table, not a structure node, so it cannot be the
-                             parent of an education_node. --}}
-                        <button type="button"
-                                data-action="edit-program"
-                                data-id="{{ $program->id }}"
-                                data-name="{{ $program->name }}"
-                                data-code="{{ $program->code }}"
-                                class="text-xs px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">
-                            ✎
-                        </button>
-                        <button type="button"
-                                data-action="delete-program"
-                                data-id="{{ $program->id }}"
-                                class="text-xs px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50">
-                            🗑
-                        </button>
-                    </div>
-                </li>
+                @include('admin.education_nodes.partials.node', ['node' => $child, 'depth' => $depth + 1])
             @endforeach
         </ul>
     @endif
