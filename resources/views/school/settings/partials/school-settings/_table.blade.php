@@ -78,41 +78,50 @@
                         </td>
 
                         <td class="py-3 pr-4" data-ay-col="actions">
-                            <div class="flex items-center gap-2 whitespace-nowrap">
+                            <div class="flex items-center gap-1 whitespace-nowrap">
 
                                 {{-- Edit AY --}}
                                 <button type="button"
-                                        class="px-3 py-1.5 rounded-lg text-xs font-extrabold border border-indigo-200 bg-indigo-50 text-indigo-800"
+                                        aria-label="Edit"
+                                        class="relative group inline-flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
                                         onclick="openEditAYModal(
                                             {{ (int) $ay->id }},
                                             @js($ay->name),
                                             @js(\Carbon\Carbon::parse($ay->start_date)->format('Y-m-d')),
                                             @js(\Carbon\Carbon::parse($ay->end_date)->format('Y-m-d'))
                                         )">
-                                    Edit
+                                    <i data-lucide="pencil" class="h-4 w-4"></i>
+                                    <x-table.action-tooltip label="Edit" />
                                 </button>
-
-                                {{-- Delete AY --}}
-                                <form method="POST" action="{{ route('school.settings.master-data.academic_year.destroy', $ay->id) }}">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                            class="px-3 py-1.5 rounded-lg text-xs font-extrabold border border-red-200 bg-red-50 text-red-800">
-                                        Delete
-                                    </button>
-                                </form>
 
                                 {{-- Create Term --}}
                                 <button type="button"
-                                        class="px-3 py-1.5 rounded-lg text-xs font-extrabold border border-slate-200"
+                                        aria-label="Create Term"
+                                        class="relative group inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                                         onclick="openCreateTermModal(
                                             {{ (int) $ay->id }},
                                             @js($ay->name),
                                             @js(\Carbon\Carbon::parse($ay->start_date)->format('Y-m-d')),
                                             @js(\Carbon\Carbon::parse($ay->end_date)->format('Y-m-d'))
                                         )">
-                                    Create Term
+                                    <i data-lucide="calendar-plus" class="h-4 w-4"></i>
+                                    <x-table.action-tooltip label="Create Term" />
                                 </button>
+
+                                {{-- Delete AY --}}
+                                <form method="POST"
+                                      action="{{ route('school.settings.master-data.academic_year.destroy', $ay->id) }}"
+                                      data-confirm="Delete this academic year and its terms? This cannot be undone."
+                                      class="m-0 inline-flex">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit"
+                                            aria-label="Delete"
+                                            class="relative group inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100">
+                                        <i data-lucide="trash-2" class="h-4 w-4"></i>
+                                        <x-table.action-tooltip label="Delete" />
+                                    </button>
+                                </form>
                             </div>
                         </td>
                     </tr>
@@ -165,13 +174,12 @@
                                 </td>
 
                                 <td class="py-3 pr-4" data-ay-col="actions" onclick="event.stopPropagation()">
-                                    <div class="flex flex-wrap items-center gap-2">
-
-                                        
+                                    <div class="flex flex-wrap items-center gap-1">
 
                                         {{-- Edit Term --}}
                                         <button type="button"
-                                                class="px-3 py-1.5 rounded-lg text-xs font-extrabold border border-indigo-200 bg-indigo-50 text-indigo-800"
+                                                aria-label="Edit"
+                                                class="relative group inline-flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
                                                 onclick="openEditTermModal(
                                                     {{ (int) $ay->id }},
                                                     {{ (int) $t->id }},
@@ -181,25 +189,33 @@
                                                     @js($t->enrollment_type ?? 'regular'),
                                                     @js($t->title ?? '')
                                                 )">
-                                            Edit
+                                            <i data-lucide="pencil" class="h-4 w-4"></i>
+                                            <x-table.action-tooltip label="Edit" />
                                         </button>
 
                                         {{-- Add Subjects (regular terms only) --}}
                                         @if(($t->enrollment_type ?? 'regular') === 'regular')
                                             <button type="button"
-                                                    class="px-3 py-1.5 rounded-lg text-xs font-extrabold border border-emerald-200 bg-emerald-50 text-emerald-800"
+                                                    aria-label="Add Subjects"
+                                                    class="relative group inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                                                     onclick="openAddSubjectOfferingModal({{ (int) $t->id }}, @js($t->name ?? $t->term))">
-                                                + Subjects
+                                                <i data-lucide="book-plus" class="h-4 w-4"></i>
+                                                <x-table.action-tooltip label="Add Subjects" />
                                             </button>
                                         @endif
 
                                         {{-- Delete Term --}}
-                                        <form method="POST" action="{{ route('school.settings.term.destroy', ['academicYearId' => $ay->id, 'id' => $t->id]) }}">
+                                        <form method="POST"
+                                              action="{{ route('school.settings.term.destroy', ['academicYearId' => $ay->id, 'id' => $t->id]) }}"
+                                              data-confirm="Delete this term? This cannot be undone."
+                                              class="m-0 inline-flex">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit"
-                                                    class="px-3 py-1.5 rounded-lg text-xs font-extrabold border border-red-200 bg-red-50 text-red-800">
-                                                Delete
+                                                    aria-label="Delete"
+                                                    class="relative group inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100">
+                                                <i data-lucide="trash-2" class="h-4 w-4"></i>
+                                                <x-table.action-tooltip label="Delete" />
                                             </button>
                                         </form>
 

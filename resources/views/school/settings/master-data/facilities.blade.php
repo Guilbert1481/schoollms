@@ -33,8 +33,18 @@
                     <td class="p-3">40</td>
                     <td class="p-3">2026-01-01</td>
                     <td class="p-3">
-                        <a href="#" class="text-blue-600">Edit</a>
-                        <a href="#" class="text-red-600 ml-2">Delete</a>
+                        <div class="flex items-center gap-1">
+                            <a href="#" aria-label="Edit"
+                               class="relative group inline-flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100">
+                                <i data-lucide="pencil" class="h-4 w-4"></i>
+                                <x-table.action-tooltip label="Edit" />
+                            </a>
+                            <a href="#" aria-label="Delete"
+                               class="relative group inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100">
+                                <i data-lucide="trash-2" class="h-4 w-4"></i>
+                                <x-table.action-tooltip label="Delete" />
+                            </a>
+                        </div>
                     </td>
                 </tr>
             </tbody>
