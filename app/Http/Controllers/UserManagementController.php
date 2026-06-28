@@ -150,9 +150,21 @@ class UserManagementController extends Controller
         ));
     }
 
-    public function updateRole(Request $request, Role $role)
+    public function updateRole(Request $request, $roleId)
     {
-        $this->authorizeRoleSchool($role);
+        // Look the role up scoped to the current school instead of relying on
+        // implicit route-model binding, so a stale page / already-deleted role
+        // gives a friendly message instead of a raw 404.
+        $role = Role::query()
+            ->where('id', $roleId)
+            ->where('school_id', auth()->user()->school_id)
+            ->first();
+
+        if (! $role) {
+            return redirect()
+                ->route('settings.users.index')
+                ->with('success', 'That role no longer exists — it may have already been removed.');
+        }
 
         $data = $request->validate([
             'role_name' => 'required|string|max:255',
@@ -197,9 +209,20 @@ class UserManagementController extends Controller
         return back()->with('success', 'Role updated successfully.');
     }
 
-    public function destroyRole(Role $role)
+    public function destroyRole($roleId)
     {
-        $this->authorizeRoleSchool($role);
+        // Scoped lookup (not implicit binding) so deleting an already-removed
+        // role from a stale page redirects with a message instead of a 404.
+        $role = Role::query()
+            ->where('id', $roleId)
+            ->where('school_id', auth()->user()->school_id)
+            ->first();
+
+        if (! $role) {
+            return redirect()
+                ->route('settings.users.index')
+                ->with('success', 'That role no longer exists — it may have already been removed.');
+        }
 
         $assignedUsers = DB::table('account_access')
             ->where('role_id', $role->id)
@@ -207,12 +230,16 @@ class UserManagementController extends Controller
             ->count();
 
         if ($assignedUsers > 0) {
-            return back()->withErrors(['role' => 'This role is assigned to active users and cannot be deleted.']);
+            return redirect()
+                ->route('settings.users.index')
+                ->withErrors(['role' => 'This role is assigned to active users and cannot be deleted.']);
         }
 
         $role->delete();
 
-        return back()->with('success', 'Role deleted successfully.');
+        return redirect()
+            ->route('settings.users.index')
+            ->with('success', 'Role deleted successfully.');
     }
 
     public function store(Request $request)
