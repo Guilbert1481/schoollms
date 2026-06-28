@@ -9,6 +9,7 @@ use App\Models\StudentEnrollment;
 use App\Models\Term;
 use App\Models\User;
 use App\Support\EducationLevels;
+use App\Support\EnrollmentStatuses;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -50,7 +51,20 @@ class StudentLedgerController extends Controller
             || strtolower((string) $levelParam) === 'all';
         $activeLevelId = $showAll ? 0 : (int) $levelParam;
 
-        // Latest enrollment per student, restricted to officially enrolled.
+        // Status filter (taxonomy). Defaults to "Enrolled" so the page keeps its
+        // historical behaviour; the dropdown lets the registrar switch to any
+        // ledger-group status (Graduated, On Leave, Dropped, …) or "All".
+        $statusFilter  = $request->query('status') ?: 'enrolled';
+        $statusOptions = EnrollmentStatuses::options('ledger');
+        if ($statusFilter !== 'all' && ! array_key_exists($statusFilter, $statusOptions)) {
+            $statusFilter = 'enrolled';
+        }
+        $statusEnrollDb  = EnrollmentStatuses::dbValuesFor($statusFilter);
+        $statusStudentDb = EnrollmentStatuses::studentDbValuesFor($statusFilter);
+
+        // Latest enrollment per student, scoped by the selected status. A status
+        // can resolve from the enrollment row (se.status) and/or the student
+        // record (st.status), so we OR across both columns.
         $rows = DB::table('students as st')
             ->join('student_enrollments as se', 'se.id', '=', DB::raw(
                 '(select max(id) from student_enrollments where student_id = st.id)'
@@ -59,7 +73,22 @@ class StudentLedgerController extends Controller
             ->leftJoin('terms as t', 't.id', '=', 'se.term_id')
             ->leftJoin('academic_years as ay', 'ay.id', '=', 'se.academic_year_id')
             ->where('st.school_id', $schoolId)
-            ->where('se.status', 'enrolled')
+            ->when($statusFilter !== 'all', function ($q) use ($statusEnrollDb, $statusStudentDb) {
+                $q->where(function ($w) use ($statusEnrollDb, $statusStudentDb) {
+                    $applied = false;
+                    if ($statusEnrollDb) {
+                        $w->orWhereIn('se.status', $statusEnrollDb);
+                        $applied = true;
+                    }
+                    if ($statusStudentDb) {
+                        $w->orWhereIn('st.status', $statusStudentDb);
+                        $applied = true;
+                    }
+                    if (! $applied) {
+                        $w->whereRaw('1 = 0');
+                    }
+                });
+            })
             ->orderBy('st.last_name')
             ->orderBy('st.first_name')
             ->get([
@@ -69,6 +98,8 @@ class StudentLedgerController extends Controller
                 'st.middle_name',
                 'st.last_name',
                 'st.email',
+                'st.status as student_status',
+                'se.status as enrollment_status',
                 'se.year_level',
                 'se.education_node_id',
                 'se.academic_year_id',
@@ -115,6 +146,7 @@ class StudentLedgerController extends Controller
                     'enrolled_at' => $r->enrolled_at
                         ? \Carbon\Carbon::parse($r->enrolled_at)->format('M d, Y')
                         : '—',
+                    'status'      => EnrollmentStatuses::pillFor($r->student_status ?? null, $r->enrollment_status ?? null),
                 ],
             ];
         });
@@ -188,6 +220,9 @@ class StudentLedgerController extends Controller
             }, $columns);
         }
 
+        // Status column (coloured pill) — always shown, after the other columns.
+        $columns[] = ['key' => 'status', 'label' => 'Status', 'width' => '180px', 'raw' => true];
+
         // Program filter — higher-ed levels only (Basic Ed has no programs).
         // If the active higher-ed level has no programs yet, the table shows a
         // guiding message instead of the generic "no students" one.
@@ -256,6 +291,8 @@ class StudentLedgerController extends Controller
             'programOptions'     => $programOptions,
             'programId'          => $programId,
             'showProgramFilter'  => $showProgramFilter,
+            'statusOptions'      => $statusOptions,
+            'statusFilter'       => $statusFilter,
             'tableEmptyMessage'  => $tableEmptyMessage,
             'importAcademicYears'  => $importAcademicYears,
             'showImportTermNumber' => $showImportTermNumber,

@@ -7,6 +7,7 @@ use App\Models\FinanceSetting;
 use App\Models\StudentEnrollment;
 use App\Services\Finance\InvoiceService;
 use App\Support\EducationLevels;
+use App\Support\EnrollmentStatuses;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -32,11 +33,21 @@ class EnrollmentValidationController extends Controller
         $offeredRoots = EducationLevels::offeredRoots();
         $nodeToRoot   = EducationLevels::nodeRootMap();
 
-        // Pending-validation enrollments (status = submitted), with the fields
-        // needed to bucket each one by education level.
-        $pending = StudentEnrollment::query()
+        // Status filter (taxonomy, 'validate' group). This page shows the pre-
+        // official pipeline; it defaults to "Pending Requirements" (the queue
+        // that actually needs validation) and lets the registrar switch to
+        // "Pre-Enrolled" or "All".
+        $statusFilter  = $request->query('status') ?: 'pending_requirements';
+        $statusOptions = EnrollmentStatuses::options('validate');
+        if ($statusFilter !== 'all' && ! array_key_exists($statusFilter, $statusOptions)) {
+            $statusFilter = 'pending_requirements';
+        }
+
+        // All pre-official enrollments (every status in the 'validate' group),
+        // with the fields needed to bucket each one by education level.
+        $preofficial = StudentEnrollment::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-            ->where('status', StudentEnrollment::STATUS_SUBMITTED)
+            ->whereIn('status', EnrollmentStatuses::dbValuesForGroup('validate'))
             ->with([
                 'student:id,first_name,last_name,student_number',
                 'program:id,name,code,education_node_id',
@@ -48,9 +59,14 @@ class EnrollmentValidationController extends Controller
             ?? $nodeToRoot[optional($e->program)->education_node_id ?? null]
             ?? null;
 
-        // Per-level counts for the red tab badges.
+        // Red tab badges = how many still NEED validation (Pending Requirements),
+        // independent of the currently-selected status filter.
+        $pendingDb = EnrollmentStatuses::dbValuesFor('pending_requirements');
         $counts = [];
-        foreach ($pending as $e) {
+        foreach ($preofficial as $e) {
+            if (! in_array($e->status, $pendingDb, true)) {
+                continue;
+            }
             $r = (int) ($rootOf($e) ?? 0);
             $counts[$r] = ($counts[$r] ?? 0) + 1;
         }
@@ -63,8 +79,11 @@ class EnrollmentValidationController extends Controller
         $yearLevel = ($yearLevel === null || $yearLevel === '') ? null : (string) $yearLevel;
         $programId = (int) $request->integer('program_id');
 
-        $rows = $pending
+        $statusDb = $statusFilter === 'all' ? null : EnrollmentStatuses::dbValuesFor($statusFilter);
+
+        $rows = $preofficial
             ->filter(fn ($e) => (int) ($rootOf($e) ?? 0) === $activeLevelId)
+            ->when($statusDb !== null, fn ($c) => $c->filter(fn ($e) => in_array($e->status, $statusDb, true)))
             ->when($yearLevel !== null, fn ($c) => $c->filter(fn ($e) => (string) $e->year_level === $yearLevel))
             ->when($programId, fn ($c) => $c->filter(fn ($e) => (int) $e->program_id === $programId))
             ->map(function ($e) use ($activeLevelIsBasic) {
@@ -82,7 +101,7 @@ class EnrollmentValidationController extends Controller
                     'program'        => optional($e->program)->code ?: (optional($e->program)->name ?: '—'),
                     'enrollee_type'  => $e->enrollee_type ? ucfirst((string) $e->enrollee_type) : '—',
                     'total_units'    => $e->total_units ?: '—',
-                    'status'         => '<span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">Submitted</span>',
+                    'status'         => EnrollmentStatuses::pillForDb($e->status),
                 ];
             })
             ->values();
@@ -108,7 +127,7 @@ class EnrollmentValidationController extends Controller
 
         // Filter option sets.
         $gradeOptions = EducationLevels::basicGradeOptions();
-        $yearOptions  = $pending
+        $yearOptions  = $preofficial
             ->filter(fn ($e) => (int) ($rootOf($e) ?? 0) === $activeLevelId && $e->year_level)
             ->map(fn ($e) => (int) $e->year_level)->unique()->sort()->values()
             ->mapWithKeys(fn ($y) => [(string) $y => 'Year '.$y])->all();
@@ -136,6 +155,8 @@ class EnrollmentValidationController extends Controller
             'programOptions'     => $programOptions,
             'yearLevel'          => $yearLevel,
             'programId'          => $programId ?: null,
+            'statusOptions'      => $statusOptions,
+            'statusFilter'       => $statusFilter,
         ]);
     }
 

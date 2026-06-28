@@ -25,12 +25,26 @@
 
     {{-- Title (left) + level-specific filters (right) --}}
     <div class="flex flex-wrap items-center justify-between gap-3">
+        @php
+            $statusSubtitle = $statusFilter === 'all'
+                ? 'pre-enrollment pipeline'
+                : strtolower($statusOptions[$statusFilter] ?? 'awaiting validation');
+        @endphp
         <h2 class="text-lg font-bold text-slate-800">
             {{ $activeLevel->name ?? 'Enrollments' }}
-            <span class="font-medium text-slate-400">— awaiting validation</span>
+            <span class="font-medium text-slate-400">— {{ $statusSubtitle }}</span>
         </h2>
 
         <div class="flex flex-wrap items-center gap-2">
+            {{-- Status filter (always shown) — pre-official statuses only. --}}
+            <select onchange="validateFilter('status', this.value)"
+                    class="rounded border border-gray-300 px-2 py-2 text-sm">
+                <option value="all" @selected($statusFilter === 'all')>All Statuses</option>
+                @foreach($statusOptions as $sKey => $sLabel)
+                    <option value="{{ $sKey }}" @selected($statusFilter === $sKey)>{{ $sLabel }}</option>
+                @endforeach
+            </select>
+
             @if($activeLevelIsBasic)
                 <select onchange="validateFilter('year_level', this.value)"
                         class="rounded border border-gray-300 px-2 py-2 text-sm">

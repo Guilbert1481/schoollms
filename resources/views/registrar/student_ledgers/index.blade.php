@@ -58,6 +58,14 @@
         <x-slot:afterFilter>
             {{-- Always shown so the registrar can see the available filters,
                  even before any data exists (just "All ..." when empty). --}}
+            <select onchange="ledgerApplyFilter('status', this.value)"
+                    class="rounded border border-gray-300 px-2 py-2 text-sm">
+                <option value="all" @selected($statusFilter === 'all')>All Statuses</option>
+                @foreach($statusOptions as $sKey => $sLabel)
+                    <option value="{{ $sKey }}" @selected($statusFilter === $sKey)>{{ $sLabel }}</option>
+                @endforeach
+            </select>
+
             <select onchange="ledgerApplyFilter('academic_year_id', this.value)"
                     class="rounded border border-gray-300 px-2 py-2 text-sm">
                 <option value="">All Academic Years</option>
