@@ -44,11 +44,13 @@
             {{ $col['label'] }}
         @endif
 
-        {{-- Drag the right edge to resize this column (left / right). --}}
-        <div class="col-resizer absolute top-0 right-0 z-10 h-full w-1.5 cursor-col-resize hover:bg-indigo-300"
+        {{-- Visible grip — drag it left/right to resize this column. --}}
+        <div class="col-resizer"
              data-table="{{ $tableKey }}"
              data-col-key="{{ $col['key'] }}"
-             title="Drag to resize"></div>
+             title="Drag to resize column">
+            <span class="col-resizer-line"></span>
+        </div>
     </th>
 @endforeach
 

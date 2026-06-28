@@ -5,6 +5,40 @@
         max-width: 150px;
         white-space: nowrap;
     }
+
+    /* Column resize grip — a visible handle on each header's right edge so it's
+       obvious where to drag. Wide hit area; the line highlights on hover. */
+    .col-resizer {
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 100%;
+        width: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: col-resize;
+        z-index: 10;
+        user-select: none;
+        touch-action: none;
+    }
+    .col-resizer-line {
+        width: 2px;
+        height: 55%;
+        border-radius: 9999px;
+        background: #cbd5e1; /* slate-300: faint divider, always visible */
+        transition: background .12s ease, height .12s ease, width .12s ease;
+    }
+    .col-resizer:hover .col-resizer-line {
+        width: 3px;
+        height: 100%;
+        background: #6366f1; /* indigo-500 on hover */
+    }
+    .col-resizer:active .col-resizer-line {
+        width: 3px;
+        height: 100%;
+        background: #4f46e5; /* indigo-600 while dragging */
+    }
 </style>
 
 <div class="bg-white border border-gray-200 rounded-xl p-4">
