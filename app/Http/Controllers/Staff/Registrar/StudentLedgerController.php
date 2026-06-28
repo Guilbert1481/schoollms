@@ -72,6 +72,7 @@ class StudentLedgerController extends Controller
                 'se.year_level',
                 'se.education_node_id',
                 'se.academic_year_id',
+                'se.program_id',
                 'p.code as program_code',
                 'p.name as program_name',
                 'p.education_node_id as program_node_id',
@@ -85,6 +86,8 @@ class StudentLedgerController extends Controller
 
         $yearLevelFilter = $request->query('year_level');
         $yearLevelFilter = ($yearLevelFilter === null || $yearLevelFilter === '') ? null : (string) $yearLevelFilter;
+
+        $programId = $request->integer('program_id') ?: null;
 
         // Normalise each enrollment into an item carrying both the raw fields
         // used for filtering and the display object rendered by the table.
@@ -102,6 +105,7 @@ class StudentLedgerController extends Controller
                 'year_level'         => $r->year_level,
                 'academic_year_id'   => $r->academic_year_id,
                 'academic_year_name' => $r->academic_year_name,
+                'program_id'         => $r->program_id,
                 'display'            => (object) [
                     'full_name'   => $fullName,
                     'student_id'  => $r->student_number ?? '—',
@@ -162,6 +166,7 @@ class StudentLedgerController extends Controller
         // any stray node/term linkage on the enrollment.
         $finalRows = $afterAy
             ->when($yearLevelFilter !== null, fn ($c) => $c->filter(fn ($i) => (string) $i->year_level === $yearLevelFilter))
+            ->when($programId, fn ($c) => $c->filter(fn ($i) => (int) $i->program_id === (int) $programId))
             ->map(function ($i) use ($activeLevelIsBasic) {
                 if ($activeLevelIsBasic && is_numeric($i->year_level)) {
                     $i->display->year_term = 'Grade '.(int) $i->year_level;
@@ -184,6 +189,26 @@ class StudentLedgerController extends Controller
                 return $c;
             }, $columns);
         }
+
+        // Program filter — higher-ed levels only (Basic Ed has no programs).
+        // If the active higher-ed level has no programs yet, the table shows a
+        // guiding message instead of the generic "no students" one.
+        $showProgramFilter = ! $showAll && ! $activeLevelIsBasic && $activeLevelId > 0;
+        $programOptions = [];
+        if ($showProgramFilter) {
+            $nodeRoot = EducationLevels::nodeRootMap();
+            $programOptions = DB::table('programs')
+                ->where('school_id', $schoolId)
+                ->orderBy('code')->orderBy('name')
+                ->get(['id', 'code', 'name', 'education_node_id'])
+                ->filter(fn ($p) => (int) ($nodeRoot[$p->education_node_id ?? null] ?? 0) === $activeLevelId)
+                ->mapWithKeys(fn ($p) => [(int) $p->id => trim(($p->code ? $p->code.' — ' : '').$p->name)])
+                ->all();
+        }
+
+        $tableEmptyMessage = ($showProgramFilter && empty($programOptions))
+            ? 'No programs have been set up for this level yet.'
+            : 'No students enrolled for this selection yet.';
 
         $levelTitle = $showAll
             ? 'All Levels'
@@ -230,6 +255,10 @@ class StudentLedgerController extends Controller
             'academicYearId'     => $academicYearId,
             'yearLevel'          => $yearLevelFilter,
             'activeLevelIsBasic' => $activeLevelIsBasic,
+            'programOptions'     => $programOptions,
+            'programId'          => $programId,
+            'showProgramFilter'  => $showProgramFilter,
+            'tableEmptyMessage'  => $tableEmptyMessage,
             'importAcademicYears'  => $importAcademicYears,
             'showImportTermNumber' => $showImportTermNumber,
         ]);

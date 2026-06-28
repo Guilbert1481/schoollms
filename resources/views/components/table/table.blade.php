@@ -125,9 +125,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const tbody    = table.tBodies[0];
     // The "no records" placeholder row is never paginated/filtered.
     const allRows  = tbody ? Array.from(tbody.rows).filter(r => !r.classList.contains('js-empty-row')) : [];
-    const perPage  = pagerEl ? parseInt(pagerEl.dataset.perPage, 10) || 0 : 0;
+
+    const ROWS_KEY    = 'tblperpage:' + tableKey;
+    const basePerPage = pagerEl ? parseInt(pagerEl.dataset.perPage, 10) || 0 : 0;
+    let perPage     = basePerPage;
     let currentPage = 1;
     let filterText  = '';
+
+    // Build the pager shell once: left = "Rows" input + info, right = buttons.
+    // The user-chosen rows-per-page is remembered per table.
+    let infoEl = null, buttonsEl = null;
+    if (pagerEl && basePerPage > 0) {
+        const saved = parseInt(localStorage.getItem(ROWS_KEY), 10);
+        if (saved > 0) perPage = saved;
+
+        pagerEl.innerHTML =
+            '<div class="flex items-center gap-2">' +
+                '<label class="text-slate-500">Rows</label>' +
+                '<input type="number" min="1" id="' + tableKey + 'PerPage" value="' + perPage + '" ' +
+                    'class="w-16 rounded border border-slate-300 px-2 py-1 text-sm">' +
+                '<span class="text-slate-500" id="' + tableKey + 'PagerInfo"></span>' +
+            '</div>' +
+            '<div class="flex items-center gap-1" id="' + tableKey + 'PagerButtons"></div>';
+
+        infoEl    = document.getElementById(tableKey + 'PagerInfo');
+        buttonsEl = document.getElementById(tableKey + 'PagerButtons');
+
+        document.getElementById(tableKey + 'PerPage').addEventListener('change', function () {
+            const v = parseInt(this.value, 10);
+            perPage = (v > 0) ? v : basePerPage;
+            this.value = perPage;
+            localStorage.setItem(ROWS_KEY, perPage);
+            currentPage = 1;
+            render();
+        });
+    }
 
     function visibleRows() {
         if (!filterText) return allRows.slice();
@@ -151,31 +183,30 @@ document.addEventListener('DOMContentLoaded', function() {
             visible.forEach(r => r.style.display = '');
         }
 
-        if (pagerEl) renderPager(total, pages);
+        if (infoEl && buttonsEl) renderPager(total, pages);
     }
 
     function renderPager(total, pages) {
         if (total === 0) {
-            pagerEl.innerHTML =
-                `<div class="text-slate-500">No results.</div>`;
+            infoEl.textContent = 'No results.';
+            buttonsEl.innerHTML = '';
             return;
         }
         const from = (currentPage - 1) * perPage + 1;
         const to   = Math.min(currentPage * perPage, total);
+        infoEl.innerHTML = 'Showing <span class="font-semibold">' + from + '–' + to + '</span> of <span class="font-semibold">' + total + '</span>';
 
         const btn = (label, page, opts = {}) => {
             const disabled = opts.disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100';
             const active   = opts.active ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-slate-700';
-            return `<button type="button"
-                            data-page="${page}"
-                            ${opts.disabled ? 'disabled' : ''}
-                            class="min-w-[2rem] h-8 px-2 rounded border border-slate-200 ${active} ${disabled} text-xs">${label}</button>`;
+            return '<button type="button" data-page="' + page + '" ' + (opts.disabled ? 'disabled' : '') +
+                   ' class="min-w-[2rem] h-8 px-2 rounded border border-slate-200 ' + active + ' ' + disabled + ' text-xs">' + label + '</button>';
         };
 
         // Compact page list with ellipses
         const pageBtns = [];
         const push = (p) => pageBtns.push(btn(p, p, { active: p === currentPage }));
-        const ell  = () => pageBtns.push(`<span class="px-1 text-slate-400">…</span>`);
+        const ell  = () => pageBtns.push('<span class="px-1 text-slate-400">…</span>');
 
         if (pages <= 7) {
             for (let p = 1; p <= pages; p++) push(p);
@@ -189,15 +220,12 @@ document.addEventListener('DOMContentLoaded', function() {
             push(pages);
         }
 
-        pagerEl.innerHTML = `
-            <div class="text-slate-500">Showing <span class="font-semibold">${from}–${to}</span> of <span class="font-semibold">${total}</span></div>
-            <div class="flex items-center gap-1">
-                ${btn('‹ Prev', currentPage - 1, { disabled: currentPage === 1 })}
-                ${pageBtns.join('')}
-                ${btn('Next ›', currentPage + 1, { disabled: currentPage === pages })}
-            </div>`;
+        buttonsEl.innerHTML =
+            btn('‹ Prev', currentPage - 1, { disabled: currentPage === 1 }) +
+            pageBtns.join('') +
+            btn('Next ›', currentPage + 1, { disabled: currentPage === pages });
 
-        pagerEl.querySelectorAll('button[data-page]').forEach(b => {
+        buttonsEl.querySelectorAll('button[data-page]').forEach(b => {
             b.addEventListener('click', () => {
                 const p = parseInt(b.dataset.page, 10);
                 if (!isNaN(p)) { currentPage = p; render(); }

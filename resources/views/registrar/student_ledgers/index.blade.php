@@ -25,23 +25,7 @@
     @endif
 
     {{-- Header --}}
-    <div class="rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-700 to-cyan-800 p-6 md:p-8 text-white shadow-lg">
-        <div class="flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <i data-lucide="id-card" class="w-8 h-8"></i>
-                <div>
-                    <h1 class="text-2xl md:text-3xl font-bold">Student Ledgers</h1>
-                    <p class="text-sm md:text-base text-emerald-100 mt-1">
-                        Detailed records of officially enrolled students.
-                    </p>
-                </div>
-            </div>
-            <div class="text-sm text-emerald-100">
-                <span class="font-bold text-white">{{ $total }}</span>
-                enrolled student{{ $total === 1 ? '' : 's' }}
-            </div>
-        </div>
-    </div>
+    <h1 class="text-xl font-extrabold text-slate-800">Student Ledgers</h1>
 
     {{-- Education-level tabs (hidden when only one level is offered) --}}
     @if ($showTabs)
@@ -49,14 +33,12 @@
             $ledgerTabs = [[
                 'label'  => 'All Levels',
                 'url'    => route('registrar.student-ledgers.index', ['level' => 'all']),
-                'count'  => $total,
                 'active' => $showAll,
             ]];
             foreach ($levels as $lvl) {
                 $ledgerTabs[] = [
                     'label'  => $lvl->name,
                     'url'    => route('registrar.student-ledgers.index', ['level' => $lvl->id]),
-                    'count'  => $counts[$lvl->id] ?? 0,
                     'active' => ! $showAll && $activeLevelId === $lvl->id,
                 ];
             }
@@ -71,7 +53,7 @@
         :data="$rows->values()"
         :hideActions="true"
         perPage="20"
-        emptyMessage="No students enrolled for this selection yet."
+        :emptyMessage="$tableEmptyMessage"
     >
         <x-slot:afterFilter>
             @if(!empty($academicYears))
@@ -90,6 +72,16 @@
                     <option value="">All {{ $activeLevelIsBasic ? 'Grade Levels' : 'Year Levels' }}</option>
                     @foreach($yearLevelOptions as $ylValue => $ylLabel)
                         <option value="{{ $ylValue }}" @selected((string) $yearLevel === (string) $ylValue)>{{ $ylLabel }}</option>
+                    @endforeach
+                </select>
+            @endif
+
+            @if($showProgramFilter && !empty($programOptions))
+                <select onchange="ledgerApplyFilter('program_id', this.value)"
+                        class="rounded border border-gray-300 px-2 py-2 text-sm">
+                    <option value="">All Programs</option>
+                    @foreach($programOptions as $pid => $pname)
+                        <option value="{{ $pid }}" @selected((int) $programId === (int) $pid)>{{ $pname }}</option>
                     @endforeach
                 </select>
             @endif
