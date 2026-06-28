@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FinanceSetting;
 use App\Models\StudentEnrollment;
 use App\Services\Finance\InvoiceService;
+use App\Support\EducationLevels;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -28,46 +29,114 @@ class EnrollmentValidationController extends Controller
     {
         $schoolId = auth()->user()->school_id ?? null;
 
-        $status = $request->string('status', 'submitted')->toString();
-        $allowed = [
-            'submitted',
-            'exam_passed',
-            'exam_failed',
-            'assessed',
-            'billed',
-            'partially_paid',
-            'enrolled',
-            'cancelled',
-            'all',
-        ];
-        if (! in_array($status, $allowed, true)) {
-            $status = 'submitted';
+        $offeredRoots = EducationLevels::offeredRoots();
+        $nodeToRoot   = EducationLevels::nodeRootMap();
+
+        // Pending-validation enrollments (status = submitted), with the fields
+        // needed to bucket each one by education level.
+        $pending = StudentEnrollment::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->where('status', StudentEnrollment::STATUS_SUBMITTED)
+            ->with([
+                'student:id,first_name,last_name,student_number',
+                'program:id,name,code,education_node_id',
+            ])
+            ->orderByDesc('created_at')
+            ->get();
+
+        $rootOf = fn ($e) => $nodeToRoot[$e->education_node_id ?? null]
+            ?? $nodeToRoot[optional($e->program)->education_node_id ?? null]
+            ?? null;
+
+        // Per-level counts for the red tab badges.
+        $counts = [];
+        foreach ($pending as $e) {
+            $r = (int) ($rootOf($e) ?? 0);
+            $counts[$r] = ($counts[$r] ?? 0) + 1;
         }
 
-        $termId = $request->integer('term_id') ?: optional(
-            DB::table('terms')->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-                ->orderByDesc('is_current')
-                ->orderByDesc('start_date')
-                ->first()
-        )->id;
+        $activeLevelId      = (int) ($request->integer('level') ?: ($offeredRoots->first()->id ?? 0));
+        $activeLevel        = $offeredRoots->firstWhere('id', $activeLevelId);
+        $activeLevelIsBasic = $activeLevel && EducationLevels::isBasic($activeLevel->name);
 
-        $terms = DB::table('terms')
+        $yearLevel = $request->query('year_level');
+        $yearLevel = ($yearLevel === null || $yearLevel === '') ? null : (string) $yearLevel;
+        $programId = (int) $request->integer('program_id');
+
+        $rows = $pending
+            ->filter(fn ($e) => (int) ($rootOf($e) ?? 0) === $activeLevelId)
+            ->when($yearLevel !== null, fn ($c) => $c->filter(fn ($e) => (string) $e->year_level === $yearLevel))
+            ->when($programId, fn ($c) => $c->filter(fn ($e) => (int) $e->program_id === $programId))
+            ->map(function ($e) use ($activeLevelIsBasic) {
+                $last  = optional($e->student)->last_name;
+                $first = optional($e->student)->first_name;
+                $name  = trim(trim((string) $last).', '.trim((string) $first), ', ');
+
+                return (object) [
+                    'id'             => $e->id,
+                    'student_number' => optional($e->student)->student_number ?: '—',
+                    'name'           => $name !== '' ? $name : '—',
+                    'grade_level'    => $activeLevelIsBasic && is_numeric($e->year_level)
+                        ? 'Grade '.(int) $e->year_level
+                        : ($e->year_level ? 'Year '.(int) $e->year_level : '—'),
+                    'program'        => optional($e->program)->code ?: (optional($e->program)->name ?: '—'),
+                    'enrollee_type'  => $e->enrollee_type ? ucfirst((string) $e->enrollee_type) : '—',
+                    'total_units'    => $e->total_units ?: '—',
+                    'status'         => '<span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">Submitted</span>',
+                ];
+            })
+            ->values();
+
+        // Columns vary by level: Basic shows Grade Level (no Program); higher
+        // levels show Program + Year Level.
+        $columns = $activeLevelIsBasic
+            ? [
+                ['key' => 'student_number', 'label' => 'Student #',   'width' => '140px'],
+                ['key' => 'name',           'label' => 'Name',        'width' => 'auto'],
+                ['key' => 'grade_level',    'label' => 'Grade Level', 'width' => '140px'],
+                ['key' => 'enrollee_type',  'label' => 'Type',        'width' => '130px'],
+                ['key' => 'status',         'label' => 'Status',      'width' => '160px', 'raw' => true],
+            ]
+            : [
+                ['key' => 'student_number', 'label' => 'Student #',  'width' => '140px'],
+                ['key' => 'name',           'label' => 'Name',       'width' => 'auto'],
+                ['key' => 'program',        'label' => 'Program',    'width' => '200px'],
+                ['key' => 'grade_level',    'label' => 'Year Level', 'width' => '120px'],
+                ['key' => 'total_units',    'label' => 'Units',      'width' => '90px'],
+                ['key' => 'status',         'label' => 'Status',     'width' => '160px', 'raw' => true],
+            ];
+
+        // Filter option sets.
+        $gradeOptions = EducationLevels::basicGradeOptions();
+        $yearOptions  = $pending
+            ->filter(fn ($e) => (int) ($rootOf($e) ?? 0) === $activeLevelId && $e->year_level)
+            ->map(fn ($e) => (int) $e->year_level)->unique()->sort()->values()
+            ->mapWithKeys(fn ($y) => [(string) $y => 'Year '.$y])->all();
+        $programOptions = DB::table('programs')
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-            ->orderByDesc('start_date')
-            ->get(['id', 'name']);
+            ->orderBy('code')->orderBy('name')
+            ->get(['id', 'code', 'name'])
+            ->mapWithKeys(fn ($p) => [(int) $p->id => trim(($p->code ? $p->code.' — ' : '').$p->name)])->all();
 
-        $enrollments = StudentEnrollment::query()
-            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-            ->when($termId, fn ($q) => $q->where('term_id', $termId))
-            ->when($status !== 'all', fn ($q) => $q->where('status', $status))
-            ->with(['student:id,first_name,last_name,student_number', 'program:id,name,code'])
-            ->orderByDesc('created_at')
-            ->paginate(25)
-            ->withQueryString();
+        $actions = [
+            ['type' => 'link', 'label' => 'Review', 'route' => 'registrar.enrollments.show', 'class' => 'bg-indigo-600 text-white hover:bg-indigo-700'],
+        ];
 
-        return view('registrar.enrollments.index', compact(
-            'enrollments', 'terms', 'termId', 'status'
-        ));
+        return view('registrar.enrollments.index', [
+            'offeredRoots'       => $offeredRoots,
+            'counts'             => $counts,
+            'activeLevelId'      => $activeLevelId,
+            'activeLevel'        => $activeLevel,
+            'activeLevelIsBasic' => $activeLevelIsBasic,
+            'rows'               => $rows,
+            'columns'            => $columns,
+            'actions'            => $actions,
+            'gradeOptions'       => $gradeOptions,
+            'yearOptions'        => $yearOptions,
+            'programOptions'     => $programOptions,
+            'yearLevel'          => $yearLevel,
+            'programId'          => $programId ?: null,
+        ]);
     }
 
     public function show(StudentEnrollment $enrollment)

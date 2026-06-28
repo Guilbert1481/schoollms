@@ -69,6 +69,28 @@ class EducationLevels
         return $options;
     }
 
+    /**
+     * Map of every education_node id => its top-level root id, so an enrollment
+     * (via education_node_id or its program's node) can be bucketed by level.
+     *
+     * @return array<int,int|null>
+     */
+    public static function nodeRootMap(): array
+    {
+        $all = DB::table('education_nodes')->get(['id', 'parent_id'])->keyBy('id');
+
+        $rootOf = [];
+        foreach ($all as $id => $node) {
+            $cur = $node;
+            for ($i = 0; $i < 32 && $cur && $cur->parent_id; $i++) {
+                $cur = $all[$cur->parent_id] ?? null;
+            }
+            $rootOf[$id] = $cur?->id;
+        }
+
+        return $rootOf;
+    }
+
     /** Whether $nodeId is the same as, or a descendant of, $ancestorId. */
     protected static function descendsFrom(int $nodeId, int $ancestorId, Collection $all): bool
     {
