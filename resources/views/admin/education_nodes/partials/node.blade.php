@@ -123,13 +123,9 @@
 
                         <span class="text-[10px] px-1.5 py-0.5 rounded font-mono bg-indigo-100 text-indigo-700">program</span>
 
-                        <button type="button"
-                                data-action="add-child"
-                                data-parent-id="{{ $node->id }}"
-                                data-parent-name="{{ $node->name }}"
-                                class="text-xs px-2 py-1 rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50">
-                            + Add Child
-                        </button>
+                        {{-- No "Add Child": a program is a leaf from the `programs`
+                             table, not a structure node, so it cannot be the
+                             parent of an education_node. --}}
                         <button type="button"
                                 data-action="edit-program"
                                 data-id="{{ $program->id }}"
