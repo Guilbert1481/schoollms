@@ -130,7 +130,8 @@ final class EnrollmentStatuses
 
     /**
      * Union of all student_enrollments.status values used by a group — handy for
-     * scoping a page to "everything in this group" (e.g. all pre-official rows).
+     * scoping a page to "everything in this group" (e.g. all pre-official rows,
+     * or — for Student Ledgers — every official/post-enrollment status).
      */
     public static function dbValuesForGroup(string $group): array
     {
@@ -138,6 +139,19 @@ final class EnrollmentStatuses
         foreach (self::STATUSES as $s) {
             if ($s['group'] === $group) {
                 $vals = array_merge($vals, $s['db']);
+            }
+        }
+
+        return array_values(array_unique($vals));
+    }
+
+    /** Union of all students.status values used by a group. */
+    public static function studentDbValuesForGroup(string $group): array
+    {
+        $vals = [];
+        foreach (self::STATUSES as $s) {
+            if ($s['group'] === $group) {
+                $vals = array_merge($vals, $s['sdb']);
             }
         }
 

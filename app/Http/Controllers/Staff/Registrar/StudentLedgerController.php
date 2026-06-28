@@ -59,12 +59,22 @@ class StudentLedgerController extends Controller
         if ($statusFilter !== 'all' && ! array_key_exists($statusFilter, $statusOptions)) {
             $statusFilter = 'enrolled';
         }
-        $statusEnrollDb  = EnrollmentStatuses::dbValuesFor($statusFilter);
-        $statusStudentDb = EnrollmentStatuses::studentDbValuesFor($statusFilter);
+        // "All Statuses" on this page means every LEDGER-group status (Enrolled
+        // plus all post-enrollment statuses) — NEVER the pre-official ones. A
+        // specific status uses its own mapping; "all" uses the whole group.
+        if ($statusFilter === 'all') {
+            $statusEnrollDb  = EnrollmentStatuses::dbValuesForGroup('ledger');
+            $statusStudentDb = EnrollmentStatuses::studentDbValuesForGroup('ledger');
+        } else {
+            $statusEnrollDb  = EnrollmentStatuses::dbValuesFor($statusFilter);
+            $statusStudentDb = EnrollmentStatuses::studentDbValuesFor($statusFilter);
+        }
 
-        // Latest enrollment per student, scoped by the selected status. A status
-        // can resolve from the enrollment row (se.status) and/or the student
-        // record (st.status), so we OR across both columns.
+        // Latest enrollment per student. Student Ledgers ONLY shows students who
+        // have reached an official/ledger status — pre-enrollment rows
+        // (submitted, provisional, pre-enrolled, rejected…) never appear here. A
+        // status can resolve from the enrollment row (se.status) and/or the
+        // student record (st.status), so we OR across both columns.
         $rows = DB::table('students as st')
             ->join('student_enrollments as se', 'se.id', '=', DB::raw(
                 '(select max(id) from student_enrollments where student_id = st.id)'
@@ -73,21 +83,19 @@ class StudentLedgerController extends Controller
             ->leftJoin('terms as t', 't.id', '=', 'se.term_id')
             ->leftJoin('academic_years as ay', 'ay.id', '=', 'se.academic_year_id')
             ->where('st.school_id', $schoolId)
-            ->when($statusFilter !== 'all', function ($q) use ($statusEnrollDb, $statusStudentDb) {
-                $q->where(function ($w) use ($statusEnrollDb, $statusStudentDb) {
-                    $applied = false;
-                    if ($statusEnrollDb) {
-                        $w->orWhereIn('se.status', $statusEnrollDb);
-                        $applied = true;
-                    }
-                    if ($statusStudentDb) {
-                        $w->orWhereIn('st.status', $statusStudentDb);
-                        $applied = true;
-                    }
-                    if (! $applied) {
-                        $w->whereRaw('1 = 0');
-                    }
-                });
+            ->where(function ($w) use ($statusEnrollDb, $statusStudentDb) {
+                $applied = false;
+                if ($statusEnrollDb) {
+                    $w->orWhereIn('se.status', $statusEnrollDb);
+                    $applied = true;
+                }
+                if ($statusStudentDb) {
+                    $w->orWhereIn('st.status', $statusStudentDb);
+                    $applied = true;
+                }
+                if (! $applied) {
+                    $w->whereRaw('1 = 0');
+                }
             })
             ->orderBy('st.last_name')
             ->orderBy('st.first_name')
@@ -198,8 +206,12 @@ class StudentLedgerController extends Controller
             ->when($yearLevelFilter !== null, fn ($c) => $c->filter(fn ($i) => (string) $i->year_level === $yearLevelFilter))
             ->when($programId, fn ($c) => $c->filter(fn ($i) => (int) $i->program_id === (int) $programId))
             ->map(function ($i) use ($activeLevelIsBasic) {
-                if ($activeLevelIsBasic && is_numeric($i->year_level)) {
-                    $i->display->year_term = 'Grade '.(int) $i->year_level;
+                // In a Basic-Education view the Grade Level cell is always a grade
+                // (or an em dash) — never a higher-ed term/semester label.
+                if ($activeLevelIsBasic) {
+                    $i->display->year_term = is_numeric($i->year_level)
+                        ? 'Grade '.(int) $i->year_level
+                        : (($i->year_level !== null && $i->year_level !== '') ? (string) $i->year_level : '—');
                 }
 
                 return $i->display;
