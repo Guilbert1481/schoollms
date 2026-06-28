@@ -69,6 +69,7 @@ class StudentLedgerController extends Controller
                 'st.email',
                 'se.year_level',
                 'se.education_node_id',
+                'se.academic_year_id',
                 'p.code as program_code',
                 'p.name as program_name',
                 'p.education_node_id as program_node_id',
@@ -77,47 +78,106 @@ class StudentLedgerController extends Controller
                 'se.updated_at as enrolled_at',
             ]);
 
-        $rowsByLevel = [];
-        foreach ($rows as $r) {
+        $academicYearId = $request->query('academic_year_id');
+        $academicYearId = ($academicYearId === null || $academicYearId === '') ? null : (int) $academicYearId;
+
+        $yearLevelFilter = $request->query('year_level');
+        $yearLevelFilter = ($yearLevelFilter === null || $yearLevelFilter === '') ? null : (string) $yearLevelFilter;
+
+        // Normalise each enrollment into an item carrying both the raw fields
+        // used for filtering and the display object rendered by the table.
+        $items = $rows->map(function ($r) use ($nodeToRoot, $rootNameById) {
             $rootLevelId = $nodeToRoot[$r->education_node_id ?? null]
                 ?? $nodeToRoot[$r->program_node_id ?? null]
                 ?? null;
 
             $fullName = trim(implode(' ', array_filter([
                 $r->first_name, $r->middle_name, $r->last_name,
-            ])));
-            $fullName = $fullName !== '' ? $fullName : '—';
+            ]))) ?: '—';
 
-            $row = (object) [
-                'full_name'   => $fullName,
-                'student_id'  => $r->student_number ?? '—',
-                'email'       => $r->email ?? '—',
-                'year_term'   => $this->formatYearTerm(
-                    $r->year_level,
-                    $r->term_name,
-                    $rootLevelId,
-                    $rootNameById,
-                ),
-                'program'     => $r->program_code
-                    ? trim($r->program_code.' — '.$r->program_name)
-                    : ($r->program_name ?? '—'),
-                'enrolled_at' => $r->enrolled_at
-                    ? \Carbon\Carbon::parse($r->enrolled_at)->format('M d, Y')
-                    : '—',
+            return (object) [
+                'root'               => $rootLevelId,
+                'year_level'         => $r->year_level,
+                'academic_year_id'   => $r->academic_year_id,
+                'academic_year_name' => $r->academic_year_name,
+                'display'            => (object) [
+                    'full_name'   => $fullName,
+                    'student_id'  => $r->student_number ?? '—',
+                    'email'       => $r->email ?? '—',
+                    'year_term'   => $this->formatYearTerm($r->year_level, $r->term_name, $rootLevelId, $rootNameById),
+                    'program'     => $r->program_code
+                        ? trim($r->program_code.' — '.$r->program_name)
+                        : ($r->program_name ?? '—'),
+                    'enrolled_at' => $r->enrolled_at
+                        ? \Carbon\Carbon::parse($r->enrolled_at)->format('M d, Y')
+                        : '—',
+                ],
             ];
+        });
 
-            $rowsByLevel[$rootLevelId ?? 0][] = $row;
+        // Tab counts = total enrolled per level (independent of the filters).
+        $counts = $items->groupBy(fn ($i) => $i->root ?? 0)->map->count();
+
+        // Restrict to the active level (tab), then layer on the dropdown filters.
+        $scoped = $showAll
+            ? $items
+            : $items->filter(fn ($i) => (int) ($i->root ?? 0) === $activeLevelId)->values();
+
+        // "Basic Education" view: either the active tab is basic, or the school
+        // offers only one level and it is basic.
+        $activeLevel    = $levels->firstWhere('id', $activeLevelId);
+        $singleLevel    = $levels->count() === 1 ? $levels->first() : null;
+        $effectiveLevel = $showAll ? $singleLevel : $activeLevel;
+        $activeLevelIsBasic = $effectiveLevel
+            && str_contains(strtolower((string) $effectiveLevel->name), 'basic');
+
+        // Academic-year filter options (from the active level scope).
+        $academicYears = $scoped
+            ->filter(fn ($i) => $i->academic_year_id)
+            ->unique('academic_year_id')
+            ->sortByDesc('academic_year_name')
+            ->mapWithKeys(fn ($i) => [(int) $i->academic_year_id => $i->academic_year_name])
+            ->all();
+
+        $afterAy = $academicYearId
+            ? $scoped->filter(fn ($i) => (int) $i->academic_year_id === $academicYearId)->values()
+            : $scoped;
+
+        // Grade / Year-level filter options (after the academic-year filter).
+        $yearLevelOptions = $afterAy
+            ->filter(fn ($i) => $i->year_level !== null && $i->year_level !== '')
+            ->unique('year_level')
+            ->sortBy('year_level')
+            ->mapWithKeys(function ($i) use ($activeLevelIsBasic) {
+                $v = $i->year_level;
+                $label = is_numeric($v)
+                    ? (($activeLevelIsBasic ? 'Grade ' : 'Year ').(int) $v)
+                    : (string) $v;
+
+                return [(string) $v => $label];
+            })
+            ->all();
+
+        $finalRows = $afterAy
+            ->when($yearLevelFilter !== null, fn ($c) => $c->filter(fn ($i) => (string) $i->year_level === $yearLevelFilter))
+            ->map(fn ($i) => $i->display)
+            ->values();
+
+        // Columns: Basic Education hides the redundant Program column and the
+        // Year/Term header reads "Grade Level".
+        $columns = config('tables.student_ledgers.columns', []);
+        if ($activeLevelIsBasic) {
+            $columns = array_values(array_filter($columns, fn ($c) => ($c['key'] ?? null) !== 'program'));
+            $columns = array_map(function ($c) {
+                if (($c['key'] ?? null) === 'year_term') {
+                    $c['label'] = 'Grade Level';
+                }
+
+                return $c;
+            }, $columns);
         }
 
-        $activeRows = collect(
-            ($showTabs && ! $showAll)
-                ? ($rowsByLevel[$activeLevelId] ?? [])
-                : array_merge(...array_values($rowsByLevel) ?: [[]])
-        );
-
-        $columns     = config('tables.student_ledgers.columns', []);
-        $activeLevel = $levels->firstWhere('id', $activeLevelId);
-        $levelTitle  = $showAll
+        $levelTitle = $showAll
             ? 'All Levels'
             : ($activeLevel?->name ?? ($levels->first()->name ?? null));
 
@@ -136,16 +196,21 @@ class StudentLedgerController extends Controller
             ]);
 
         return view('registrar.student_ledgers.index', [
-            'columns'       => $columns,
-            'levels'        => $levels,
-            'activeLevelId' => $activeLevelId,
-            'showAll'       => $showAll,
-            'showTabs'      => $showTabs,
-            'levelTitle'    => $levelTitle,
-            'rows'          => $activeRows,
-            'counts'        => collect($rowsByLevel)->map(fn ($r) => count($r)),
-            'total'         => $rows->count(),
-            'importTerms'   => $importTerms,
+            'columns'            => $columns,
+            'levels'             => $levels,
+            'activeLevelId'      => $activeLevelId,
+            'showAll'            => $showAll,
+            'showTabs'           => $showTabs,
+            'levelTitle'         => $levelTitle,
+            'rows'               => $finalRows,
+            'counts'             => $counts,
+            'total'              => $items->count(),
+            'importTerms'        => $importTerms,
+            'academicYears'      => $academicYears,
+            'yearLevelOptions'   => $yearLevelOptions,
+            'academicYearId'     => $academicYearId,
+            'yearLevel'          => $yearLevelFilter,
+            'activeLevelIsBasic' => $activeLevelIsBasic,
         ]);
     }
 

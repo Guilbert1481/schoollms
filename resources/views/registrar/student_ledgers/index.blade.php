@@ -71,6 +71,28 @@
         :hideActions="true"
         perPage="20"
     >
+        <x-slot:afterFilter>
+            @if(!empty($academicYears))
+                <select onchange="ledgerApplyFilter('academic_year_id', this.value)"
+                        class="rounded border border-gray-300 px-2 py-2 text-sm">
+                    <option value="">All Academic Years</option>
+                    @foreach($academicYears as $ayId => $ayName)
+                        <option value="{{ $ayId }}" @selected((string) $academicYearId === (string) $ayId)>{{ $ayName }}</option>
+                    @endforeach
+                </select>
+            @endif
+
+            @if(!empty($yearLevelOptions))
+                <select onchange="ledgerApplyFilter('year_level', this.value)"
+                        class="rounded border border-gray-300 px-2 py-2 text-sm">
+                    <option value="">All {{ $activeLevelIsBasic ? 'Grade Levels' : 'Year Levels' }}</option>
+                    @foreach($yearLevelOptions as $ylValue => $ylLabel)
+                        <option value="{{ $ylValue }}" @selected((string) $yearLevel === (string) $ylValue)>{{ $ylLabel }}</option>
+                    @endforeach
+                </select>
+            @endif
+        </x-slot:afterFilter>
+
         @if($showTabs)
             <a href="{{ route('registrar.student-ledgers.index', ['level' => 'all']) }}"
                class="px-3 py-2 border rounded text-sm whitespace-nowrap transition
@@ -158,6 +180,17 @@
 </div>
 
 <script>
+    // Navigate with an updated query param, preserving the others (level, etc.).
+    function ledgerApplyFilter(key, value) {
+        const url = new URL(window.location.href);
+        if (value === '' || value === null) {
+            url.searchParams.delete(key);
+        } else {
+            url.searchParams.set(key, value);
+        }
+        window.location = url.toString();
+    }
+
     function openStudentImportModal() {
         const modal = document.getElementById('studentImportModal');
         modal.classList.remove('hidden');
