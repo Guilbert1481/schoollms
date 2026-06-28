@@ -116,7 +116,7 @@ class EnrollmentValidationController extends Controller
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->orderBy('code')->orderBy('name')
             ->get(['id', 'code', 'name'])
-            ->mapWithKeys(fn ($p) => [(int) $p->id => trim(($p->code ? $p->code.' — ' : '').$p->name)])->all();
+            ->mapWithKeys(fn ($p) => [(int) $p->id => $p->code ?: $p->name])->all();
 
         $actions = [
             ['type' => 'link', 'label' => 'Review', 'route' => 'registrar.enrollments.show', 'class' => 'bg-indigo-600 text-white hover:bg-indigo-700'],

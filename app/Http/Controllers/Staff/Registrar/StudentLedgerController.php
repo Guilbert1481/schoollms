@@ -111,9 +111,7 @@ class StudentLedgerController extends Controller
                     'student_id'  => $r->student_number ?? '—',
                     'email'       => $r->email ?? '—',
                     'year_term'   => $this->formatYearTerm($r->year_level, $r->term_name, $rootLevelId, $rootNameById),
-                    'program'     => $r->program_code
-                        ? trim($r->program_code.' — '.$r->program_name)
-                        : ($r->program_name ?? '—'),
+                    'program'     => $r->program_code ?: ($r->program_name ?? '—'),
                     'enrolled_at' => $r->enrolled_at
                         ? \Carbon\Carbon::parse($r->enrolled_at)->format('M d, Y')
                         : '—',
@@ -202,7 +200,7 @@ class StudentLedgerController extends Controller
                 ->orderBy('code')->orderBy('name')
                 ->get(['id', 'code', 'name', 'education_node_id'])
                 ->filter(fn ($p) => (int) ($nodeRoot[$p->education_node_id ?? null] ?? 0) === $activeLevelId)
-                ->mapWithKeys(fn ($p) => [(int) $p->id => trim(($p->code ? $p->code.' — ' : '').$p->name)])
+                ->mapWithKeys(fn ($p) => [(int) $p->id => $p->code ?: $p->name])
                 ->all();
         }
 
