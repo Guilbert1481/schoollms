@@ -56,27 +56,25 @@
         :emptyMessage="$tableEmptyMessage"
     >
         <x-slot:afterFilter>
-            @if(!empty($academicYears))
-                <select onchange="ledgerApplyFilter('academic_year_id', this.value)"
-                        class="rounded border border-gray-300 px-2 py-2 text-sm">
-                    <option value="">All Academic Years</option>
-                    @foreach($academicYears as $ayId => $ayName)
-                        <option value="{{ $ayId }}" @selected((string) $academicYearId === (string) $ayId)>{{ $ayName }}</option>
-                    @endforeach
-                </select>
-            @endif
+            {{-- Always shown so the registrar can see the available filters,
+                 even before any data exists (just "All ..." when empty). --}}
+            <select onchange="ledgerApplyFilter('academic_year_id', this.value)"
+                    class="rounded border border-gray-300 px-2 py-2 text-sm">
+                <option value="">All Academic Years</option>
+                @foreach($academicYears as $ayId => $ayName)
+                    <option value="{{ $ayId }}" @selected((string) $academicYearId === (string) $ayId)>{{ $ayName }}</option>
+                @endforeach
+            </select>
 
-            @if(!empty($yearLevelOptions))
-                <select onchange="ledgerApplyFilter('year_level', this.value)"
-                        class="rounded border border-gray-300 px-2 py-2 text-sm">
-                    <option value="">All {{ $activeLevelIsBasic ? 'Grade Levels' : 'Year Levels' }}</option>
-                    @foreach($yearLevelOptions as $ylValue => $ylLabel)
-                        <option value="{{ $ylValue }}" @selected((string) $yearLevel === (string) $ylValue)>{{ $ylLabel }}</option>
-                    @endforeach
-                </select>
-            @endif
+            <select onchange="ledgerApplyFilter('year_level', this.value)"
+                    class="rounded border border-gray-300 px-2 py-2 text-sm">
+                <option value="">All {{ $activeLevelIsBasic ? 'Grade Levels' : 'Year Levels' }}</option>
+                @foreach($yearLevelOptions as $ylValue => $ylLabel)
+                    <option value="{{ $ylValue }}" @selected((string) $yearLevel === (string) $ylValue)>{{ $ylLabel }}</option>
+                @endforeach
+            </select>
 
-            @if($showProgramFilter && !empty($programOptions))
+            @if($showProgramFilter)
                 <select onchange="ledgerApplyFilter('program_id', this.value)"
                         class="rounded border border-gray-300 px-2 py-2 text-sm">
                     <option value="">All Programs</option>
