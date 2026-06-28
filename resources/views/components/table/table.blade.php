@@ -96,6 +96,7 @@
                 :hideActions="!empty($hideActions)"
                 :rowNumbers="!empty($rowNumbers)"
                 :reorderable="!empty($reorderable)"
+                :emptyMessage="$emptyMessage ?? null"
             />
 
         </table>
@@ -122,7 +123,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!table) return;
 
     const tbody    = table.tBodies[0];
-    const allRows  = tbody ? Array.from(tbody.rows) : [];
+    // The "no records" placeholder row is never paginated/filtered.
+    const allRows  = tbody ? Array.from(tbody.rows).filter(r => !r.classList.contains('js-empty-row')) : [];
     const perPage  = pagerEl ? parseInt(pagerEl.dataset.perPage, 10) || 0 : 0;
     let currentPage = 1;
     let filterText  = '';

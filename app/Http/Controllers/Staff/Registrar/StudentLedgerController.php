@@ -8,6 +8,7 @@ use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\Term;
 use App\Models\User;
+use App\Support\EducationLevels;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -144,24 +145,30 @@ class StudentLedgerController extends Controller
             ? $scoped->filter(fn ($i) => (int) $i->academic_year_id === $academicYearId)->values()
             : $scoped;
 
-        // Grade / Year-level filter options (after the academic-year filter).
-        $yearLevelOptions = $afterAy
-            ->filter(fn ($i) => $i->year_level !== null && $i->year_level !== '')
-            ->unique('year_level')
-            ->sortBy('year_level')
-            ->mapWithKeys(function ($i) use ($activeLevelIsBasic) {
-                $v = $i->year_level;
-                $label = is_numeric($v)
-                    ? (($activeLevelIsBasic ? 'Grade ' : 'Year ').(int) $v)
-                    : (string) $v;
+        // Grade / Year-level filter options. Basic Education lists every grade
+        // offered in the education-structure tree (even with no students yet);
+        // other levels list the year levels present in the data.
+        $yearLevelOptions = $activeLevelIsBasic
+            ? EducationLevels::basicGradeOptions()
+            : $afterAy
+                ->filter(fn ($i) => $i->year_level !== null && $i->year_level !== '')
+                ->unique('year_level')
+                ->sortBy('year_level')
+                ->mapWithKeys(fn ($i) => [(string) $i->year_level => 'Year '.(int) $i->year_level])
+                ->all();
 
-                return [(string) $v => $label];
-            })
-            ->all();
-
+        // Final display rows. In a Basic-Education view the Grade Level cell is
+        // forced to "Grade N" (no higher-ed term/semester text), regardless of
+        // any stray node/term linkage on the enrollment.
         $finalRows = $afterAy
             ->when($yearLevelFilter !== null, fn ($c) => $c->filter(fn ($i) => (string) $i->year_level === $yearLevelFilter))
-            ->map(fn ($i) => $i->display)
+            ->map(function ($i) use ($activeLevelIsBasic) {
+                if ($activeLevelIsBasic && is_numeric($i->year_level)) {
+                    $i->display->year_term = 'Grade '.(int) $i->year_level;
+                }
+
+                return $i->display;
+            })
             ->values();
 
         // Columns: Basic Education hides the redundant Program column and the

@@ -70,6 +70,7 @@
         :data="$rows->values()"
         :hideActions="true"
         perPage="20"
+        emptyMessage="No students enrolled for this selection yet."
     >
         <x-slot:afterFilter>
             @if(!empty($academicYears))

@@ -1,5 +1,5 @@
 <tbody @if(!empty($reorderable)) id="{{ $tableKey }}SortBody" @endif>
-@foreach($data as $rowIndex => $row)
+@forelse($data as $rowIndex => $row)
 <tr class="border-t @if(!empty($reorderable)) shareable-row @endif"
     @if(!empty($reorderable)) data-id="{{ $row->id ?? '' }}" @endif>
 
@@ -41,5 +41,11 @@
     @endif
 
 </tr>
-@endforeach
+@empty
+<tr class="js-empty-row border-t">
+    <td colspan="99" class="px-4 py-10 text-center text-sm text-slate-500">
+        {{ $emptyMessage ?? 'No records found.' }}
+    </td>
+</tr>
+@endforelse
 </tbody>
