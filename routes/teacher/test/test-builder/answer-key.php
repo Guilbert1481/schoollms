@@ -5,7 +5,7 @@ use App\Http\Controllers\Teacher\Test\TestBuilder\PrintKeyController;
 
 Route::prefix('teacher')
     ->name('teacher.')
-    ->middleware(['auth'])
+    ->middleware(['auth', 'role:teacher,course_architect,trainor'])
     ->group(function () {
         // The dedicated answer key print page (separated controller)
         Route::get('tests/{test}/print-answer-key', [PrintKeyController::class, 'printAnswerKey'])

@@ -31,6 +31,17 @@
 
 <h3>Personal Information</h3>
 
+@if ($errors->any())
+    <div style="background:#fee2e2;border:1px solid #fecaca;color:#991b1b;padding:12px 16px;border-radius:10px;margin-bottom:20px;font-size:13px;">
+        <strong>Please fix the following:</strong>
+        <ul style="margin:6px 0 0 18px;">
+            @foreach ($errors->all() as $err)
+                <li>{{ $err }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
 <form id="enrollmentForm" action="{{ $action }}" method="POST" enctype="multipart/form-data">
     @csrf
     <div class="form-grid">
@@ -243,10 +254,12 @@
             if (!isChristian) {
                 closePopover();
                 hiddenInput.value = '';
+                hiddenInput.disabled = true;
                 summary.classList.add('hidden');
                 summaryText.textContent = '';
                 return;
             }
+            hiddenInput.disabled = !hiddenInput.value;
             refreshSummary();
             if (autoOpen) openPopover();
         };
@@ -257,6 +270,7 @@
         listItems().forEach(btn => {
             btn.addEventListener('click', () => {
                 hiddenInput.value = btn.dataset.value;
+                hiddenInput.disabled = false;
                 refreshSummary();
                 closePopover();
             });

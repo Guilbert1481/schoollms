@@ -87,6 +87,11 @@ class Student extends Model
         return $this->hasMany(StudentAcademicBackground::class);
     }
 
+    public function healthRecord()
+    {
+        return $this->hasOne(StudentHealthRecord::class);
+    }
+
     public function studentEnrollments()
     {
         return $this->hasMany(StudentEnrollment::class);

@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Staff\DashboardController;
 
-Route::middleware(['auth:staff', 'role:admission'])
+Route::middleware(['auth:staff', 'role:admission_manager'])
     ->prefix('staff')
     ->group(function () {
 

@@ -3,7 +3,7 @@
 
 use App\Http\Controllers\Teacher\Question\EnumerationController;
 
-Route::middleware(['auth'])->prefix('teacher/tests')->group(function () {
+Route::middleware(['auth', 'role:teacher,course_architect,trainor'])->prefix('teacher/tests')->group(function () {
     Route::get('/enumeration', [EnumerationController::class, 'builder'])->name('enumeration.builder');
     Route::post('/enumeration/save', [EnumerationController::class, 'save'])->name('enumeration.save');
 

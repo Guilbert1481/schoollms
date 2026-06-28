@@ -8,8 +8,8 @@
         <form method="GET" class="flex items-center gap-2">
             <select name="status" onchange="this.form.submit()"
                     class="border rounded-lg px-2 py-1 text-sm">
-                @foreach(['submitted','validated','rejected','all'] as $opt)
-                    <option value="{{ $opt }}" @selected($status === $opt)>{{ ucfirst($opt) }}</option>
+                @foreach(['submitted','exam_passed','exam_failed','assessed','provisional','rejected','sent_billing','all'] as $opt)
+                    <option value="{{ $opt }}" @selected($status === $opt)>{{ ucwords(str_replace('_',' ',$opt)) }}</option>
                 @endforeach
             </select>
             <select name="term_id" onchange="this.form.submit()"
@@ -53,14 +53,35 @@
                         <td class="px-4 py-2">
                             @php
                                 $colors = [
-                                    'submitted' => 'amber',
-                                    'validated' => 'emerald',
-                                    'rejected'  => 'rose',
+                                    'submitted'      => 'amber',
+                                    'exam_passed'    => 'sky',
+                                    'exam_failed'    => 'rose',
+                                    'assessed'       => 'sky',
+                                    'provisional'    => 'amber',
+                                    'rejected'       => 'rose',
+                                    'sent_billing'   => 'violet',
+                                    'billed'         => 'yellow',
+                                    'partially_paid' => 'yellow',
+                                    'enrolled'       => 'emerald',
+                                    'provisionally_enrolled' => 'emerald',
+                                    'validated'      => 'emerald',
+                                    'dropped'        => 'rose',
+                                    'cancelled'      => 'rose',
+                                    'completed'      => 'emerald',
+                                ];
+                                $labels = [
+                                    'submitted'      => 'Submitted Application',
+                                    'exam_passed'    => 'Passed Entrance Exam',
+                                    'exam_failed'    => 'Failed Entrance Exam',
+                                    'sent_billing'   => 'Sent Billing',
+                                    'partially_paid' => 'Partially Paid',
+                                    'provisionally_enrolled' => 'Provisionally Enrolled',
                                 ];
                                 $c = $colors[$e->status] ?? 'slate';
+                                $label = $labels[$e->status] ?? ucfirst(str_replace('_', ' ', (string) $e->status));
                             @endphp
                             <span class="inline-flex items-center rounded-full bg-{{ $c }}-100 text-{{ $c }}-700 px-2 py-0.5 text-xs font-bold">
-                                {{ ucfirst($e->status) }}
+                                {{ $label }}
                             </span>
                         </td>
                         <td class="px-4 py-2 text-right">

@@ -5,7 +5,7 @@ use App\Http\Controllers\Teacher\Test\TestBuilder\PrintTestController;
 
 Route::prefix('teacher')
     ->name('teacher.')
-    ->middleware(['auth'])
+    ->middleware(['auth', 'role:teacher,course_architect,trainor'])
     ->group(function () {
 
         Route::get('tests/{test}/print', [PrintTestController::class, 'print'])

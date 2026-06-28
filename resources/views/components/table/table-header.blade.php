@@ -13,8 +13,10 @@
         $filterOptions = $filter['options'] ?? [];
         $currentValue  = $filterParam ? request()->query($filterParam, $filter['default'] ?? 'all') : null;
         $currentLabel  = $filterParam ? ($filterOptions[$currentValue] ?? reset($filterOptions)) : null;
+        $colWidth      = $col['width'] ?? null;
     @endphp
     <th class="px-4 py-3 text-left group relative"
+        @if($colWidth) style="width: {{ $colWidth }};" @endif
         data-table="{{ $tableKey }}"
         data-column="{{ $col['key'] }}">
         @if(! empty($col['hideable']))

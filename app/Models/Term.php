@@ -13,14 +13,18 @@ class Term extends Model
 
     protected $fillable = [
         'school_id',
+        'education_level',
         'academic_year',
         'enrollment_type',
         'academic_year_id',
         'term',
+        'title',
         'name',
         'start_date',
         'end_date',
         'status',
+        'is_current',
+        'is_active',
     ];
 
     protected $casts = [

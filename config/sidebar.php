@@ -23,10 +23,16 @@ return [
         ],
 
 
-        'admission' => [
-            'applicants',
-            'screening',
-            'endorsement',
+        'finance_manager' => [
+            'finance_billing_queue',
+            'finance_billing',
+            'finance_payments',
+            'finance_student_ledgers',
+            'finance_invoices',
+            'finance_statements',
+            'finance_tuition_setup',
+            'finance_settings',
+            'finance_reports',
             'communication',
             'tools',
             'settings',
@@ -44,7 +50,10 @@ return [
         ],
 
         'registrar' => [
-            'registrar_tasks',
+            'registrar_validate_enrollment',
+            'registrar_student_ledgers',
+            'registrar_subject_credits',
+            'registrar_transcripts',
             'communication',
             'tools',
             'settings',
@@ -81,6 +90,17 @@ return [
             'logout',
         ],
 
+        'principal' => [
+            'basic_ed_curriculum',
+            'students',
+            'faculty',
+            'approvals',
+            'communication',
+            'tools',
+            'settings',
+            'logout',
+        ],
+
         'teacher' => [
             'lesson_studio',
             'my_classes',
@@ -95,6 +115,7 @@ return [
         'student' => [
             'schedules_student', 
             'academics_student', 
+            'applications_student',
             'finance_student', 
             'services_student',
             'communication',
@@ -467,7 +488,7 @@ return [
             'icon' => 'wrench',
             'label' => 'Tools',
             'route' => 'tools.index',
-            'roles' => ['admin'],
+            'roles' => ['admin','principal','dean'],
         ],
 
         /*
@@ -480,42 +501,134 @@ return [
             'label' => 'Applicants',
             'children' => [
                 [
-                    'label' => 'Applicant Directory',
-                    'route' => '#',
-                    'icon'  => 'users',
+                    'label' => 'Applications',
+                    'route' => 'admission.applicants',
+                    'active'=> 'admission.applicants',
+                    'icon'  => 'file-text',
+                    'roles' => ['admission_manager','finance_manager'],
                 ],
                 [
-                    'label' => 'Applications',
-                    'route' => '#',
-                    'icon'  => 'file-text',
+                    'label' => 'Applicant Directory',
+                    'route' => 'admission.applicant-directory',
+                    'active'=> 'admission.applicant-directory*',
+                    'icon'  => 'users',
+                    'roles' => ['admission_manager'],
                 ],
                 [
                     'label' => 'Requirements',
                     'route' => '#',
                     'icon'  => 'folder-check',
+                    'roles' => ['admission_manager'],
                 ],
             ],
         ],
 
-        'registrar_tasks' => [
-            'icon' => 'clipboard-list',
-            'label' => 'Registrar',
-            'children' => [
-                [
-                    'label' => 'Validate Enrollment',
-                    'route' => 'registrar.enrollments.index',
-                    'active' => 'registrar.enrollments.*',
-                    'icon'  => 'check-square',
-                    'roles' => ['registrar'],
-                ],
-                [
-                    'label' => 'Subject Credit Evaluation',
-                    'route' => 'registrar.subject-credits.index',
-                    'active' => 'registrar.subject-credits.*',
-                    'icon'  => 'book-open',
-                    'roles' => ['registrar'],
-                ],
-            ],
+        'registrar_validate_enrollment' => [
+            'icon'   => 'check-square',
+            'label'  => 'Validate Enrollment',
+            'route'  => 'registrar.enrollments.index',
+            'active' => 'registrar.enrollments.*',
+            'roles'  => ['registrar'],
+        ],
+
+        'registrar_student_ledgers' => [
+            'icon'   => 'id-card',
+            'label'  => 'Student Ledgers',
+            'route'  => 'registrar.student-ledgers.index',
+            'active' => 'registrar.student-ledgers.*',
+            'roles'  => ['registrar'],
+        ],
+
+        'registrar_subject_credits' => [
+            'icon'   => 'book-open',
+            'label'  => 'Subject Credit Evaluation',
+            'route'  => 'registrar.subject-credits.index',
+            'active' => 'registrar.subject-credits.*',
+            'roles'  => ['registrar'],
+        ],
+
+        'registrar_transcripts' => [
+            'icon'   => 'scroll-text',
+            'label'  => 'Transcript of Records',
+            'route'  => 'registrar.transcripts.index',
+            'active' => 'registrar.transcripts.*',
+            'roles'  => ['registrar'],
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | FINANCE MANAGER MODULES
+        |--------------------------------------------------------------------------
+        */
+        'finance_billing_queue' => [
+            'icon'   => 'file-text',
+            'label'  => 'Billing & Payment Queue',
+            'route'  => 'finance.billing.queue',
+            'active' => 'finance.billing.queue*',
+            'roles'  => ['finance_manager'],
+        ],
+
+        'finance_billing' => [
+            'icon'   => 'receipt',
+            'label'  => 'Billing',
+            'route'  => 'finance.billing.index',
+            'active' => 'finance.billing.index',
+            'roles'  => ['finance_manager'],
+        ],
+
+        'finance_payments' => [
+            'icon'   => 'credit-card',
+            'label'  => 'Payments',
+            'route'  => 'finance.payments.index',
+            'active' => 'finance.payments.*',
+            'roles'  => ['finance_manager'],
+        ],
+
+        'finance_student_ledgers' => [
+            'icon'   => 'book',
+            'label'  => 'Student Ledgers',
+            'route'  => 'finance.ledger.index',
+            'active' => 'finance.ledger.*',
+            'roles'  => ['finance_manager'],
+        ],
+
+        'finance_invoices' => [
+            'icon'   => 'invoice',
+            'label'  => 'Invoices',
+            'route'  => 'finance.invoices.index',
+            'active' => 'finance.invoices.*',
+            'roles'  => ['finance_manager'],
+        ],
+
+        'finance_statements' => [
+            'icon'   => 'receipt',
+            'label'  => 'Statements of Account',
+            'route'  => 'finance.statements.index',
+            'active' => 'finance.statements.*',
+            'roles'  => ['finance_manager'],
+        ],
+
+        'finance_tuition_setup' => [
+            'icon'   => 'sliders',
+            'label'  => 'Tuition & Fees Setup',
+            'route'  => 'finance.tuition-setup.index',
+            'active' => 'finance.tuition-setup.*',
+            'roles'  => ['finance_manager'],
+        ],
+
+        'finance_settings' => [
+            'icon'   => 'settings',
+            'label'  => 'Finance Settings',
+            'route'  => 'finance.settings.edit',
+            'active' => 'finance.settings.*',
+            'roles'  => ['finance_manager'],
+        ],
+
+        'finance_reports' => [
+            'icon'   => 'bar-chart-3',
+            'label'  => 'Finance Reports',
+            'route'  => '#',
+            'roles'  => ['finance_manager'],
         ],
 
         'screening' => [
@@ -566,7 +679,7 @@ return [
             'icon' => 'mail',
             'label' => 'Communication',
             'route' => 'communication.chat.index',
-            'roles' => ['admin','dean','admission','admission_manager','teacher','student','trainee','guidance_counselor'],
+            'roles' => ['admin','dean','principal','admission_manager','finance_manager','registrar','teacher','student','trainee','guidance_counselor'],
         ],
 
         /*
@@ -631,10 +744,10 @@ return [
 
                 [
                     'label' => 'Profile Settings',
-                    'route' => '#',
+                    'route' => 'settings.profile',
                     
                     'icon'  => 'user',
-                    'roles' => ['admin','dean','admission','admission_manager','teacher','student'],
+                    'roles' => ['admin','dean','principal','admission_manager','teacher','student','registrar','program_head','trainer','trainee','course_architect','guidance_counselor','superadmin'],
                 ],
 
                 [
@@ -656,14 +769,14 @@ return [
                     'label' => 'Enrollment Settings',
                     'route' => 'admission.enrollment-settings.index',
                     'icon'  => 'graduation-cap',
-                    'roles' => ['admission','admission_manager'],
+                    'roles' => ['admission_manager'],
                 ],
 
                 [
                     'label' => 'Sections (Publish)',
                     'route' => 'admission.sections.index',
                     'icon'  => 'layers',
-                    'roles' => ['admission','admission_manager'],
+                    'roles' => ['admission_manager'],
                 ],
                 
                 [
@@ -891,6 +1004,23 @@ return [
 
     
 
+        'basic_ed_curriculum' => [
+            'icon'  => 'graduation-cap',
+            'label' => 'Basic Ed Curriculum',
+            'children' => [
+                [
+                    'label' => 'Subjects Masterlist',
+                    'route' => 'principal.curricula-panel.subjects',
+                    'icon'  => 'book-open',
+                ],
+                [
+                    'label' => 'Grade Level Subjects',
+                    'route' => 'principal.curricula-panel.grade-levels',
+                    'icon'  => 'layers',
+                ],
+            ],
+        ],
+
         'curriculum' => [
             'icon'  => 'book',
             'label' => 'Curriculum',
@@ -930,7 +1060,6 @@ return [
             'route' => '#',
         ],
 
-        
         'academics_student' => [
             'icon' => 'graduation-cap',
             'label' => 'Academics',
@@ -970,17 +1099,20 @@ return [
             'children' => [
                 [
                     'label' => 'Balance & SOA',
-                    'route' => '#',
+                    'route' => 'student.finance.index',
+                    'active' => 'student.finance.index',
                     'icon'  => 'receipt',
                 ],
                 [
                     'label' => 'Payment History',
-                    'route' => '#',
+                    'route' => 'student.finance.payments',
+                    'active' => 'student.finance.payments',
                     'icon'  => 'history',
                 ],
                 [
                     'label' => 'Billing Details',
-                    'route' => '#',
+                    'route' => 'student.finance.invoices',
+                    'active' => 'student.finance.invoices',
                     'icon'  => 'invoice',
                 ],
             ],
@@ -1006,6 +1138,12 @@ return [
                     'icon'  => 'check-circle',
                 ],
             ],
+        ],
+
+        'applications_student' => [
+            'icon'  => 'clipboard-list',
+            'label' => 'Applications',
+            'route' => 'student.applications.index',
         ],
 
         

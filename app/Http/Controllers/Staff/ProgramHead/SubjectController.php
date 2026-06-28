@@ -50,6 +50,8 @@ class SubjectController extends Controller
     $activeMap  = $pivotRows->pluck('ps_active', 'subject_id'); // [subject_id => 0|1]
 
     $subjects = Subject::query()
+        ->where('school_id', auth()->user()->school_id)
+        ->where('is_basic_ed', 0)
         ->when($programIds->isNotEmpty(), function ($q) use ($subjectIds) {
             $q->whereIn('id', $subjectIds);
         }, function ($q) {
@@ -85,35 +87,53 @@ class SubjectController extends Controller
 
     public function store(Request $request)
 {
-    // 1. Validate (Remove the 'unique' check on name if you want duplicates)
+    // 1. Validate (no DB-wide unique check; we handle dedupe per school below)
     $request->validate([
-        'name' => 'required|string|max:255',
-        'code' => 'required|string|max:32|unique:subjects,code', // Keep unique code if every sub has a unique ID
+        'name'        => 'required|string|max:255',
+        'code'        => 'required|string|max:32',
         'description' => 'nullable|string|max:1000',
-        'active' => 'required|boolean',
-        'category' => 'required|in:' . implode(',', self::CATEGORIES),
+        'active'      => 'required|boolean',
+        'category'    => 'required|in:' . implode(',', self::CATEGORIES),
     ]);
 
-    $name = AcademicNormalizer::normalize($request->name);
+    $name     = AcademicNormalizer::normalize($request->name);
+    $schoolId = auth()->user()->school_id;
+    $scope    = $this->currentScope();
 
-    // 2. Modified Check: Only block if the NAME AND CODE are both identical
-    // You might want to create existsByNameAndCode() in your Repo instead
-    /* if ($this->subjectRepo->existsByNameAndCode($name, $request->code)) {
-         return back()->withErrors(['name' => 'This subject code is already taken.'])->withInput();
+    // 2. Dedupe within the school+scope (basic-ed subjects are excluded).
+    //    A subject is considered the "same" if either its code matches OR
+    //    its normalized name matches another non-basic-ed subject in the
+    //    same school and scope. In that case we reuse the existing row.
+    $existing = Subject::where('school_id', $schoolId)
+        ->where('is_basic_ed', 0)
+        ->where(function ($q) use ($scope) {
+            if ($scope === 'academic') {
+                $q->where('scope', 'academic')->orWhereNull('scope');
+            } else {
+                $q->where('scope', $scope);
+            }
+        })
+        ->where(function ($q) use ($name, $request) {
+            $q->whereRaw('LOWER(name) = ?', [strtolower($name)])
+              ->orWhere('code', $request->code);
+        })
+        ->first();
+
+    if ($existing) {
+        return redirect()->route('program_head.subjects.index')
+            ->with('success', "Subject \"{$existing->name}\" already exists in this school — reusing it.");
     }
-    */
 
     // 3. Prepare and Save
     $data = $request->all();
-    $data['name'] = $name; 
-    $data['scope'] = $this->currentScope();
- 
+    $data['name']        = $name;
+    $data['scope']       = $scope;
+    $data['is_basic_ed'] = 0;
 
     try {
         $this->subjectRepo->create($data);
         return redirect()->route('program_head.subjects.index')->with('success', 'Subject added successfully!');
     } catch (\Exception $e) {
-        // This catches database-level errors (like that unique constraint violation)
         return back()->withErrors(['error' => 'Database Error: ' . $e->getMessage()])->withInput();
     }
 }
@@ -143,6 +163,7 @@ class SubjectController extends Controller
         $scope = $this->currentScope();
 
         return Subject::where('school_id', auth()->user()->school_id)
+            ->where('is_basic_ed', 0)
             ->where(function ($q) use ($scope) {
                 if ($scope === 'academic') {
                     $q->where('scope', 'academic')->orWhereNull('scope');

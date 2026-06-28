@@ -37,6 +37,8 @@ class StudentEnrollment extends Model
         'section_id',
         'total_units',
         'status',
+        'billing_cleared_as',
+        'payment_due_at',
         'approved_by',
         'approved_at',
         'approval_level',
@@ -44,8 +46,9 @@ class StudentEnrollment extends Model
     ];
 
     protected $casts = [
-        'total_units' => 'decimal:2',
-        'approved_at' => 'datetime',
+        'total_units'    => 'decimal:2',
+        'approved_at'    => 'datetime',
+        'payment_due_at' => 'datetime',
     ];
 
     /* -----------------------------------------------------------------
@@ -53,10 +56,16 @@ class StudentEnrollment extends Model
      |----------------------------------------------------------------*/
     public const STATUS_DRAFT          = 'draft';
     public const STATUS_SUBMITTED      = 'submitted';
+    public const STATUS_EXAM_PASSED    = 'exam_passed';
+    public const STATUS_EXAM_FAILED    = 'exam_failed';
     public const STATUS_ASSESSED       = 'assessed';
+    public const STATUS_PROVISIONAL    = 'provisional';
+    public const STATUS_REJECTED       = 'rejected';
+    public const STATUS_SENT_BILLING   = 'sent_billing';
     public const STATUS_BILLED         = 'billed';
     public const STATUS_PARTIALLY_PAID = 'partially_paid';
     public const STATUS_ENROLLED       = 'enrolled';
+    public const STATUS_PROVISIONALLY_ENROLLED = 'provisionally_enrolled';
     public const STATUS_DROPPED        = 'dropped';
     public const STATUS_CANCELLED      = 'cancelled';
     public const STATUS_COMPLETED      = 'completed';

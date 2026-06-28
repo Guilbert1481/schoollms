@@ -22,12 +22,14 @@ class AcademicYearController extends Controller
 
         $academicYears = AcademicYear::query()
             ->where('school_id', $schoolId)
+            ->where('education_level', 'higher_ed')
             ->orderByDesc('start_date')
             ->get();
 
         $termsByAcademicYearId = Term::query()
             ->with(['subjectOfferings.subject', 'subjectOfferings.program'])
             ->where('school_id', $schoolId)
+            ->where('education_level', 'higher_ed')
             ->orderBy('start_date')
             ->get()
             ->groupBy('academic_year_id');
@@ -61,12 +63,13 @@ class AcademicYearController extends Controller
         ]);
 
         AcademicYear::create([
-            'school_id'  => $schoolId,
-            'name'       => $validated['name'],
-            'start_date' => $validated['start_date'],
-            'end_date'   => $validated['end_date'],
-            'is_active'  => 0,
-            'status'     => 'upcoming',
+            'school_id'       => $schoolId,
+            'education_level' => 'higher_ed',
+            'name'            => $validated['name'],
+            'start_date'      => $validated['start_date'],
+            'end_date'        => $validated['end_date'],
+            'is_active'       => 0,
+            'status'          => 'upcoming',
         ]);
 
         $this->syncAcademicYearStatuses($schoolId);
@@ -133,6 +136,7 @@ class AcademicYearController extends Controller
 
         DB::transaction(function () use ($schoolId, $ay) {
             AcademicYear::where('school_id', $schoolId)
+                ->where('education_level', 'higher_ed')
                 ->update(['is_active' => 0]);
 
             $ay->is_active = 1;
@@ -164,6 +168,7 @@ class AcademicYearController extends Controller
         $today = now()->toDateString();
 
         AcademicYear::where('school_id', $schoolId)
+            ->where('education_level', 'higher_ed')
             ->get()
             ->each(function ($ay) use ($today) {
 

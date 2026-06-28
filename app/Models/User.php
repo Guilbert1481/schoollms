@@ -119,7 +119,7 @@ class User extends Authenticatable
 
     public function isAdmissionManager(): bool
     {
-        return in_array($this->role, ['admission', 'admission_manager'], true);
+        return in_array($this->role, ['admission_manager'], true);
     }
 
     public function isTeacher(): bool
@@ -135,6 +135,11 @@ class User extends Authenticatable
     public function isDean(): bool
     {
         return $this->role === 'dean';
+    }
+
+    public function isPrincipal(): bool
+    {
+        return $this->role === 'principal';
     }
 
     /*
@@ -223,12 +228,15 @@ class User extends Authenticatable
     {
         return match ($this->role) {
             'admin'        => 'bg-indigo-100 text-indigo-600',
-            'admission'    => 'bg-emerald-100 text-emerald-600',
+            'admission_manager' => 'bg-emerald-100 text-emerald-600',
+            'finance_manager'  => 'bg-violet-100 text-violet-600',
+            'registrar'    => 'bg-sky-100 text-sky-600',
             'academics'    => 'bg-purple-100 text-purple-600',
             'teacher'      => 'bg-amber-100 text-amber-600',
             'student'      => 'bg-slate-100 text-slate-600',
             'program_head' => 'bg-blue-100 text-blue-600',
             'dean'         => 'bg-rose-100 text-rose-600', // Add this line
+            'principal'    => 'bg-orange-100 text-orange-600',
             'guidance_counselor' => 'bg-teal-100 text-teal-600',
             default        => 'bg-gray-100 text-gray-600',
         };

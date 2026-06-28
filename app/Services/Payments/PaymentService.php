@@ -2,15 +2,21 @@
 
 namespace App\Services\Payments;
 
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\TrainingEnrollment;
 use App\Models\User;
+use App\Services\Finance\LedgerService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PaymentService
 {
+    public function __construct(private readonly LedgerService $ledger)
+    {
+    }
+
     public function recordGeneralPayment(
         User $actor,
         float $amount,
@@ -18,19 +24,71 @@ class PaymentService
         string $paymentType = 'miscellaneous',
         ?string $referenceNumber = null,
         ?int $studentId = null,
-        ?int $schoolId = null
+        ?int $schoolId = null,
+        ?int $invoiceId = null
     ): Payment {
-        return DB::transaction(function () use ($actor, $amount, $paymentMethod, $paymentType, $referenceNumber, $studentId, $schoolId) {
-            return $this->createPayment(
-                schoolId: (int) ($schoolId ?? $actor->school_id),
-                studentId: (int) ($studentId ?? $actor->id),
+        return DB::transaction(function () use ($actor, $amount, $paymentMethod, $paymentType, $referenceNumber, $studentId, $schoolId, $invoiceId) {
+            $resolvedSchoolId  = (int) ($schoolId ?? $actor->school_id);
+            $resolvedStudentId = (int) ($studentId ?? $actor->id);
+
+            $payment = $this->createPayment(
+                schoolId: $resolvedSchoolId,
+                studentId: $resolvedStudentId,
                 amount: $amount,
                 paymentMethod: $paymentMethod,
                 paymentType: $paymentType,
                 referenceNumber: $referenceNumber,
                 trainingEnrollmentId: null,
-                referencePrefix: 'PAY-'
+                referencePrefix: 'PAY-',
+                invoiceId: $invoiceId
             );
+
+            $invoice = $invoiceId ? Invoice::find($invoiceId) : null;
+
+            // Mirror the payment as a credit on the student's ledger.
+            $this->ledger->postPaymentCredit($payment, $invoice, (int) $actor->id);
+
+            if ($invoice) {
+                $invoice->recomputeTotals()->save();
+            }
+
+            return $payment;
+        });
+    }
+
+    /**
+     * Record a payment that settles a specific invoice, recomputing the
+     * invoice's paid/balance/status and posting the ledger credit.
+     */
+    public function recordInvoicePayment(
+        User $actor,
+        Invoice $invoice,
+        float $amount,
+        string $paymentMethod,
+        ?string $referenceNumber = null
+    ): Payment {
+        return DB::transaction(function () use ($actor, $invoice, $amount, $paymentMethod, $referenceNumber) {
+            $paymentType = match (true) {
+                $invoice->items()->where('fee_type', 'tuition')->exists() => 'tuition',
+                default => 'miscellaneous',
+            };
+
+            $payment = $this->createPayment(
+                schoolId: (int) $invoice->school_id,
+                studentId: (int) $invoice->student_id,
+                amount: $amount,
+                paymentMethod: $paymentMethod,
+                paymentType: $paymentType,
+                referenceNumber: $referenceNumber,
+                trainingEnrollmentId: null,
+                referencePrefix: 'PAY-',
+                invoiceId: (int) $invoice->id
+            );
+
+            $this->ledger->postPaymentCredit($payment, $invoice, (int) $actor->id);
+            $invoice->recomputeTotals()->save();
+
+            return $payment;
         });
     }
 
@@ -77,11 +135,13 @@ class PaymentService
         string $paymentType,
         ?string $referenceNumber,
         ?int $trainingEnrollmentId,
-        string $referencePrefix
+        string $referencePrefix,
+        ?int $invoiceId = null
     ): Payment {
         return Payment::create([
             'school_id' => $schoolId,
             'student_id' => $studentId,
+            'invoice_id' => $invoiceId,
             'training_enrollment_id' => $trainingEnrollmentId,
             'amount' => $amount,
             'reference_number' => $referenceNumber ?: ($referencePrefix . strtoupper(Str::random(10))),

@@ -78,7 +78,7 @@
 @php
     /*
     |----------------------------------------------------------------------
-    | UNIFIED 7-STEP ENROLMENT WIZARD
+    | UNIFIED 8-STEP ENROLMENT WIZARD
     |----------------------------------------------------------------------
     |  1. Personal Info       — student row created
     |  2. Contact Details     — student.mobile_number filled
@@ -86,11 +86,20 @@
     |  4. Learning Pathway    — session("apply.pathway_done.{term}")
     |  5. Academic Background — session("apply.academic_done.{term}")
     |                            (skipped automatically when student_type=regular)
-    |  6. Review & Submit
-    |  7. Confirmation        — only after submission
+    |  6. Health Information  — session("apply.health_done.{term}")
+    |  7. Review & Submit
+    |  8. Confirmation        — only after submission
     */
     $student        = auth()->user()?->student;
     $tid            = $term->id;
+
+    // If the student already has a submitted enrollment for this term, treat
+    // every step as completed/unlocked so they can freely navigate and edit
+    // any section without being blocked by missing session markers.
+    $hasEnrollment  = $student
+        ? \App\Models\StudentEnrollment::where('student_id', $student->id)
+            ->where('term_id', $tid)->exists()
+        : false;
 
     $step1Done      = (bool) $student;
     $step2Done      = $step1Done && filled($student?->mobile_number ?? $student?->phone ?? null);
@@ -98,7 +107,13 @@
     $pathwayDone    = $familyDone  && (bool) session("apply.pathway_done.{$tid}");
     $academicSkip   = (bool) session("apply.academic_skipped.{$tid}");
     $academicDone   = $pathwayDone && ($academicSkip || (bool) session("apply.academic_done.{$tid}"));
-    $reviewDone     = $academicDone && (bool) session("apply.review_done.{$tid}");
+    $healthDone     = $academicDone && (bool) session("apply.health_done.{$tid}");
+    $reviewDone     = $healthDone   && (bool) session("apply.review_done.{$tid}");
+
+    if ($hasEnrollment) {
+        $step1Done = $step2Done = $familyDone = $pathwayDone = true;
+        $academicDone = $healthDone = $reviewDone = true;
+    }
 
     $unlocked = [
         1 => true,
@@ -107,7 +122,8 @@
         4 => $familyDone,
         5 => $pathwayDone && ! $academicSkip,
         6 => $academicDone,
-        7 => $reviewDone,
+        7 => $healthDone,
+        8 => $reviewDone,
     ];
     $done = [
         1 => $step1Done,
@@ -115,8 +131,9 @@
         3 => $familyDone,
         4 => $pathwayDone,
         5 => $academicDone,
-        6 => $reviewDone,
-        7 => false,
+        6 => $healthDone,
+        7 => $reviewDone,
+        8 => false,
     ];
 
     $stepClasses = function ($key, $isActive) use ($unlocked, $done) {
@@ -181,24 +198,34 @@
         <span class="nav-item locked"><span>5. Academic Background</span><span class="lock-icon">🔒</span></span>
     @endif
 
-    {{-- 6. Review & Submit --}}
+    {{-- 6. Health Information --}}
     @if ($unlocked[6])
-        <a href="{{ route('public.apply.review', $tid) }}"
-           class="{{ $stepClasses(6, request()->routeIs('public.apply.review')) }}">
-            <span>6. Review &amp; Submit</span>
+        <a href="{{ route('public.apply.health', $tid) }}"
+           class="{{ $stepClasses(6, request()->routeIs('public.apply.health')) }}">
+            <span>6. Health Information</span>
         </a>
     @else
-        <span class="nav-item locked"><span>6. Review &amp; Submit</span><span class="lock-icon">🔒</span></span>
+        <span class="nav-item locked"><span>6. Health Information</span><span class="lock-icon">🔒</span></span>
     @endif
 
-    {{-- 7. Confirmation --}}
+    {{-- 7. Review & Submit --}}
     @if ($unlocked[7])
+        <a href="{{ route('public.apply.review', $tid) }}"
+           class="{{ $stepClasses(7, request()->routeIs('public.apply.review')) }}">
+            <span>7. Review &amp; Submit</span>
+        </a>
+    @else
+        <span class="nav-item locked"><span>7. Review &amp; Submit</span><span class="lock-icon">🔒</span></span>
+    @endif
+
+    {{-- 8. Confirmation --}}
+    @if ($unlocked[8])
         <span class="nav-item complete" style="cursor:default;">
-            <span>7. Confirmation</span>
+            <span>8. Confirmation</span>
         </span>
     @else
         <span class="nav-item locked" style="cursor:default;">
-            <span>7. Confirmation</span><span class="lock-icon">🔒</span>
+            <span>8. Confirmation</span><span class="lock-icon">🔒</span>
         </span>
     @endif
 

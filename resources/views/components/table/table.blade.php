@@ -9,12 +9,24 @@
 
 <div class="bg-white border border-gray-200 rounded-xl p-4">
 
-    {{-- Top Bar --}}
-    <div class="flex justify-between items-center mb-3">
-        <input type="text"
-               id="{{ $tableKey }}Filter"
-               placeholder="Filter..."
-               class="border border-gray-300 rounded px-3 py-2 w-64 text-sm">
+    {{-- Top Bar (filter + columns + create). Hidden for read-only views
+         like the student transcript via :hideToolbar="true". --}}
+    @if(empty($hideToolbar ?? false))
+    <div class="flex justify-between items-center mb-3 gap-3">
+        <div class="flex items-center gap-3 flex-1 min-w-0">
+            <input type="text"
+                   id="{{ $tableKey }}Filter"
+                   placeholder="Filter..."
+                   class="border border-gray-300 rounded px-3 py-2 w-64 text-sm">
+
+            {{-- Optional content rendered immediately to the right of the
+                 filter input (e.g. term pills on the Admissions list). --}}
+            @isset($afterFilter)
+                <div class="flex flex-wrap items-center gap-2 min-w-0">
+                    {{ $afterFilter }}
+                </div>
+            @endisset
+        </div>
 
         <div class="flex gap-2">
             {{-- Add Button --}}
@@ -43,6 +55,7 @@
             @endisset
         </div>
     </div>
+    @endif
 
     {{-- Table --}}
     <div class="overflow-x-auto">

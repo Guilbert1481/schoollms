@@ -310,4 +310,14 @@ return [
         ],
     ],
 
+    'transcript_master' => [
+        [
+            'name'  => 'view',
+            'label' => 'View Transcript',
+            'class' => 'bg-indigo-600 text-white hover:bg-indigo-700',
+            'type'  => 'link',
+            'route' => 'registrar.transcripts.show',
+        ],
+    ],
+
 ];

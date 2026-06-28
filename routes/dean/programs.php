@@ -3,7 +3,7 @@
 use App\Http\Controllers\Dean\ProgramsController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['web', 'auth'])
+Route::middleware(['web', 'auth', 'role:dean,admin,superadmin'])
     ->prefix('dean')
     ->name('dean.')
     ->group(function () {

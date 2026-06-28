@@ -16,6 +16,7 @@ class Payment extends Model
     protected $fillable = [
         'school_id',
         'student_id',
+        'invoice_id',
         'training_enrollment_id',
         'amount',
         'reference_number',
@@ -25,6 +26,7 @@ class Payment extends Model
     ];
 
     protected $casts = [
+        'amount'  => 'decimal:2',
         'paid_at' => 'datetime',
     ];
 
@@ -36,5 +38,10 @@ class Payment extends Model
     public function school()
     {
         return $this->belongsTo(School::class);
+    }
+
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class);
     }
 }

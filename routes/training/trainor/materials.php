@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Training\Trainor\MaterialController;
 
-Route::middleware(['web', 'auth'])
+Route::middleware(['web', 'auth', 'role:trainor'])
     ->prefix('training/trainor')
     ->name('training.trainor.')
     ->group(function () {

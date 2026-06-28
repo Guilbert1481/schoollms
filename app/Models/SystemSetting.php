@@ -18,7 +18,33 @@ class SystemSetting extends Model
         'backup_schedule',
         'school_name',
         'system_logo',
+        // Mail / SMTP
         'smtp_host',
-        'sms_api'
+        'smtp_port',
+        'smtp_username',
+        'smtp_password',
+        'smtp_encryption',
+        'smtp_from_address',
+        'smtp_from_name',
+        // SMS gateway
+        'sms_api',
+        'sms_provider',
+        'sms_api_key',
+        'sms_api_secret',
+        'sms_sender_name',
+        'sms_from_number',
+        'sms_enabled',
+    ];
+
+    protected $casts = [
+        'maintenance_mode' => 'boolean',
+        'sms_enabled'      => 'boolean',
+        'smtp_port'        => 'integer',
+    ];
+
+    protected $hidden = [
+        'smtp_password',
+        'sms_api_key',
+        'sms_api_secret',
     ];
 }

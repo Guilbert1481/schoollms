@@ -24,9 +24,11 @@ class TermCreatedNotification extends Notification
     public function toArray($notifiable)
     {
         return [
-            'title' => 'New Term Created',
-            'message' => $this->term->name . ' is now open for enrollment setup.',
-            'term_id' => $this->term->id,
+            'title'            => 'New Term Created',
+            'message'          => $this->term->name . ' is now open for enrollment setup.',
+            'type'             => 'term_created',
+            'term_id'          => $this->term->id,
+            'academic_year_id' => $this->term->academic_year_id ?? null,
         ];
     }
 }

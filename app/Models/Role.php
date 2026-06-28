@@ -15,6 +15,9 @@ class Role extends Model
         'school_id',
         'name',
         'authority_level',
+        'is_head_role',
+        'badge_color',
+        'badge_text_color',
     ];
 
     /*

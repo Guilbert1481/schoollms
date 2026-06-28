@@ -3,7 +3,7 @@
 use App\Http\Controllers\Staff\Admissions\SectionsController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['web', 'auth'])
+Route::middleware(['web', 'auth', 'role:admission_manager,admin,superadmin'])
     ->prefix('admission')
     ->name('admission.')
     ->group(function () {

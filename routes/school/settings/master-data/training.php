@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('school/settings/master-data/training')
     ->name('school.settings.master-data.training.')
-    ->middleware(['web', 'auth'])
+    ->middleware(['web', 'auth', 'role:admin,superadmin,training_program_head'])
     ->group(function () {
 
         Route::get('/programs', function () {

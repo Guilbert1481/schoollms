@@ -18,6 +18,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Apply DB-stored SMTP settings to the runtime mail config so that
+        // Mail::send() uses the school's configured SMTP credentials.
+        $this->applyDynamicMailConfig();
+
         /*
         |--------------------------------------------------------------------------
         | Global School Data
@@ -139,5 +143,45 @@ class AppServiceProvider extends ServiceProvider
         |--------------------------------------------------------------------------
         */
         
+    }
+
+    /**
+     * Override the default mail config with values from `system_settings`
+     * (if any have been configured via the Profile Settings page). This lets
+     * a school's admin point all outgoing email at their own SMTP server
+     * without touching .env.
+     */
+    protected function applyDynamicMailConfig(): void
+    {
+        try {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('system_settings')) {
+                return;
+            }
+
+            $row = DB::table('system_settings')
+                ->whereNotNull('smtp_host')
+                ->orderBy('id')
+                ->first();
+
+            if (! $row || empty($row->smtp_host)) {
+                return;
+            }
+
+            config([
+                'mail.default'                       => 'smtp',
+                'mail.mailers.smtp.host'             => $row->smtp_host,
+                'mail.mailers.smtp.port'             => $row->smtp_port ?: 587,
+                'mail.mailers.smtp.username'         => $row->smtp_username,
+                'mail.mailers.smtp.password'         => $row->smtp_password,
+                'mail.mailers.smtp.encryption'       => $row->smtp_encryption ?: null,
+                'mail.from.address'                  => $row->smtp_from_address
+                    ?: config('mail.from.address'),
+                'mail.from.name'                     => $row->smtp_from_name
+                    ?: config('mail.from.name'),
+            ]);
+        } catch (\Throwable $e) {
+            // Don't let a config error block app boot.
+            \Illuminate\Support\Facades\Log::warning('Dynamic mail config failed: '.$e->getMessage());
+        }
     }
 }

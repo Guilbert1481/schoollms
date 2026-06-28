@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Teacher\Question\TFController;
 
-Route::middleware(['auth'])->prefix('teacher/tests')->group(function () {
+Route::middleware(['auth', 'role:teacher,course_architect,trainor'])->prefix('teacher/tests')->group(function () {
 
     // 🟢 This route name must match what's in your controller
     Route::get('/tf', [TFController::class, 'index'])->name('tf.builder');

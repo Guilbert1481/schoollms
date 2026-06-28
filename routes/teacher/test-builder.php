@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('teacher')
     ->name('teacher.')
-    ->middleware(['auth'])
+    ->middleware(['auth', 'role:teacher,course_architect,trainor'])
     ->group(function () {
 
         // PAGE ROUTES

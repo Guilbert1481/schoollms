@@ -8,7 +8,7 @@ use App\Http\Controllers\Admin\DashboardController;
 Route::middleware([
         'web',
         'auth',
-        'role:admission',
+        'role:admission_manager,admin,superadmin,registrar,dean,finance_manager',
         'subscription'
     ])
     ->prefix('admission')
@@ -32,6 +32,19 @@ Route::middleware([
 
         Route::get('/applications', [AdmissionsController::class, 'applications'])
             ->name('applications');
+
+        /*
+        |--------------------------------------------------------------------------
+        | APPLICANT DIRECTORY
+        |--------------------------------------------------------------------------
+        */
+        Route::get('/applicants', [AdmissionsController::class, 'applicants'])
+            ->name('applicants');
+
+        // Permanent record of officially enrolled applicants + applicants
+        // whose enrollment window has expired.
+        Route::get('/applicant-directory', [AdmissionsController::class, 'applicantDirectory'])
+            ->name('applicant-directory');
 
 
         /*

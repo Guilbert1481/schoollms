@@ -5,7 +5,7 @@
     'action'      => route('public.apply.family.store', $term->id),
     'parents'     => $parents,
     'emergency'   => $emergencyContact,
-    'stepLabel'   => 'STEP 3 OF 7',
+    'stepLabel'   => 'STEP 3 OF 8',
     'progressPct' => 43,
     'backUrl'     => route('public.apply.step2', $term->id),
 ])

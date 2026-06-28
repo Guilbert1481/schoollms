@@ -7,7 +7,7 @@ use App\Http\Controllers\Staff\ProgramHead\LessonStudioController;
 use App\Models\Topic;
 use App\Models\Lesson;
 
-Route::middleware(['auth'])
+Route::middleware(['auth', 'role:program_head,admin,superadmin'])
     ->prefix('staff/program-head')
     ->name('program_head.')
     ->group(function () {

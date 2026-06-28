@@ -52,12 +52,13 @@ class TranscriptController extends Controller
             ? trim(($latestEnrollment->program->code ?? '').' '.$latestEnrollment->program->name)
             : '—';
 
-        $curriculumId = $latestEnrollment?->program_id
+        $curriculum = $latestEnrollment?->program_id
             ? Curriculum::where('program_id', $latestEnrollment->program_id)
                 ->where('is_active', true)
                 ->orderByDesc('version')
-                ->value('id')
+                ->first()
             : null;
+        $curriculumId = $curriculum?->id;
 
         if (! $curriculumId) {
             return view('student.transcript.index', array_merge($blank, [
@@ -65,13 +66,62 @@ class TranscriptController extends Controller
             ]));
         }
 
+        // Determine the school's term structure so we can render every
+        // semester (1st..Nth) even when no subjects are scheduled for it yet.
+        $termsPerYear  = (int) ($curriculum->terms_per_year ?: 2);
+        $hasSummerTerm = (bool) ($curriculum->has_summer_term ?? false);
+        $expectedSems  = range(1, max(1, $termsPerYear));
+        if ($hasSummerTerm && ! in_array(3, $expectedSems, true)) {
+            $expectedSems[] = 3; // legacy "summer = sem 3" convention for bi-sem
+        }
+
         // Curriculum subjects = the master plan (every subject the student is
         // expected to take, with year/semester/units).
-        $curriculumRows = CurriculumSubject::with('subject:id,code,name')
-            ->where('curriculum_id', $curriculumId)
-            ->orderBy('year_level')
-            ->orderBy('semester')
-            ->get();
+        //
+        // Source of truth resolution:
+        //   1. Prefer `program_subjects` — the table the Dean actively
+        //      maintains via the "Program Subjects" panel. Units are copied
+        //      from the master `subjects` table since program_subjects
+        //      doesn't store its own units value.
+        //   2. Fall back to the legacy `curriculum_subjects` rows only when
+        //      the Dean hasn't populated the program panel yet.
+        $curriculumRows = collect();
+        if ($latestEnrollment?->program_id) {
+            $curriculumRows = \Illuminate\Support\Facades\DB::table('program_subjects as ps')
+                ->join('subjects as s', 's.id', '=', 'ps.subject_id')
+                ->where('ps.program_id', $latestEnrollment->program_id)
+                ->orderBy('ps.year_level')
+                ->orderBy('ps.semester_number')
+                ->get([
+                    'ps.id',
+                    'ps.subject_id',
+                    'ps.year_level',
+                    'ps.semester_number as semester',
+                    's.units',
+                    's.code as subject_code',
+                    's.name as subject_name',
+                ])
+                ->map(fn ($r) => (object) [
+                    'id'         => $r->id,
+                    'subject_id' => $r->subject_id,
+                    'year_level' => $r->year_level,
+                    'semester'   => $r->semester,
+                    'units'      => $r->units,
+                    'subject'    => (object) [
+                        'id'   => $r->subject_id,
+                        'code' => $r->subject_code,
+                        'name' => $r->subject_name,
+                    ],
+                ]);
+        }
+
+        if ($curriculumRows->isEmpty()) {
+            $curriculumRows = CurriculumSubject::with('subject:id,code,name,units')
+                ->where('curriculum_id', $curriculumId)
+                ->orderBy('year_level')
+                ->orderBy('semester')
+                ->get();
+        }
 
         // The student's actual taken records, keyed by subject_id (latest wins
         // if a subject was retaken, so the up-to-date grade always shows).
@@ -79,7 +129,7 @@ class TranscriptController extends Controller
             ->with([
                 'enrollment:id,student_id,term_id,academic_year_id',
                 'enrollment.term:id,name,term,academic_year_id',
-                'enrollment.term.academicYear:id,name',
+                'enrollment.academicYear:id,name',
             ])
             ->whereHas('enrollment', fn ($q) => $q->where('student_id', $student->id))
             ->get()
@@ -88,12 +138,12 @@ class TranscriptController extends Controller
 
         $requiredUnits = (float) $curriculumRows->sum('units');
 
-        $rows = $curriculumRows->map(function (CurriculumSubject $cs) use ($taken) {
+        $rows = $curriculumRows->map(function ($cs) use ($taken, $termsPerYear) {
             $subj    = $cs->subject;
             $units   = (float) ($cs->units ?? 0);
             $sem     = (int) $cs->semester;
             $year    = (int) $cs->year_level;
-            $semWord = self::semesterLabel($sem);
+            $semWord = self::semesterLabel($sem, $termsPerYear);
 
             $record  = $taken->get($cs->subject_id);
             $grade   = $record?->grade;
@@ -160,11 +210,28 @@ class TranscriptController extends Controller
         $weightedSum = (float) $weighted->sum(fn ($r) => $r->_grade_numeric * $r->_units_numeric);
         $gwa         = $weightSum > 0 ? round($weightedSum / $weightSum, 2) : null;
 
-        // Group: year_level → semester → rows.
-        $groups = $rows
-            ->groupBy('year_level')
-            ->map(fn ($yearRows) => $yearRows->groupBy('semester')->sortKeys())
-            ->sortKeys();
+        // Group: year_level → semester → rows. Scaffold every expected
+        // semester (per the curriculum's terms_per_year / has_summer_term)
+        // so the student can see subjects they still need to take, including
+        // empty buckets — e.g. a trimester school always shows 1st/2nd/3rd
+        // Sem per year, even if no subject is scheduled in one of them yet.
+        $maxYear = (int) ($curriculumRows->max('year_level') ?: 0);
+        $years   = $maxYear > 0 ? range(1, $maxYear) : [];
+
+        $rowsByYearSem = $rows->groupBy('year_level')
+            ->map(fn ($yearRows) => $yearRows->groupBy('semester'));
+
+        $groups = collect();
+        foreach ($years as $yr) {
+            $semBuckets = collect();
+            foreach ($expectedSems as $sem) {
+                $semBuckets->put(
+                    $sem,
+                    $rowsByYearSem->get($yr)?->get($sem) ?? collect()
+                );
+            }
+            $groups->put($yr, $semBuckets);
+        }
 
         return view('student.transcript.index', [
             'columns'       => $columns,
@@ -174,11 +241,22 @@ class TranscriptController extends Controller
             'requiredUnits' => $requiredUnits,
             'percentDone'   => $percentDone,
             'gwa'           => $gwa,
+            'termsPerYear'  => $termsPerYear,
+            'hasSummerTerm' => $hasSummerTerm,
         ]);
     }
 
-    protected static function semesterLabel(int $sem): string
+    protected static function semesterLabel(int $sem, int $termsPerYear = 2): string
     {
+        // Trimester schools: 3 is a regular term, not "Summer".
+        if ($termsPerYear >= 3) {
+            return match ($sem) {
+                1       => '1st Sem',
+                2       => '2nd Sem',
+                3       => '3rd Sem',
+                default => 'Sem '.$sem,
+            };
+        }
         return match ($sem) {
             1       => '1st Sem',
             2       => '2nd Sem',

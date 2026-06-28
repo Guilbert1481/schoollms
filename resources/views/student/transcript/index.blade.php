@@ -2,9 +2,23 @@
 
 @section('content')
 @php
+    $termsPerYear  = $termsPerYear  ?? 2;
+    $hasSummerTerm = $hasSummerTerm ?? false;
+
     // Pretty label for semester numeric codes used in section headings.
-    $semLabel = function ($sem) {
-        return match ((int) $sem) {
+    // Trimester schools (terms_per_year >= 3) treat sem=3 as a regular term,
+    // not a summer session.
+    $semLabel = function ($sem) use ($termsPerYear) {
+        $sem = (int) $sem;
+        if ($termsPerYear >= 3) {
+            return match ($sem) {
+                1       => '1st Semester',
+                2       => '2nd Semester',
+                3       => '3rd Semester',
+                default => 'Semester '.$sem,
+            };
+        }
+        return match ($sem) {
             1       => '1st Semester',
             2       => '2nd Semester',
             3       => 'Summer',
@@ -69,6 +83,7 @@
             :columns="$columns"
             :data="collect()"
             :hideActions="true"
+            :hideToolbar="true"
         />
         <script>
             (function () {
@@ -106,14 +121,21 @@
                     </h3>
                 </div>
 
-                {{-- Shareable table with built-in filter, dynamic columns,
-                     and pagination — one per Year/Semester group. --}}
-                <x-table.table
-                    tableKey="transcript_y{{ $year }}_s{{ $sem }}"
-                    :columns="$columns"
-                    :data="$rows->values()"
-                    :hideActions="true"
-                />
+                @if ($rows->isEmpty())
+                    <div class="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                        No subjects are scheduled for this semester in your curriculum.
+                    </div>
+                @else
+                    {{-- Read-only view for students: hide the registrar-style
+                         Filter / Columns toolbar. --}}
+                    <x-table.table
+                        tableKey="transcript_y{{ $year }}_s{{ $sem }}"
+                        :columns="$columns"
+                        :data="$rows->values()"
+                        :hideActions="true"
+                        :hideToolbar="true"
+                    />
+                @endif
             @endforeach
         @endforeach
     @endif

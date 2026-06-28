@@ -1,7 +1,21 @@
 <div class="flex items-center gap-2 mr-2 relative">
 
     @php
-        $initialNotifications = $notifications->map(function ($n) {
+        $initialNotifications = collect($notifications)->map(function ($n) {
+            // Already-mapped array (from layouts/header.blade.php) OR raw DB row.
+            if (is_array($n)) {
+                return [
+                    'id'           => $n['id'],
+                    'title'        => $n['title'] ?? 'Notification',
+                    'message'      => $n['message'] ?? '',
+                    'type'         => $n['type'] ?? 'announcement',
+                    'reference_id' => $n['reference_id'] ?? 0,
+                    'term_id'      => $n['term_id'] ?? null,
+                    'read'         => (bool) ($n['read'] ?? false),
+                    'urgent'       => (bool) ($n['urgent'] ?? false),
+                    'days_left'    => $n['days_left'] ?? null,
+                ];
+            }
             $d = json_decode($n->data);
             return [
                 'id'           => $n->id,
@@ -11,17 +25,20 @@
                 'reference_id' => $d->reference_id ?? 0,
                 'term_id'      => $d->term_id ?? null,
                 'read'         => !is_null($n->read_at),
+                'urgent'       => false,
             ];
         })->values();
     @endphp
 
     <div x-data="notificationBell({{ (int) $notifCount }}, {{ Illuminate\Support\Js::from($initialNotifications->filter(fn($n) => !$n['read'])->values()) }})" class="relative">
 
-        <button @click="open = !open" class="p-2 rounded-lg {{ $hoverClass }} transition relative">
-            <i data-lucide="bell" class="w-5 h-5"></i>
+        <button @click="open = !open" class="p-2 rounded-lg {{ $hoverClass }} transition relative"
+                :class="hasUrgent ? 'animate-pulse' : ''">
+            <i data-lucide="bell" class="w-5 h-5" :class="hasUrgent ? 'text-red-500' : ''"></i>
 
             <span x-show="count > 0" x-text="count > 99 ? '99+' : count"
-                  class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 rounded-full"
+                  class="absolute -top-1 -right-1 text-white text-[10px] px-1.5 rounded-full"
+                  :class="hasUrgent ? 'bg-red-600 animate-pulse' : 'bg-red-500'"
                   style="display:none"></span>
         </button>
 
@@ -39,9 +56,18 @@
 
                 <template x-for="notif in notifications" :key="notif.id">
                     <div class="p-3 border-b hover:bg-slate-50 cursor-pointer text-sm"
-                         :class="{ 'bg-indigo-50/50': !notif.read }"
+                         :class="{
+                            'bg-indigo-50/50': !notif.read && !notif.urgent,
+                            'bg-red-50 border-l-4 border-l-red-500 animate-pulse': notif.urgent,
+                         }"
                          @click="handleClick(notif)">
-                        <div class="font-semibold" x-text="notif.title"></div>
+                        <div class="font-semibold flex items-center gap-1"
+                             :class="notif.urgent ? 'text-red-700' : ''">
+                            <span x-text="notif.title"></span>
+                            <span x-show="notif.urgent && notif.days_left >= 0"
+                                  class="ml-auto text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full"
+                                  x-text="notif.days_left === 0 ? 'Today' : notif.days_left + 'd left'"></span>
+                        </div>
                         <div class="text-xs text-gray-500" x-text="notif.message"></div>
                     </div>
                 </template>
@@ -71,6 +97,9 @@ window.notificationBell = function(initialCount, initialList) {
         notifications: initialList,
         pollMs: 30000,
         pollTimer: null,
+        get hasUrgent() {
+            return this.notifications.some(n => n.urgent);
+        },
         init() {
             this.pollTimer = setInterval(() => this.poll(), this.pollMs);
             document.addEventListener('visibilitychange', () => {
@@ -91,6 +120,8 @@ window.notificationBell = function(initialCount, initialList) {
                                 reference_id: n.reference_id,
                                 term_id: n.term_id ?? null,
                                 read: false,
+                                urgent: n.urgent ?? false,
+                                days_left: n.days_left ?? null,
                             }, ...this.notifications].slice(0, 10);
                             this.count++;
                             this.chime();
@@ -137,6 +168,14 @@ window.notificationBell = function(initialCount, initialList) {
                 return;
             }
 
+            // "term_created" bells are also sticky for the admission manager:
+            // they remain in the bell until the admission manager actually
+            // creates an EnrollmentSetting for the term. Just navigate.
+            if (notif.type === 'term_created') {
+                window.location.href = '/admission/enrollment-settings';
+                return;
+            }
+
             fetch(`/notifications/${notif.id}/read`, {
                 method: 'POST',
                 headers: {
@@ -148,10 +187,6 @@ window.notificationBell = function(initialCount, initialList) {
                 this.notifications = this.notifications.filter(x => x.id !== notif.id);
                 if (!notif.read && this.count > 0) this.count--;
 
-                if (notif.type === 'term_created') {
-                    window.location.href = '/admission/enrollment-settings';
-                    return;
-                }
                 if (notif.type === 'chat_message') {
                     const target = '/communication/chat#thread-' + notif.reference_id;
                     if (window.location.pathname === '/communication/chat') {

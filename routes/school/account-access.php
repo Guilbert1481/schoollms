@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\School\AccountAccessController;
 
-Route::middleware(['auth'])->prefix('school')->name('school.')->group(function () {
+Route::middleware(['auth', 'role:admin,superadmin'])->prefix('school')->name('school.')->group(function () {
 
     Route::get('/account-access', [AccountAccessController::class, 'index'])
         ->name('account-access.index');

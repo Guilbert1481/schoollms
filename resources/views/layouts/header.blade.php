@@ -52,16 +52,39 @@
         : ($activeColor['hover_dark_mode'] ?? 'hover:bg-white/10');
 
     // ✅ NOTIFICATIONS
-    $notifications = DB::table('notifications')
+    // Real DB notifications (excluding legacy push-based enrollment rows — these
+    // are now generated virtually by App\Support\EnrollmentNotifications).
+    $dbNotifications = DB::table('notifications')
         ->where('notifiable_id', $user->id)
+        ->where('type', '!=', \App\Notifications\EnrollmentOpenNotification::class)
         ->orderByDesc('created_at')
         ->limit(10)
-        ->get();
+        ->get()
+        ->map(function ($n) {
+            $d = json_decode($n->data);
+            return [
+                'id'           => $n->id,
+                'title'        => $d->title ?? 'Notification',
+                'message'      => $d->message ?? '',
+                'type'         => $d->type ?? 'announcement',
+                'reference_id' => $d->reference_id ?? 0,
+                'term_id'      => $d->term_id ?? null,
+                'read'         => !is_null($n->read_at),
+                'urgent'       => false,
+            ];
+        })
+        ->all();
+
+    $virtualEnrollments = \App\Support\EnrollmentNotifications::forUser($user);
+    $virtualBilling     = \App\Support\BillingNotifications::forUser($user);
+
+    $notifications = collect(array_merge($virtualBilling, $virtualEnrollments, $dbNotifications));
 
     $notifCount = DB::table('notifications')
         ->where('notifiable_id', $user->id)
+        ->where('type', '!=', \App\Notifications\EnrollmentOpenNotification::class)
         ->whereNull('read_at')
-        ->count();
+        ->count() + count($virtualEnrollments) + count($virtualBilling);
 @endphp
 
 <header class="h-24 flex items-center justify-between px-6 shadow-sm border-b z-30 {{ $bgClass }} {{ $textClass }} {{ $borderClass }}"

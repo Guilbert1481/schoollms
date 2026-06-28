@@ -11,7 +11,7 @@ use App\Http\Controllers\Certificates\CertificateEventAwardController;
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['web', 'auth'])
+Route::middleware(['web', 'auth', 'role:admin,superadmin'])
     ->prefix('school/settings/master-data/certificates')
     ->name('school.settings.master-data.certificates.')
     ->group(function () {

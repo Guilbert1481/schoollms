@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Base\BaseCrudController;
 
 Route::prefix('school/system/dynamic')
-    ->middleware(['web','auth'])
+    ->middleware(['web','auth','role:admin,superadmin,academics,admission_manager,registrar,finance_manager,dean,principal,program_head,course_architect,teacher,guidance_counselor,trainor,training_program_head'])
     ->group(function () {
 
     // STORE

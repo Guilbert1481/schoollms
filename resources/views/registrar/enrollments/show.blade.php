@@ -20,7 +20,7 @@
             <div><dt class="text-slate-500">Term</dt><dd>{{ optional($enrollment->term)->name }}</dd></div>
             <div><dt class="text-slate-500">Type</dt><dd>{{ $enrollment->enrollee_type }}</dd></div>
             <div><dt class="text-slate-500">Total Units</dt><dd>{{ $enrollment->total_units }}</dd></div>
-            <div><dt class="text-slate-500">Status</dt><dd class="font-bold">{{ ucfirst($enrollment->status) }}</dd></div>
+            <div><dt class="text-slate-500">Status</dt><dd class="font-bold">{{ ucwords(str_replace('_',' ',$enrollment->status)) }}</dd></div>
             <div><dt class="text-slate-500">Approval Level</dt><dd>{{ $enrollment->approval_level ?: '—' }}</dd></div>
         </dl>
 
@@ -32,15 +32,35 @@
         @endif
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <form method="POST" action="{{ route('registrar.enrollments.validate', $enrollment) }}"
               class="rounded-2xl border bg-white p-4">
             @csrf
             <h2 class="font-bold mb-2 text-emerald-700">Validate</h2>
+            <p class="text-[11px] text-slate-500 mb-2">
+                All documents complete. Applicant becomes <b>Assessed</b> and
+                a Statement of Account is issued.
+            </p>
             <textarea name="remarks" rows="3" placeholder="Optional remarks"
                       class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
-            <button class="mt-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold">
+            <button class="mt-2 w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold">
                 Validate Enrollment
+            </button>
+        </form>
+
+        <form method="POST" action="{{ route('registrar.enrollments.provisional', $enrollment) }}"
+              class="rounded-2xl border bg-white p-4">
+            @csrf
+            <h2 class="font-bold mb-2 text-amber-700">Approve Provisionally</h2>
+            <p class="text-[11px] text-slate-500 mb-2">
+                Documents partially complete. Applicant becomes
+                <b>Provisional</b>, a Statement of Account is issued and
+                — once paid — they will be <b>Provisionally Enrolled</b>.
+            </p>
+            <textarea name="remarks" rows="3" placeholder="Pending requirements / conditions"
+                      class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
+            <button class="mt-2 w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-bold">
+                Approve Provisionally
             </button>
         </form>
 
@@ -48,9 +68,13 @@
               class="rounded-2xl border bg-white p-4">
             @csrf
             <h2 class="font-bold mb-2 text-rose-700">Reject</h2>
+            <p class="text-[11px] text-slate-500 mb-2">
+                Documents insufficient or applicant ineligible. Applicant
+                becomes <b>Rejected</b>.
+            </p>
             <textarea name="remarks" rows="3" required placeholder="Reason for rejection (required)"
                       class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
-            <button class="mt-2 px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-bold">
+            <button class="mt-2 w-full px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-bold">
                 Reject Enrollment
             </button>
         </form>

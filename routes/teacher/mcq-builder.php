@@ -10,7 +10,7 @@
     |--------------------------------------------------------------------------
     */
 
-    Route::middleware(['auth'])->prefix('teacher/tests')->group(function () {
+    Route::middleware(['auth', 'role:teacher,course_architect,trainor'])->prefix('teacher/tests')->group(function () {
         
         // URL: /teacher/tests/mcq-builder
         Route::get('/mcq', [McqController::class, 'index'])

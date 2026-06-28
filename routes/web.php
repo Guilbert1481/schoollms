@@ -1,8 +1,5 @@
 
 <?php
-// Role management (for modal role creation)
-// Role management (for modal role creation)
-Route::post('/settings/roles', [App\Http\Controllers\UserManagementController::class, 'storeRole'])->name('roles.store');
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
@@ -100,7 +97,7 @@ Route::middleware(['auth'])->prefix('onboarding')->group(function () {
 */
 
 Route::prefix('settings')
-    ->middleware(['auth'])
+    ->middleware(['auth', 'role:admin,superadmin'])
     ->name('settings.')
     ->group(function () {
 
@@ -136,7 +133,7 @@ Route::post('/register/{term}', [StudentRegisterController::class, 'store'])
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'role:admin,superadmin'])->group(function () {
 
     Route::get('/school/settings/branding', [SchoolController::class, 'showBranding'])
         ->name('school.branding.settings');
@@ -162,6 +159,7 @@ Route::middleware(['auth'])->group(function () {
 
 Route::prefix('admin')
     ->name('admin.')
+    ->middleware(['auth', 'role:admin,superadmin'])
     ->group(function () {
 
         Route::get('/quotes', [QuoteController::class, 'index'])
@@ -190,20 +188,24 @@ Route::prefix('admin')
 |--------------------------------------------------------------------------
 */
 
-Route::get('/assignables', [AssignableController::class, 'index'])
-    ->name('assignables.index');
+Route::middleware('auth')->group(function () {
+
+    Route::get('/assignables', [AssignableController::class, 'index'])
+        ->name('assignables.index');
 
     Route::get('/assignable-users', function (\Illuminate\Http\Request $request) {
-    return \App\Models\User::when($request->search, function ($q) use ($request) {
-            $q->where('name', 'like', '%'.$request->search.'%');
-        })
-        ->limit(10)
-        ->select('id','name')
-        ->get();
-});
+        return \App\Models\User::when($request->search, function ($q) use ($request) {
+                $q->where('name', 'like', '%'.$request->search.'%');
+            })
+            ->limit(10)
+            ->select('id','name')
+            ->get();
+    });
 
-Route::get('/assignable-groups', function () {
-    return \App\Models\Group::select('id','name')->get();
+    Route::get('/assignable-groups', function () {
+        return \App\Models\Group::select('id','name')->get();
+    });
+
 });
 
 
@@ -214,7 +216,7 @@ Route::get('/assignable-groups', function () {
 | SETTINGS - USER MANAGEMENT (Admin Only)
 |--------------------------------------------------------------------------*/
 
-    Route::prefix('settings')->name('settings.')->middleware(['auth'])->group(function () {
+    Route::prefix('settings')->name('settings.')->middleware(['auth', 'role:admin,superadmin'])->group(function () {
 
     Route::get('/users', [UserManagementController::class, 'index'])
         ->name('users.index');
@@ -235,6 +237,17 @@ Route::get('/assignable-groups', function () {
     Route::put('/users/{user}', [UserManagementController::class, 'update'])
         ->name('users.update');
 
+});
+
+Route::prefix('settings')->middleware(['auth', 'role:admin,superadmin'])->group(function () {
+    Route::post('/roles', [UserManagementController::class, 'storeRole'])
+        ->name('roles.store');
+
+    Route::put('/roles/{role}', [UserManagementController::class, 'updateRole'])
+        ->name('roles.update');
+
+    Route::delete('/roles/{role}', [UserManagementController::class, 'destroyRole'])
+        ->name('roles.destroy');
 });
 
 
@@ -270,8 +283,9 @@ Route::get('/assignable-groups', function () {
     Route::get('/notifications/feed', function () {
         $user = auth()->user();
 
-        $notifications = \Illuminate\Support\Facades\DB::table('notifications')
+        $dbNotifications = \Illuminate\Support\Facades\DB::table('notifications')
             ->where('notifiable_id', $user->id)
+            ->where('type', '!=', \App\Notifications\EnrollmentOpenNotification::class)
             ->orderByDesc('created_at')
             ->limit(10)
             ->get()
@@ -281,17 +295,27 @@ Route::get('/assignable-groups', function () {
                     'id'           => $n->id,
                     'title'        => $data->title ?? 'Notification',
                     'message'      => $data->message ?? '',
-                    'type'         => $data->type ?? 'announcement',
-                    'reference_id' => $data->reference_id ?? 0,
-                    'read'         => !is_null($n->read_at),
+                    'type'             => $data->type ?? 'announcement',
+                    'reference_id'     => $data->reference_id ?? 0,
+                    'term_id'          => $data->term_id ?? null,
+                    'academic_year_id' => $data->academic_year_id ?? null,
+                    'read'             => !is_null($n->read_at),
+                    'urgent'       => false,
+                    'days_left'    => null,
                     'created_at'   => $n->created_at,
                 ];
-            });
+            })
+            ->all();
+
+        $virtual = \App\Support\EnrollmentNotifications::forUser($user);
+
+        $notifications = array_merge($virtual, $dbNotifications);
 
         $count = \Illuminate\Support\Facades\DB::table('notifications')
             ->where('notifiable_id', $user->id)
+            ->where('type', '!=', \App\Notifications\EnrollmentOpenNotification::class)
             ->whereNull('read_at')
-            ->count();
+            ->count() + count($virtual);
 
         return response()->json([
             'count'         => $count,

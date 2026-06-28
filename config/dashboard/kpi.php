@@ -69,15 +69,18 @@ return [
             ],
         ],
 
-        'admission' => [
+        'admission_manager' => [
             'summary_cards' => [
                 'new_applications',
             ],
         ],
 
-        'admission_manager' => [
+        'finance_manager' => [
             'summary_cards' => [
-                'new_applications',
+                'awaiting_payment',
+                'revenue',
+                'outstanding_total',
+                'students',
             ],
         ],
 
@@ -143,6 +146,12 @@ return [
             'title' => 'Outstanding Balance',
             'icon'  => 'alert-circle',
             'color' => 'red',
+        ],
+
+        'awaiting_payment' => [
+            'title' => 'Awaiting Payment',
+            'icon'  => 'file-text',
+            'color' => 'violet',
         ],
 
         'new_applications_student' => [

@@ -9,7 +9,7 @@ use App\Http\Controllers\School\Settings\AcademicYearController;
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['web', 'auth'])
+Route::middleware(['web', 'auth', 'role:admin,superadmin'])
     ->prefix('school/settings/master-data')
     ->name('school.settings.master-data.')
     ->group(function () {

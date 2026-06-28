@@ -4,7 +4,7 @@
 <div class="px-8 py-12 max-w-2xl text-center mx-auto">
 
     <div class="text-xs font-extrabold text-slate-500 tracking-widest mb-1">
-        STEP 7 OF 7 — CONFIRMATION
+        STEP 8 OF 8 — CONFIRMATION
     </div>
     <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden mb-8">
         <div class="h-full bg-emerald-500" style="width:100%"></div>
@@ -41,4 +41,50 @@
         </a>
     </div>
 </div>
+
+{{-- ===========================================================
+     Online Admission / Diagnostic Exam prompt
+     Shown only when the school requires the exam for this enrollee type.
+     =========================================================== --}}
+@if(!empty($examRequired))
+<div id="exam-prompt-modal"
+     class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-7 text-center">
+        <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+            <i data-lucide="clipboard-check" class="w-7 h-7"></i>
+        </div>
+        <h2 class="text-xl font-extrabold text-slate-800 mb-2">
+            Ready to take the {{ $examPurpose ?? 'Diagnostic Test' }}?
+        </h2>
+        <p class="text-sm text-slate-500 mb-6">
+            @if(!empty($examInstructions))
+                {{ $examInstructions }}
+            @else
+                Your application has been received. You can take the online
+                {{ strtolower($examPurpose ?? 'diagnostic test') }} now, or
+                schedule it for later from your dashboard.
+            @endif
+        </p>
+
+        <div class="flex gap-3 justify-center">
+            <button type="button"
+                    onclick="document.getElementById('exam-prompt-modal').remove();"
+                    class="px-5 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-sm">
+                Next time
+            </button>
+            <a href="{{ route('public.apply.exam', ['term' => $term->id, 'enrollment' => $enrollment->id]) }}"
+               class="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm">
+                Start
+            </a>
+        </div>
+    </div>
+</div>
+<script>
+    // Re-render Lucide icons inside the freshly-injected modal (icons script
+    // is loaded globally by the enrollment layout).
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+    }
+</script>
+@endif
 @endsection

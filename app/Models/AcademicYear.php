@@ -13,10 +13,12 @@ class AcademicYear extends Model
 
     protected $fillable = [
         'school_id',
+        'education_level',
         'name',
         'start_date',
         'end_date',
         'is_active',
+        'status',
     ];
 
     protected $casts = [

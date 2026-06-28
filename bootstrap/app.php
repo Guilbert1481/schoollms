@@ -61,6 +61,7 @@ return Application::configure(basePath: dirname(__DIR__))
             |--------------------------------------------------------------------------
             */
             __DIR__.'/../routes/admission/sections.php',
+            __DIR__.'/../routes/admission/dashboard.php',
 
 
             /*
@@ -113,6 +114,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/student/dashboard.php',
             __DIR__.'/../routes/student/subjects.php',
             __DIR__.'/../routes/student/transcript.php',
+            __DIR__.'/../routes/student/applications.php',
             __DIR__.'/../routes/student/training/training.php',
             __DIR__.'/../routes/address.php',
 
@@ -173,6 +175,17 @@ return Application::configure(basePath: dirname(__DIR__))
 
             /*
             |--------------------------------------------------------------------------
+            | PRINCIPAL MODULE (Basic Education)
+            |--------------------------------------------------------------------------
+            */
+
+            __DIR__.'/../routes/principal/dashboard.php',
+            __DIR__.'/../routes/principal/curricula_panel.php',
+            __DIR__.'/../routes/principal/ay_terms.php',
+
+
+            /*
+            |--------------------------------------------------------------------------
             | STAFF / PROGRAM HEAD MODULES
             |--------------------------------------------------------------------------
             */
@@ -201,7 +214,7 @@ return Application::configure(basePath: dirname(__DIR__))
             |--------------------------------------------------------------------------
             */
 
-            __DIR__.'/../routes/modular_routing_settings.php',
+            __DIR__.'/../routes/modular_routing/settings.php',
 
             
             /*Reusable routes*/
@@ -210,6 +223,8 @@ return Application::configure(basePath: dirname(__DIR__))
             /*Finance routes*/
             __DIR__.'/../routes/finance/payments.php',
             __DIR__.'/../routes/finance/billing.php',
+            __DIR__.'/../routes/finance/accounts.php',
+            __DIR__.'/../routes/student/finance.php',
 
             /*Tools routes*/
             __DIR__.'/../routes/tools/index.php',

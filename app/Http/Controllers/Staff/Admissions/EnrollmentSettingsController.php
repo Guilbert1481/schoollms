@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver as GdDriver;
 use App\Models\EnrollmentSetting;
+use App\Models\AdmissionExamSetting;
 use App\Models\AcademicYear;
 use App\Models\Term;
 use App\Models\EnrollmentType;
@@ -55,30 +56,149 @@ class EnrollmentSettingsController extends Controller
         $terms = Term::orderBy('name')->get();
         $types = EnrollmentType::orderBy('name')->get();
 
+        $examSetting = $this->currentExamSetting();
+        $activeTab   = 'enrollment';
+
         return view('admission.settings.enrollment_settings', compact(
             'settings',
             'years',
             'terms',
             'types',
-            'upcomingTerms'
+            'upcomingTerms',
+            'examSetting',
+            'activeTab'
         ));
     }
 
+    /**
+     * Render the same settings page with the "Admission Exam" tab active.
+     */
+    public function admissionExam()
+    {
+        $settings = EnrollmentSetting::with([
+            'academicYear', 'term', 'enrollmentType', 'creator',
+        ])->orderBy('start_date', 'desc')->get();
+
+        $today = Carbon::today();
+        foreach ($settings as $s) {
+            if ($today->lt($s->start_date)) {
+                $s->status = 'Upcoming';
+                $s->is_open = 0;
+            } elseif ($today->between($s->start_date, $s->end_date)) {
+                $s->status = 'Active';
+                $s->is_open = 1;
+            } else {
+                $s->status = 'Expired';
+                $s->is_open = 0;
+            }
+        }
+        $upcomingTerms = Term::where('status', 'upcoming')->orderBy('start_date')->get();
+        $years         = AcademicYear::orderBy('name')->get();
+        $terms         = Term::orderBy('name')->get();
+        $types         = EnrollmentType::orderBy('name')->get();
+        $examSetting   = $this->currentExamSetting();
+        $activeTab     = 'admission-exam';
+
+        return view('admission.settings.enrollment_settings', compact(
+            'settings', 'years', 'terms', 'types', 'upcomingTerms',
+            'examSetting', 'activeTab'
+        ));
+    }
+
+    /**
+     * Persist the admission-exam policy for the current school.
+     */
+    public function admissionExamUpdate(Request $request)
+    {
+        $validated = $request->validate([
+            'require_for_new_student'      => 'sometimes|boolean',
+            'require_for_transferee'       => 'sometimes|boolean',
+            'require_for_returnee'         => 'sometimes|boolean',
+            'require_for_shiftee'          => 'sometimes|boolean',
+            'exam_purpose'                 => 'required|in:diagnostic_only,admission_requirement',
+            'max_score'                    => 'required|integer|min:1|max:1000',
+            'passing_score'                => 'nullable|integer|min:0|lte:max_score',
+            'max_attempts'                 => 'required|integer|min:1|max:10',
+            'retake_cooldown_days'         => 'nullable|integer|min:0|max:365',
+            'result_validity_months'       => 'nullable|integer|min:0|max:120',
+            'allow_program_head_waiver'    => 'sometimes|boolean',
+            'notify_applicant_on_schedule' => 'sometimes|boolean',
+            'auto_assess_after_pass'       => 'sometimes|boolean',
+            'instructions'                 => 'nullable|string|max:5000',
+        ]);
+
+        // When the exam is a hard requirement, passing_score is mandatory.
+        if ($validated['exam_purpose'] === AdmissionExamSetting::PURPOSE_REQUIREMENT
+            && empty($validated['passing_score'])) {
+            return back()
+                ->withErrors(['passing_score' => 'Passing score is required when the exam is an admission requirement.'])
+                ->withInput();
+        }
+
+        // Normalise booleans (unchecked checkboxes are absent from the request).
+        foreach ([
+            'require_for_new_student', 'require_for_transferee',
+            'require_for_returnee', 'require_for_shiftee',
+            'allow_program_head_waiver', 'notify_applicant_on_schedule',
+            'auto_assess_after_pass',
+        ] as $flag) {
+            $validated[$flag] = (bool) ($request->input($flag, false));
+        }
+
+        AdmissionExamSetting::updateOrCreate(
+            ['school_id' => auth()->user()->school_id],
+            $validated
+        );
+
+        return redirect()
+            ->route('admission.enrollment-settings.admission-exam')
+            ->with('success', 'Admission exam settings saved.');
+    }
+
+    /**
+     * Fetch the (singleton) admission-exam settings for the current school,
+     * returning an unsaved default model if none exists yet.
+     */
+    protected function currentExamSetting(): AdmissionExamSetting
+    {
+        $schoolId = auth()->user()->school_id;
+
+        return AdmissionExamSetting::firstOrNew(
+            ['school_id' => $schoolId],
+            [
+                'require_for_new_student'      => false,
+                'require_for_transferee'       => false,
+                'require_for_returnee'         => false,
+                'require_for_shiftee'          => false,
+                'exam_purpose'                 => AdmissionExamSetting::PURPOSE_DIAGNOSTIC,
+                'max_score'                    => 100,
+                'passing_score'                => null,
+                'max_attempts'                 => 1,
+                'retake_cooldown_days'         => null,
+                'result_validity_months'       => null,
+                'allow_program_head_waiver'    => true,
+                'notify_applicant_on_schedule' => true,
+                'auto_assess_after_pass'       => false,
+                'instructions'                 => null,
+            ]
+        );
+    }
+
     public function store(Request $request)
-{
-    $request->validate([
-        'name' => 'required',
-        'title' => 'required',
-        'academic_year_id' => 'required',
-        'term_id' => 'required',
-        'start_date' => 'required|date',
-        'end_date' => 'required|date',
-        'price' => 'nullable|numeric|min:0',
-        'cover_image' => 'nullable|image|max:20480',
-        'instructor_title' => 'nullable|string|max:50',
-        'instructor_name' => 'nullable|string|max:255',
-        'course_details' => 'nullable|string',
-    ]);
+    {
+        $request->validate([
+            'name' => 'required',
+            'title' => 'required',
+            'academic_year_id' => 'required|exists:academic_years,id',
+            'term_id' => 'required|exists:terms,id',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date',
+            'price' => 'nullable|numeric|min:0',
+            'cover_image' => 'nullable|image|max:20480',
+            'instructor_title' => 'nullable|string|max:50',
+            'instructor_name' => 'nullable|string|max:255',
+            'course_details' => 'nullable|string',
+        ]);
 
     $coverPath = null;
     if ($request->hasFile('cover_image')) {
@@ -107,10 +227,32 @@ class EnrollmentSettingsController extends Controller
     // Auto-activate program_subjects if the enrollment window already includes today.
     app(ProgramSubjectActivationService::class)->sync();
 
-    // Notify every student in the same school that enrolment is open. The
-    // notification is auto-dismissed once the student's StudentEnrollment for
-    // this setting reaches the "enrolled" status (see model boot()).
-    $this->notifyStudents($setting);
+    // Dismiss any "term_created" bell notifications for this admission user
+    // that point at the term/AY they just opened an enrollment for. This is
+    // what makes the bell badge go away once the session date is set.
+    $user = auth()->user();
+    if ($user) {
+        $termId = (int) $request->term_id;
+        $ayId   = (int) $request->academic_year_id;
+
+        \Illuminate\Support\Facades\DB::table('notifications')
+            ->where('notifiable_id', $user->id)
+            ->whereNull('read_at')
+            ->where(function ($q) use ($termId, $ayId) {
+                $q->where('data', 'like', '%"type":"term_created"%')
+                  ->where(function ($qq) use ($termId, $ayId) {
+                      $qq->where('data', 'like', '%"term_id":' . $termId . '%')
+                         ->orWhere('data', 'like', '%"academic_year_id":' . $ayId . '%');
+                  });
+            })
+            ->update(['read_at' => now(), 'updated_at' => now()]);
+    }
+
+    // Note: student bell notifications are now derived virtually from
+    // EnrollmentSetting rows (see App\Support\EnrollmentNotifications). This
+    // ensures even students created AFTER the setting was made will see the
+    // notification, and that it auto-disappears when end_date passes or the
+    // student submits an application.
 
     return redirect()->back()->with('success', 'Enrollment setting created.');
 }

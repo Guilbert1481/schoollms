@@ -20,8 +20,32 @@
             {{ session('success') }}
         </div>
     @endif
+    @if($errors->any())
+        <div class="mb-6 p-3 bg-rose-50 border border-rose-100 text-rose-700 rounded-xl text-sm font-medium">
+            <ul class="list-disc pl-5 space-y-1">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
-    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 w-full mx-auto">
+    <div class="mb-4 flex gap-2 border-b border-slate-200">
+        <button type="button"
+                @click="activeTab = 'users'"
+                :class="activeTab === 'users' ? 'border-indigo-600 text-indigo-700 bg-indigo-50' : 'border-transparent text-slate-600 hover:text-indigo-700 hover:bg-slate-50'"
+                class="-mb-px rounded-t-lg border-b-2 px-4 py-2 text-sm font-semibold">
+            Users
+        </button>
+        <button type="button"
+                @click="activeTab = 'roles'"
+                :class="activeTab === 'roles' ? 'border-indigo-600 text-indigo-700 bg-indigo-50' : 'border-transparent text-slate-600 hover:text-indigo-700 hover:bg-slate-50'"
+                class="-mb-px rounded-t-lg border-b-2 px-4 py-2 text-sm font-semibold">
+            Roles
+        </button>
+    </div>
+
+    <div x-show="activeTab === 'users'" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 w-full mx-auto">
         {{-- Add New User Button and Filter --}}
         <div class="flex justify-between items-center mb-4">
             {{-- Search / Filter --}}
@@ -31,14 +55,6 @@
                 class="border rounded px-3 py-2 mb-3 w-64">
 
             <div class="flex gap-2">
-                {{-- Add New Role Button --}}
-                <button
-                    class="py-2 px-5 h-10 bg-green-600 text-white rounded-lg font-bold text-xs uppercase hover:bg-green-700 transition flex items-center"
-                    @click="openRoleModal()"
-                >
-                    + New Role
-                </button>
-
                 {{-- Add New User Button --}}
                 <button 
                     class="py-2 px-5 h-10 bg-indigo-600 text-white rounded-lg font-bold text-xs uppercase hover:bg-indigo-700 transition flex items-center"
@@ -46,33 +62,6 @@
                 >
                     + New User
                 </button>
-            </div>
-            {{-- ===== Create Role Modal ===== --}}
-            <div x-show="showRoleModal"
-                 class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-                 x-transition
-                 style="display: none;"
-                 @click.away="closeRoleModal()"
-            >
-                <div class="bg-white rounded-2xl p-8 w-full max-w-md shadow-lg relative">
-                    <button class="absolute top-3 right-3 text-slate-500 hover:text-slate-800 text-lg" @click="closeRoleModal()">&times;</button>
-                    <h3 class="font-bold text-slate-800 mb-6 text-lg">Create New Role</h3>
-                    <form method="POST" action="{{ route('roles.store') }}" class="space-y-5">
-                        @csrf
-                        <div class="flex items-center gap-2 mb-4">
-                            <input type="text" name="role_name" x-model="roleForm.role_name" required placeholder="Role name..."
-                                class="w-full rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
-                            <select name="is_head_role" x-model="roleForm.is_head_role" class="rounded-lg border border-slate-200 px-2 py-2 text-sm">
-                                <option value="0">Regular</option>
-                                <option value="1">Head</option>
-                            </select>
-                        </div>
-                        <div class="flex gap-2 justify-end">
-                            <button type="button" @click="addRoleField()" class="px-4 py-2 bg-slate-200 text-slate-700 rounded font-bold text-xs uppercase tracking-widest hover:bg-slate-300 transition-all">Add Role</button>
-                            <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-green-700 transition-all shadow-md active:scale-95">Save</button>
-                        </div>
-                    </form>
-                </div>
             </div>
         </div>
 
@@ -152,6 +141,34 @@
         </div>
     </div>
 
+    <div x-show="activeTab === 'roles'" x-cloak class="space-y-4">
+        <x-table.table
+            tableKey="user_management_roles"
+            :columns="$roleColumns"
+            :data="$roleRows"
+            :actions="$roleActions"
+            deleteRoute="roles.destroy"
+            createModal="roleCreateModal"
+            createLabel="Add Role"
+            perPage="10"
+        />
+    </div>
+
+    <x-modal.form id="roleCreateModal" title="Create Role" widthClass="w-full max-w-xl">
+        <form method="POST" action="{{ route('roles.store') }}" class="space-y-4">
+            @csrf
+            @include('admin.settings.users.partials.role-form', ['prefix' => 'role_create'])
+        </form>
+    </x-modal.form>
+
+    <x-modal.form id="roleEditModal" title="Edit Role" widthClass="w-full max-w-xl">
+        <form id="roleEditForm" method="POST" action="#" class="space-y-4">
+            @csrf
+            @method('PUT')
+            @include('admin.settings.users.partials.role-form', ['prefix' => 'role_edit'])
+        </form>
+    </x-modal.form>
+
     {{-- ===== Create/Edit User Modal ===== --}}
     <div x-show="showUserModal"
          class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
@@ -199,6 +216,16 @@
                             <div>
                                 <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Password</label>
                                 <input type="password" name="password" required 
+                                    class="mt-1 w-full rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </template>
+                        <template x-if="userForm.id">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    Password <span class="text-slate-400 normal-case">(leave blank to keep current)</span>
+                                </label>
+                                <input type="password" name="password" autocomplete="new-password"
+                                    placeholder="••••••••"
                                     class="mt-1 w-full rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
                             </div>
                         </template>
@@ -273,11 +300,32 @@
 
 {{-- Alpine.js state/logic for modals --}}
 <script>
+const userManagementRoleRecords = @json($roleEditRecords);
+const roleUpdateUrlTemplate = @json(route('roles.update', ['role' => '__ID__']));
+
+function setRoleField(prefix, name, value) {
+    const field = document.getElementById(`${prefix}_${name}`);
+    if (!field) return;
+    field.value = value ?? '';
+}
+
+function openRoleEditModal(id) {
+    const role = userManagementRoleRecords.find((item) => Number(item.id) === Number(id));
+    if (!role) return;
+
+    document.getElementById('roleEditForm').action = roleUpdateUrlTemplate.replace('__ID__', role.id);
+    setRoleField('role_edit', 'role_name', role.name);
+    setRoleField('role_edit', 'is_head_role', role.is_head_role ? '1' : '0');
+    setRoleField('role_edit', 'badge_color', role.badge_color);
+    setRoleField('role_edit', 'badge_text_color', role.badge_text_color);
+    openModal('roleEditModal');
+}
+
 function userModals() {
     return {
+        activeTab: 'users',
         showUserModal: false,
         showViewModal: false,
-        showRoleModal: false,
         userForm: {
             id: null,
             first_name: '',
@@ -288,10 +336,6 @@ function userModals() {
             phone: '',
             address: '',
             birthday: '',
-        },
-        roleForm: {
-            role_name: '',
-            is_head_role: '0',
         },
         viewUser: {
             full_name: '',
@@ -314,19 +358,6 @@ function userModals() {
                 address: '',
                 birthday: '',
             };
-        },
-        openRoleModal() {
-            this.showRoleModal = true;
-            this.roleForm = {
-                role_name: '',
-                is_head_role: '0',
-            };
-        },
-        closeRoleModal() {
-            this.showRoleModal = false;
-        },
-        addRoleField() {
-            // Placeholder for adding more role fields if needed in the future
         },
         openEditModal(user) {
             this.showUserModal = true;

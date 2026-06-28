@@ -22,12 +22,12 @@ return [
     ],
 
     'columns' => [
-        ['key' => 'term',              'label' => 'Term', 'raw' => true],
-        ['key' => 'subject_code',      'label' => 'Subject Code'],
-        ['key' => 'descriptive_title', 'label' => 'Descriptive Title'],
-        ['key' => 'final_grade',       'label' => 'Final Grade', 'raw' => true],
-        ['key' => 'units',             'label' => 'Units'],
-        ['key' => 'status',            'label' => 'Status', 'raw' => true],
+        ['key' => 'term',              'label' => 'Term',              'raw' => true, 'width' => '110px'],
+        ['key' => 'subject_code',      'label' => 'Subject Code',                    'width' => '245px'],
+        ['key' => 'descriptive_title', 'label' => 'Descriptive Title',               'width' => 'auto'],
+        ['key' => 'final_grade',       'label' => 'Final Grade',       'raw' => true, 'width' => '110px'],
+        ['key' => 'units',             'label' => 'Units',                            'width' => '110px'],
+        ['key' => 'status',            'label' => 'Status',            'raw' => true, 'width' => '110px'],
     ],
 
     'hidden' => [

@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\School\Settings\Calendar\CalendarController;
 
-Route::middleware(['web', 'auth'])
+Route::middleware(['web', 'auth', 'role:admin,superadmin'])
     ->prefix('school/settings/master-data/calendar')
     ->name('school.settings.master-data.calendar.')
     ->group(function () {

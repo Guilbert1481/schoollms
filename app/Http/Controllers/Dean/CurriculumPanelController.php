@@ -22,6 +22,11 @@ class CurriculumPanelController extends BaseCrudController
     {
         $data = $this->loadTableData('subjects');
 
+        // Exclude basic-ed subjects (managed by the Principal panel).
+        $data['data'] = collect($data['data'])
+            ->reject(fn ($row) => (int) ($row->is_basic_ed ?? 0) === 1)
+            ->values();
+
         return view('dean.curricula-panel.subjects', $data);
     }
 
@@ -104,6 +109,7 @@ class CurriculumPanelController extends BaseCrudController
             $attachedIds = $rows->pluck('subject_id');
             $availableSubjects = \Illuminate\Support\Facades\DB::table('subjects')
                 ->where('school_id', $schoolId)
+                ->where('is_basic_ed', 0)
                 ->whereNotIn('id', $attachedIds)
                 ->orderBy('name')
                 ->get(['id', 'code', 'name']);
@@ -239,5 +245,137 @@ class CurriculumPanelController extends BaseCrudController
         return redirect()
             ->route('dean.curricula-panel.programs', ['program_id' => $row->program_id])
             ->with('success', 'Program subject updated.');
+    }
+
+    /* ============================================================
+     | CSV import for program_subjects
+     |
+     | Expected columns (header row required):
+     |   subject_code, year_level, semester_number [, is_active]
+     |
+     | Subjects are matched by (school_id, code) against the school
+     | of the authenticated user. Missing subjects are reported back
+     | as errors and skipped.
+     |============================================================*/
+    public function importProgramSubjects(Request $request)
+    {
+        $request->validate([
+            'program_id' => 'required|integer|exists:programs,id',
+            'csv'        => 'required|file|mimes:csv,txt|max:2048',
+        ]);
+
+        $schoolId  = auth()->user()->school_id;
+        $programId = (int) $request->input('program_id');
+
+        // Make sure the program belongs to this school
+        $program = \Illuminate\Support\Facades\DB::table('programs')
+            ->where('id', $programId)
+            ->where('school_id', $schoolId)
+            ->first();
+
+        if (! $program) {
+            return redirect()
+                ->route('dean.curricula-panel.programs', ['program_id' => $programId])
+                ->withErrors(['error' => 'Program not found for your school.']);
+        }
+
+        $path   = $request->file('csv')->getRealPath();
+        $handle = fopen($path, 'r');
+        if (! $handle) {
+            return redirect()->back()->withErrors(['error' => 'Unable to read CSV file.']);
+        }
+
+        $headers = fgetcsv($handle);
+        if (! $headers) {
+            fclose($handle);
+            return redirect()->back()->withErrors(['error' => 'CSV file is empty.']);
+        }
+        $headers = array_map(fn ($h) => strtolower(trim((string) $h)), $headers);
+
+        $required = ['subject_code', 'year_level', 'semester_number'];
+        foreach ($required as $col) {
+            if (! in_array($col, $headers, true)) {
+                fclose($handle);
+                return redirect()->back()->withErrors([
+                    'error' => "CSV must include columns: subject_code, year_level, semester_number (is_active optional).",
+                ]);
+            }
+        }
+
+        $idx = array_flip($headers);
+        $inserted = 0;
+        $updated  = 0;
+        $skipped  = [];
+        $line     = 1;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $line++;
+            if (count(array_filter($row, fn ($v) => $v !== null && $v !== '')) === 0) {
+                continue; // skip blank line
+            }
+
+            $code  = trim((string) ($row[$idx['subject_code']] ?? ''));
+            $year  = (int) ($row[$idx['year_level']] ?? 0);
+            $sem   = (int) ($row[$idx['semester_number']] ?? 0);
+            $isAct = isset($idx['is_active'])
+                ? (int) filter_var($row[$idx['is_active']] ?? 1, FILTER_VALIDATE_BOOLEAN)
+                : 1;
+
+            if ($code === '' || $year < 1 || $year > 6 || $sem < 1 || $sem > 5) {
+                $skipped[] = "Line {$line}: invalid row.";
+                continue;
+            }
+
+            $subject = \Illuminate\Support\Facades\DB::table('subjects')
+                ->where('school_id', $schoolId)
+                ->where('is_basic_ed', 0)
+                ->where('code', $code)
+                ->first();
+
+            if (! $subject) {
+                $skipped[] = "Line {$line}: subject code '{$code}' not found.";
+                continue;
+            }
+
+            $existing = \Illuminate\Support\Facades\DB::table('program_subjects')
+                ->where('program_id', $programId)
+                ->where('subject_id', $subject->id)
+                ->where('year_level', $year)
+                ->where('semester_number', $sem)
+                ->first();
+
+            if ($existing) {
+                \Illuminate\Support\Facades\DB::table('program_subjects')
+                    ->where('id', $existing->id)
+                    ->update(['is_active' => $isAct, 'updated_at' => now()]);
+                $updated++;
+            } else {
+                \Illuminate\Support\Facades\DB::table('program_subjects')->insert([
+                    'program_id'      => $programId,
+                    'subject_id'      => $subject->id,
+                    'year_level'      => $year,
+                    'semester_number' => $sem,
+                    'is_active'       => $isAct,
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
+                $inserted++;
+            }
+        }
+        fclose($handle);
+
+        $msg = "Imported program subjects — added: {$inserted}, updated: {$updated}";
+        if (! empty($skipped)) {
+            $msg .= '. Skipped '.count($skipped).' row(s).';
+        }
+
+        $redirect = redirect()->route('dean.curricula-panel.programs', ['program_id' => $programId])
+            ->with('success', $msg);
+
+        if (! empty($skipped)) {
+            $redirect->withErrors(['import' => $skipped]);
+        }
+
+        return $redirect;
     }
 }

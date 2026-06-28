@@ -7,7 +7,7 @@ use App\Http\Controllers\School\Settings\Organization\OfficeController;
 use App\Http\Controllers\School\Settings\Organization\DepartmentController;
 
 
-Route::middleware(['web', 'auth'])
+Route::middleware(['web', 'auth', 'role:admin,superadmin'])
     ->prefix('school/settings/master-data/organization')
     ->name('school.settings.master-data.organization.')
     ->group(function () {

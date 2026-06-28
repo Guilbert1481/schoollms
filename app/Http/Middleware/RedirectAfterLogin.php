@@ -21,7 +21,7 @@ class RedirectAfterLogin
                 return redirect()->route('admin.dashboard');
             }
 
-            if (in_array($user->role, ['admission', 'admission_manager'], true)) {
+            if (in_array($user->role, ['admission_manager'], true)) {
                 return redirect()->route('staff.admissions.dashboard');
             }
 

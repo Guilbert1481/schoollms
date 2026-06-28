@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Teacher\Lesson\ResourceController;
 
-Route::middleware(['web', 'auth'])
+Route::middleware(['web', 'auth', 'role:teacher'])
     ->prefix('teacher/lessons/resources')
     ->name('teacher.lessons.resources.')
     ->group(function () {

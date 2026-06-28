@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Public\EnrollmentController;
+use App\Http\Controllers\Public\EnrollmentQrLandingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,6 +18,16 @@ use App\Http\Controllers\Public\EnrollmentController;
 */
 
 Route::prefix('apply')->name('public.apply.')->group(function () {
+
+    // QR-code landing (public — handles auth state internally)
+    Route::get('/qr/{term}',           [EnrollmentQrLandingController::class, 'show'])->name('qr');
+    Route::post('/qr/{term}/login',    [EnrollmentQrLandingController::class, 'login'])->name('qr.login');
+    Route::post('/qr/{term}/register', [EnrollmentQrLandingController::class, 'register'])->name('qr.register');
+
+    // GET fallbacks: if a user hits these via refresh / back-button / direct URL,
+    // bounce them back to the landing page instead of throwing 405.
+    Route::get('/qr/{term}/login',     fn ($term) => redirect()->route('public.apply.qr', $term));
+    Route::get('/qr/{term}/register',  fn ($term) => redirect()->route('public.apply.qr', $term));
 
     Route::get('/{term}', [EnrollmentController::class, 'show'])->name('show');
 
@@ -47,13 +58,24 @@ Route::prefix('apply')->name('public.apply.')->group(function () {
         Route::get('/{term}/academic',  [EnrollmentController::class, 'showAcademic'])->name('academic');
         Route::post('/{term}/academic', [EnrollmentController::class, 'storeAcademic'])->name('academic.store');
 
-        // Step 6 — Review & Submit
+        // Step 6 — Health Information
+        Route::get('/{term}/health',  [EnrollmentController::class, 'showHealth'])->name('health');
+        Route::post('/{term}/health', [EnrollmentController::class, 'storeHealth'])->name('health.store');
+
+        // Step 7 — Review & Submit
         Route::get('/{term}/review',  [EnrollmentController::class, 'showReview'])->name('review');
         Route::post('/{term}/submit', [EnrollmentController::class, 'submit'])->name('submit');
 
-        // Step 7 — Confirmation
+        // Step 8 — Confirmation
         Route::get('/{term}/confirmation/{enrollment}', [EnrollmentController::class, 'confirmation'])
             ->name('confirmation');
+
+        // Optional online Admission / Diagnostic Exam (shown right after submission
+        // when the school requires it for the applicant's enrollee type).
+        Route::get('/{term}/exam/{enrollment}', [EnrollmentController::class, 'exam'])
+            ->name('exam');
+        Route::post('/{term}/exam/{enrollment}', [EnrollmentController::class, 'submitExam'])
+            ->name('exam.submit');
 
         // Legacy redirects (old /track funnels into pathway)
         Route::get('/{term}/track',  [EnrollmentController::class, 'showTrack'])->name('track');

@@ -72,6 +72,14 @@
                 class="px-4 py-2 rounded text-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50">
             Add Subject
         </button>
+
+        {{-- Import CSV --}}
+        <button type="button"
+                onclick="openModal('importProgramSubjectsModal')"
+                @disabled(! $programId)
+                class="px-4 py-2 rounded text-sm text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50">
+            Import CSV
+        </button>
     </x-table.table>
 
     {{-- Add Subject modal (draggable) --}}
@@ -127,6 +135,39 @@
                     </select>
                 </div>
             </div>
+        </form>
+    </x-modal.form>
+
+    {{-- Import CSV modal --}}
+    <x-modal.form id="importProgramSubjectsModal" title="Import Program Subjects (CSV)">
+        <form method="POST"
+              action="{{ route('dean.curricula-panel.program-subjects.import') }}"
+              enctype="multipart/form-data">
+            @csrf
+            <input type="hidden" name="program_id" value="{{ $programId }}">
+
+            <p class="text-sm text-gray-700 mb-3">
+                CSV must have a header row with columns:
+                <code class="bg-gray-100 px-1 rounded">subject_code</code>,
+                <code class="bg-gray-100 px-1 rounded">year_level</code>,
+                <code class="bg-gray-100 px-1 rounded">semester_number</code>
+                (optional <code class="bg-gray-100 px-1 rounded">is_active</code>).
+                Subjects are matched by their <strong>code</strong> within this school.
+            </p>
+
+            <div class="mb-3">
+                <label class="block text-sm mb-1">CSV File</label>
+                <input type="file" name="csv" accept=".csv,text/csv" required
+                       class="border p-2 w-full text-sm">
+            </div>
+
+            <details class="text-xs text-gray-600 mb-2">
+                <summary class="cursor-pointer">Sample CSV</summary>
+<pre class="bg-gray-50 border rounded p-2 mt-1">subject_code,year_level,semester_number,is_active
+G1-MATH,1,1,1
+G1-FIL,1,1,1
+G2-MATH,2,1,1</pre>
+            </details>
         </form>
     </x-modal.form>
 

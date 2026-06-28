@@ -83,6 +83,8 @@
     .sig { margin-top: 24px; }
     .sig table { width: 100%; }
     .sig td { vertical-align: bottom; padding: 0 8px; width: 50%; }
+    .sig .name { text-align: center; font-size: 10px; font-weight: bold;
+                 text-transform: uppercase; padding-bottom: 2px; }
     .sig .line { border-top: 1px solid #94a3b8; padding-top: 4px; font-size: 9.5px;
                  color: #64748b; text-align: center; }
     .muted { color: #94a3b8; font-style: italic; }
@@ -317,9 +319,11 @@
     <table>
         <tr>
             <td>
-                <div class="line">Applicant Signature</div>
+                <div class="name">{{ trim(($student->first_name ?? '').' '.($student->middle_name ?? '').' '.($student->last_name ?? '')) }}</div>
+                <div class="line">Applicant Name</div>
             </td>
             <td>
+                <div class="name">&nbsp;</div>
                 <div class="line">Parent / Guardian Signature</div>
             </td>
         </tr>

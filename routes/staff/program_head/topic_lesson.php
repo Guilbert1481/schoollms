@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Staff\ProgramHead\TopicLessonController;
 
-Route::middleware(['auth'])
+Route::middleware(['auth', 'role:program_head,admin,superadmin'])
     ->prefix('staff/program-head')
     ->name('program_head.')
     ->group(function () {

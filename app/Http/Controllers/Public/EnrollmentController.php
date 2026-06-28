@@ -26,6 +26,26 @@ use App\Mail\EnrollmentSubmittedMail;
 class EnrollmentController extends Controller
 {
     /**
+     * Best-effort mapping of a Term's free-form `term` string ("1st Semester",
+     * "Second", "summer", etc.) to the numeric semester used in
+     * program_subjects.semester_number.
+     */
+    protected function resolveSemesterNumber(?\App\Models\Term $term): ?int
+    {
+        $raw = strtolower(trim((string) ($term?->term ?? '')));
+        if ($raw === '') return null;
+
+        if (str_contains($raw, 'summer'))  return 3;
+        if (str_contains($raw, 'first')  || str_starts_with($raw, '1'))  return 1;
+        if (str_contains($raw, 'second') || str_starts_with($raw, '2'))  return 2;
+        if (str_contains($raw, 'third')  || str_starts_with($raw, '3'))  return 3;
+        if (str_contains($raw, 'fourth') || str_starts_with($raw, '4'))  return 4;
+
+        if (preg_match('/(\d+)/', $raw, $m)) return (int) $m[1];
+        return null;
+    }
+
+    /**
      * Show the enrollment form (Step 1).
      */
     public function show($term)
@@ -133,7 +153,7 @@ class EnrollmentController extends Controller
             'preferred_name'       => 'nullable|string|max:255',
             'religion'             => 'nullable|string|max:64',
             'religion_subcategories'   => 'nullable|array',
-            'religion_subcategories.*' => 'string|max:64',
+            'religion_subcategories.*' => 'nullable|string|max:64',
             'government_id_type'   => 'nullable|string',
             'government_id_number' => 'nullable|string',
         ]);
@@ -395,13 +415,25 @@ class EnrollmentController extends Controller
 
         // Top-level (root) educational levels — these are the entry points
         // (Basic Ed, Senior High, College, Post-Bac, Masteral, Doctoral, etc.).
+        $isBasicEd = ($term->education_level ?? null) === 'basic_ed';
+
         $rootLevels = EducationNode::query()
             ->whereNull('parent_id')
             ->where('is_active', true)
             ->where('is_offered', true)
+            ->when($isBasicEd, fn ($q) => $q->where('name', 'like', '%Basic%Education%'))
+            ->when(!$isBasicEd, fn ($q) => $q->where('name', 'not like', '%Basic%Education%'))
             ->orderBy('order_index')
             ->orderBy('id')
             ->get(['id', 'name', 'node_type']);
+
+        // When the enrollment session is for basic-ed, lock the root selection
+        // to the Basic Education node so the form only shows the dropdown for
+        // grade-level / strand drill-down.
+        $lockedRootId = null;
+        if ($isBasicEd && $rootLevels->count() === 1) {
+            $lockedRootId = $rootLevels->first()->id;
+        }
 
         $modalities = Modality::orderBy('id')->get(['id', 'name', 'code']);
 
@@ -436,6 +468,7 @@ class EnrollmentController extends Controller
             'modalities'  => $modalities,
             'saved'       => $saved,
             'savedChain'  => $savedChain,
+            'lockedRootId' => $lockedRootId,
         ]);
     }
 
@@ -450,6 +483,10 @@ class EnrollmentController extends Controller
         $children = $node->children
             ->where('is_active', true)
             ->where('is_offered', true)
+            // Hide standalone "Grade 11 (Core)" / "Grade 12 (Core)" stage nodes
+            // from the SHS sub-category dropdown — Year Level already conveys
+            // grade 11/12, so these are redundant for enrollees.
+            ->reject(fn ($c) => preg_match('/grade\s*1[12].*core/i', (string) $c->name))
             ->values()
             ->map(fn ($c) => [
                 'id'   => $c->id,
@@ -491,7 +528,7 @@ class EnrollmentController extends Controller
         $data = $request->validate([
             'program_id'   => 'required|integer|exists:programs,id',
             'year_level'   => 'nullable|integer|min:1|max:6',
-            'student_type' => 'nullable|in:new,transferee,returnee,regular,irregular',
+            'student_type' => 'nullable|in:new,transferee,shifter,returnee,regular,irregular',
         ]);
 
         $programId   = (int) $data['program_id'];
@@ -574,16 +611,19 @@ class EnrollmentController extends Controller
             'program_id'        => ($nodeHasPrograms ? 'required|' : 'nullable|') . 'integer|exists:programs,id',
             'year_level'        => 'nullable|integer|min:1|max:12',
             'modality_id'       => 'required|integer|exists:modalities,id',
+            'is_foreigner'      => 'nullable|boolean',
             'picked_subjects'   => 'nullable|array',
             'picked_subjects.*' => 'integer|exists:subjects,id',
         ];
 
         // Student Type only applies when modality is NOT Asynchronous Online.
         if (! $isAsync) {
-            $rules['student_type'] = 'required|in:new,transferee,returnee,regular,irregular';
+            $rules['student_type'] = 'required|in:new,transferee,shifter,returnee,regular,irregular';
         }
 
         $data = $request->validate($rules);
+
+        $data['is_foreigner'] = $request->boolean('is_foreigner');
 
         if ($isAsync) {
             // Async self-paced learners are treated as a special intake — no
@@ -614,7 +654,7 @@ class EnrollmentController extends Controller
         $studentType = $data['student_type'] ?? null;
         if ($studentType === 'regular') {
             session()->put("apply.academic_skipped.{$term->id}", true);
-            return redirect()->route('public.apply.review', $term->id)
+            return redirect()->route('public.apply.health', $term->id)
                 ->with('status', 'Pathway saved. Academic Background skipped for regular students.');
         }
 
@@ -640,7 +680,7 @@ class EnrollmentController extends Controller
 
         // Skip outright if previous step marked it as skipped.
         if (session("apply.academic_skipped.{$term->id}")) {
-            return redirect()->route('public.apply.review', $term->id);
+            return redirect()->route('public.apply.health', $term->id);
         }
 
         $backgrounds = StudentAcademicBackground::where('student_id', $student->id)
@@ -736,12 +776,107 @@ class EnrollmentController extends Controller
 
         session()->put("apply.academic_done.{$term->id}", true);
 
-        return redirect()->route('public.apply.review', $term->id)
+        return redirect()->route('public.apply.health', $term->id)
             ->with('status', 'Academic background saved.');
     }
 
     /* =================================================================
-     |  STEP 6 — REVIEW & SUBMIT
+     |  STEP 6 — HEALTH INFORMATION
+     | =================================================================*/
+
+    public function showHealth($termId)
+    {
+        $term    = Term::findOrFail($termId);
+        $student = auth()->user()->student;
+
+        if (! $student) {
+            return redirect()->route('public.apply.show', $term->id);
+        }
+
+        $health = \App\Models\StudentHealthRecord::where('student_id', $student->id)->first();
+
+        return view('acad_enrolment.shared.health', [
+            'term'    => $term,
+            'student' => $student,
+            'health'  => $health,
+        ]);
+    }
+
+    public function storeHealth(Request $request, $termId)
+    {
+        $term    = Term::findOrFail($termId);
+        $student = auth()->user()->student;
+
+        if (! $student) {
+            return redirect()->route('public.apply.show', $term->id);
+        }
+
+        $allowedConditions = [
+            'asthma','diabetes','heart_condition','epilepsy','allergies',
+            'physical_disability','adhd','autism','visual_impairment',
+            'hearing_impairment','mental_health','others',
+        ];
+
+        $data = $request->validate([
+            'has_medical_condition'          => 'required|in:0,1',
+            'medical_conditions'             => 'nullable|array',
+            'medical_conditions.*'           => ['nullable', 'string', 'in:'.implode(',', $allowedConditions)],
+            'other_medical_condition'        => 'nullable|string|max:255',
+            'allergies'                      => 'nullable|string|max:2000',
+
+            'takes_maintenance_medication'   => 'required|in:0,1',
+            'medication_name'                => 'nullable|string|max:255',
+            'medication_dosage'              => 'nullable|string|max:255',
+            'medication_schedule'            => 'nullable|string|max:255',
+
+            'blood_type'                     => 'nullable|in:A+,A-,B+,B-,AB+,AB-,O+,O-,unknown',
+            'emergency_medical_instructions' => 'nullable|string|max:2000',
+
+            'is_pwd'                         => 'required|in:0,1',
+            'pwd_type'                       => 'nullable|string|max:191',
+            'pwd_id_number'                  => 'nullable|string|max:100',
+        ]);
+
+        $hasCondition = (bool) (int) $data['has_medical_condition'];
+        $takesMed     = (bool) (int) $data['takes_maintenance_medication'];
+        $isPwd        = (bool) (int) $data['is_pwd'];
+
+        // Clear conditional groups when the parent answer is No.
+        $conditions = $hasCondition ? array_values(array_filter($data['medical_conditions'] ?? [])) : [];
+        $otherCond  = ($hasCondition && in_array('others', $conditions, true))
+            ? ($data['other_medical_condition'] ?? null)
+            : null;
+
+        \App\Models\StudentHealthRecord::updateOrCreate(
+            ['student_id' => $student->id],
+            [
+                'has_medical_condition'        => $hasCondition,
+                'medical_conditions'           => $conditions ?: null,
+                'other_medical_condition'      => $otherCond,
+                'allergies'                    => $hasCondition ? ($data['allergies'] ?? null) : null,
+
+                'takes_maintenance_medication' => $takesMed,
+                'medication_name'              => $takesMed ? ($data['medication_name']     ?? null) : null,
+                'medication_dosage'            => $takesMed ? ($data['medication_dosage']   ?? null) : null,
+                'medication_schedule'          => $takesMed ? ($data['medication_schedule'] ?? null) : null,
+
+                'blood_type'                     => $data['blood_type'] ?? null,
+                'emergency_medical_instructions' => $data['emergency_medical_instructions'] ?? null,
+
+                'is_pwd'         => $isPwd,
+                'pwd_type'       => $isPwd ? ($data['pwd_type']      ?? null) : null,
+                'pwd_id_number'  => $isPwd ? ($data['pwd_id_number'] ?? null) : null,
+            ]
+        );
+
+        session()->put("apply.health_done.{$term->id}", true);
+
+        return redirect()->route('public.apply.review', $term->id)
+            ->with('status', 'Health information saved.');
+    }
+
+    /* =================================================================
+     |  STEP 7 — REVIEW & SUBMIT
      | =================================================================*/
 
     public function showReview($termId)
@@ -780,11 +915,12 @@ class EnrollmentController extends Controller
         $backgrounds      = $skipped ? collect() : $student->academicBackgrounds()->get();
         $parents          = $student->guardians()->whereIn('type', ['parent', 'guardian'])->get();
         $emergencyContact = $student->guardians()->where('is_emergency_contact', true)->first();
+        $health           = \App\Models\StudentHealthRecord::where('student_id', $student->id)->first();
 
         return view('acad_enrolment.shared.review', compact(
             'term', 'student', 'pathway', 'program', 'modality', 'node',
             'rootLevel', 'pathLabel', 'chain',
-            'backgrounds', 'skipped', 'parents', 'emergencyContact'
+            'backgrounds', 'skipped', 'parents', 'emergencyContact', 'health'
         ));
     }
 
@@ -798,22 +934,30 @@ class EnrollmentController extends Controller
         }
 
         $pathway = session("apply.pathway.{$term->id}", []);
-        if (empty($pathway['program_id'])) {
+        // Allow submit if either program_id (for higher ed) or education_node_id (for basic ed/leaf nodes) is present
+        if (empty($pathway['program_id']) && empty($pathway['education_node_id'])) {
             return redirect()->route('public.apply.pathway', $term->id)
                 ->withErrors(['pathway' => 'Please complete the Learning Pathway step.']);
         }
 
         $enrollment = DB::transaction(function () use ($term, $student, $pathway) {
+            // Resolve the active enrollment setting for this term so the bell
+            // notification is dismissed cleanly after submission.
+            $setting = \App\Models\EnrollmentSetting::where('term_id', $term->id)
+                ->orderByDesc('id')
+                ->first();
+
             $enrollment = StudentEnrollment::create([
-                'school_id'         => $student->school_id,
-                'student_id'        => $student->id,
-                'academic_year_id'  => $term->academic_year_id,
-                'term_id'           => $term->id,
-                'program_id'        => $pathway['program_id'],
-                'modality_id'       => $pathway['modality_id'] ?? null,
-                'education_node_id' => $pathway['education_node_id'] ?? null,
-                'year_level'        => $pathway['year_level'] ?? null,
-                'student_type'      => $pathway['student_type'] ?? null,
+                'school_id'             => $student->school_id,
+                'student_id'            => $student->id,
+                'academic_year_id'      => $term->academic_year_id,
+                'term_id'               => $term->id,
+                'enrollment_setting_id' => $setting?->id,
+                'program_id'            => $pathway['program_id'] ?? null,
+                'modality_id'           => $pathway['modality_id'] ?? null,
+                'education_node_id'     => $pathway['education_node_id'] ?? null,
+                'year_level'            => $pathway['year_level'] ?? null,
+                'student_type'          => $pathway['student_type'] ?? null,
                 // Map student_type → enrollee_type for backward-compat with
                 // the existing approval / billing pipeline.
                 'enrollee_type'     => match ($pathway['student_type'] ?? null) {
@@ -830,6 +974,26 @@ class EnrollmentController extends Controller
             // Persist picked subjects (only meaningful for transferee/returnee/irregular,
             // but harmless for others — they'll just have an empty array).
             $picked = array_unique(array_map('intval', $pathway['picked_subjects'] ?? []));
+
+            // For REGULAR students, no subjects are picked manually — the
+            // student is automatically enrolled into every active subject
+            // in their program's curriculum for the current year_level and
+            // semester (derived from the term).
+            if (($pathway['student_type'] ?? null) === 'regular' && ! empty($enrollment->program_id)) {
+                $semesterNumber = $this->resolveSemesterNumber($term);
+
+                $autoSubjectIds = DB::table('program_subjects')
+                    ->where('program_id', $enrollment->program_id)
+                    ->where('year_level', (int) ($pathway['year_level'] ?? 0))
+                    ->when($semesterNumber !== null, fn ($q) => $q->where('semester_number', $semesterNumber))
+                    ->where('is_active', true)
+                    ->pluck('subject_id')
+                    ->map(fn ($v) => (int) $v)
+                    ->all();
+
+                $picked = array_unique(array_merge($picked, $autoSubjectIds));
+            }
+
             foreach ($picked as $subjectId) {
                 \App\Models\StudentEnrollmentSubject::create([
                     'student_enrollment_id' => $enrollment->id,
@@ -951,7 +1115,116 @@ class EnrollmentController extends Controller
         $enrollment = StudentEnrollment::with(['program', 'modality', 'educationNode'])
             ->findOrFail($enrollmentId);
 
-        return view('acad_enrolment.shared.confirmation', compact('term', 'enrollment'));
+        [$examRequired, $examPurpose, $examInstructions] =
+            $this->resolveExamPrompt($enrollment);
+
+        return view('acad_enrolment.shared.confirmation', compact(
+            'term', 'enrollment', 'examRequired', 'examPurpose', 'examInstructions'
+        ));
+    }
+
+    /**
+     * Online Admission / Diagnostic Exam landing page.
+     * Shown when the applicant clicks "Take the Test" on the confirmation modal.
+     */
+    public function exam($termId, $enrollmentId)
+    {
+        $term       = Term::findOrFail($termId);
+        $enrollment = StudentEnrollment::with(['program'])->findOrFail($enrollmentId);
+
+        [$examRequired, $examPurpose, $examInstructions] =
+            $this->resolveExamPrompt($enrollment);
+
+        // If the school doesn't require the exam for this enrollee type,
+        // just bounce back to the confirmation page.
+        if (! $examRequired) {
+            return redirect()->route('public.apply.confirmation', [
+                'term' => $term->id, 'enrollment' => $enrollment->id,
+            ]);
+        }
+
+        return view('acad_enrolment.shared.exam', compact(
+            'term', 'enrollment', 'examPurpose', 'examInstructions'
+        ));
+    }
+
+    /**
+     * Record an admission/diagnostic exam result and transition the
+     * enrollment status accordingly.
+     *
+     * Until the question bank is wired in, this accepts either a raw score
+     * (compared against the school's passing_score) or an explicit pass/fail
+     * outcome. It updates the StudentEnrollment status to either
+     * STATUS_EXAM_PASSED or STATUS_EXAM_FAILED.
+     */
+    public function submitExam(Request $request, $termId, $enrollmentId)
+    {
+        $term       = Term::findOrFail($termId);
+        $enrollment = StudentEnrollment::findOrFail($enrollmentId);
+
+        $setting = \App\Models\AdmissionExamSetting::where('school_id', $enrollment->school_id)->first();
+
+        $validated = $request->validate([
+            'score'   => 'nullable|integer|min:0',
+            'outcome' => 'nullable|in:passed,failed',
+        ]);
+
+        // Decide pass/fail
+        $passed = false;
+        if (! empty($validated['outcome'])) {
+            $passed = $validated['outcome'] === 'passed';
+        } elseif (isset($validated['score']) && $setting) {
+            $passed = (int) $validated['score'] >= (int) ($setting->passing_score ?? 0);
+        }
+
+        $newStatus = $passed
+            ? StudentEnrollment::STATUS_EXAM_PASSED
+            : StudentEnrollment::STATUS_EXAM_FAILED;
+
+        $enrollment->update([
+            'status' => $newStatus,
+        ]);
+
+        // Auto-advance to "assessed" if the school configured that and the
+        // exam is being used as an admission requirement that the student passed.
+        if ($passed && $setting && $setting->auto_assess_after_pass) {
+            $enrollment->update(['status' => StudentEnrollment::STATUS_ASSESSED]);
+        }
+
+        return redirect()->route('public.apply.confirmation', [
+            'term' => $term->id, 'enrollment' => $enrollment->id,
+        ])->with('status', $passed
+            ? 'You passed the entrance exam. The Registrar will now assess your documents.'
+            : 'Your exam result has been recorded. The Registrar will contact you regarding next steps.');
+    }
+
+    /**
+     * Decide whether to prompt the applicant for the online admission/diagnostic
+     * exam right after submission, based on the school's AdmissionExamSetting
+     * and the enrollee_type of this enrollment.
+     *
+     * Returns [bool $required, string $purposeLabel, ?string $instructions].
+     */
+    protected function resolveExamPrompt(StudentEnrollment $enrollment): array
+    {
+        $setting = \App\Models\AdmissionExamSetting::where('school_id', $enrollment->school_id)->first();
+        if (! $setting) {
+            return [false, 'Diagnostic Test', null];
+        }
+
+        $required = match ($enrollment->enrollee_type) {
+            'new'        => (bool) $setting->require_for_new_student,
+            'transferee' => (bool) $setting->require_for_transferee,
+            'returnee'   => (bool) $setting->require_for_returnee,
+            'shiftee'    => (bool) $setting->require_for_shiftee,
+            default      => false,
+        };
+
+        $label = $setting->exam_purpose === \App\Models\AdmissionExamSetting::PURPOSE_REQUIREMENT
+            ? 'Admission Exam'
+            : 'Diagnostic Test';
+
+        return [$required, $label, $setting->instructions];
     }
 
     /* =================================================================

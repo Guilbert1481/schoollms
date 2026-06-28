@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use App\Models\Profile;
 use App\Models\Role;
 use App\Models\Trainee;
@@ -17,19 +18,55 @@ class UserManagementController extends Controller
      */
     public function storeRole(Request $request)
     {
+        // Support both the legacy single-role payload (role_name, is_head_role)
+        // and the new multi-role payload (roles[][role_name], roles[][is_head_role]).
+        $payload = $request->input('roles');
+
+        if (! is_array($payload) || empty($payload)) {
+            $payload = [[
+                'role_name'    => $request->input('role_name'),
+                'is_head_role' => $request->input('is_head_role'),
+                'badge_color' => $request->input('badge_color'),
+                'badge_text_color' => $request->input('badge_text_color'),
+            ]];
+        }
+
+        $request->merge(['roles' => $payload]);
+
         $request->validate([
-            'role_name' => 'required|string|max:255|unique:roles,name',
-            'is_head_role' => 'required|in:0,1',
+            'roles'                 => 'required|array|min:1',
+            'roles.*.role_name'     => 'required|string|max:255|distinct',
+            'roles.*.is_head_role'  => 'required|in:0,1',
+            'roles.*.badge_color'   => 'nullable|string|max:80',
+            'roles.*.badge_text_color' => 'nullable|string|max:80',
         ]);
 
         $schoolId = auth()->user()->school_id;
-        $role = new \App\Models\Role();
-        $role->school_id = $schoolId;
-        $role->name = $request->role_name;
-        $role->is_head_role = $request->is_head_role ? 1 : 0;
-        $role->save();
+        $created  = 0;
 
-        return redirect()->back()->with('success', 'Role created successfully.');
+        foreach ($payload as $row) {
+            $name = trim((string) $row['role_name']);
+            if ($name === '') {
+                continue;
+            }
+
+            $role = \App\Models\Role::query()->firstOrNew([
+                'school_id' => $schoolId,
+                'name'      => $this->normalizeRoleName($name),
+            ]);
+
+            if (! $role->exists) {
+                $role->is_head_role = (int) $row['is_head_role'];
+                $role->badge_color = $row['badge_color'] ?? 'bg-gray-100';
+                $role->badge_text_color = $row['badge_text_color'] ?? 'text-gray-700';
+                $role->save();
+                $created++;
+            }
+        }
+
+        return redirect()->back()->with('success', $created === 1
+            ? 'Role created successfully.'
+            : "{$created} role(s) created successfully.");
     }
     public function index()
     {
@@ -56,7 +93,126 @@ class UserManagementController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('admin.settings.users.index', compact('users', 'roles'));
+        $roleRows = $roles->map(function ($role) use ($users) {
+            $role->display_name = Str::headline((string) $role->name);
+            $role->type_label = ! empty($role->is_head_role)
+                ? '<span class="inline-flex rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700">Head</span>'
+                : '<span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">Regular</span>';
+            $role->users_count = $users->where('role_name', $role->name)->count();
+            $role->badge_preview = '<span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold '
+                .e($role->badge_color ?: 'bg-gray-100').' '
+                .e($role->badge_text_color ?: 'text-gray-700').'">'
+                .e(Str::headline((string) $role->name)).'</span>';
+
+            return $role;
+        });
+
+        $roleColumns = [
+            ['key' => 'display_name', 'label' => 'Role', 'width' => '220px'],
+            ['key' => 'name', 'label' => 'System Name', 'width' => '180px'],
+            ['key' => 'type_label', 'label' => 'Type', 'width' => '110px', 'raw' => true],
+            ['key' => 'users_count', 'label' => 'Users', 'width' => '90px'],
+            ['key' => 'badge_preview', 'label' => 'Badge', 'width' => '180px', 'raw' => true],
+        ];
+
+        $roleActions = [
+            [
+                'type' => 'modal',
+                'label' => 'Edit',
+                'modal' => 'roleEditModal',
+                'handler' => 'openRoleEditModal({id})',
+                'class' => 'bg-indigo-600 text-white hover:bg-indigo-700',
+            ],
+            [
+                'type' => 'delete',
+                'label' => 'Delete',
+                'class' => 'bg-rose-600 text-white hover:bg-rose-700',
+            ],
+        ];
+
+        $roleEditRecords = $roleRows->map(function ($role) {
+            return [
+                'id' => $role->id,
+                'name' => $role->name,
+                'is_head_role' => (bool) ($role->is_head_role ?? false),
+                'badge_color' => $role->badge_color ?: 'bg-gray-100',
+                'badge_text_color' => $role->badge_text_color ?: 'text-gray-700',
+            ];
+        })->values();
+
+        return view('admin.settings.users.index', compact(
+            'users',
+            'roles',
+            'roleRows',
+            'roleColumns',
+            'roleActions',
+            'roleEditRecords',
+        ));
+    }
+
+    public function updateRole(Request $request, Role $role)
+    {
+        $this->authorizeRoleSchool($role);
+
+        $data = $request->validate([
+            'role_name' => 'required|string|max:255',
+            'is_head_role' => 'required|in:0,1',
+            'badge_color' => 'nullable|string|max:80',
+            'badge_text_color' => 'nullable|string|max:80',
+        ]);
+
+        $name = $this->normalizeRoleName($data['role_name']);
+        $exists = Role::query()
+            ->where('school_id', $role->school_id)
+            ->where('name', $name)
+            ->where('id', '!=', $role->id)
+            ->exists();
+
+        if ($exists) {
+            return back()->withErrors(['role_name' => 'A role with this name already exists.']);
+        }
+
+        $oldName = $role->name;
+        $role->fill([
+            'name' => $name,
+            'is_head_role' => (int) $data['is_head_role'],
+            'badge_color' => $data['badge_color'] ?? null,
+            'badge_text_color' => $data['badge_text_color'] ?? null,
+        ])->save();
+
+        if ($oldName !== $name) {
+            DB::table('users')
+                ->where('school_id', $role->school_id)
+                ->where('role', $oldName)
+                ->update(['role' => $name, 'updated_at' => now()]);
+
+            DB::table('account_access')
+                ->where('role_id', $role->id)
+                ->update([
+                    'role_snapshot' => Str::headline($name),
+                    'updated_at' => now(),
+                ]);
+        }
+
+        return back()->with('success', 'Role updated successfully.');
+    }
+
+    public function destroyRole(Role $role)
+    {
+        $this->authorizeRoleSchool($role);
+
+        $assignedUsers = DB::table('account_access')
+            ->where('role_id', $role->id)
+            ->where('is_active', 1)
+            ->count();
+
+        if ($assignedUsers > 0) {
+            return back()->withErrors(['role' => 'This role is assigned to active users and cannot be deleted.']);
+        }
+
+        $role->delete();
+
+        return back()->with('success', 'Role deleted successfully.');
     }
 
     public function store(Request $request)
@@ -186,7 +342,71 @@ class UserManagementController extends Controller
             unset($validated['password']);
         }
 
-        $user->update($validated);
+        DB::beginTransaction();
+        try {
+            $user->update($validated);
+
+            $schoolId = $user->school_id ?? auth()->user()->school_id;
+
+            // Keep profiles row in sync (names).
+            DB::table('profiles')
+                ->where('user_id', $user->id)
+                ->update([
+                    'first_name'  => $validated['first_name'],
+                    'middle_name' => $validated['middle_name'] ?? null,
+                    'last_name'   => $validated['last_name'],
+                    'updated_at'  => now(),
+                ]);
+
+            // Resolve (or create) the role row for this school.
+            $role = DB::table('roles')
+                ->where('school_id', $schoolId)
+                ->where('name', $validated['role'])
+                ->first();
+
+            $roleId = $role->id ?? DB::table('roles')->insertGetId([
+                'school_id'  => $schoolId,
+                'name'       => $validated['role'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Upsert account_access so the User Management list shows the role.
+            $access = DB::table('account_access')
+                ->where('user_id', $user->id)
+                ->where('is_active', 1)
+                ->first();
+
+            if ($access) {
+                DB::table('account_access')
+                    ->where('id', $access->id)
+                    ->update([
+                        'role_id'       => $roleId,
+                        'role_snapshot' => ucfirst(str_replace('_', ' ', $validated['role'])),
+                        'updated_at'    => now(),
+                    ]);
+            } else {
+                $profileId = DB::table('profiles')->where('user_id', $user->id)->value('id');
+                DB::table('account_access')->insert([
+                    'user_id'       => $user->id,
+                    'role_id'       => $roleId,
+                    'office_id'     => null,
+                    'person_id'     => $profileId,
+                    'role_snapshot' => ucfirst(str_replace('_', ' ', $validated['role'])),
+                    'start_date'    => now(),
+                    'assigned_by'   => auth()->id(),
+                    'remarks'       => 'Set via User Management edit',
+                    'is_active'     => 1,
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
 
         return redirect()
             ->route('settings.users.index')
@@ -227,5 +447,15 @@ class UserManagementController extends Controller
         $user->save();
 
         return back()->with('success', 'Temporary password: ' . $temporaryPassword);
+    }
+
+    protected function normalizeRoleName(string $name): string
+    {
+        return str_replace('-', '_', Str::slug($name, '_'));
+    }
+
+    protected function authorizeRoleSchool(Role $role): void
+    {
+        abort_unless((int) $role->school_id === (int) auth()->user()->school_id, 403);
     }
 }

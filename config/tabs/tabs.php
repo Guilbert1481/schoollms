@@ -13,5 +13,6 @@ return [
     'assignments' => require __DIR__.'/assignments.php',
     'service_plan' => require __DIR__.'/service_plan.php',
     'curricula_panel' => require __DIR__.'/curricula_panel.php',
+    'principal_curricula_panel' => require __DIR__.'/principal_curricula_panel.php',
 
 ];

@@ -21,12 +21,6 @@ return [
             ],
         ],
 
-        'admission' => [
-            'trend_charts' => [
-                'application_trend',
-            ],
-        ],
-
         'admission_manager' => [
             'trend_charts' => [
                 'application_trend',

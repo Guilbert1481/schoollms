@@ -8,7 +8,7 @@ use App\Http\Controllers\School\Settings\Organization\DepartmentController;
 
 Route::prefix('admin/assignments')
     ->name('admin.assignments.')
-    ->middleware(['auth'])
+    ->middleware(['auth', 'role:admin,superadmin'])
     ->group(function () {
 
         // COLLEGES

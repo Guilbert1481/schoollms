@@ -5,7 +5,7 @@ use App\Http\Controllers\School\Settings\MasterData\FacilitiesController;
 
 Route::prefix('school/settings')
     ->name('school.settings.')
-    ->middleware(['auth'])
+    ->middleware(['auth', 'role:admin,superadmin'])
     ->group(function () {
 
         Route::get('/master-data/facilities', [FacilitiesController::class, 'index'])

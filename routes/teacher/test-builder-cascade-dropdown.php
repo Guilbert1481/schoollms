@@ -14,7 +14,7 @@ use App\Http\Controllers\Teacher\Test\TestBuilder\TestBuilderController;
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'role:teacher,course_architect,trainor'])->group(function () {
 
 
     // SUBJECT → TOPICS

@@ -4,6 +4,7 @@ namespace App\Services\Dashboard;
 
 use App\Models\User;
 use App\Models\Student;
+use App\Models\StudentEnrollment;
 use App\Models\Application;
 use App\Models\Payment;
 use App\Models\Invoice;
@@ -43,9 +44,13 @@ class KPIRegistry
             // -----------------------
 
             'students' =>
-                Student::where('school_id', $user->school_id)
-                    ->where('status', 'active')
-                    ->count(),
+                StudentEnrollment::where('school_id', $user->school_id)
+                    ->whereIn('status', [
+                        StudentEnrollment::STATUS_ENROLLED,
+                        StudentEnrollment::STATUS_PROVISIONALLY_ENROLLED,
+                    ])
+                    ->distinct('student_id')
+                    ->count('student_id'),
 
             'teachers' =>
                 User::where('school_id', $user->school_id)
@@ -72,6 +77,11 @@ class KPIRegistry
                         ->where('status', 'unpaid')
                         ->sum('total_amount')
                 ),
+
+            'awaiting_payment' =>
+                StudentEnrollment::where('school_id', $user->school_id)
+                    ->where('status', StudentEnrollment::STATUS_SENT_BILLING)
+                    ->count(),
 
             // -----------------------
             // EXECUTIVE KPIs

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Staff;
+namespace App\Http\Controllers\Staff\Admissions;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;

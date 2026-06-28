@@ -3,7 +3,7 @@
 use App\Http\Controllers\Dean\CurriculaController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['web', 'auth'])
+Route::middleware(['web', 'auth', 'role:dean,admin,superadmin'])
     ->prefix('dean/curricula')
     ->name('dean.curricula.')
     ->controller(CurriculaController::class)

@@ -4,7 +4,7 @@
 <div class="px-8 py-6 w-full">
 
     <div class="text-xs font-extrabold text-slate-500 tracking-widest mb-1">
-        STEP 4 OF 7 — LEARNING PATHWAY
+        STEP 4 OF 8 — LEARNING PATHWAY
     </div>
     <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden mb-6">
         <div class="h-full bg-indigo-600" style="width:57%"></div>
@@ -30,17 +30,34 @@
         @csrf
 
         {{-- Educational Level (root nodes) — full width since it controls cascade --}}
-        <div>
-            <label class="block text-sm font-bold mb-1">Educational Level <span class="text-red-500">*</span></label>
-            <select id="rootLevel" class="w-full rounded-lg border border-slate-300 p-2.5">
-                <option value="" data-name="" disabled {{ empty($saved['education_node_id']) ? 'selected' : '' }}>
-                    — Select educational level —
-                </option>
-                @foreach ($rootLevels as $root)
-                    <option value="{{ $root->id }}" data-name="{{ $root->name }}">{{ $root->name }}</option>
-                @endforeach
+        @php($lockedRootId = $lockedRootId ?? null)
+        @if ($lockedRootId)
+            {{-- Basic-ed enrollment session: educational level is fixed to
+                 "Basic Education". Render as a readonly label + hidden input
+                 so the cascade still seeds the grade-level dropdowns. --}}
+            @php($lockedRoot = $rootLevels->firstWhere('id', $lockedRootId))
+            <div>
+                <label class="block text-sm font-bold mb-1">Educational Level</label>
+                <div class="w-full rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-sm text-slate-700 font-bold">
+                    {{ $lockedRoot?->name ?? 'Basic Education' }}
+                </div>
+            </div>
+            <select id="rootLevel" class="hidden">
+                <option value="{{ $lockedRootId }}" data-name="{{ $lockedRoot?->name }}" selected>{{ $lockedRoot?->name }}</option>
             </select>
-        </div>
+        @else
+            <div>
+                <label class="block text-sm font-bold mb-1">Educational Level <span class="text-red-500">*</span></label>
+                <select id="rootLevel" class="w-full rounded-lg border border-slate-300 p-2.5">
+                    <option value="" data-name="" disabled {{ empty($saved['education_node_id']) ? 'selected' : '' }}>
+                        — Select educational level —
+                    </option>
+                    @foreach ($rootLevels as $root)
+                        <option value="{{ $root->id }}" data-name="{{ $root->name }}">{{ $root->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
 
         {{-- Cascading dropdowns + Year Level live in the same 2-up grid.
              JS keeps Year Level pinned as the 2nd child so it sits next to
@@ -93,7 +110,7 @@
                 <label class="block text-sm font-bold mb-1">Student Type <span class="text-red-500">*</span></label>
                 <select name="student_type" id="studentTypeSelect" class="w-full rounded-lg border border-slate-300 p-2.5">
                     <option value="" disabled {{ empty($saved['student_type']) ? 'selected' : '' }}>— Select student type —</option>
-                    @foreach (['new'=>'New Student','transferee'=>'Transferee','returnee'=>'Returnee','regular'=>'Regular','irregular'=>'Irregular'] as $val => $lbl)
+                    @foreach (['new'=>'New Student','transferee'=>'Transferee','shifter'=>'Shifter','returnee'=>'Returnee','regular'=>'Regular','irregular'=>'Irregular'] as $val => $lbl)
                         <option value="{{ $val }}" @selected(($saved['student_type'] ?? null) === $val)>{{ $lbl }}</option>
                     @endforeach
                 </select>
@@ -142,6 +159,16 @@
             </div>
         </div>
 
+        {{-- Foreigner flag --}}
+        <div class="pt-1">
+            <label class="inline-flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+                <input type="checkbox" name="is_foreigner" id="isForeigner" value="1"
+                       class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                       @checked(!empty($saved['is_foreigner']))>
+                <span class="font-bold">Foreigner</span>
+            </label>
+        </div>
+
         <div class="flex items-center justify-between pt-4">
             <a href="{{ route('public.apply.family', $term->id) }}"
                class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-bold">← Back</a>
@@ -185,16 +212,36 @@
         const isBasicAny   = isBasicLower || isShs || /^basic|\bbasic\s*education\b/.test(combined);
         const saved        = yearSel.dataset.saved || '';
 
-        // ---- Year Level dropdown ----
-        if (isBasicLower) {
-            // Kinder/Elem/JHS: grade is implied by cascade selection.
-            yearWrap.querySelector('label').classList.add('text-slate-400');
-            yearSel.classList.add('hidden');
-            yearSel.removeAttribute('required');
-            yearSel.value = '';
-            yearHint.classList.remove('hidden');
+        // If the cascade has stashed grade-leaf children (e.g. STEM → [Grade 11,
+        // Grade 12], Elementary → [Grade 1..6]), use those to populate the Year
+        // Level dropdown so it acts as the leaf selector.
+        let leaves = [];
+        try { leaves = JSON.parse(cascade.dataset.gradeLeaves || '[]'); } catch (e) { leaves = []; }
+
+        if (leaves.length > 0) {
+            yearWrap.querySelector('label').classList.remove('text-slate-400');
+            yearSel.classList.remove('hidden');
+            yearSel.setAttribute('required', 'required');
+            yearHint.classList.add('hidden');
+
+            const opts = leaves
+                .map(c => {
+                    const m = String(c.name || '').match(/(\d+)/);
+                    return m ? { value: m[1], label: c.name } : null;
+                })
+                .filter(Boolean)
+                .sort((a, b) => Number(a.value) - Number(b.value));
+
+            yearSel.innerHTML =
+                '<option value="" disabled selected>— Select grade level —</option>' +
+                opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+
+            if (saved && opts.some(o => o.value === String(saved))) {
+                yearSel.value = String(saved);
+            }
         } else if (isShs) {
-            // SHS: student must choose Grade 11 or Grade 12.
+            // SHS selected but not yet drilled into a strand: always allow
+            // Grade 11 / 12 picks so the field is never blocked.
             yearWrap.querySelector('label').classList.remove('text-slate-400');
             yearSel.classList.remove('hidden');
             yearSel.setAttribute('required', 'required');
@@ -204,6 +251,15 @@
                 '<option value="11">Grade 11</option>' +
                 '<option value="12">Grade 12</option>';
             if (saved === '11' || saved === '12') yearSel.value = saved;
+        } else if (isBasicAny) {
+            // Inside basic-ed but no leaves yet stashed (e.g. still on first
+            // sub-category). Hide year level until the cascade reaches a node
+            // whose children are grade leaves.
+            yearWrap.querySelector('label').classList.add('text-slate-400');
+            yearSel.classList.add('hidden');
+            yearSel.removeAttribute('required');
+            yearSel.value = '';
+            yearHint.classList.remove('hidden');
         } else {
             // Higher ed: 1st–6th Year.
             yearWrap.querySelector('label').classList.remove('text-slate-400');
@@ -235,6 +291,9 @@
         Array.from(cascade.children).forEach(el => {
             if (parseInt(el.dataset.depth, 10) >= depth) el.remove();
         });
+        // Reset stashed grade-leaves whenever the cascade is rebuilt; the new
+        // branch fetch will repopulate them if applicable.
+        delete cascade.dataset.gradeLeaves;
         if (depth === 0) {
             programWrap.classList.add('hidden');
             programSel.removeAttribute('required');
@@ -259,6 +318,27 @@
         } else {
             cascade.insertBefore(yearWrap, cascadeKids[1]); // slot it as 2nd
         }
+    }
+
+    /**
+     * Map the chosen Year Level (e.g. "11"/"12") to one of the grade-leaf
+     * child node ids stashed on the cascade container, and assign that as
+     * the final education_node_id. Used when the parent node's children are
+     * all leaf "Grade N" entries — we hide the redundant sub-category dropdown
+     * and let the Year Level dropdown drive the leaf selection instead.
+     */
+    function applyGradeLeafFromYearLevel() {
+        const raw = cascade.dataset.gradeLeaves;
+        if (!raw) return;
+        let leaves = [];
+        try { leaves = JSON.parse(raw); } catch (e) { return; }
+        const yl = String(yearSel.value || '');
+        if (!yl) return;
+        const match = leaves.find(c => {
+            const m = String(c.name || '').match(/(\d+)/);
+            return m && m[1] === yl;
+        });
+        if (match) finalNodeId.value = String(match.id);
     }
 
     async function loadBranch(nodeId, depth) {
@@ -292,7 +372,15 @@
         }
 
         // If this node has children, render another dropdown to drill deeper.
-        if (data.children && data.children.length) {
+        // EXCEPT: if the children are leaf grade-level nodes (e.g. "Grade 11",
+        // "Grade 12") we skip that dropdown and let the Year Level selector
+        // pick the correct leaf node — the sub-category dropdown would be
+        // redundant with Year Level.
+        const childLabels = (data.children || []).map(c => String(c.name || ''));
+        const allGradeLeaves = childLabels.length > 0
+            && childLabels.every(n => /^\s*grade\s*\d+\s*$/i.test(n));
+
+        if (data.children && data.children.length && !allGradeLeaves) {
             const wrap = document.createElement('div');
             wrap.dataset.depth = depth;
             wrap.innerHTML = `
@@ -308,6 +396,16 @@
             });
             cascade.appendChild(wrap);
             positionYearLevel();
+        } else if (allGradeLeaves) {
+            // Remember the grade-leaf children so the Year Level <select> can
+            // map its value (e.g. "11") to the corresponding node id.
+            cascade.dataset.gradeLeaves = JSON.stringify(
+                data.children.map(c => ({ id: c.id, name: c.name }))
+            );
+            syncYearLevelVisibility();
+            applyGradeLeafFromYearLevel();
+        } else {
+            delete cascade.dataset.gradeLeaves;
         }
 
         // After populating this branch's programs/children, re-sync UI so SHS
@@ -324,6 +422,10 @@
         syncYearLevelVisibility();
         loadBranch(rootSel.value, 1);
     });
+
+    // When the Year Level changes (e.g. Grade 11 ↔ Grade 12 for SHS), update
+    // the hidden education_node_id to point at the matching grade-leaf node.
+    yearSel.addEventListener('change', applyGradeLeafFromYearLevel);
 
     // Toggle Student Type visibility based on modality code (async_online).
     function syncStudentTypeVisibility() {
@@ -464,6 +566,8 @@
     // Replay the saved cascade so the student sees their previous picks.
     const savedChain   = @json($savedChain ?? []);
     const savedProgram = @json($saved['program_id'] ?? null);
+    const lockedRootId = @json($lockedRootId ?? null);
+
     if (savedChain.length > 0) {
         (async () => {
             // 1) Select the root.
@@ -493,6 +597,14 @@
                     refreshSubjects();
                 }
             }
+        })();
+    } else if (lockedRootId) {
+        // No saved chain, but the root is locked (basic-ed session). Seed the
+        // cascade so the grade-level / strand dropdowns appear immediately.
+        (async () => {
+            rootSel.value = String(lockedRootId);
+            syncYearLevelVisibility();
+            await loadBranch(lockedRootId, 1);
         })();
     }
 })();

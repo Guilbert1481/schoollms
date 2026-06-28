@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\School\Settings\TermController;
 use App\Http\Controllers\School\Settings\SubjectOfferingController;
 
-Route::middleware(['web', 'auth'])
+Route::middleware(['web', 'auth', 'role:admin,superadmin'])
     ->prefix('school/settings')
     ->group(function () {
 

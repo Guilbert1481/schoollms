@@ -6,7 +6,7 @@ use App\Http\Controllers\Scheduler\ResolveScheduleController;
 use App\Http\Controllers\Scheduler\SchedulerController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth'])
+Route::middleware(['auth', 'role:admin,superadmin,registrar,program_head,dean'])
     ->prefix('/scheduler')
     ->name('scheduler.')
     ->group(function () {

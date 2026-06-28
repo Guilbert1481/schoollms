@@ -42,11 +42,11 @@
 
     {{-- TAB WITH DROPDOWN --}}
     @if(isset($tab['children']))
-        <div class="relative" x-data="{ open: false }">
+        <div class="relative inline-block" x-data="{ open: false }">
 
             <button
                 @click="open = !open"
-                class="px-3 py-2 border-b-2 flex items-center gap-1
+                class="px-3 py-2 border-b-2 flex items-center gap-1 whitespace-nowrap w-full
                 {{ $isActive ? 'border-blue-600 text-blue-600' : 'border-transparent' }}">
                 {{ $tab['label'] }}
                 <span>▼</span>
@@ -54,7 +54,7 @@
 
             <div x-show="open"
                  @click.outside="open = false"
-                 class="absolute bg-white shadow rounded mt-2 w-44 z-50">
+                 class="absolute left-0 bg-white shadow rounded mt-2 z-50 min-w-full w-max">
 
                 @foreach($tab['children'] as $child)
                     @php
@@ -68,7 +68,7 @@
                     @endphp
 
                     <a href="{{ route($child['route'], $child['params'] ?? []) }}"
-                       class="block px-4 py-2 hover:bg-gray-100
+                       class="block px-4 py-2 hover:bg-gray-100 whitespace-nowrap
                        {{ $childIsActive ? 'bg-gray-100 font-semibold' : '' }}">
                         {{ $child['label'] }}
                     </a>

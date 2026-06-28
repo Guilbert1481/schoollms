@@ -12,7 +12,7 @@ use App\Http\Controllers\School\Settings\SystemController;
 */
 
 Route::prefix('school/settings')
-    ->middleware(['web', 'auth'])
+    ->middleware(['web', 'auth', 'role:admin,superadmin'])
     ->name('school.settings.')
     ->group(function () {
 
