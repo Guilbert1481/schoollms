@@ -59,49 +59,10 @@ class StudentLedgerController extends Controller
         if ($statusFilter !== 'all' && ! array_key_exists($statusFilter, $statusOptions)) {
             $statusFilter = 'enrolled';
         }
-        // Base scope: only students who have reached an official/ledger status.
-        // Candidates match either an enrollment ledger status (se.status) or a
-        // student-level ledger status (st.status). Pre-enrollment rows
-        // (submitted, provisional, pre-enrolled, rejected…) never appear here.
-        // The specific-status narrowing happens in PHP (below) using the SAME
-        // resolution as the displayed pill, so the filter always matches it.
-        $ledgerEnrollDb  = EnrollmentStatuses::dbValuesForGroup('ledger');
-        $ledgerStudentDb = EnrollmentStatuses::studentDbValuesForGroup('ledger');
-
-        $rows = DB::table('students as st')
-            ->join('student_enrollments as se', 'se.id', '=', DB::raw(
-                '(select max(id) from student_enrollments where student_id = st.id)'
-            ))
-            ->leftJoin('programs as p', 'p.id', '=', 'se.program_id')
-            ->leftJoin('terms as t', 't.id', '=', 'se.term_id')
-            ->leftJoin('academic_years as ay', 'ay.id', '=', 'se.academic_year_id')
-            ->where('st.school_id', $schoolId)
-            ->where(function ($w) use ($ledgerEnrollDb, $ledgerStudentDb) {
-                $w->whereIn('se.status', $ledgerEnrollDb)
-                  ->orWhereIn('st.status', $ledgerStudentDb);
-            })
-            ->orderBy('st.last_name')
-            ->orderBy('st.first_name')
-            ->get([
-                'st.id as student_id',
-                'st.student_number',
-                'st.first_name',
-                'st.middle_name',
-                'st.last_name',
-                'st.email',
-                'st.status as student_status',
-                'se.status as enrollment_status',
-                'se.year_level',
-                'se.education_node_id',
-                'se.academic_year_id',
-                'se.program_id',
-                'p.code as program_code',
-                'p.name as program_name',
-                'p.education_node_id as program_node_id',
-                't.name as term_name',
-                'ay.name as academic_year_name',
-                'se.updated_at as enrolled_at',
-            ]);
+        // Latest enrollment per student, scoped to ledger (official + post)
+        // statuses only — see ledgerSelectRows(). Shared with export() so both
+        // read identical data.
+        $rows = $this->ledgerSelectRows($schoolId);
 
         $academicYearId = $request->query('academic_year_id');
         $academicYearId = ($academicYearId === null || $academicYearId === '') ? null : (int) $academicYearId;
@@ -110,47 +71,11 @@ class StudentLedgerController extends Controller
         $yearLevelFilter = ($yearLevelFilter === null || $yearLevelFilter === '') ? null : (string) $yearLevelFilter;
 
         $programId = $request->integer('program_id') ?: null;
+        $sectionId = $request->integer('section_id') ?: null;
 
         // Normalise each enrollment into an item carrying both the raw fields
         // used for filtering and the display object rendered by the table.
-        $items = $rows->map(function ($r) use ($nodeToRoot, $rootNameById) {
-            $rootLevelId = $nodeToRoot[$r->education_node_id ?? null]
-                ?? $nodeToRoot[$r->program_node_id ?? null]
-                ?? null;
-
-            $fullName = trim(implode(' ', array_filter([
-                $r->first_name, $r->middle_name, $r->last_name,
-            ]))) ?: '—';
-
-            // Resolve the taxonomy status once — used for the pill, the PHP
-            // status filter, and the Change-Status modal's current selection.
-            $statusKey = EnrollmentStatuses::resolveKey(
-                $r->student_status ?? null,
-                $r->enrollment_status ?? null
-            ) ?? 'enrolled';
-
-            return (object) [
-                'root'               => $rootLevelId,
-                'year_level'         => $r->year_level,
-                'academic_year_id'   => $r->academic_year_id,
-                'academic_year_name' => $r->academic_year_name,
-                'program_id'         => $r->program_id,
-                'status_key'         => $statusKey,
-                'display'            => (object) [
-                    'id'          => $r->student_id,
-                    'full_name'   => $fullName,
-                    'student_id'  => $r->student_number ?? '—',
-                    'email'       => $r->email ?? '—',
-                    'year_term'   => $this->formatYearTerm($r->year_level, $r->term_name, $rootLevelId, $rootNameById),
-                    'program'     => $r->program_code ?: ($r->program_name ?? '—'),
-                    'enrolled_at' => $r->enrolled_at
-                        ? \Carbon\Carbon::parse($r->enrolled_at)->format('M d, Y')
-                        : '—',
-                    'status'      => EnrollmentStatuses::pill($statusKey),
-                    'status_key'  => $statusKey,
-                ],
-            ];
-        });
+        $items = $rows->map(fn ($r) => $this->ledgerItemFrom($r, $nodeToRoot, $rootNameById));
 
         // Narrow to the selected status using the SAME resolution as the pill, so
         // "Enrolled" never includes a student already moved to Graduated / On
@@ -215,6 +140,7 @@ class StudentLedgerController extends Controller
         $finalRows = $afterAy
             ->when($yearLevelFilter !== null, fn ($c) => $c->filter(fn ($i) => (string) $i->year_level === $yearLevelFilter))
             ->when($programId, fn ($c) => $c->filter(fn ($i) => (int) $i->program_id === (int) $programId))
+            ->when($sectionId, fn ($c) => $c->filter(fn ($i) => (int) $i->section_id === (int) $sectionId))
             ->map(function ($i) use ($activeLevelIsBasic) {
                 // In a Basic-Education view the Grade Level cell is always a grade
                 // (or an em dash) — never a higher-ed term/semester label.
@@ -244,22 +170,23 @@ class StudentLedgerController extends Controller
             'class'   => 'text-indigo-600 hover:bg-indigo-50',
         ]];
 
-        // Columns: Basic Education hides the redundant Program column and the
-        // Year/Term header reads "Grade Level".
-        $columns = config('tables.student_ledgers.columns', []);
+        // Columns. Basic Education uses a dedicated set (Student ID, Full Name,
+        // LRN, Grade Level, Section, Status, Academic Year); higher-ed/All Levels
+        // keep the configured set with a Status pill appended.
         if ($activeLevelIsBasic) {
-            $columns = array_values(array_filter($columns, fn ($c) => ($c['key'] ?? null) !== 'program'));
-            $columns = array_map(function ($c) {
-                if (($c['key'] ?? null) === 'year_term') {
-                    $c['label'] = 'Grade Level';
-                }
-
-                return $c;
-            }, $columns);
+            $columns = [
+                ['key' => 'student_id',    'label' => 'Student ID',    'width' => '140px'],
+                ['key' => 'full_name',     'label' => 'Full Name',     'width' => '200px'],
+                ['key' => 'lrn',           'label' => 'LRN',           'width' => '150px'],
+                ['key' => 'year_term',     'label' => 'Grade Level',   'width' => '130px'],
+                ['key' => 'section',       'label' => 'Section',       'width' => '130px'],
+                ['key' => 'status',        'label' => 'Status',        'width' => '170px', 'raw' => true],
+                ['key' => 'academic_year', 'label' => 'Academic Year', 'width' => '150px'],
+            ];
+        } else {
+            $columns = config('tables.student_ledgers.columns', []);
+            $columns[] = ['key' => 'status', 'label' => 'Status', 'width' => '180px', 'raw' => true];
         }
-
-        // Status column (coloured pill) — always shown, after the other columns.
-        $columns[] = ['key' => 'status', 'label' => 'Status', 'width' => '180px', 'raw' => true];
 
         // Program filter — higher-ed levels only (Basic Ed has no programs).
         // If the active higher-ed level has no programs yet, the table shows a
@@ -276,6 +203,16 @@ class StudentLedgerController extends Controller
                 ->mapWithKeys(fn ($p) => [(int) $p->id => $p->code ?: $p->name])
                 ->all();
         }
+
+        // Section filter options — active sections for the school (shown on the
+        // Basic Education tab). Empty => the dropdown just offers "All Sections".
+        $sectionOptions = DB::table('sections')
+            ->where('school_id', $schoolId)
+            ->where('is_active', 1)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->mapWithKeys(fn ($s) => [(int) $s->id => $s->name])
+            ->all();
 
         $tableEmptyMessage = ($showProgramFilter && empty($programOptions))
             ? 'No programs have been set up for this level yet.'
@@ -329,6 +266,8 @@ class StudentLedgerController extends Controller
             'programOptions'     => $programOptions,
             'programId'          => $programId,
             'showProgramFilter'  => $showProgramFilter,
+            'sectionOptions'     => $sectionOptions,
+            'sectionId'          => $sectionId,
             'statusOptions'      => $statusOptions,
             'statusFilter'       => $statusFilter,
             'actions'            => $actions,
@@ -337,6 +276,273 @@ class StudentLedgerController extends Controller
             'importAcademicYears'  => $importAcademicYears,
             'showImportTermNumber' => $showImportTermNumber,
         ]);
+    }
+
+    /**
+     * Base query: latest enrollment per student, scoped to ledger (official +
+     * post-enrollment) statuses. Shared by index() and export() so both read
+     * identical data. Pre-enrollment rows never appear here.
+     */
+    protected function ledgerSelectRows(int $schoolId): \Illuminate\Support\Collection
+    {
+        $ledgerEnrollDb  = EnrollmentStatuses::dbValuesForGroup('ledger');
+        $ledgerStudentDb = EnrollmentStatuses::studentDbValuesForGroup('ledger');
+
+        return DB::table('students as st')
+            ->join('student_enrollments as se', 'se.id', '=', DB::raw(
+                '(select max(id) from student_enrollments where student_id = st.id)'
+            ))
+            ->leftJoin('programs as p', 'p.id', '=', 'se.program_id')
+            ->leftJoin('terms as t', 't.id', '=', 'se.term_id')
+            ->leftJoin('academic_years as ay', 'ay.id', '=', 'se.academic_year_id')
+            ->leftJoin('sections as sec', 'sec.id', '=', 'se.section_id')
+            ->where('st.school_id', $schoolId)
+            ->where(function ($w) use ($ledgerEnrollDb, $ledgerStudentDb) {
+                $w->whereIn('se.status', $ledgerEnrollDb)
+                  ->orWhereIn('st.status', $ledgerStudentDb);
+            })
+            ->orderBy('st.last_name')
+            ->orderBy('st.first_name')
+            ->get([
+                'st.id as student_id',
+                'st.student_number',
+                'st.lrn',
+                'st.first_name',
+                'st.middle_name',
+                'st.last_name',
+                'st.email',
+                'st.status as student_status',
+                'se.status as enrollment_status',
+                'se.year_level',
+                'se.education_node_id',
+                'se.academic_year_id',
+                'se.program_id',
+                'se.section_id',
+                'sec.name as section_name',
+                'p.code as program_code',
+                'p.name as program_name',
+                'p.education_node_id as program_node_id',
+                't.name as term_name',
+                'ay.name as academic_year_name',
+                'se.updated_at as enrolled_at',
+            ]);
+    }
+
+    /** Shape one raw ledger row into the item used for filtering + display. */
+    protected function ledgerItemFrom($r, array $nodeToRoot, array $rootNameById): object
+    {
+        $rootLevelId = $nodeToRoot[$r->education_node_id ?? null]
+            ?? $nodeToRoot[$r->program_node_id ?? null]
+            ?? null;
+
+        $fullName = trim(implode(' ', array_filter([
+            $r->first_name, $r->middle_name, $r->last_name,
+        ]))) ?: '—';
+
+        // Resolve the taxonomy status once — used for the pill, the PHP status
+        // filter, the Change-Status modal, and the export's status label.
+        $statusKey = EnrollmentStatuses::resolveKey(
+            $r->student_status ?? null,
+            $r->enrollment_status ?? null
+        ) ?? 'enrolled';
+
+        return (object) [
+            'root'               => $rootLevelId,
+            'year_level'         => $r->year_level,
+            'academic_year_id'   => $r->academic_year_id,
+            'academic_year_name' => $r->academic_year_name,
+            'program_id'         => $r->program_id,
+            'section_id'         => $r->section_id,
+            'status_key'         => $statusKey,
+            'display'            => (object) [
+                'id'            => $r->student_id,
+                'full_name'     => $fullName,
+                'student_id'    => $r->student_number ?? '—',
+                'lrn'           => $r->lrn ?: '—',
+                'email'         => $r->email ?? '—',
+                'year_term'     => $this->formatYearTerm($r->year_level, $r->term_name, $rootLevelId, $rootNameById),
+                'section'       => $r->section_name ?: '—',
+                'program'       => $r->program_code ?: ($r->program_name ?? '—'),
+                'academic_year' => $r->academic_year_name ?: '—',
+                'enrolled_at'   => $r->enrolled_at
+                    ? \Carbon\Carbon::parse($r->enrolled_at)->format('M d, Y')
+                    : '—',
+                'status'        => EnrollmentStatuses::pill($statusKey),
+                'status_key'    => $statusKey,
+            ],
+        ];
+    }
+
+    /**
+     * Export the currently-filtered list as CSV or Excel (.xlsx). Honours the
+     * same level/status/AY/year/program/section filters as the table.
+     */
+    public function export(Request $request)
+    {
+        $format = strtolower((string) $request->query('format')) === 'xlsx' ? 'xlsx' : 'csv';
+        [$headers, $rows, $title] = $this->buildExportRows($request);
+
+        $base = Str::slug($title ?: 'student-ledgers').'-'.now()->format('Ymd-His');
+
+        if ($format === 'xlsx') {
+            $path = $this->buildXlsx($headers, $rows);
+
+            return response()->download($path, $base.'.xlsx', [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])->deleteFileAfterSend(true);
+        }
+
+        return response()->streamDownload(function () use ($headers, $rows) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel reads accents correctly
+            fputcsv($out, $headers);
+            foreach ($rows as $r) {
+                fputcsv($out, array_values($r));
+            }
+            fclose($out);
+        }, $base.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** Build [headers, rows, title] for the export, mirroring the table filters. */
+    protected function buildExportRows(Request $request): array
+    {
+        $schoolId = auth()->user()->school_id;
+
+        $levels = DB::table('education_nodes')
+            ->whereNull('parent_id')->where('is_offered', 1)->where('is_active', 1)
+            ->orderBy('order_index')->get(['id', 'name']);
+        $nodeToRoot   = $this->buildNodeRootMap();
+        $rootNameById = $levels->pluck('name', 'id')->all();
+
+        $levelParam    = $request->query('level');
+        $showAll       = $levelParam === null || $levelParam === '' || strtolower((string) $levelParam) === 'all';
+        $activeLevelId = $showAll ? 0 : (int) $levelParam;
+        $activeLevel   = $levels->firstWhere('id', $activeLevelId);
+        $singleLevel   = $levels->count() === 1 ? $levels->first() : null;
+        $effective     = $showAll ? $singleLevel : $activeLevel;
+        $isBasic       = $effective && str_contains(strtolower((string) $effective->name), 'basic');
+
+        $statusFilter = $request->query('status') ?: 'enrolled';
+        $statusLabels = EnrollmentStatuses::options('ledger');
+        if ($statusFilter !== 'all' && ! array_key_exists($statusFilter, $statusLabels)) {
+            $statusFilter = 'enrolled';
+        }
+
+        $academicYearId  = $request->integer('academic_year_id') ?: null;
+        $yearLevelFilter = $request->query('year_level');
+        $yearLevelFilter = ($yearLevelFilter === null || $yearLevelFilter === '') ? null : (string) $yearLevelFilter;
+        $programId       = $request->integer('program_id') ?: null;
+        $sectionId       = $request->integer('section_id') ?: null;
+
+        $items = $this->ledgerSelectRows($schoolId)
+            ->map(fn ($r) => $this->ledgerItemFrom($r, $nodeToRoot, $rootNameById));
+
+        if ($statusFilter !== 'all') {
+            $items = $items->filter(fn ($i) => $i->status_key === $statusFilter);
+        }
+
+        $items = $items
+            ->when(! $showAll, fn ($c) => $c->filter(fn ($i) => (int) ($i->root ?? 0) === $activeLevelId))
+            ->when($academicYearId, fn ($c) => $c->filter(fn ($i) => (int) $i->academic_year_id === $academicYearId))
+            ->when($yearLevelFilter !== null, fn ($c) => $c->filter(fn ($i) => (string) $i->year_level === $yearLevelFilter))
+            ->when($programId, fn ($c) => $c->filter(fn ($i) => (int) $i->program_id === (int) $programId))
+            ->when($sectionId, fn ($c) => $c->filter(fn ($i) => (int) $i->section_id === (int) $sectionId))
+            ->values();
+
+        $label = fn ($key) => $statusLabels[$key] ?? ucwords(str_replace('_', ' ', (string) $key));
+        $title = $showAll ? 'All Levels' : ($activeLevel->name ?? 'Student Ledgers');
+
+        if ($isBasic) {
+            $headers = ['Student ID', 'Full Name', 'LRN', 'Grade Level', 'Section', 'Status', 'Academic Year'];
+            $data = $items->map(function ($i) use ($label) {
+                $d = $i->display;
+                $grade = is_numeric($i->year_level) ? 'Grade '.(int) $i->year_level : ($d->year_term ?? '—');
+
+                return [$d->student_id, $d->full_name, $d->lrn, $grade, $d->section, $label($i->status_key), $d->academic_year];
+            })->all();
+        } else {
+            $headers = ['Student ID', 'Full Name', 'Email', 'Year Level', 'Program', 'Status', 'Academic Year'];
+            $data = $items->map(function ($i) use ($label) {
+                $d = $i->display;
+
+                return [$d->student_id, $d->full_name, $d->email, $d->year_term, $d->program, $label($i->status_key), $d->academic_year];
+            })->all();
+        }
+
+        return [$headers, $data, $title];
+    }
+
+    /**
+     * Build a minimal, valid .xlsx (Open XML) from headers + rows using only
+     * ZipArchive — no third-party spreadsheet library. Returns a temp file path.
+     */
+    protected function buildXlsx(array $headers, array $rows): string
+    {
+        $matrix = array_merge([$headers], $rows);
+
+        $sheetRows = '';
+        foreach ($matrix as $ri => $cells) {
+            $rowNum = $ri + 1;
+            $cellsXml = '';
+            foreach (array_values($cells) as $ci => $val) {
+                $ref = $this->columnLetter($ci).$rowNum;
+                $esc = htmlspecialchars((string) $val, ENT_QUOTES | ENT_XML1, 'UTF-8');
+                $cellsXml .= '<c r="'.$ref.'" t="inlineStr"><is><t xml:space="preserve">'.$esc.'</t></is></c>';
+            }
+            $sheetRows .= '<row r="'.$rowNum.'">'.$cellsXml.'</row>';
+        }
+
+        $sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            .'<sheetData>'.$sheetRows.'</sheetData></worksheet>';
+
+        $contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            .'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            .'<Default Extension="xml" ContentType="application/xml"/>'
+            .'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            .'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            .'</Types>';
+
+        $rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            .'</Relationships>';
+
+        $workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            .'<sheets><sheet name="Students" sheetId="1" r:id="rId1"/></sheets></workbook>';
+
+        $workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            .'</Relationships>';
+
+        $tmp = tempnam(sys_get_temp_dir(), 'xlsx');
+        $zip = new \ZipArchive();
+        $zip->open($tmp, \ZipArchive::OVERWRITE);
+        $zip->addFromString('[Content_Types].xml', $contentTypes);
+        $zip->addFromString('_rels/.rels', $rels);
+        $zip->addFromString('xl/workbook.xml', $workbook);
+        $zip->addFromString('xl/_rels/workbook.xml.rels', $workbookRels);
+        $zip->addFromString('xl/worksheets/sheet1.xml', $sheet);
+        $zip->close();
+
+        return $tmp;
+    }
+
+    /** 0-based column index => spreadsheet letter (0=A, 25=Z, 26=AA…). */
+    protected function columnLetter(int $i): string
+    {
+        $s = '';
+        $i++;
+        while ($i > 0) {
+            $m = ($i - 1) % 26;
+            $s = chr(65 + $m).$s;
+            $i = intdiv($i - 1, 26);
+        }
+
+        return $s;
     }
 
     /**
@@ -656,6 +862,7 @@ class StudentLedgerController extends Controller
             'school_id'            => $schoolId,
             'user_id'              => $user?->id,
             'student_number'       => $studentNumber,
+            'lrn'                  => $this->clean($row['lrn'] ?? null),
             'first_name'           => $firstName,
             'middle_name'          => $this->clean($row['middle_name'] ?? null),
             'last_name'            => $lastName,
@@ -780,6 +987,7 @@ class StudentLedgerController extends Controller
 
         return match ($key) {
             'student_no', 'student_id', 'id_number', 'id_no' => 'student_number',
+            'learner_reference_number', 'learner_reference_no', 'lrn_no', 'lrn_number' => 'lrn',
             'given_name', 'firstname' => 'first_name',
             'middlename' => 'middle_name',
             'surname', 'lastname', 'family_name' => 'last_name',

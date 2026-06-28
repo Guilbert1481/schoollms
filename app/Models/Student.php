@@ -14,6 +14,7 @@ class Student extends Model
         'home_school_id',
         'user_id',
         'student_number',
+        'lrn',
         'first_name',
         'middle_name',
         'last_name',

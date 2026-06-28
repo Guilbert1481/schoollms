@@ -82,6 +82,17 @@
                 @endforeach
             </select>
 
+            @if($activeLevelIsBasic)
+                {{-- Section filter (Basic Education) — "All Sections" when none set. --}}
+                <select onchange="ledgerApplyFilter('section_id', this.value)"
+                        class="rounded border border-gray-300 px-2 py-2 text-sm">
+                    <option value="">All Sections</option>
+                    @foreach($sectionOptions as $secId => $secName)
+                        <option value="{{ $secId }}" @selected((int) $sectionId === (int) $secId)>{{ $secName }}</option>
+                    @endforeach
+                </select>
+            @endif
+
             @if($showProgramFilter)
                 <select onchange="ledgerApplyFilter('program_id', this.value)"
                         class="rounded border border-gray-300 px-2 py-2 text-sm">
@@ -93,18 +104,39 @@
             @endif
         </x-slot:afterFilter>
 
-        {{-- Always enabled: "Others" lets the registrar type any academic year. --}}
-        @php $importDisabled = false; @endphp
-        <button type="button"
-                onclick="openStudentImportModal()"
-                @disabled($importDisabled)
-                class="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm font-semibold transition
-                       {{ $importDisabled
-                            ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
-                            : 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700' }}">
-            <i data-lucide="upload" class="h-4 w-4"></i>
-            Import
-        </button>
+        {{-- Export (dropdown: CSV / Excel / both) + Import, side by side. --}}
+        <div class="flex items-center gap-2">
+            <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                <button type="button" @click="open = ! open"
+                        class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    <i data-lucide="download" class="h-4 w-4 text-indigo-600"></i>
+                    Export
+                    <i data-lucide="chevron-down" class="h-3.5 w-3.5 text-slate-400"></i>
+                </button>
+                <div x-show="open" x-cloak x-transition
+                     class="absolute right-0 z-30 mt-1 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+                     style="display:none;">
+                    <button type="button" onclick="ledgerExport('csv'); open = false"
+                            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">
+                        <i data-lucide="file-text" class="h-4 w-4 text-slate-500"></i> Export as CSV
+                    </button>
+                    <button type="button" onclick="ledgerExport('xlsx'); open = false"
+                            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">
+                        <i data-lucide="file-spreadsheet" class="h-4 w-4 text-emerald-600"></i> Export as Excel
+                    </button>
+                    <button type="button" onclick="ledgerExport('both'); open = false"
+                            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">
+                        <i data-lucide="files" class="h-4 w-4 text-indigo-600"></i> Export both
+                    </button>
+                </div>
+            </div>
+
+            <button type="button" onclick="openStudentImportModal()"
+                    class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                <i data-lucide="upload" class="h-4 w-4 text-emerald-600"></i>
+                Import
+            </button>
+        </div>
     </x-table.table>
 </div>
 
@@ -180,7 +212,7 @@
                        required
                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100">
                 <p class="mt-2 text-xs text-slate-500">
-                    Optional headers: student_number, email, middle_name, phone, program_code, year_level, gender, date_of_birth, address.
+                    Optional headers: student_number, lrn, email, middle_name, phone, program_code, year_level, gender, date_of_birth, address.
                 </p>
             </div>
 
@@ -271,6 +303,31 @@
         modal.classList.add('hidden');
         modal.classList.remove('flex');
         document.body.style.overflow = '';
+    }
+
+    // Export the current (filtered) list. Builds the export URL from the active
+    // query params so the file matches what's on screen. "both" saves two files.
+    const LEDGER_EXPORT_URL = @json(route('registrar.student-ledgers.export'));
+    function ledgerExport(format) {
+        const current = new URLSearchParams(window.location.search);
+        const buildUrl = (fmt) => {
+            const p = new URLSearchParams(current);
+            p.set('format', fmt);
+            return LEDGER_EXPORT_URL + '?' + p.toString();
+        };
+        const download = (url) => {
+            const a = document.createElement('a');
+            a.href = url;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        };
+        if (format === 'both') {
+            download(buildUrl('csv'));
+            setTimeout(() => download(buildUrl('xlsx')), 500);
+        } else {
+            download(buildUrl(format));
+        }
     }
 
     // Navigate with an updated query param, preserving the others (level, etc.).

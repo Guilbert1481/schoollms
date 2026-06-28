@@ -48,6 +48,8 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
             ->name('student-ledgers.index');
         Route::post('student-ledgers/import', [StudentLedgerController::class, 'import'])
             ->name('student-ledgers.import');
+        Route::get('student-ledgers/export', [StudentLedgerController::class, 'export'])
+            ->name('student-ledgers.export');
         Route::patch('student-ledgers/{student}/status', [StudentLedgerController::class, 'updateStatus'])
             ->name('student-ledgers.status');
     });
