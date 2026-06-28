@@ -13,25 +13,15 @@
 
     {{-- Education-level tabs — only the levels offered in the structure tree.
          The red superscript shows how many students await validation. --}}
-    <div class="flex flex-wrap gap-2 border-b border-slate-200">
-        @forelse($offeredRoots as $lvl)
-            @php $count = $counts[$lvl->id] ?? 0; @endphp
-            <a href="{{ route('registrar.enrollments.index', ['level' => $lvl->id]) }}"
-               class="relative px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 -mb-px
-                      {{ $activeLevelId === (int) $lvl->id
-                          ? 'border-indigo-600 text-indigo-700 bg-indigo-50'
-                          : 'border-transparent text-slate-600 hover:text-indigo-700 hover:bg-slate-50' }}">
-                {{ $lvl->name }}
-                @if($count > 0)
-                    <sup class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none">
-                        {{ $count }}
-                    </sup>
-                @endif
-            </a>
-        @empty
-            <span class="px-4 py-2 text-sm text-slate-400">No education levels are offered yet.</span>
-        @endforelse
-    </div>
+    @php
+        $levelTabs = collect($offeredRoots)->map(fn ($lvl) => [
+            'label'  => $lvl->name,
+            'url'    => route('registrar.enrollments.index', ['level' => $lvl->id]),
+            'count'  => $counts[$lvl->id] ?? 0,
+            'active' => $activeLevelId === (int) $lvl->id,
+        ])->all();
+    @endphp
+    <x-tabs.count-tabs :tabs="$levelTabs" empty="No education levels are offered yet." />
 
     {{-- Title (left) + level-specific filters (right) --}}
     <div class="flex flex-wrap items-center justify-between gap-3">

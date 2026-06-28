@@ -45,22 +45,23 @@
 
     {{-- Education-level tabs (hidden when only one level is offered) --}}
     @if ($showTabs)
-        <div class="flex flex-wrap gap-2 border-b border-slate-200">
-            @foreach ($levels as $lvl)
-                @php $count = $counts[$lvl->id] ?? 0; @endphp
-                <a href="{{ route('registrar.student-ledgers.index', ['level' => $lvl->id]) }}"
-                   class="px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 -mb-px
-                          {{ ! $showAll && $activeLevelId === $lvl->id
-                              ? 'border-emerald-600 text-emerald-700 bg-emerald-50'
-                              : 'border-transparent text-slate-600 hover:text-emerald-700 hover:bg-slate-50' }}">
-                    {{ $lvl->name }}
-                    <span class="ml-1 inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 rounded-full text-[10px] font-bold
-                                 {{ ! $showAll && $activeLevelId === $lvl->id ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600' }}">
-                        {{ $count }}
-                    </span>
-                </a>
-            @endforeach
-        </div>
+        @php
+            $ledgerTabs = [[
+                'label'  => 'All Levels',
+                'url'    => route('registrar.student-ledgers.index', ['level' => 'all']),
+                'count'  => $total,
+                'active' => $showAll,
+            ]];
+            foreach ($levels as $lvl) {
+                $ledgerTabs[] = [
+                    'label'  => $lvl->name,
+                    'url'    => route('registrar.student-ledgers.index', ['level' => $lvl->id]),
+                    'count'  => $counts[$lvl->id] ?? 0,
+                    'active' => ! $showAll && $activeLevelId === $lvl->id,
+                ];
+            }
+        @endphp
+        <x-tabs.count-tabs :tabs="$ledgerTabs" />
     @endif
 
     {{-- Master list --}}
@@ -93,16 +94,6 @@
                 </select>
             @endif
         </x-slot:afterFilter>
-
-        @if($showTabs)
-            <a href="{{ route('registrar.student-ledgers.index', ['level' => 'all']) }}"
-               class="px-3 py-2 border rounded text-sm whitespace-nowrap transition
-                      {{ ($showAll ?? false)
-                          ? 'bg-emerald-600 text-white border-emerald-600'
-                          : 'bg-white text-slate-700 border-gray-300 hover:bg-slate-50' }}">
-                All
-            </a>
-        @endif
 
         {{-- Always enabled: "Others" lets the registrar type any academic year. --}}
         @php $importDisabled = false; @endphp
