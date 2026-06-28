@@ -222,8 +222,10 @@ class TranscriptOfRecordController extends Controller
             ->latest('id')
             ->first();
 
+        // Inside the transcript itself (an official document) the programme is
+        // written in full: "CODE — Full Programme Name".
         $programLabel = $latestEnrollment?->program
-            ? ($latestEnrollment->program->code ?: $latestEnrollment->program->name)
+            ? trim(($latestEnrollment->program->code ? $latestEnrollment->program->code.' — ' : '').($latestEnrollment->program->name ?? ''))
             : '—';
 
         // Detect if the student is a transferee or a shifter. Transferees are
