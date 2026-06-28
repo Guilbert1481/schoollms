@@ -42,6 +42,37 @@
         });
     }
 
+    // Natural content width of a column = the widest cell content (header + body)
+    // measured single-line, plus the cell's own horizontal padding and a small
+    // buffer for the grip. Clamped so one huge cell can't blow the layout out.
+    const MAX_FIT = 640;
+    function autoFitWidth(tableKey, colKey) {
+        const cells = document.querySelectorAll(
+            `[data-table="${CSS.escape(tableKey)}"][data-column="${CSS.escape(colKey)}"]`
+        );
+        if (!cells.length) return null;
+
+        const meas = document.createElement('span');
+        meas.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;left:-9999px;top:0;';
+        document.body.appendChild(meas);
+
+        let max = 0;
+        cells.forEach((cell) => {
+            const cs = getComputedStyle(cell);
+            meas.style.fontSize = cs.fontSize;
+            meas.style.fontFamily = cs.fontFamily;
+            meas.style.fontWeight = cs.fontWeight;
+            meas.style.letterSpacing = cs.letterSpacing;
+            meas.style.textTransform = cs.textTransform;
+            meas.textContent = (cell.textContent || '').trim();
+            const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+            max = Math.max(max, meas.offsetWidth + padX);
+        });
+
+        meas.remove();
+        return Math.min(MAX_FIT, Math.max(MIN_WIDTH, Math.ceil(max) + 14));
+    }
+
     let active = null;
 
     document.addEventListener('mousedown', function (e) {
@@ -75,6 +106,24 @@
         active = null;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+    });
+
+    // Double-click the grip to auto-fit the column to its content (persisted).
+    document.addEventListener('dblclick', function (e) {
+        const handle = e.target.closest('.col-resizer');
+        if (!handle) return;
+        e.preventDefault();
+
+        const tableKey = handle.dataset.table;
+        const colKey   = handle.dataset.colKey;
+        const col = colFor(tableKey, colKey);
+        if (!col) return;
+
+        const w = autoFitWidth(tableKey, colKey);
+        if (!w) return;
+
+        col.style.width = w + 'px';
+        saveWidth(tableKey, colKey, w);
     });
 
     document.addEventListener('DOMContentLoaded', applySavedWidths);

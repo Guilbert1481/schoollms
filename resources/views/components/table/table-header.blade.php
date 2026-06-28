@@ -48,7 +48,7 @@
         <div class="col-resizer"
              data-table="{{ $tableKey }}"
              data-col-key="{{ $col['key'] }}"
-             title="Drag to resize column">
+             title="Drag to resize · double-click to fit">
             <span class="col-resizer-line"></span>
         </div>
     </th>
