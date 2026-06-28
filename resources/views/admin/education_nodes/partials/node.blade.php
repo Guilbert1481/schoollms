@@ -55,18 +55,6 @@
         <span class="text-[10px] px-1.5 py-0.5 rounded font-mono {{ $typeClass }}">{{ $node->node_type }}</span>
 
         {{-- Actions --}}
-        {{-- "+ Add Program" — only on higher-education level nodes (not Basic
-             Education). Creates a real row in the `programs` table under this
-             node. --}}
-        @if ($node->node_type === 'level' && ! str_contains(strtolower($node->name), 'basic'))
-            <button type="button"
-                    data-action="add-program"
-                    data-node-id="{{ $node->id }}"
-                    data-node-name="{{ $node->name }}"
-                    class="text-xs px-2 py-1 rounded border border-emerald-300 text-emerald-700 hover:bg-emerald-50">
-                + Add Program
-            </button>
-        @endif
         <button type="button"
                 data-action="add-child"
                 data-parent-id="{{ $node->id }}"

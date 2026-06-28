@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\College;
 use App\Models\EducationNode;
-use App\Models\Program;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,6 +13,10 @@ class EducationNodeController extends Controller
 {
     /**
      * Tree page (admin) or JSON of children when ?parent_id is provided.
+     *
+     * This page manages the education STRUCTURE only (levels / stages / tracks /
+     * strands / program_types). It has no connection to the `programs` table —
+     * programs are managed entirely on the Programs page.
      */
     public function index(Request $request): View|JsonResponse
     {
@@ -33,17 +35,7 @@ class EducationNodeController extends Controller
         $tree      = EducationNode::tree();
         $nodeTypes = EducationNode::TYPES;
 
-        $schoolId = $request->user()?->school_id;
-
-        // The tree is a structure editor and a program CREATOR — it does not
-        // display programs (those are managed on the Programs page). It only
-        // needs the colleges for the "Add Program" modal's College picker.
-        $colleges = College::query()
-            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
-        return view('admin.education_nodes.index', compact('tree', 'nodeTypes', 'colleges'));
+        return view('admin.education_nodes.index', compact('tree', 'nodeTypes'));
     }
 
     public function store(Request $request): JsonResponse|RedirectResponse
@@ -122,119 +114,5 @@ class EducationNodeController extends Controller
             'id'         => $education_node->id,
             'is_offered' => $education_node->is_offered,
         ]);
-    }
-
-    /* ---------------------------------------------------------------
-     | Program proxy actions — surfaces dean/admin programs inside the
-     | tree with the same UX (checkbox toggle / edit / delete).
-     | --------------------------------------------------------------- */
-
-    public function toggleProgramActive(Request $request, Program $program): JsonResponse
-    {
-        $request->validate(['is_offered' => ['nullable', 'boolean']]);
-        $next = $request->has('is_offered')
-            ? (bool) $request->boolean('is_offered')
-            : ! ((bool) $program->active);
-        $program->update(['active' => $next]);
-
-        return response()->json(['ok' => true, 'id' => $program->id, 'is_offered' => $next]);
-    }
-
-    public function updateProgram(Request $request, Program $program): JsonResponse
-    {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['nullable', 'string', 'max:64'],
-        ]);
-
-        $program->update($data);
-
-        return response()->json(['ok' => true, 'program' => $program->fresh()]);
-    }
-
-    public function destroyProgram(Program $program): JsonResponse
-    {
-        $program->delete();
-
-        return response()->json(['ok' => true]);
-    }
-
-    /**
-     * Create a program FROM the education tree (the "reverse" creation flow).
-     *
-     * Programs remain rows in the `programs` table — the global tree just gains
-     * a second creation entry point. Allowed only under a higher-education
-     * `level` node (never Basic Education). De-duplicates by school_id + code so
-     * it never twins a manually-created program.
-     */
-    public function storeProgram(Request $request): JsonResponse
-    {
-        $schoolId = (int) $request->user()->school_id;
-
-        $data = $request->validate([
-            'code'              => ['required', 'string', 'max:50'],
-            'name'              => ['required', 'string', 'max:255'],
-            'college_id'        => ['required', 'integer'],
-            'education_node_id' => ['required', 'integer', 'exists:education_nodes,id'],
-        ]);
-
-        // College must belong to this school.
-        $college = College::where('school_id', $schoolId)->find($data['college_id']);
-        if (! $college) {
-            return response()->json(['ok' => false, 'message' => 'Please choose a college that belongs to your school.'], 422);
-        }
-
-        // Target node must be a higher-education level (programs are not added
-        // under Basic Education, tracks, strands, etc.).
-        $node = EducationNode::findOrFail($data['education_node_id']);
-        if ($node->node_type !== 'level' || str_contains(strtolower((string) $node->name), 'basic')) {
-            return response()->json(['ok' => false, 'message' => 'Programs can only be added under a higher-education level.'], 422);
-        }
-
-        // De-dup: reuse an existing program with the same code for this school,
-        // otherwise create it. Either way it ends up linked to this node.
-        $program = Program::firstOrNew([
-            'school_id' => $schoolId,
-            'code'      => $data['code'],
-        ]);
-        $created = ! $program->exists;
-        $program->fill([
-            'name'              => $data['name'],
-            'college_id'        => $college->id,
-            'education_node_id' => $node->id,
-            'active'            => true,
-        ])->save();
-
-        return response()->json([
-            'ok'      => true,
-            'created' => $created,
-            'program' => $program->only(['id', 'code', 'name', 'college_id', 'education_node_id']),
-        ], $created ? 201 : 200);
-    }
-
-    /**
-     * Quick-create a college from the "Add Program" modal when the school has
-     * none yet (so a program always has a college to attach to).
-     */
-    public function storeCollege(Request $request): JsonResponse
-    {
-        $schoolId = (int) $request->user()->school_id;
-
-        $data = $request->validate([
-            'code' => ['required', 'string', 'max:50'],
-            'name' => ['required', 'string', 'max:255'],
-        ]);
-
-        $college = College::create([
-            'school_id' => $schoolId,
-            'code'      => $data['code'],
-            'name'      => $data['name'],
-            'is_active' => true,
-        ]);
-
-        return response()->json([
-            'ok'      => true,
-            'college' => $college->only(['id', 'name', 'code']),
-        ], 201);
     }
 }
