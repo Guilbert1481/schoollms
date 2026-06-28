@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Staff\Registrar;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicYear;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\Term;
@@ -239,9 +240,9 @@ class StudentLedgerController extends Controller
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
         ];
         if ($isOthers) {
-            $rules['term_id']          = ['required', 'in:others'];
-            $rules['academic_year_id'] = ['required', 'integer'];
-            $rules['term_number']      = ['nullable', 'in:1,2,3'];
+            $rules['term_id']       = ['required', 'in:others'];
+            $rules['academic_year'] = ['required', 'string', 'max:255'];
+            $rules['term_number']   = ['nullable', 'in:1,2,3'];
         } else {
             $rules['term_id'] = ['required', 'integer'];
         }
@@ -250,12 +251,12 @@ class StudentLedgerController extends Controller
         if ($isOthers) {
             $term = $this->resolveImportTerm(
                 $schoolId,
-                (int) $validated['academic_year_id'],
+                (string) $validated['academic_year'],
                 $request->input('term_number'),
             );
 
             if (! $term) {
-                return back()->with('error', 'The selected academic year could not be found. Please pick a valid academic year.');
+                return back()->with('error', 'Please enter a valid academic year (for example, 2018 - 2019).');
             }
         } else {
             $term = Term::query()
@@ -305,32 +306,38 @@ class StudentLedgerController extends Controller
      * under the chosen academic year. A term number produces a higher-ed
      * numbered term; otherwise a Basic-Education enrolment term.
      */
-    protected function resolveImportTerm(int $schoolId, int $academicYearId, ?string $termNumber): ?Term
+    protected function resolveImportTerm(int $schoolId, string $academicYearName, ?string $termNumber): ?Term
     {
-        $ay = DB::table('academic_years')
-            ->where('school_id', $schoolId)
-            ->where('id', $academicYearId)
-            ->first();
-
-        if (! $ay) {
+        $name = trim($academicYearName);
+        if ($name === '') {
             return null;
         }
+
+        // Find-or-create the academic year so historical years (e.g. 2018-2019)
+        // can be added straight from the import — that is the whole point of
+        // "Others": loading a school's past records.
+        [$startDate, $endDate] = $this->guessAcademicYearDates($name);
+
+        $ay = AcademicYear::firstOrCreate(
+            ['school_id' => $schoolId, 'name' => $name],
+            ['start_date' => $startDate, 'end_date' => $endDate, 'status' => 'closed']
+        );
 
         if ($termNumber) {
             return Term::firstOrCreate(
                 [
                     'school_id'        => $schoolId,
-                    'academic_year_id' => $academicYearId,
+                    'academic_year_id' => $ay->id,
                     'term'             => 'Term '.$termNumber,
                 ],
                 [
                     'education_level' => 'higher_ed',
                     'enrollment_type' => 'regular',
-                    'academic_year'   => mb_substr((string) $ay->name, 0, 20),
-                    'name'            => 'Term '.$termNumber.' ('.$ay->name.')',
+                    'academic_year'   => mb_substr($name, 0, 20),
+                    'name'            => 'Term '.$termNumber.' ('.$name.')',
                     'title'           => 'Term '.$termNumber,
-                    'start_date'      => $ay->start_date ?? null,
-                    'end_date'        => $ay->end_date ?? null,
+                    'start_date'      => $ay->start_date ?? $startDate,
+                    'end_date'        => $ay->end_date ?? $endDate,
                     'status'          => 'active',
                     'is_active'       => 1,
                 ]
@@ -340,21 +347,39 @@ class StudentLedgerController extends Controller
         return Term::firstOrCreate(
             [
                 'school_id'        => $schoolId,
-                'academic_year_id' => $academicYearId,
+                'academic_year_id' => $ay->id,
                 'term'             => 'Enrollment',
             ],
             [
                 'education_level' => 'basic_ed',
                 'enrollment_type' => 'regular',
-                'academic_year'   => mb_substr((string) $ay->name, 0, 20),
-                'name'            => 'Basic Ed ('.$ay->name.')',
+                'academic_year'   => mb_substr($name, 0, 20),
+                'name'            => 'Basic Ed ('.$name.')',
                 'title'           => 'Basic Ed',
-                'start_date'      => $ay->start_date ?? null,
-                'end_date'        => $ay->end_date ?? null,
+                'start_date'      => $ay->start_date ?? $startDate,
+                'end_date'        => $ay->end_date ?? $endDate,
                 'status'          => 'active',
                 'is_active'       => 1,
             ]
         );
+    }
+
+    /**
+     * Best-effort start/end dates from an academic-year label like "2018-2019".
+     * Falls back to today..+1 year when no years can be parsed.
+     *
+     * @return array{0:string,1:string}
+     */
+    protected function guessAcademicYearDates(string $name): array
+    {
+        if (preg_match_all('/\d{4}/', $name, $m) && ! empty($m[0])) {
+            $y1 = (int) $m[0][0];
+            $y2 = isset($m[0][1]) ? (int) $m[0][1] : $y1 + 1;
+
+            return [sprintf('%04d-06-01', $y1), sprintf('%04d-04-30', $y2)];
+        }
+
+        return [now()->toDateString(), now()->addYear()->toDateString()];
     }
 
     /**

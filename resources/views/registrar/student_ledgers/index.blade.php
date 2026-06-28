@@ -103,7 +103,8 @@
             </a>
         @endif
 
-        @php $importDisabled = $importTerms->isEmpty() && $importAcademicYears->isEmpty(); @endphp
+        {{-- Always enabled: "Others" lets the registrar type any academic year. --}}
+        @php $importDisabled = false; @endphp
         <button type="button"
                 onclick="openStudentImportModal()"
                 @disabled($importDisabled)
@@ -156,15 +157,20 @@
             {{-- Shown only when "Others" is selected: bypasses the term list. --}}
             <div id="importOthersFields" class="hidden space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div>
-                    <label for="import_academic_year_id" class="mb-1 block text-sm font-semibold text-slate-700">Academic Year</label>
-                    <select id="import_academic_year_id"
-                            name="academic_year_id"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
-                        <option value="">Select academic year</option>
+                    <label for="import_academic_year" class="mb-1 block text-sm font-semibold text-slate-700">Academic Year</label>
+                    <input type="text"
+                           id="import_academic_year"
+                           name="academic_year"
+                           list="import_academic_year_options"
+                           placeholder="e.g. 2018 - 2019"
+                           autocomplete="off"
+                           class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                    <datalist id="import_academic_year_options">
                         @foreach($importAcademicYears as $ay)
-                            <option value="{{ $ay->id }}">{{ $ay->name }}</option>
+                            <option value="{{ $ay->name }}"></option>
                         @endforeach
-                    </select>
+                    </datalist>
+                    <p class="mt-1 text-xs text-slate-500">Type any year — current or historical. A new academic year is created automatically if it doesn't exist yet.</p>
                 </div>
 
                 @if($showImportTermNumber)
@@ -221,7 +227,7 @@
     function toggleImportOthers() {
         const select = document.getElementById('import_term_id');
         const others = document.getElementById('importOthersFields');
-        const ay = document.getElementById('import_academic_year_id');
+        const ay = document.getElementById('import_academic_year');
         if (!select || !others) return;
 
         const isOthers = select.value === 'others';
