@@ -127,6 +127,7 @@ class UserManagementController extends Controller
                 'type' => 'delete',
                 'label' => 'Delete',
                 'class' => 'bg-rose-600 text-white hover:bg-rose-700',
+                'confirm' => 'Are you sure you want to delete this role? This action cannot be undone.',
             ],
         ];
 
