@@ -117,7 +117,7 @@
                                         <i data-lucide="inspect" class="w-5 h-5"></i>
                                     </button>
                                     {{-- Delete: form post --}}
-                                    <form method="POST" action="{{ route('settings.users.delete', $user->id) }}" onsubmit="return confirm('Are you sure?');" style="display:inline;">
+                                    <form method="POST" action="{{ route('settings.users.delete', $user->id) }}" data-confirm="Are you sure you want to delete this user? This action cannot be undone." style="display:inline;">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit"

@@ -70,7 +70,7 @@
                 @if($action['type'] == 'delete')
                     <form method="POST"
                           class="inline-flex m-0"
-                          onsubmit="return confirm(@js($action['confirm'] ?? 'Are you sure you want to delete this record? This action cannot be undone.'))"
+                          data-confirm="{{ $action['confirm'] ?? 'Are you sure you want to delete this record? This action cannot be undone.' }}"
                           action="{{ isset($deleteRoute) && $deleteRoute ? route($deleteRoute, $row->id) : route('school.system.dynamic.destroy', ['table' => $tableKey, 'id' => $row->id]) }}">
                         @csrf
                         @method('DELETE')

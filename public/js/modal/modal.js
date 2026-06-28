@@ -70,6 +70,24 @@ function openEditModal(modalId, id, table){
         });
 }
 
+// STYLED CONFIRMATION FOR ANY FORM WITH data-confirm
+// Replaces the browser's native confirm() dialog with the global confirm modal.
+// Usage: <form method="POST" data-confirm="Are you sure?"> ... </form>
+document.addEventListener('submit', function (e) {
+    const form = e.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    if (!form.hasAttribute('data-confirm')) return;
+
+    e.preventDefault();
+    const message = form.getAttribute('data-confirm') || 'Are you sure?';
+
+    // confirmAction runs the callback only when the user clicks Confirm.
+    // form.submit() submits programmatically and does NOT re-fire this handler.
+    confirmAction(message, function () {
+        form.submit();
+    });
+});
+
 // DRAGGABLE MODALS (GLOBAL)
 document.addEventListener("DOMContentLoaded", function(){
 
