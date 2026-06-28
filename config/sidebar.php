@@ -593,7 +593,7 @@ return [
         ],
 
         'finance_invoices' => [
-            'icon'   => 'invoice',
+            'icon'   => 'receipt-text',
             'label'  => 'Invoices',
             'route'  => 'finance.invoices.index',
             'active' => 'finance.invoices.*',
@@ -1113,7 +1113,7 @@ return [
                     'label' => 'Billing Details',
                     'route' => 'student.finance.invoices',
                     'active' => 'student.finance.invoices',
-                    'icon'  => 'invoice',
+                    'icon'  => 'receipt-text',
                 ],
             ],
         ],
