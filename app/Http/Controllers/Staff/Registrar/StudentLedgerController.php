@@ -287,8 +287,61 @@ class StudentLedgerController extends Controller
     {
         abort_unless((int) $student->school_id === (int) auth()->user()->school_id, 403);
 
+        // Latest enrollment + related labels for the header card.
+        $enr = DB::table('student_enrollments as se')
+            ->leftJoin('sections as sec', 'sec.id', '=', 'se.section_id')
+            ->leftJoin('academic_years as ay', 'ay.id', '=', 'se.academic_year_id')
+            ->leftJoin('terms as t', 't.id', '=', 'se.term_id')
+            ->leftJoin('programs as p', 'p.id', '=', 'se.program_id')
+            ->where('se.student_id', $student->id)
+            ->orderByDesc('se.id')
+            ->first([
+                'se.year_level',
+                'se.education_node_id',
+                'se.status as enrollment_status',
+                'sec.name as section_name',
+                'ay.name as academic_year_name',
+                't.name as term_name',
+                'p.education_node_id as program_node_id',
+            ]);
+
+        // "Current Grade Level": Grade N for Basic Education, else Year N.
+        $nodeToRoot = $this->buildNodeRootMap();
+        $rootId     = $enr
+            ? ($nodeToRoot[$enr->education_node_id ?? null] ?? $nodeToRoot[$enr->program_node_id ?? null] ?? null)
+            : null;
+        $rootName   = $rootId ? DB::table('education_nodes')->where('id', $rootId)->value('name') : null;
+        $isBasic    = $rootName && str_contains(strtolower((string) $rootName), 'basic');
+        $yearLevel  = $enr->year_level ?? null;
+        $gradeLevel = ($yearLevel !== null && $yearLevel !== '')
+            ? (is_numeric($yearLevel) ? ($isBasic ? 'Grade ' : 'Year ').(int) $yearLevel : (string) $yearLevel)
+            : '—';
+
+        // Name as "Last, First Middle".
+        $firstMid = trim(implode(' ', array_filter([$student->first_name, $student->middle_name])));
+        $name     = $student->last_name
+            ? $student->last_name.($firstMid !== '' ? ', '.$firstMid : '')
+            : ($firstMid !== '' ? $firstMid : ($student->student_number ?? 'Student'));
+
+        $dash = fn ($v) => ($v !== null && $v !== '') ? $v : '—';
+
+        $header = [
+            'name'          => $name,
+            'photo'         => $student->photo_path ?: null,
+            'status_key'    => EnrollmentStatuses::resolveKey($student->status ?? null, $enr->enrollment_status ?? null),
+            'student_id'    => $dash($student->student_number),
+            'lrn'           => $dash($student->lrn),
+            'date_of_birth' => $student->date_of_birth ? \Carbon\Carbon::parse($student->date_of_birth)->format('M d, Y') : '—',
+            'gender'        => $dash($student->gender ? ucfirst((string) $student->gender) : null),
+            'grade_level'   => $gradeLevel,
+            'section'       => $dash($enr->section_name ?? null),
+            'academic_year' => $dash($enr->academic_year_name ?? null),
+            'term'          => $enr->term_name ?? null,
+        ];
+
         return view('registrar.student_ledgers.show', [
             'student' => $student,
+            'header'  => $header,
         ]);
     }
 
