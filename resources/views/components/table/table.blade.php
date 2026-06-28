@@ -43,12 +43,6 @@
                 </button>
             @endif
 
-            <button type="button"
-                    onclick="openColumnSettings('{{ $tableKey }}')"
-                    class="px-3 py-2 border border-gray-300 rounded text-sm bg-white">
-                Columns
-            </button>
-
             {{-- Extra header buttons (slot) --}}
             @isset($slot)
                 {{ $slot }}
@@ -114,12 +108,6 @@
              data-per-page="{{ (int) $perPage }}"></div>
     @endisset
 
-    {{-- Column Modal --}}
-    <x-table.column-modal
-        :columns="$columns"
-        :tableKey="$tableKey"
-        :defaultVisible="['name','description']"
-    />
 
 </div>
 

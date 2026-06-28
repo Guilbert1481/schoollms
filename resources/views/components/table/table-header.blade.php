@@ -19,14 +19,6 @@
         @if($colWidth) style="width: {{ $colWidth }};" @endif
         data-table="{{ $tableKey }}"
         data-column="{{ $col['key'] }}">
-        @if(! empty($col['hideable']))
-            <button type="button"
-                    title="Hide column"
-                    onclick="hideTableColumn('{{ $tableKey }}', '{{ $col['key'] }}')"
-                    class="absolute top-1 right-1 hidden group-hover:inline-flex items-center justify-center w-4 h-4 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded text-[10px] leading-none">
-                ✕
-            </button>
-        @endif
         @if($filter && ($filter['type'] ?? null) === 'dropdown' && !empty($filterOptions))
             <div class="relative inline-block" x-data="{ open: false }" @click.outside="open = false">
                 <button type="button"
@@ -51,6 +43,12 @@
         @else
             {{ $col['label'] }}
         @endif
+
+        {{-- Drag the right edge to resize this column (left / right). --}}
+        <div class="col-resizer absolute top-0 right-0 z-10 h-full w-1.5 cursor-col-resize hover:bg-indigo-300"
+             data-table="{{ $tableKey }}"
+             data-col-key="{{ $col['key'] }}"
+             title="Drag to resize"></div>
     </th>
 @endforeach
 

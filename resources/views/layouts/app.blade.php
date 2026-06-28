@@ -183,6 +183,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <script src="{{ asset('js/table/table.js') }}"></script>
 <script src="{{ asset('js/table/table-pagination.js') }}"></script>
 <script src="{{ asset('js/table/table-columns.js') }}?v={{ filemtime(public_path('js/table/table-columns.js')) }}"></script>
+<script src="{{ asset('js/table/table-resize.js') }}?v={{ filemtime(public_path('js/table/table-resize.js')) }}"></script>
 <script src="{{ asset('js/modal/modal.js') }}"></script>
 
 
