@@ -27,62 +27,16 @@
         </td>
     @endforeach
 
-    {{-- Actions --}}
+    {{-- Actions (icon buttons + hover labels; kebab when more than 3) --}}
     @if(empty($hideActions))
     <td class="px-3 py-2 action-column"
         data-table="{{ $tableKey }}"
         data-column="actions">
-        <div class="flex gap-1">
-
-            @foreach($actions ?? [] as $action)
-
-                {{-- Modal Action --}}
-                @if($action['type'] == 'modal')
-                    @php
-                        $onclickAttr = isset($action['handler'])
-                            ? strtr($action['handler'], ['{id}' => $row->id, '{table}' => $tableKey, '{modal}' => $action['modal'] ?? ''])
-                            : "openEditModal('{$action['modal']}', {$row->id}, '{$tableKey}')";
-                    @endphp
-                    <button type="button"
-                            onclick="{{ $onclickAttr }}"
-                            class="inline-flex items-center justify-center h-7 px-2 rounded text-xs {{ $action['class'] }}">
-                        {{ $action['label'] }}
-                    </button>
-                @endif
-
-                {{-- 🔥 LINK ACTION (ADDED) --}}
-                @if($action['type'] == 'link')
-                    <a href="{{ route($action['route'], $row->id) }}"
-                       class="inline-flex items-center justify-center h-7 px-2 rounded text-xs {{ $action['class'] }}">
-                        {{ $action['label'] }}
-                    </a>
-                @endif
-
-                @if($action['type'] == 'js')
-                    <button type="button"
-                            onclick="{{ $action['handler'] }}({{ $row->id }})"
-                            class="inline-flex items-center justify-center h-7 px-2 rounded text-xs {{ $action['class'] }}">
-                        {{ $action['label'] }}
-                    </button>
-                @endif
-
-                {{-- Delete Action --}}
-                @if($action['type'] == 'delete')
-                    <form method="POST"
-                          class="inline-flex m-0"
-                          data-confirm="{{ $action['confirm'] ?? 'Are you sure you want to delete this record? This action cannot be undone.' }}"
-                          action="{{ isset($deleteRoute) && $deleteRoute ? route($deleteRoute, $row->id) : route('school.system.dynamic.destroy', ['table' => $tableKey, 'id' => $row->id]) }}">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="inline-flex items-center justify-center h-7 px-2 rounded text-xs {{ $action['class'] }}">
-                            {{ $action['label'] }}
-                        </button>
-                    </form>
-                @endif
-
-            @endforeach
-
-        </div>
+        <x-table.actions
+            :actions="$actions ?? []"
+            :row="$row"
+            :tableKey="$tableKey"
+            :deleteRoute="$deleteRoute ?? null" />
     </td>
     @endif
 
