@@ -1,6 +1,7 @@
 <tbody @if(!empty($reorderable)) id="{{ $tableKey }}SortBody" @endif>
 @forelse($data as $rowIndex => $row)
 <tr class="border-t @if(!empty($reorderable)) shareable-row @endif"
+    data-row-id="{{ data_get($row, 'id') }}"
     @if(!empty($reorderable)) data-id="{{ $row->id ?? '' }}" @endif>
 
     @if(!empty($reorderable))

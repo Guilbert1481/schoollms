@@ -372,6 +372,22 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         if (window.lucide?.createIcons) window.lucide.createIcons();
+
+        // Clicking a student row opens their full detail page. Clicks on the
+        // action buttons / form controls are ignored so they keep working.
+        const table = document.getElementById('student_ledgersTable');
+        if (table) {
+            const base = @json(url('/registrar/student-ledgers'));
+            table.querySelectorAll('tbody tr[data-row-id]').forEach((tr) => {
+                if (tr.dataset.rowId) tr.classList.add('cursor-pointer', 'hover:bg-slate-50');
+            });
+            table.addEventListener('click', (e) => {
+                if (e.target.closest('button, a, input, select, label, form, [data-action], .action-column')) return;
+                const tr = e.target.closest('tr[data-row-id]');
+                if (!tr || !tr.dataset.rowId) return;
+                window.location = base + '/' + tr.dataset.rowId;
+            });
+        }
     });
 
     document.addEventListener('keydown', (event) => {

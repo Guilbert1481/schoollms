@@ -279,6 +279,20 @@ class StudentLedgerController extends Controller
     }
 
     /**
+     * Full detail page for a single student (opened by clicking a ledger row).
+     * Tabs: Profile | Enrollment History | Documents | Fees & Payments — blank
+     * for now; content will be added later.
+     */
+    public function show(Student $student)
+    {
+        abort_unless((int) $student->school_id === (int) auth()->user()->school_id, 403);
+
+        return view('registrar.student_ledgers.show', [
+            'student' => $student,
+        ]);
+    }
+
+    /**
      * Base query: latest enrollment per student, scoped to ledger (official +
      * post-enrollment) statuses. Shared by index() and export() so both read
      * identical data. Pre-enrollment rows never appear here.
