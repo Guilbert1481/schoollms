@@ -59,22 +59,15 @@ class StudentLedgerController extends Controller
         if ($statusFilter !== 'all' && ! array_key_exists($statusFilter, $statusOptions)) {
             $statusFilter = 'enrolled';
         }
-        // "All Statuses" on this page means every LEDGER-group status (Enrolled
-        // plus all post-enrollment statuses) — NEVER the pre-official ones. A
-        // specific status uses its own mapping; "all" uses the whole group.
-        if ($statusFilter === 'all') {
-            $statusEnrollDb  = EnrollmentStatuses::dbValuesForGroup('ledger');
-            $statusStudentDb = EnrollmentStatuses::studentDbValuesForGroup('ledger');
-        } else {
-            $statusEnrollDb  = EnrollmentStatuses::dbValuesFor($statusFilter);
-            $statusStudentDb = EnrollmentStatuses::studentDbValuesFor($statusFilter);
-        }
+        // Base scope: only students who have reached an official/ledger status.
+        // Candidates match either an enrollment ledger status (se.status) or a
+        // student-level ledger status (st.status). Pre-enrollment rows
+        // (submitted, provisional, pre-enrolled, rejected…) never appear here.
+        // The specific-status narrowing happens in PHP (below) using the SAME
+        // resolution as the displayed pill, so the filter always matches it.
+        $ledgerEnrollDb  = EnrollmentStatuses::dbValuesForGroup('ledger');
+        $ledgerStudentDb = EnrollmentStatuses::studentDbValuesForGroup('ledger');
 
-        // Latest enrollment per student. Student Ledgers ONLY shows students who
-        // have reached an official/ledger status — pre-enrollment rows
-        // (submitted, provisional, pre-enrolled, rejected…) never appear here. A
-        // status can resolve from the enrollment row (se.status) and/or the
-        // student record (st.status), so we OR across both columns.
         $rows = DB::table('students as st')
             ->join('student_enrollments as se', 'se.id', '=', DB::raw(
                 '(select max(id) from student_enrollments where student_id = st.id)'
@@ -83,19 +76,9 @@ class StudentLedgerController extends Controller
             ->leftJoin('terms as t', 't.id', '=', 'se.term_id')
             ->leftJoin('academic_years as ay', 'ay.id', '=', 'se.academic_year_id')
             ->where('st.school_id', $schoolId)
-            ->where(function ($w) use ($statusEnrollDb, $statusStudentDb) {
-                $applied = false;
-                if ($statusEnrollDb) {
-                    $w->orWhereIn('se.status', $statusEnrollDb);
-                    $applied = true;
-                }
-                if ($statusStudentDb) {
-                    $w->orWhereIn('st.status', $statusStudentDb);
-                    $applied = true;
-                }
-                if (! $applied) {
-                    $w->whereRaw('1 = 0');
-                }
+            ->where(function ($w) use ($ledgerEnrollDb, $ledgerStudentDb) {
+                $w->whereIn('se.status', $ledgerEnrollDb)
+                  ->orWhereIn('st.status', $ledgerStudentDb);
             })
             ->orderBy('st.last_name')
             ->orderBy('st.first_name')
@@ -139,13 +122,22 @@ class StudentLedgerController extends Controller
                 $r->first_name, $r->middle_name, $r->last_name,
             ]))) ?: '—';
 
+            // Resolve the taxonomy status once — used for the pill, the PHP
+            // status filter, and the Change-Status modal's current selection.
+            $statusKey = EnrollmentStatuses::resolveKey(
+                $r->student_status ?? null,
+                $r->enrollment_status ?? null
+            ) ?? 'enrolled';
+
             return (object) [
                 'root'               => $rootLevelId,
                 'year_level'         => $r->year_level,
                 'academic_year_id'   => $r->academic_year_id,
                 'academic_year_name' => $r->academic_year_name,
                 'program_id'         => $r->program_id,
+                'status_key'         => $statusKey,
                 'display'            => (object) [
+                    'id'          => $r->student_id,
                     'full_name'   => $fullName,
                     'student_id'  => $r->student_number ?? '—',
                     'email'       => $r->email ?? '—',
@@ -154,10 +146,18 @@ class StudentLedgerController extends Controller
                     'enrolled_at' => $r->enrolled_at
                         ? \Carbon\Carbon::parse($r->enrolled_at)->format('M d, Y')
                         : '—',
-                    'status'      => EnrollmentStatuses::pillFor($r->student_status ?? null, $r->enrollment_status ?? null),
+                    'status'      => EnrollmentStatuses::pill($statusKey),
+                    'status_key'  => $statusKey,
                 ],
             ];
         });
+
+        // Narrow to the selected status using the SAME resolution as the pill, so
+        // "Enrolled" never includes a student already moved to Graduated / On
+        // Leave / Dropped / etc.
+        if ($statusFilter !== 'all') {
+            $items = $items->filter(fn ($i) => $i->status_key === $statusFilter)->values();
+        }
 
         // Tab counts = total enrolled per level (independent of the filters).
         $counts = $items->groupBy(fn ($i) => $i->root ?? 0)->map->count();
@@ -217,6 +217,22 @@ class StudentLedgerController extends Controller
                 return $i->display;
             })
             ->values();
+
+        // Lookup for the Change-Status modal: student db id => name + current key.
+        $ledgerStudents = $finalRows->mapWithKeys(fn ($r) => [
+            (int) ($r->id ?? 0) => ['name' => $r->full_name ?? '', 'status' => $r->status_key ?? 'enrolled'],
+        ])->all();
+
+        // Per-row action — opens the Change Status modal so the registrar can move
+        // a student to Graduated / On Leave / Dropped / etc.
+        $actions = [[
+            'type'    => 'js',
+            'name'    => 'change-status',
+            'label'   => 'Change Status',
+            'handler' => 'openChangeStatusModal',
+            'icon'    => 'refresh-cw',
+            'class'   => 'text-indigo-600 hover:bg-indigo-50',
+        ]];
 
         // Columns: Basic Education hides the redundant Program column and the
         // Year/Term header reads "Grade Level".
@@ -305,10 +321,35 @@ class StudentLedgerController extends Controller
             'showProgramFilter'  => $showProgramFilter,
             'statusOptions'      => $statusOptions,
             'statusFilter'       => $statusFilter,
+            'actions'            => $actions,
+            'ledgerStudents'     => $ledgerStudents,
             'tableEmptyMessage'  => $tableEmptyMessage,
             'importAcademicYears'  => $importAcademicYears,
             'showImportTermNumber' => $showImportTermNumber,
         ]);
+    }
+
+    /**
+     * Change a student's lifecycle status from a Student Ledgers row action.
+     * Writes the canonical students.status for the chosen ledger status (e.g.
+     * Graduated, On Leave, Dropped); "Enrolled" resets it to "active".
+     */
+    public function updateStatus(Request $request, Student $student)
+    {
+        abort_unless((int) $student->school_id === (int) auth()->user()->school_id, 403);
+
+        $options = EnrollmentStatuses::options('ledger');
+        $validated = $request->validate([
+            'status' => ['required', 'string', 'in:'.implode(',', array_keys($options))],
+        ]);
+
+        $student->forceFill([
+            'status' => EnrollmentStatuses::studentStatusToSet($validated['status']),
+        ])->save();
+
+        $name = trim($student->first_name.' '.$student->last_name) ?: 'Student';
+
+        return back()->with('success', "{$name}'s status set to {$options[$validated['status']]}.");
     }
 
     public function import(Request $request)

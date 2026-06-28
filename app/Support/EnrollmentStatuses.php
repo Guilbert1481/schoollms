@@ -158,6 +158,21 @@ final class EnrollmentStatuses
         return array_values(array_unique($vals));
     }
 
+    /**
+     * The canonical students.status value to WRITE when a registrar sets a
+     * ledger status. "Enrolled" has no student-level value, so it resets the
+     * student to the neutral "active" state (the pill then resolves from the
+     * still-enrolled enrollment). Every other status uses its first sdb value.
+     */
+    public static function studentStatusToSet(string $key): string
+    {
+        if ($key === 'enrolled') {
+            return 'active';
+        }
+
+        return self::STATUSES[$key]['sdb'][0] ?? 'active';
+    }
+
     /** Reverse lookup: enrollment status string -> taxonomy key. */
     public static function keyForDb(?string $dbStatus): ?string
     {

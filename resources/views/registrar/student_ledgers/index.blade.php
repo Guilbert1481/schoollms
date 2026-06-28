@@ -51,7 +51,7 @@
         tableKey="student_ledgers"
         :columns="$columns"
         :data="$rows->values()"
-        :hideActions="true"
+        :actions="$actions"
         perPage="20"
         :emptyMessage="$tableEmptyMessage"
     >
@@ -200,7 +200,79 @@
     </div>
 </div>
 
+{{-- Change Status modal --}}
+<div id="changeStatusModal"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4"
+     onclick="if(event.target === this) closeChangeStatusModal()">
+    <div class="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4">
+            <div>
+                <h2 class="text-lg font-black text-slate-900">Change Student Status</h2>
+                <p class="text-xs text-slate-500" id="changeStatusName">—</p>
+            </div>
+            <button type="button" onclick="closeChangeStatusModal()" class="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700">
+                <i data-lucide="x" class="h-5 w-5"></i>
+            </button>
+        </div>
+
+        <form id="changeStatusForm" method="POST" class="space-y-4 px-5 py-5">
+            @csrf
+            @method('PATCH')
+            <div>
+                <label for="changeStatusSelect" class="mb-1 block text-sm font-semibold text-slate-700">Status</label>
+                <select id="changeStatusSelect" name="status" required
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                    @foreach($statusOptions as $sKey => $sLabel)
+                        <option value="{{ $sKey }}">{{ $sLabel }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-slate-500">
+                    Moves the student to the selected lifecycle status (e.g. Graduated, On Leave, Dropped).
+                    Choose “Enrolled” to restore an active student.
+                </p>
+            </div>
+            <div class="flex justify-end gap-2 border-t border-slate-100 pt-4">
+                <button type="button" onclick="closeChangeStatusModal()"
+                        class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700">
+                    <i data-lucide="save" class="h-4 w-4"></i>
+                    Save
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+    // Student lookup for the Change Status modal: { id: { name, status } }.
+    const LEDGER_STUDENTS = @json($ledgerStudents);
+    const LEDGER_STATUS_BASE = @json(url('/registrar/student-ledgers'));
+
+    function openChangeStatusModal(id) {
+        const meta = LEDGER_STUDENTS[id] || {};
+        const form = document.getElementById('changeStatusForm');
+        form.action = LEDGER_STATUS_BASE + '/' + id + '/status';
+        document.getElementById('changeStatusName').textContent = meta.name || '';
+        const sel = document.getElementById('changeStatusSelect');
+        if (meta.status) sel.value = meta.status;
+
+        const modal = document.getElementById('changeStatusModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+        if (window.lucide?.createIcons) window.lucide.createIcons();
+    }
+
+    function closeChangeStatusModal() {
+        const modal = document.getElementById('changeStatusModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+
     // Navigate with an updated query param, preserving the others (level, etc.).
     function ledgerApplyFilter(key, value) {
         const url = new URL(window.location.href);
@@ -246,7 +318,10 @@
     });
 
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') closeStudentImportModal();
+        if (event.key === 'Escape') {
+            closeStudentImportModal();
+            closeChangeStatusModal();
+        }
     });
 </script>
 @endsection
