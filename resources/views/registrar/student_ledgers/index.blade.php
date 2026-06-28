@@ -103,11 +103,12 @@
             </a>
         @endif
 
+        @php $importDisabled = $importTerms->isEmpty() && $importAcademicYears->isEmpty(); @endphp
         <button type="button"
                 onclick="openStudentImportModal()"
-                @disabled($importTerms->isEmpty())
+                @disabled($importDisabled)
                 class="inline-flex items-center gap-2 rounded border px-3 py-2 text-sm font-semibold transition
-                       {{ $importTerms->isEmpty()
+                       {{ $importDisabled
                             ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
                             : 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700' }}">
             <i data-lucide="upload" class="h-4 w-4"></i>
@@ -141,13 +142,37 @@
                 <select id="import_term_id"
                         name="term_id"
                         required
+                        onchange="toggleImportOthers()"
                         class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
                     @foreach($importTerms as $term)
                         <option value="{{ $term->id }}" @selected($term->is_current)>
                             {{ $term->academic_year_name ? $term->academic_year_name.' - ' : '' }}{{ $term->name }}
                         </option>
                     @endforeach
+                    <option value="others">Others — specify academic year{{ $showImportTermNumber ? ' & term' : '' }}…</option>
                 </select>
+            </div>
+
+            {{-- Shown only when "Others" is selected: bypasses the term list. --}}
+            <div id="importOthersFields" class="hidden space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div>
+                    <label for="import_academic_year_id" class="mb-1 block text-sm font-semibold text-slate-700">Academic Year</label>
+                    <select id="import_academic_year_id"
+                            name="academic_year_id"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                        <option value="">Select academic year</option>
+                        @foreach($importAcademicYears as $ay)
+                            <option value="{{ $ay->id }}">{{ $ay->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                @if($showImportTermNumber)
+                    <div>
+                        <label for="import_term_number" class="mb-1 block text-sm font-semibold text-slate-700">Term</label>
+                        <x-forms.term-select id="import_term_number" name="term_number" placeholder="Select term" />
+                    </div>
+                @endif
             </div>
 
             <div>
@@ -191,11 +216,25 @@
         window.location = url.toString();
     }
 
+    // Toggle the "Others" fields (academic year / term) when the term
+    // dropdown is set to "Others"; bypasses the normal term selection.
+    function toggleImportOthers() {
+        const select = document.getElementById('import_term_id');
+        const others = document.getElementById('importOthersFields');
+        const ay = document.getElementById('import_academic_year_id');
+        if (!select || !others) return;
+
+        const isOthers = select.value === 'others';
+        others.classList.toggle('hidden', !isOthers);
+        if (ay) ay.required = isOthers;
+    }
+
     function openStudentImportModal() {
         const modal = document.getElementById('studentImportModal');
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         document.body.style.overflow = 'hidden';
+        toggleImportOthers();
         if (window.lucide?.createIcons) window.lucide.createIcons();
     }
 

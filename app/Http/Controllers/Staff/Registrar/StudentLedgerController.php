@@ -195,6 +195,17 @@ class StudentLedgerController extends Controller
                 'ay.name as academic_year_name',
             ]);
 
+        // For the import "Others" path: the academic years the term/AY can be
+        // attached to, and whether a higher-ed term number should be requested
+        // (true when the school offers any non-Basic-Education level).
+        $importAcademicYears = DB::table('academic_years')
+            ->where('school_id', $schoolId)
+            ->orderByDesc('start_date')
+            ->get(['id', 'name']);
+
+        $showImportTermNumber = $levels
+            ->contains(fn ($l) => ! str_contains(strtolower((string) $l->name), 'basic'));
+
         return view('registrar.student_ledgers.index', [
             'columns'            => $columns,
             'levels'             => $levels,
@@ -211,21 +222,46 @@ class StudentLedgerController extends Controller
             'academicYearId'     => $academicYearId,
             'yearLevel'          => $yearLevelFilter,
             'activeLevelIsBasic' => $activeLevelIsBasic,
+            'importAcademicYears'  => $importAcademicYears,
+            'showImportTermNumber' => $showImportTermNumber,
         ]);
     }
 
     public function import(Request $request)
     {
-        $schoolId = auth()->user()->school_id;
+        $schoolId = (int) auth()->user()->school_id;
 
-        $validated = $request->validate([
-            'term_id' => ['required', 'integer'],
-            'file'    => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
-        ]);
+        // "Others" bypasses the term list: the importer specifies an academic
+        // year (and, for higher-ed, a term number) instead.
+        $isOthers = $request->input('term_id') === 'others';
 
-        $term = Term::query()
-            ->where('school_id', $schoolId)
-            ->findOrFail((int) $validated['term_id']);
+        $rules = [
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+        ];
+        if ($isOthers) {
+            $rules['term_id']          = ['required', 'in:others'];
+            $rules['academic_year_id'] = ['required', 'integer'];
+            $rules['term_number']      = ['nullable', 'in:1,2,3'];
+        } else {
+            $rules['term_id'] = ['required', 'integer'];
+        }
+        $validated = $request->validate($rules);
+
+        if ($isOthers) {
+            $term = $this->resolveImportTerm(
+                $schoolId,
+                (int) $validated['academic_year_id'],
+                $request->input('term_number'),
+            );
+
+            if (! $term) {
+                return back()->with('error', 'The selected academic year could not be found. Please pick a valid academic year.');
+            }
+        } else {
+            $term = Term::query()
+                ->where('school_id', $schoolId)
+                ->findOrFail((int) $validated['term_id']);
+        }
 
         if (! $term->academic_year_id) {
             return back()->with('error', 'The selected term is missing an academic year. Please fix the term setup before importing.');
@@ -262,6 +298,63 @@ class StudentLedgerController extends Controller
         return back()
             ->with('success', "Import finished. {$created} created, {$updated} updated, {$skipped} skipped.")
             ->with('import_errors', array_slice($errors, 0, 20));
+    }
+
+    /**
+     * Resolve the Term for the "Others" import path: find-or-create a term
+     * under the chosen academic year. A term number produces a higher-ed
+     * numbered term; otherwise a Basic-Education enrolment term.
+     */
+    protected function resolveImportTerm(int $schoolId, int $academicYearId, ?string $termNumber): ?Term
+    {
+        $ay = DB::table('academic_years')
+            ->where('school_id', $schoolId)
+            ->where('id', $academicYearId)
+            ->first();
+
+        if (! $ay) {
+            return null;
+        }
+
+        if ($termNumber) {
+            return Term::firstOrCreate(
+                [
+                    'school_id'        => $schoolId,
+                    'academic_year_id' => $academicYearId,
+                    'term'             => 'Term '.$termNumber,
+                ],
+                [
+                    'education_level' => 'higher_ed',
+                    'enrollment_type' => 'regular',
+                    'academic_year'   => mb_substr((string) $ay->name, 0, 20),
+                    'name'            => 'Term '.$termNumber.' ('.$ay->name.')',
+                    'title'           => 'Term '.$termNumber,
+                    'start_date'      => $ay->start_date ?? null,
+                    'end_date'        => $ay->end_date ?? null,
+                    'status'          => 'active',
+                    'is_active'       => 1,
+                ]
+            );
+        }
+
+        return Term::firstOrCreate(
+            [
+                'school_id'        => $schoolId,
+                'academic_year_id' => $academicYearId,
+                'term'             => 'Enrollment',
+            ],
+            [
+                'education_level' => 'basic_ed',
+                'enrollment_type' => 'regular',
+                'academic_year'   => mb_substr((string) $ay->name, 0, 20),
+                'name'            => 'Basic Ed ('.$ay->name.')',
+                'title'           => 'Basic Ed',
+                'start_date'      => $ay->start_date ?? null,
+                'end_date'        => $ay->end_date ?? null,
+                'status'          => 'active',
+                'is_active'       => 1,
+            ]
+        );
     }
 
     /**
