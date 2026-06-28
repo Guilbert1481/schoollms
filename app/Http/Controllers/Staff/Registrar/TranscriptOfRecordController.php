@@ -168,7 +168,8 @@ class TranscriptOfRecordController extends Controller
      */
     protected function programLabel(StudentEnrollment $e, array $nodeToRoot): string
     {
-        $label = $e->program?->name
+        $label = $e->program?->code
+            ?? $e->program?->name
             ?? $e->educationNode?->name
             ?? '—';
 
@@ -222,7 +223,7 @@ class TranscriptOfRecordController extends Controller
             ->first();
 
         $programLabel = $latestEnrollment?->program
-            ? trim(($latestEnrollment->program->code ?? '').' '.$latestEnrollment->program->name)
+            ? ($latestEnrollment->program->code ?: $latestEnrollment->program->name)
             : '—';
 
         // Detect if the student is a transferee or a shifter. Transferees are

@@ -37,7 +37,7 @@
                     <select name="subject_id" required class="w-full border rounded-lg px-2 py-2">
                         <option value="">—</option>
                         @foreach($subjects as $sub)
-                            <option value="{{ $sub->id }}">{{ $sub->code }} — {{ $sub->title }} ({{ $sub->units }}u)</option>
+                            <option value="{{ $sub->id }}" title="{{ $sub->title }}">{{ $sub->code }} ({{ $sub->units }}u)</option>
                         @endforeach
                     </select>
                 </div>
@@ -127,8 +127,7 @@
                                 {{ optional($ev->student)->last_name }}, {{ optional($ev->student)->first_name }}
                             </td>
                             <td class="px-3 py-2 text-xs">
-                                <span class="font-bold">{{ optional($ev->subject)->code }}</span><br>
-                                {{ optional($ev->subject)->title }}
+                                <span class="font-bold" title="{{ optional($ev->subject)->title }}">{{ optional($ev->subject)->code }}</span>
                             </td>
                             <td class="px-3 py-2 text-xs">
                                 {{ $ev->source_subject_code }} {{ $ev->source_subject_title ? '— ' . $ev->source_subject_title : '' }}
