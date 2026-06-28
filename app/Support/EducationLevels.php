@@ -70,6 +70,47 @@ class EducationLevels
     }
 
     /**
+     * Year levels offered anywhere under a higher-education level's subtree, as
+     * [yearLevel => label], e.g. ['1' => 'Year 1', … '4' => 'Year 4']. Numbers
+     * are read from node names like "Year 1" / "year 4" (deduped + sorted), so
+     * every year level set in the education tree appears whether or not any
+     * student is enrolled in it. Returns [] when the level defines no year nodes.
+     */
+    public static function yearLevelOptions(int $rootId): array
+    {
+        if ($rootId <= 0) {
+            return [];
+        }
+
+        $all = DB::table('education_nodes')
+            ->where('is_active', 1)
+            ->get(['id', 'name', 'parent_id', 'is_offered'])
+            ->keyBy('id');
+
+        $years = [];
+        foreach ($all as $node) {
+            if (! $node->is_offered) {
+                continue;
+            }
+            if (! self::descendsFrom((int) $node->id, $rootId, $all)) {
+                continue;
+            }
+            if (preg_match('/year\s*(\d+)/i', (string) $node->name, $m)) {
+                $years[(int) $m[1]] = true;
+            }
+        }
+
+        ksort($years);
+
+        $options = [];
+        foreach (array_keys($years) as $y) {
+            $options[(string) $y] = 'Year '.$y;
+        }
+
+        return $options;
+    }
+
+    /**
      * Map of every education_node id => its top-level root id, so an enrollment
      * (via education_node_id or its program's node) can be bucketed by level.
      *

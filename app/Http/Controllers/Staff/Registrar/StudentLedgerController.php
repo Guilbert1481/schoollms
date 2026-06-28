@@ -187,17 +187,27 @@ class StudentLedgerController extends Controller
             ? $scoped->filter(fn ($i) => (int) $i->academic_year_id === $academicYearId)->values()
             : $scoped;
 
-        // Grade / Year-level filter options. Basic Education lists every grade
-        // offered in the education-structure tree (even with no students yet);
-        // other levels list the year levels present in the data.
-        $yearLevelOptions = $activeLevelIsBasic
-            ? EducationLevels::basicGradeOptions()
-            : $afterAy
-                ->filter(fn ($i) => $i->year_level !== null && $i->year_level !== '')
-                ->unique('year_level')
-                ->sortBy('year_level')
-                ->mapWithKeys(fn ($i) => [(string) $i->year_level => 'Year '.(int) $i->year_level])
-                ->all();
+        // Grade / Year-level filter options, sourced from the education tree so
+        // every level/year ticked there appears (even with no students yet):
+        //  - Basic Education  -> all "Grade N" nodes
+        //  - a higher-ed tab  -> all "Year N" nodes set under that level
+        //  - All Levels (mix) -> whatever year levels are present in the data
+        $dataYearLevels = fn () => $afterAy
+            ->filter(fn ($i) => $i->year_level !== null && $i->year_level !== '')
+            ->mapWithKeys(fn ($i) => [(string) (int) $i->year_level => 'Year '.(int) $i->year_level])
+            ->all();
+
+        if ($activeLevelIsBasic) {
+            $yearLevelOptions = EducationLevels::basicGradeOptions();
+        } elseif (! $showAll && $activeLevelId > 0) {
+            // Tree-defined year levels, unioned with any present in the data as a
+            // safety net (so a student's actual year always shows).
+            $yearLevelOptions = EducationLevels::yearLevelOptions($activeLevelId) + $dataYearLevels();
+            ksort($yearLevelOptions, SORT_NUMERIC);
+        } else {
+            $yearLevelOptions = $dataYearLevels();
+            ksort($yearLevelOptions, SORT_NUMERIC);
+        }
 
         // Final display rows. In a Basic-Education view the Grade Level cell is
         // forced to "Grade N" (no higher-ed term/semester text), regardless of
