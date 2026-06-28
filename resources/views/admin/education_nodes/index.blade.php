@@ -132,6 +132,65 @@
             </div>
         </div>
     </div>
+
+    {{-- ADD PROGRAM MODAL (creates a row in the `programs` table) --}}
+    <div id="programModal" class="hidden fixed inset-0 bg-black/40 items-center justify-center z-50"
+         data-action="program-backdrop">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5" data-modal-box>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-slate-900">Add Program</h3>
+                <button type="button" data-action="close-program" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            <div class="space-y-3">
+                <p class="text-xs text-slate-500">Under <span class="font-semibold text-slate-700" id="programParentName">—</span></p>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Program Code <span class="text-red-500">*</span></label>
+                    <input type="text" id="progCode" placeholder="e.g. BSED - Math"
+                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Program Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="progName" placeholder="e.g. Bachelor of Secondary Education major in Mathematics"
+                           class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">College <span class="text-red-500">*</span></label>
+                    <select id="progCollege"
+                            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white">
+                        @foreach ($colleges as $c)
+                            <option value="{{ $c->id }}">{{ $c->name }}</option>
+                        @endforeach
+                    </select>
+                    <button type="button" data-action="toggle-add-college"
+                            class="mt-1 text-xs font-semibold text-indigo-600 hover:underline">+ New college</button>
+
+                    {{-- Inline college creation — auto-shown when the school has no college yet. --}}
+                    <div id="addCollegeRow" class="mt-2 hidden space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <p class="text-xs text-slate-500">No college yet — add one to attach this program to.</p>
+                        <input type="text" id="newCollegeCode" placeholder="College code (e.g. CTE)"
+                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                        <input type="text" id="newCollegeName" placeholder="College name (e.g. College of Teacher Education)"
+                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                        <button type="button" data-action="save-college"
+                                class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700">
+                            Add College
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-5">
+                <button type="button" data-action="close-program"
+                        class="px-4 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Cancel</button>
+                <button type="button" data-action="save-program"
+                        class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700">Save</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -145,6 +204,16 @@
     const nameInp    = document.getElementById('nameInput');
     const typeInp    = document.getElementById('nodeTypeInput');
     const orderInp   = document.getElementById('orderInput');
+
+    // Add Program modal elements.
+    const progModal      = document.getElementById('programModal');
+    const progCodeInp    = document.getElementById('progCode');
+    const progNameInp    = document.getElementById('progName');
+    const progCollege    = document.getElementById('progCollege');
+    const progParentEl   = document.getElementById('programParentName');
+    const addCollegeRow  = document.getElementById('addCollegeRow');
+    const newCollegeCode = document.getElementById('newCollegeCode');
+    const newCollegeName = document.getElementById('newCollegeName');
 
     let state = { isEdit: false, editingId: null, programCode: '' };
 
@@ -266,6 +335,63 @@
         catch (e) { console.error(e); alert('Failed to delete program.'); }
     }
 
+    // Pull a human-readable message out of a thrown req() error (its message is
+    // the raw JSON response body).
+    function errMessage(e, fallback) {
+        try {
+            const j = JSON.parse(e.message);
+            if (j.message) return j.message;
+            if (j.errors) return Object.values(j.errors)[0][0];
+        } catch (_) {}
+        return fallback;
+    }
+
+    function openAddProgram(nodeId, nodeName) {
+        progModal.dataset.nodeId = String(nodeId);
+        progParentEl.textContent = nodeName || '';
+        progCodeInp.value = '';
+        progNameInp.value = '';
+        // No colleges yet? Force the inline "add college" open so the program
+        // has something to attach to.
+        addCollegeRow.classList.toggle('hidden', progCollege.options.length > 0);
+        progModal.classList.remove('hidden');
+        progModal.classList.add('flex');
+    }
+    function closeAddProgram() {
+        progModal.classList.add('hidden');
+        progModal.classList.remove('flex');
+    }
+    async function saveProgram() {
+        const code = progCodeInp.value.trim();
+        const name = progNameInp.value.trim();
+        const collegeId = progCollege.value ? parseInt(progCollege.value, 10) : null;
+        const nodeId = parseInt(progModal.dataset.nodeId, 10);
+        if (!code || !name) { alert('Program code and name are required.'); return; }
+        if (!collegeId)     { alert('Please select or add a college first.'); return; }
+        try {
+            await req(progBase, 'POST', {
+                code, name, college_id: collegeId, education_node_id: nodeId,
+            });
+            location.reload();
+        } catch (e) { console.error(e); alert(errMessage(e, 'Failed to add program.')); }
+    }
+    async function saveCollege() {
+        const code = newCollegeCode.value.trim();
+        const name = newCollegeName.value.trim();
+        if (!code || !name) { alert('College code and name are required.'); return; }
+        try {
+            const res = await req(`${base}/colleges`, 'POST', { code, name });
+            const opt = document.createElement('option');
+            opt.value = res.college.id;
+            opt.textContent = res.college.name;
+            progCollege.appendChild(opt);
+            progCollege.value = res.college.id;
+            addCollegeRow.classList.add('hidden');
+            newCollegeCode.value = '';
+            newCollegeName.value = '';
+        } catch (e) { console.error(e); alert(errMessage(e, 'Failed to add college.')); }
+    }
+
     function expandAll() {
         document.querySelectorAll('[data-tree-children]').forEach(el => el.classList.remove('hidden'));
         document.querySelectorAll('button[data-tree-toggle]').forEach(el => {
@@ -294,12 +420,19 @@
             case 'delete-program': destroyProgram(parseInt(btn.dataset.id, 10)); break;
             case 'expand-all':     expandAll(); break;
             case 'collapse-all':   collapseAll(); break;
-            case 'add-root':       openCreate(null, null); break;
+            case 'add-program':    openAddProgram(parseInt(btn.dataset.nodeId, 10), btn.dataset.nodeName); break;
+            case 'close-program':  closeAddProgram(); break;
+            case 'save-program':   saveProgram(); break;
+            case 'save-college':   saveCollege(); break;
+            case 'toggle-add-college': addCollegeRow.classList.toggle('hidden'); break;
             case 'close-modal':    closeModal(); break;
             case 'save':           save(); break;
             case 'modal-backdrop':
                 // Only close if the click landed on the backdrop itself (not the box).
                 if (e.target === btn) closeModal();
+                break;
+            case 'program-backdrop':
+                if (e.target === btn) closeAddProgram();
                 break;
         }
     });
@@ -315,9 +448,11 @@
         }
     });
 
-    // Esc closes modal.
+    // Esc closes whichever modal is open.
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+        if (e.key !== 'Escape') return;
+        if (!modal.classList.contains('hidden')) closeModal();
+        if (!progModal.classList.contains('hidden')) closeAddProgram();
     });
 })();
 

@@ -15,6 +15,12 @@ Route::middleware(['web', 'auth', 'role:admin,superadmin'])
         Route::post('/{education_node}/toggle-offered', [EducationNodeController::class, 'toggleOffered'])
             ->name('toggle-offered');
 
+        // Create a program / college FROM the tree (reverse creation flow).
+        Route::post('/programs', [EducationNodeController::class, 'storeProgram'])
+            ->name('programs.store');
+        Route::post('/colleges', [EducationNodeController::class, 'storeCollege'])
+            ->name('colleges.store');
+
         // Program proxy actions (mirror the same UX inside the tree).
         Route::post('/programs/{program}/toggle-offered', [EducationNodeController::class, 'toggleProgramActive'])
             ->name('programs.toggle-offered');
