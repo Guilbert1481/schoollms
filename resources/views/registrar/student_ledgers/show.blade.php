@@ -40,15 +40,17 @@
 
                 {{-- Fields (single row on wide screens) --}}
                 @php
-                    $fields = [
+                    // LRN is a Basic-Education (DepEd) field; hide it for higher-ed.
+                    // Grade vs Year follows the student's level.
+                    $fields = array_values(array_filter([
                         ['Student ID',          $header['student_id'],    true],
-                        ['LRN',                 $header['lrn'],           false],
+                        $header['is_basic'] ? ['LRN', $header['lrn'], false] : null,
                         ['Date of Birth',       $header['date_of_birth'], false],
                         ['Gender',              $header['gender'],        false],
-                        ['Current Grade Level', $header['grade_level'],   false],
+                        [$header['is_basic'] ? 'Current Grade Level' : 'Current Year Level', $header['grade_level'], false],
                         ['Section',             $header['section'],       false],
                         ['Academic Year',       $header['academic_year'], false],
-                    ];
+                    ]));
                 @endphp
                 <div class="sl-id-fields">
                     @foreach($fields as [$label, $value, $accent])

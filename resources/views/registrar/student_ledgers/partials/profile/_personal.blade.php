@@ -5,6 +5,7 @@
     </div>
 
     @php
+        $isBasic = $header['is_basic'] ?? true;
         $left = [
             ['Full Name', $profile['full_name']],
             ['Date of Birth', $profile['date_of_birth']],
@@ -13,17 +14,18 @@
             ['Nationality', $profile['nationality']],
             ['Religion', $profile['religion']],
             ['Blood Type', $profile['blood_type']],
-            ['Email Address', $profile['email']],
         ];
-        $right = [
-            ['LRN', $profile['lrn'], false],
+        // LRN only for Basic Education; "Grade" vs "Year" follows the level.
+        // Email Address now lives in the Contact Information table.
+        $right = array_values(array_filter([
+            $isBasic ? ['LRN', $profile['lrn'], false] : null,
             ['Student ID', $profile['student_id'], true],
-            ['Current Grade Level', $profile['grade_level'], false],
+            [$isBasic ? 'Current Grade Level' : 'Current Year Level', $profile['grade_level'], false],
             ['Section', $profile['section'], false],
             ['Academic Year', $profile['academic_year'], false],
             ['Status', $profile['status'], false],
             ['Date of Registration', $profile['date_of_registration'], false],
-        ];
+        ]));
     @endphp
 
     <div class="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">

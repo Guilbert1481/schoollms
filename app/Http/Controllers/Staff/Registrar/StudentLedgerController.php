@@ -342,6 +342,7 @@ class StudentLedgerController extends Controller
         $header = [
             'name'          => $name,
             'photo'         => $student->photo_path ?: null,
+            'is_basic'      => (bool) $isBasic,
             'status_key'    => EnrollmentStatuses::resolveKey($student->status ?? null, $enr->enrollment_status ?? null),
             'student_id'    => $dash($student->student_number),
             'lrn'           => $dash($student->lrn),
