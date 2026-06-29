@@ -1,6 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    /* Header field row — responsive without relying on Tailwind's lg:grid-cols-7. */
+    .sl-id-fields { display: grid; gap: 0.75rem 1.5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (min-width: 640px)  { .sl-id-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    @media (min-width: 1024px) { .sl-id-fields { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+</style>
 <div class="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
 
     {{-- Back link --}}
@@ -44,7 +50,7 @@
                         ['Academic Year',       $header['academic_year'], false],
                     ];
                 @endphp
-                <div class="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4 lg:grid-cols-7">
+                <div class="sl-id-fields">
                     @foreach($fields as [$label, $value, $accent])
                         <div class="min-w-0">
                             <div class="text-[11px] font-semibold text-indigo-500">{{ $label }}</div>

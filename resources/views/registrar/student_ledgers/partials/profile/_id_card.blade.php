@@ -14,7 +14,8 @@
     <div x-data="{ side: 'front' }" class="flex flex-col items-center">
         {{-- FRONT --}}
         <div x-show="side === 'front'"
-             class="w-full {{ $landscape ? 'max-w-md' : 'max-w-[230px]' }} rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm">
+             class="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm"
+             style="max-width: {{ $landscape ? '28rem' : '230px' }};">
             <div class="mb-3 text-center text-[10px] font-bold uppercase tracking-wide text-slate-500">{{ $idCard['school_name'] }}</div>
 
             @if($landscape)
@@ -47,13 +48,14 @@
                 </div>
             @endif
 
-            <div class="mt-3 text-center font-mono text-xs tracking-[0.25em] text-slate-700">{{ $idCard['barcode'] }}</div>
+            <div class="mt-3 text-center font-mono text-xs text-slate-700" style="letter-spacing: 0.25em;">{{ $idCard['barcode'] }}</div>
         </div>
 
         {{-- BACK --}}
         @if($idCard['show_back'])
             <div x-show="side === 'back'" x-cloak
-                 class="flex w-full {{ $landscape ? 'h-40 max-w-md' : 'h-72 max-w-[230px]' }} items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-xs text-slate-400">
+                 class="flex w-full items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-xs text-slate-400"
+                 style="max-width: {{ $landscape ? '28rem' : '230px' }}; height: {{ $landscape ? '10rem' : '18rem' }};">
                 Back of ID — to be designed in the ID builder.
             </div>
         @endif

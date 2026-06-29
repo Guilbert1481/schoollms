@@ -1,34 +1,43 @@
 {{-- Profile tab. Layout depends on the Student ID orientation:
      portrait  -> 3 columns (Personal/Contact/Parents | ID | Quick/Emergency)
-     landscape -> 2 columns (Personal/Contact/Parents | ID + Quick + Emergency) --}}
+     landscape -> 2 columns (Personal/Contact/Parents | ID + Quick + Emergency)
+     Uses plain CSS (not Tailwind grid utilities) so the multi-column layout
+     renders even if the Tailwind build hasn't compiled those exact classes. --}}
 @php $landscape = ($idCard['orientation'] ?? 'portrait') === 'landscape'; @endphp
 
-@if($landscape)
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div class="space-y-6 lg:col-span-7">
+<style>
+    .sl-profile { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1fr); align-items: start; }
+    .sl-profile__col { display: flex; flex-direction: column; gap: 1.5rem; min-width: 0; }
+    @media (min-width: 1024px) {
+        .sl-profile--portrait  { grid-template-columns: minmax(0, 1.85fr) minmax(0, 1.15fr) minmax(0, 1fr); }
+        .sl-profile--landscape { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+    }
+</style>
+
+<div class="sl-profile {{ $landscape ? 'sl-profile--landscape' : 'sl-profile--portrait' }}">
+    @if($landscape)
+        <div class="sl-profile__col">
             @include('registrar.student_ledgers.partials.profile._personal')
             @include('registrar.student_ledgers.partials.profile._contact')
             @include('registrar.student_ledgers.partials.profile._parents')
         </div>
-        <div class="space-y-6 lg:col-span-5">
+        <div class="sl-profile__col">
             @include('registrar.student_ledgers.partials.profile._id_card')
             @include('registrar.student_ledgers.partials.profile._quick')
             @include('registrar.student_ledgers.partials.profile._emergency')
         </div>
-    </div>
-@else
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div class="space-y-6 lg:col-span-6">
+    @else
+        <div class="sl-profile__col">
             @include('registrar.student_ledgers.partials.profile._personal')
             @include('registrar.student_ledgers.partials.profile._contact')
             @include('registrar.student_ledgers.partials.profile._parents')
         </div>
-        <div class="lg:col-span-3">
+        <div class="sl-profile__col">
             @include('registrar.student_ledgers.partials.profile._id_card')
         </div>
-        <div class="space-y-6 lg:col-span-3">
+        <div class="sl-profile__col">
             @include('registrar.student_ledgers.partials.profile._quick')
             @include('registrar.student_ledgers.partials.profile._emergency')
         </div>
-    </div>
-@endif
+    @endif
+</div>
