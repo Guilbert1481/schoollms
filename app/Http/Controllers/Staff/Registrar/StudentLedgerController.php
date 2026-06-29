@@ -735,12 +735,18 @@ class StudentLedgerController extends Controller
     {
         $schoolId = (int) auth()->user()->school_id;
 
+        // The education-level tab being imported into. Used as the enrollment's
+        // education level so imported students appear under that tab — Basic
+        // Education grades have no program to infer the level from.
+        $levelNodeId = (int) $request->input('level') ?: null;
+
         // "Others" bypasses the term list: the importer specifies an academic
         // year (and, for higher-ed, a term number) instead.
         $isOthers = $request->input('term_id') === 'others';
 
         $rules = [
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'file'  => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'level' => ['nullable', 'integer'],
         ];
         if ($isOthers) {
             $rules['term_id']       = ['required', 'in:others'];
@@ -782,8 +788,8 @@ class StudentLedgerController extends Controller
             $line = $index + 2;
 
             try {
-                $result = DB::transaction(function () use ($row, $schoolId, $term) {
-                    return $this->importStudentRow($row, (int) $schoolId, $term);
+                $result = DB::transaction(function () use ($row, $schoolId, $term, $levelNodeId) {
+                    return $this->importStudentRow($row, (int) $schoolId, $term, $levelNodeId);
                 });
 
                 if ($result === 'created') {
@@ -934,7 +940,7 @@ class StudentLedgerController extends Controller
         return $rootOf;
     }
 
-    protected function importStudentRow(array $row, int $schoolId, Term $defaultTerm): string
+    protected function importStudentRow(array $row, int $schoolId, Term $defaultTerm, ?int $fallbackNodeId = null): string
     {
         $firstName = trim((string) ($row['first_name'] ?? ''));
         $lastName  = trim((string) ($row['last_name'] ?? ''));
@@ -1081,7 +1087,8 @@ class StudentLedgerController extends Controller
             'academic_year_id'   => $term->academic_year_id,
             'term_id'            => $term->id,
             'program_id'         => $program?->id,
-            'education_node_id'  => (int) ($row['education_node_id'] ?? 0) ?: $program?->education_node_id,
+            'education_node_id'  => (int) ($row['education_node_id'] ?? 0)
+                ?: ($program?->education_node_id ?: $fallbackNodeId),
             'year_level'         => (int) ($row['year_level'] ?? 0) ?: null,
             'student_type'       => $this->clean($row['student_type'] ?? null) ?: 'continuing',
             'enrollee_type'      => $this->clean($row['enrollee_type'] ?? null) ?: 'continuing',

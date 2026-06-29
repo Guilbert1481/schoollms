@@ -159,6 +159,8 @@
               enctype="multipart/form-data"
               class="space-y-4 px-5 py-5">
             @csrf
+            {{-- Import into the active education-level tab (0 = All Levels). --}}
+            <input type="hidden" name="level" value="{{ $activeLevelId }}">
 
             <div>
                 <label for="import_term_id" class="mb-1 block text-sm font-semibold text-slate-700">Term</label>
