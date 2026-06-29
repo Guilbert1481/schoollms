@@ -1,43 +1,42 @@
-{{-- Profile tab. A top row of columns (depends on the Student ID orientation),
-     then Contact Information and Parents / Guardians stretched to full width.
+{{-- Profile tab. A top section (depends on the Student ID orientation), then
+     Contact Information and Parents / Guardians stretched to full width.
      Plain CSS (not Tailwind grid utilities) so the layout renders even if the
      Tailwind build hasn't compiled those exact classes.
-       portrait  -> Personal | Digital ID | Quick/Emergency      (equal-height)
-       landscape -> Personal | (Digital ID, then Emergency|Quick) (natural height) --}}
+       portrait  -> 3 columns: Personal | Digital ID | Quick/Emergency
+       landscape -> 2x2 grid:  Personal | Digital ID
+                               Emergency | Quick --}}
 @php $landscape = ($idCard['orientation'] ?? 'portrait') === 'landscape'; @endphp
 
 <style>
-    .sl-profile { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1fr); }
-    .sl-profile--portrait  { align-items: stretch; }
-    .sl-profile--landscape { align-items: start; }
     .sl-profile__col { display: flex; flex-direction: column; gap: 1.5rem; min-width: 0; }
     .sl-profile-stack { display: flex; flex-direction: column; gap: 1.5rem; margin-top: 1.5rem; }
-    .sl-profile-pair { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1fr); }
+
+    .sl-portrait  { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+    .sl-landscape { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1fr); }
+
     @media (min-width: 1024px) {
-        .sl-profile--portrait  { grid-template-columns: minmax(0, 1.85fr) minmax(0, 1.15fr) minmax(0, 1fr); }
-        .sl-profile--landscape { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
-        /* Portrait: equal-height columns; the last card in each fills the
-           remaining space so the column bottoms line up. */
-        .sl-profile--portrait .sl-profile__col > :last-child { flex: 1 1 auto; }
-        /* Landscape: Emergency Contact sits beside Quick Information. */
-        .sl-profile-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+        .sl-portrait  { grid-template-columns: minmax(0, 1.85fr) minmax(0, 1.15fr) minmax(0, 1fr); }
+        /* Portrait: equal-height columns, last card fills so bottoms line up. */
+        .sl-portrait .sl-profile__col > :last-child { flex: 1 1 auto; }
+
+        /* Landscape 2x2: Personal | ID (row 1), Emergency | Quick (row 2).
+           The ID (child 2) stretches to match the tall Personal card and centers
+           its content; the second row keeps natural heights. */
+        .sl-landscape { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: stretch; }
+        .sl-landscape > :nth-child(3),
+        .sl-landscape > :nth-child(4) { align-self: start; }
     }
 </style>
 
-{{-- Top row --}}
-<div class="sl-profile {{ $landscape ? 'sl-profile--landscape' : 'sl-profile--portrait' }}">
-    @if($landscape)
-        <div class="sl-profile__col">
-            @include('registrar.student_ledgers.partials.profile._personal')
-        </div>
-        <div class="sl-profile__col">
-            @include('registrar.student_ledgers.partials.profile._id_card')
-            <div class="sl-profile-pair">
-                @include('registrar.student_ledgers.partials.profile._emergency')
-                @include('registrar.student_ledgers.partials.profile._quick')
-            </div>
-        </div>
-    @else
+@if($landscape)
+    <div class="sl-landscape">
+        @include('registrar.student_ledgers.partials.profile._personal')
+        @include('registrar.student_ledgers.partials.profile._id_card')
+        @include('registrar.student_ledgers.partials.profile._emergency')
+        @include('registrar.student_ledgers.partials.profile._quick')
+    </div>
+@else
+    <div class="sl-portrait">
         <div class="sl-profile__col">
             @include('registrar.student_ledgers.partials.profile._personal')
         </div>
@@ -48,8 +47,8 @@
             @include('registrar.student_ledgers.partials.profile._quick')
             @include('registrar.student_ledgers.partials.profile._emergency')
         </div>
-    @endif
-</div>
+    </div>
+@endif
 
 {{-- Full-width sections --}}
 <div class="sl-profile-stack">
