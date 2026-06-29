@@ -21,7 +21,8 @@
             $isBasic ? ['LRN', $profile['lrn'], false] : null,
             ['Student ID', $profile['student_id'], true],
             [$isBasic ? 'Current Grade Level' : 'Current Year Level', $profile['grade_level'], false],
-            ['Section', $profile['section'], false],
+            // Basic Ed shows Section; higher-ed shows Program.
+            $isBasic ? ['Section', $profile['section'], false] : ['Program', $profile['program'], false],
             ['Academic Year', $profile['academic_year'], false],
             ['Status', $profile['status'], false],
             ['Date of Registration', $profile['date_of_registration'], false],
@@ -45,6 +46,10 @@
                         {!! \App\Support\EnrollmentStatuses::pill($header['status_key']) !!}
                     @else
                         <div class="text-sm font-semibold {{ $accent ? 'text-indigo-600' : 'text-slate-800' }}">{{ $value }}</div>
+                    @endif
+                    {{-- Term/semester under the Academic Year (higher-ed only). --}}
+                    @if($label === 'Academic Year' && ! $isBasic && ($profile['term'] ?? null))
+                        <div class="text-xs text-slate-500">{{ $profile['term'] }}</div>
                     @endif
                 </div>
             @endforeach

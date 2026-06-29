@@ -319,6 +319,8 @@ class StudentLedgerController extends Controller
                 'sec.name as section_name',
                 'ay.name as academic_year_name',
                 't.name as term_name',
+                'p.code as program_code',
+                'p.name as program_name',
                 'p.education_node_id as program_node_id',
             ]);
 
@@ -333,6 +335,15 @@ class StudentLedgerController extends Controller
         $gradeLevel = ($yearLevel !== null && $yearLevel !== '')
             ? (is_numeric($yearLevel) ? ($isBasic ? 'Grade ' : 'Year ').(int) $yearLevel : (string) $yearLevel)
             : '—';
+
+        // Program (higher-ed) and the term/semester with the academic year
+        // stripped off ("2nd Semester 2026-2027" -> "2nd Semester").
+        $programLabel = $enr ? ($enr->program_code ?: ($enr->program_name ?? null)) : null;
+        $termClean = $enr->term_name ?? null;
+        if ($termClean) {
+            $termClean = trim(preg_replace('/\s*\(?\s*(?:A\.?Y\.?\s*)?\d{4}\s*[-\x{2013}]\s*\d{4}\s*\)?/iu', '', $termClean));
+            $termClean = $termClean !== '' ? $termClean : null;
+        }
 
         // Name as "Last, First Middle".
         $firstMid = trim(implode(' ', array_filter([$student->first_name, $student->middle_name])));
@@ -416,7 +427,9 @@ class StudentLedgerController extends Controller
             'student_id'           => $header['student_id'],
             'grade_level'          => $header['grade_level'],
             'section'              => $header['section'],
+            'program'              => $dash($programLabel),
             'academic_year'        => $header['academic_year'],
+            'term'                 => $termClean,
             'status'               => $statusLabel,
             'date_of_registration' => $student->created_at ? \Carbon\Carbon::parse($student->created_at)->format('M d, Y') : '—',
             'home_address'         => $homeAddress !== '' ? $homeAddress : '—',

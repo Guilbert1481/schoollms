@@ -1,12 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-<style>
-    /* Header field row — responsive without relying on Tailwind's lg:grid-cols-7. */
-    .sl-id-fields { display: grid; gap: 0.75rem 1.5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    @media (min-width: 640px)  { .sl-id-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-    @media (min-width: 1024px) { .sl-id-fields { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
-</style>
 <div class="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
 
     {{-- Back link --}}
@@ -15,60 +9,7 @@
         <i data-lucide="arrow-left" class="h-4 w-4"></i> Back to Student List
     </a>
 
-    {{-- Student header card --}}
-    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div class="flex items-start gap-5">
-            {{-- Avatar --}}
-            <div class="h-16 w-16 flex-none overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200">
-                @if($header['photo'])
-                    <img src="{{ asset('storage/'.$header['photo']) }}" alt="{{ $header['name'] }}" class="h-full w-full object-cover">
-                @else
-                    <div class="flex h-full w-full items-center justify-center text-slate-400">
-                        <i data-lucide="user" class="h-7 w-7"></i>
-                    </div>
-                @endif
-            </div>
-
-            <div class="min-w-0 flex-1">
-                {{-- Name + status --}}
-                <div class="mb-4 flex flex-wrap items-center gap-3">
-                    <h2 class="text-lg font-extrabold text-slate-900">{{ $header['name'] }}</h2>
-                    @if($header['status_key'])
-                        {!! \App\Support\EnrollmentStatuses::pill($header['status_key']) !!}
-                    @endif
-                </div>
-
-                {{-- Fields (single row on wide screens) --}}
-                @php
-                    // LRN is a Basic-Education (DepEd) field; hide it for higher-ed.
-                    // Grade vs Year follows the student's level.
-                    $fields = array_values(array_filter([
-                        ['Student ID',          $header['student_id'],    true],
-                        $header['is_basic'] ? ['LRN', $header['lrn'], false] : null,
-                        ['Date of Birth',       $header['date_of_birth'], false],
-                        ['Gender',              $header['gender'],        false],
-                        [$header['is_basic'] ? 'Current Grade Level' : 'Current Year Level', $header['grade_level'], false],
-                        ['Section',             $header['section'],       false],
-                        ['Academic Year',       $header['academic_year'], false],
-                    ]));
-                @endphp
-                <div class="sl-id-fields">
-                    @foreach($fields as [$label, $value, $accent])
-                        <div class="min-w-0">
-                            <div class="text-[11px] font-semibold text-indigo-500">{{ $label }}</div>
-                            <div class="truncate text-sm font-semibold {{ $accent ? 'text-indigo-600' : 'text-slate-800' }}"
-                                 title="{{ $value }}">{{ $value }}</div>
-                            @if($label === 'Academic Year' && $header['term'])
-                                <div class="text-xs text-slate-500">{{ $header['term'] }}</div>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Tabbed panel (content intentionally blank for now) --}}
+    {{-- Tabbed panel --}}
     @php
         $tabs = [
             'profile'   => 'Profile',
