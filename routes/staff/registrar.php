@@ -37,6 +37,8 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
         // 3. Transcript of Records — master list of students by education level
         Route::get('transcripts', [TranscriptOfRecordController::class, 'index'])
             ->name('transcripts.index');
+        Route::get('transcripts/export', [TranscriptOfRecordController::class, 'export'])
+            ->name('transcripts.export');
         Route::get('transcripts/{student}', [TranscriptOfRecordController::class, 'show'])
             ->name('transcripts.show');
         Route::post('transcripts/{student}/edit-requests', [TranscriptOfRecordController::class, 'storeEditRequest'])

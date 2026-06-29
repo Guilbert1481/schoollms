@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\StudentEnrollmentSubject;
 use App\Models\TranscriptEditRequest;
+use App\Support\Spreadsheet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -41,11 +42,55 @@ class TranscriptOfRecordController extends Controller
 {
     public function index(Request $request)
     {
+        return view('registrar.transcripts.index', $this->gather($request));
+    }
+
+    /** Export the currently-filtered transcript master list as CSV or Excel. */
+    public function export(Request $request)
+    {
+        $data = $this->gather($request);
+
+        $headers = ['Full Name', 'Year Level', 'Student ID', 'Program', 'Status'];
+        $rows = $data['rows']->map(fn ($r) => [
+            $r->full_name,
+            $r->year_level,
+            $r->student_id,
+            $r->program,
+            $data['statusOptions'][$r->_status_raw] ?? ucwords(str_replace('_', ' ', (string) $r->_status_raw)),
+        ])->all();
+
+        $format = strtolower((string) $request->query('format')) === 'xlsx' ? 'xlsx' : 'csv';
+        $base = 'transcript-records-'.now()->format('Ymd-His');
+
+        if ($format === 'xlsx') {
+            $path = Spreadsheet::xlsx($headers, $rows, 'Transcripts');
+
+            return response()->download($path, $base.'.xlsx', [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])->deleteFileAfterSend(true);
+        }
+
+        return response()->streamDownload(function () use ($headers, $rows) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, $headers);
+            foreach ($rows as $r) {
+                fputcsv($out, array_values($r));
+            }
+            fclose($out);
+        }, $base.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Build the transcript master dataset + level tabs + Status/Academic Year/
+     * Year Level filter options, applying any active filters. Shared by index()
+     * and export() so both read identical data.
+     */
+    protected function gather(Request $request): array
+    {
         $schoolId = auth()->user()->school_id;
 
-        // ------------------------------------------------------------------
-        // 1. Top-level education levels the school offers (tabs)
-        // ------------------------------------------------------------------
+        // Top-level education levels the school offers (tabs).
         $levels = DB::table('education_nodes')
             ->whereNull('parent_id')
             ->where('is_offered', 1)
@@ -53,30 +98,18 @@ class TranscriptOfRecordController extends Controller
             ->orderBy('order_index')
             ->get(['id', 'name']);
 
-        // Build a fast lookup of "any descendant node id → root level id" so
-        // we can classify any program by the level it ultimately belongs to.
         $nodeToRoot = $this->buildNodeRootMap();
 
         $levelParam    = $request->input('level');
         $showAll       = $levelParam === null || $levelParam === '' || strtolower((string) $levelParam) === 'all';
         $activeLevelId = (int) ($request->integer('level') ?: ($levels->first()->id ?? 0));
         $showTabs      = $levels->count() > 1;
-
-        // If only one level is offered, there's no "all" concept — fall back
-        // to that single level so the table still renders rows.
         if (! $showTabs) {
             $showAll = false;
         }
 
-        // ------------------------------------------------------------------
-        // 2. Pull the latest enrollment per student in this school whose
-        //    status qualifies for a Transcript of Records (enrolled or
-        //    provisionally_enrolled). Eager-load relations so the shared
-        //    EnrollmentProgramLabel formatter (used by Admissions, Billing,
-        //    etc.) can render the programme cell consistently everywhere.
-        // ------------------------------------------------------------------
+        // Latest enrollment per student qualifying for a Transcript of Records.
         $allowed = ['enrolled', 'provisionally_enrolled'];
-
         $latestIds = DB::table('student_enrollments as se')
             ->join('students as st', 'st.id', '=', 'se.student_id')
             ->where('st.school_id', $schoolId)
@@ -85,21 +118,15 @@ class TranscriptOfRecordController extends Controller
             ->groupBy('se.student_id')
             ->pluck('id');
 
-        $enrollments = StudentEnrollment::with([
-                'student',
-                'program',
-                'modality',
-                'educationNode',
-            ])
+        $enrollments = StudentEnrollment::with(['student', 'program', 'modality', 'educationNode', 'academicYear'])
             ->whereIn('id', $latestIds)
             ->get()
             ->sortBy(fn ($e) => strtolower(($e->student?->last_name ?? '').' '.($e->student?->first_name ?? '')))
             ->values();
 
-        // ------------------------------------------------------------------
-        // 3. Shape each row + bucket by root education level.
-        // ------------------------------------------------------------------
-        $rowsByLevel = [];
+        // Shape every row, carrying both the display fields and the raw values
+        // used for the Status / Academic Year / Year Level filters.
+        $allRows = collect();
         foreach ($enrollments as $e) {
             $student = $e->student;
             if (! $student) {
@@ -112,48 +139,78 @@ class TranscriptOfRecordController extends Controller
 
             $fullName = trim(implode(' ', array_filter([
                 $student->first_name, $student->middle_name, $student->last_name,
-            ])));
-            $fullName = $fullName !== '' ? $fullName : '—';
+            ]))) ?: '—';
 
             $status = $this->deriveStatus($student->status ?? null, $e->status);
             [$statusLabel, $statusBg, $statusFg] = $this->statusPill($status);
 
-            $row = (object) [
+            $allRows->push((object) [
                 'id'          => $student->id,
                 'full_name'   => $fullName,
-                'year_level'  => $e->year_level
-                    ? 'Year '.(int) $e->year_level
-                    : '—',
+                'year_level'  => $e->year_level ? 'Year '.(int) $e->year_level : '—',
                 'student_id'  => $student->student_number ?? '—',
                 'program'     => $this->programLabel($e, $nodeToRoot),
                 'status'      => '<span style="display:inline-block;padding:2px 10px;border-radius:9999px;font-size:11px;font-weight:700;background:'.$statusBg.';color:'.$statusFg.';">'.$statusLabel.'</span>',
                 '_status_raw' => $status,
                 '_level_id'   => $rootLevelId,
-            ];
-
-            $bucket = $rootLevelId ?? 0;
-            $rowsByLevel[$bucket][] = $row;
+                '_year_level' => $e->year_level,
+                '_ay_id'      => $e->academic_year_id,
+                '_ay_name'    => $e->academicYear?->name,
+            ]);
         }
 
-        // Rows for the currently-active tab (or every row when "All" is
-        // selected, or when the school only offers a single level).
-        $activeRows = collect(
-            ($showAll || ! $showTabs)
-                ? array_merge(...array_values($rowsByLevel) ?: [[]])
-                : ($rowsByLevel[$activeLevelId] ?? [])
-        );
+        // Status filter (options derived from the statuses actually present).
+        $statusOptions = $allRows->pluck('_status_raw')->filter()->unique()->sort()
+            ->mapWithKeys(fn ($s) => [$s => $this->statusPill($s)[0]])->all();
+        $statusFilter = $request->input('status') ?: 'all';
+        if ($statusFilter !== 'all' && ! array_key_exists($statusFilter, $statusOptions)) {
+            $statusFilter = 'all';
+        }
+        $filtered = $statusFilter === 'all'
+            ? $allRows
+            : $allRows->filter(fn ($r) => $r->_status_raw === $statusFilter)->values();
 
-        $columns = config('tables.transcript_master.columns', []);
+        // Tab counts (after status, independent of the AY / year-level dropdowns).
+        $counts = $filtered->groupBy(fn ($r) => $r->_level_id ?? 0)->map->count();
 
-        return view('registrar.transcripts.index', [
-            'columns'       => $columns,
-            'levels'        => $levels,
-            'activeLevelId' => $activeLevelId,
-            'showTabs'      => $showTabs,
-            'showAll'       => $showAll,
-            'rows'          => $activeRows,
-            'counts'        => collect($rowsByLevel)->map(fn ($r) => count($r)),
-        ]);
+        // Scope to the active tab.
+        $scoped = ($showAll || ! $showTabs)
+            ? $filtered
+            : $filtered->filter(fn ($r) => (int) ($r->_level_id ?? 0) === $activeLevelId)->values();
+
+        // Academic-year filter.
+        $academicYears = $scoped->filter(fn ($r) => $r->_ay_id)->unique('_ay_id')
+            ->sortByDesc('_ay_name')->mapWithKeys(fn ($r) => [(int) $r->_ay_id => $r->_ay_name])->all();
+        $academicYearId = $request->integer('academic_year_id') ?: null;
+        $afterAy = $academicYearId
+            ? $scoped->filter(fn ($r) => (int) $r->_ay_id === $academicYearId)->values()
+            : $scoped;
+
+        // Year-level filter.
+        $yearLevelOptions = $afterAy->filter(fn ($r) => $r->_year_level !== null && $r->_year_level !== '')
+            ->mapWithKeys(fn ($r) => [(string) (int) $r->_year_level => 'Year '.(int) $r->_year_level])->all();
+        ksort($yearLevelOptions, SORT_NUMERIC);
+        $yearLevel = $request->input('year_level');
+        $yearLevel = ($yearLevel === null || $yearLevel === '') ? null : (string) $yearLevel;
+        $finalRows = $yearLevel !== null
+            ? $afterAy->filter(fn ($r) => (string) $r->_year_level === $yearLevel)->values()
+            : $afterAy->values();
+
+        return [
+            'columns'          => config('tables.transcript_master.columns', []),
+            'levels'           => $levels,
+            'activeLevelId'    => $activeLevelId,
+            'showTabs'         => $showTabs,
+            'showAll'          => $showAll,
+            'rows'             => $finalRows,
+            'counts'           => $counts,
+            'statusOptions'    => $statusOptions,
+            'statusFilter'     => $statusFilter,
+            'academicYears'    => $academicYears,
+            'academicYearId'   => $academicYearId,
+            'yearLevelOptions' => $yearLevelOptions,
+            'yearLevel'        => $yearLevel,
+        ];
     }
 
     /**

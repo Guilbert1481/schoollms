@@ -1,39 +1,28 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">
+<div class="w-full space-y-6">
 
     {{-- Header --}}
-    <div class="rounded-2xl bg-gradient-to-br from-indigo-600 via-blue-700 to-sky-800 p-6 md:p-8 text-white shadow-lg">
-        <div class="flex items-center gap-3">
-            <i data-lucide="scroll-text" class="w-8 h-8"></i>
-            <div>
-                <h1 class="text-2xl md:text-3xl font-bold">Transcript of Records</h1>
-                <p class="text-sm md:text-base text-indigo-100 mt-1">
-                    Master list of students by education level. Click a student to view their full transcript.
-                </p>
-            </div>
-        </div>
-    </div>
+    <h1 class="text-xl font-extrabold text-slate-800">Transcript of Records</h1>
 
     {{-- Education-level tabs (hidden when the school only offers one level) --}}
     @if ($showTabs)
-        <div class="flex flex-wrap gap-2 border-b border-slate-200">
-            @foreach ($levels as $lvl)
-                @php $count = $counts[$lvl->id] ?? 0; @endphp
-                <a href="{{ route('registrar.transcripts.index', ['level' => $lvl->id]) }}"
-                   class="px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 -mb-px
-                          {{ ! ($showAll ?? false) && $activeLevelId === $lvl->id
-                              ? 'border-indigo-600 text-indigo-700 bg-indigo-50'
-                              : 'border-transparent text-slate-600 hover:text-indigo-700 hover:bg-slate-50' }}">
-                    {{ $lvl->name }}
-                    <span class="ml-1 inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 rounded-full text-[10px] font-bold
-                                 {{ ! ($showAll ?? false) && $activeLevelId === $lvl->id ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600' }}">
-                        {{ $count }}
-                    </span>
-                </a>
-            @endforeach
-        </div>
+        @php
+            $transcriptTabs = [[
+                'label'  => 'All Levels',
+                'url'    => route('registrar.transcripts.index', ['level' => 'all']),
+                'active' => $showAll,
+            ]];
+            foreach ($levels as $lvl) {
+                $transcriptTabs[] = [
+                    'label'  => $lvl->name,
+                    'url'    => route('registrar.transcripts.index', ['level' => $lvl->id]),
+                    'active' => ! $showAll && $activeLevelId === $lvl->id,
+                ];
+            }
+        @endphp
+        <x-tabs.count-tabs :tabs="$transcriptTabs" />
     @endif
 
     {{-- Master list --}}
@@ -43,19 +32,114 @@
         :data="$rows->values()"
         :actions="config('tables.table-actions.transcript_master', [])"
     >
-        @if($showTabs)
-            <a href="{{ route('registrar.transcripts.index', ['level' => 'all']) }}"
-               class="px-3 py-2 border rounded text-sm whitespace-nowrap transition
-                      {{ ($showAll ?? false)
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-white text-slate-700 border-gray-300 hover:bg-slate-50' }}">
-                All
-            </a>
-        @endif
+        <x-slot:afterFilter>
+            <select onchange="transcriptApplyFilter('status', this.value)"
+                    class="rounded border border-gray-300 px-2 py-2 text-sm">
+                <option value="all" @selected($statusFilter === 'all')>All Statuses</option>
+                @foreach($statusOptions as $sKey => $sLabel)
+                    <option value="{{ $sKey }}" @selected($statusFilter === $sKey)>{{ $sLabel }}</option>
+                @endforeach
+            </select>
+
+            <select onchange="transcriptApplyFilter('academic_year_id', this.value)"
+                    class="rounded border border-gray-300 px-2 py-2 text-sm">
+                <option value="">All Academic Years</option>
+                @foreach($academicYears as $ayId => $ayName)
+                    <option value="{{ $ayId }}" @selected((string) $academicYearId === (string) $ayId)>{{ $ayName }}</option>
+                @endforeach
+            </select>
+
+            <select onchange="transcriptApplyFilter('year_level', this.value)"
+                    class="rounded border border-gray-300 px-2 py-2 text-sm">
+                <option value="">All Year Levels</option>
+                @foreach($yearLevelOptions as $ylValue => $ylLabel)
+                    <option value="{{ $ylValue }}" @selected((string) $yearLevel === (string) $ylValue)>{{ $ylLabel }}</option>
+                @endforeach
+            </select>
+        </x-slot:afterFilter>
+
+        {{-- Export (dropdown: CSV / Excel / both) + Import, side by side. --}}
+        <div class="flex items-center gap-2">
+            <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                <button type="button" @click="open = ! open"
+                        class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    <i data-lucide="download" class="h-4 w-4 text-indigo-600"></i>
+                    Export
+                    <i data-lucide="chevron-down" class="h-3.5 w-3.5 text-slate-400"></i>
+                </button>
+                <div x-show="open" x-cloak x-transition
+                     class="absolute right-0 z-30 mt-1 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+                     style="display:none;">
+                    <button type="button" onclick="transcriptExport('csv'); open = false"
+                            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">
+                        <i data-lucide="file-text" class="h-4 w-4 text-slate-500"></i> Export as CSV
+                    </button>
+                    <button type="button" onclick="transcriptExport('xlsx'); open = false"
+                            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">
+                        <i data-lucide="file-spreadsheet" class="h-4 w-4 text-emerald-600"></i> Export as Excel
+                    </button>
+                    <button type="button" onclick="transcriptExport('both'); open = false"
+                            class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">
+                        <i data-lucide="files" class="h-4 w-4 text-indigo-600"></i> Export both
+                    </button>
+                </div>
+            </div>
+
+            <button type="button" onclick="openModal('transcriptImportModal')"
+                    class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                <i data-lucide="upload" class="h-4 w-4 text-emerald-600"></i>
+                Import
+            </button>
+        </div>
     </x-table.table>
 </div>
 
+{{-- Import: transcripts are generated from enrollments, so there's nothing to
+     import here — point the registrar to the Student Registry importer. --}}
+<x-modal.form id="transcriptImportModal" title="Import" widthClass="w-full max-w-lg" :hideFooter="true">
+    <div class="space-y-3 text-sm text-slate-600">
+        <p>Transcript records are generated automatically from each student's enrollments and grades — there's nothing to import on this page.</p>
+        <p>To add students, use
+            <a href="{{ route('registrar.student-registry.index') }}" class="font-semibold text-indigo-600 hover:underline">Student Registry → Import</a>.
+        </p>
+    </div>
+</x-modal.form>
+
 <script>
+    const TRANSCRIPT_EXPORT_URL = @json(route('registrar.transcripts.export'));
+
+    function transcriptApplyFilter(key, value) {
+        const url = new URL(window.location.href);
+        if (value === '' || value === null) {
+            url.searchParams.delete(key);
+        } else {
+            url.searchParams.set(key, value);
+        }
+        window.location = url.toString();
+    }
+
+    function transcriptExport(format) {
+        const current = new URLSearchParams(window.location.search);
+        const buildUrl = (fmt) => {
+            const p = new URLSearchParams(current);
+            p.set('format', fmt);
+            return TRANSCRIPT_EXPORT_URL + '?' + p.toString();
+        };
+        const download = (url) => {
+            const a = document.createElement('a');
+            a.href = url;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        };
+        if (format === 'both') {
+            download(buildUrl('csv'));
+            setTimeout(() => download(buildUrl('xlsx')), 500);
+        } else {
+            download(buildUrl(format));
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         if (window.lucide?.createIcons) window.lucide.createIcons();
     });
