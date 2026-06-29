@@ -1051,7 +1051,7 @@ class StudentLedgerController extends Controller
             'school_id'            => $schoolId,
             'user_id'              => $user?->id,
             'student_number'       => $studentNumber,
-            'lrn'                  => $this->clean($row['lrn'] ?? null),
+            'lrn'                  => $this->normalizeNumericId($row['lrn'] ?? null),
             'first_name'           => $firstName,
             'middle_name'          => $this->clean($row['middle_name'] ?? null),
             'last_name'            => $lastName,
@@ -1484,6 +1484,25 @@ class StudentLedgerController extends Controller
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    /**
+     * Normalise a long numeric ID (e.g. LRN) that Excel may have exported in
+     * scientific notation ("1.36457E+11") back into a plain integer string.
+     * Non-scientific values pass through untouched.
+     */
+    protected function normalizeNumericId($value): ?string
+    {
+        $value = $this->clean($value);
+        if ($value === null) {
+            return null;
+        }
+
+        if (preg_match('/^[0-9]+(?:\.[0-9]+)?[eE]\+?[0-9]+$/', $value)) {
+            return number_format((float) $value, 0, '', '');
+        }
+
+        return $value;
     }
 
     protected function parseDate($value): ?string
