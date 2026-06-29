@@ -186,11 +186,12 @@ class StudentLedgerController extends Controller
             ];
         } else {
             $columns = config('tables.student_ledgers.columns', []);
+            // Email is never shown in the ledger tables (on any tab) — only on the
+            // student detail page (Contact Information).
+            $columns = array_values(array_filter($columns, fn ($c) => ($c['key'] ?? null) !== 'email'));
             // On "All Levels" the Program column becomes the student's education
-            // Level (Basic Education, Undergraduate Programs, …) and the Email
-            // column is dropped.
+            // Level (Basic Education, Undergraduate Programs, …).
             if ($showAll) {
-                $columns = array_values(array_filter($columns, fn ($c) => ($c['key'] ?? null) !== 'email'));
                 $columns = array_map(function ($c) {
                     if (($c['key'] ?? null) === 'program') {
                         $c['key']   = 'level';
@@ -1358,6 +1359,7 @@ class StudentLedgerController extends Controller
             'grade_level', 'year', 'grade' => 'year_level',
             'contact_number', 'mobile', 'mobile_no' => 'mobile_number',
             'section_name', 'sec' => 'section',
+            'email_address', 'e_mail', 'emailaddress' => 'email',
             default => $key,
         };
     }
