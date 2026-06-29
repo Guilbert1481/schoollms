@@ -187,8 +187,10 @@ class StudentLedgerController extends Controller
         } else {
             $columns = config('tables.student_ledgers.columns', []);
             // On "All Levels" the Program column becomes the student's education
-            // Level (Basic Education, Undergraduate Programs, …).
+            // Level (Basic Education, Undergraduate Programs, …) and the Email
+            // column is dropped.
             if ($showAll) {
+                $columns = array_values(array_filter($columns, fn ($c) => ($c['key'] ?? null) !== 'email'));
                 $columns = array_map(function ($c) {
                     if (($c['key'] ?? null) === 'program') {
                         $c['key']   = 'level';
