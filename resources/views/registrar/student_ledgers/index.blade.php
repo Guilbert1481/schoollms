@@ -147,7 +147,7 @@
         <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4">
             <div>
                 <h2 class="text-lg font-black text-slate-900">Import Enrolled Students</h2>
-                <p class="text-xs text-slate-500">CSV only. Required headers: first_name, last_name.</p>
+                <p class="text-xs text-slate-500">CSV or Excel (.xlsx). Required headers: first_name, last_name.</p>
             </div>
             <button type="button" onclick="closeStudentImportModal()" class="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700">
                 <i data-lucide="x" class="h-5 w-5"></i>
@@ -218,15 +218,15 @@
             </div>
 
             <div>
-                <label for="student_import_file" class="mb-1 block text-sm font-semibold text-slate-700">CSV File</label>
+                <label for="student_import_file" class="mb-1 block text-sm font-semibold text-slate-700">CSV / Excel File</label>
                 <input id="student_import_file"
                        type="file"
                        name="file"
-                       accept=".csv,text/csv,text/plain"
+                       accept=".csv,.xlsx,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                        required
                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100">
                 <p class="mt-2 text-xs text-slate-500">
-                    Optional headers: student_number, lrn, email, middle_name, phone, program_code, year_level, gender, date_of_birth, address.
+                    Optional headers: student_number, lrn, email, middle_name, phone, program_code, year_level, section, gender, date_of_birth, address.
                 </p>
             </div>
 

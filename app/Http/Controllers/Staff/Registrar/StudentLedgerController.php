@@ -739,7 +739,7 @@ class StudentLedgerController extends Controller
         $request->validate([
             'level'         => ['required', 'integer'],
             'academic_year' => ['required', 'string', 'max:255'],
-            'file'          => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'file'          => ['required', 'file', 'max:5120'],
             'year_level'    => ['nullable', 'integer'],
             'term_number'   => ['nullable', 'in:1,2,3'],
         ]);
@@ -773,7 +773,14 @@ class StudentLedgerController extends Controller
             return back()->with('error', 'The resolved term is missing an academic year. Please try again.');
         }
 
-        [$rows, $parseErrors] = $this->readCsvRows($request->file('file')->getRealPath());
+        $file = $request->file('file');
+        $ext  = strtolower($file->getClientOriginalExtension());
+        if (! in_array($ext, ['csv', 'txt', 'xlsx'], true)) {
+            return back()->with('error', 'Please upload a CSV or Excel (.xlsx) file.');
+        }
+        [$rows, $parseErrors] = $ext === 'xlsx'
+            ? $this->readXlsxRows($file->getRealPath())
+            : $this->readCsvRows($file->getRealPath());
 
         $created = 0;
         $updated = 0;
@@ -1071,6 +1078,17 @@ class StudentLedgerController extends Controller
         }
 
         $program = $this->resolveProgram($row, $schoolId);
+
+        // Section (CSV "section" header): matched by name, created if it doesn't
+        // exist yet.
+        $sectionId = $this->resolveSection(
+            $row['section'] ?? null,
+            $schoolId,
+            $term,
+            (int) ($row['year_level'] ?? 0) ?: $defaultYearLevel,
+            $program
+        );
+
         $enrollment = StudentEnrollment::query()
             ->where('student_id', $student->id)
             ->where('academic_year_id', $term->academic_year_id)
@@ -1096,6 +1114,12 @@ class StudentLedgerController extends Controller
             'approved_at'        => now(),
             'remarks'            => 'Imported as enrolled student profile.',
         ];
+
+        // Only override the section when one was provided/resolved (don't wipe an
+        // existing section on update when the CSV has no section).
+        if ($sectionId !== null) {
+            $enrollmentData['section_id'] = $sectionId;
+        }
 
         $enrollmentData = $this->filterColumns('student_enrollments', $enrollmentData);
 
@@ -1145,6 +1169,161 @@ class StudentLedgerController extends Controller
         return [$rows, $errors];
     }
 
+    /**
+     * Read rows from an .xlsx file (Open XML) using only ZipArchive + SimpleXML —
+     * no third-party library. Returns [rows, errors] like readCsvRows().
+     */
+    protected function readXlsxRows(string $path): array
+    {
+        if (! class_exists(\ZipArchive::class)) {
+            return [[], ['Excel import is not supported on this server.']];
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($path) !== true) {
+            return [[], ['Could not open the Excel file.']];
+        }
+
+        // Shared strings (Excel stores most text here, referenced by index).
+        $shared = [];
+        if (($ss = $zip->getFromName('xl/sharedStrings.xml')) !== false) {
+            $sx = @simplexml_load_string($ss);
+            if ($sx !== false) {
+                foreach ($sx->si as $si) {
+                    $shared[] = $this->xlsxText($si);
+                }
+            }
+        }
+
+        // First worksheet.
+        $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        if ($sheetXml === false) {
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $n = $zip->getNameIndex($i);
+                if (preg_match('#^xl/worksheets/.*\.xml$#', $n)) {
+                    $sheetXml = $zip->getFromName($n);
+                    break;
+                }
+            }
+        }
+        $zip->close();
+
+        if (! $sheetXml) {
+            return [[], ['No worksheet found in the Excel file.']];
+        }
+
+        $sx = @simplexml_load_string($sheetXml);
+        if ($sx === false) {
+            return [[], ['Could not read the Excel worksheet.']];
+        }
+
+        $matrix = [];
+        foreach ($sx->sheetData->row as $rowEl) {
+            $cells = [];
+            foreach ($rowEl->c as $c) {
+                $ref     = (string) $c['r'];                       // e.g. "B3"
+                $colIdx  = $this->letterToIndex(preg_replace('/\d+/', '', $ref));
+                $type    = (string) $c['t'];
+                if ($type === 's') {
+                    $cells[$colIdx] = $shared[(int) $c->v] ?? '';
+                } elseif ($type === 'inlineStr') {
+                    $cells[$colIdx] = $this->xlsxText($c->is);
+                } else {
+                    $cells[$colIdx] = (string) $c->v;
+                }
+            }
+            $matrix[] = $cells;
+        }
+
+        if (empty($matrix)) {
+            return [[], ['The Excel file is empty.']];
+        }
+
+        $header = array_shift($matrix);
+        $keys = [];
+        foreach ($header as $idx => $h) {
+            $keys[$idx] = $this->normalizeHeader((string) $h);
+        }
+
+        $rows = [];
+        foreach ($matrix as $line) {
+            if (count(array_filter($line, fn ($v) => trim((string) $v) !== '')) === 0) {
+                continue;
+            }
+            $row = [];
+            foreach ($keys as $idx => $key) {
+                if ($key === '') {
+                    continue;
+                }
+                $row[$key] = $line[$idx] ?? null;
+            }
+            $rows[] = $row;
+        }
+
+        return [$rows, []];
+    }
+
+    /** Extract text from an .xlsx string element (<si> or inline <is>). */
+    protected function xlsxText($el): string
+    {
+        if ($el === null) {
+            return '';
+        }
+        $text = isset($el->t) ? (string) $el->t : '';
+        if (isset($el->r)) {
+            foreach ($el->r as $run) {
+                $text .= (string) $run->t;
+            }
+        }
+
+        return $text;
+    }
+
+    /** Spreadsheet column letters -> 0-based index ("A"=>0, "Z"=>25, "AA"=>26). */
+    protected function letterToIndex(string $letters): int
+    {
+        $letters = strtoupper($letters);
+        $n = 0;
+        for ($i = 0, $len = strlen($letters); $i < $len; $i++) {
+            $n = $n * 26 + (ord($letters[$i]) - 64);
+        }
+
+        return max(0, $n - 1);
+    }
+
+    /**
+     * Resolve a section by name for the school — find it, or create it if it
+     * doesn't exist (so imports can group students into new sections too).
+     */
+    protected function resolveSection(?string $name, int $schoolId, Term $term, ?int $yearLevel, ?object $program): ?int
+    {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return null;
+        }
+
+        $existing = DB::table('sections')
+            ->where('school_id', $schoolId)
+            ->whereRaw('LOWER(name) = ?', [strtolower($name)])
+            ->value('id');
+        if ($existing) {
+            return (int) $existing;
+        }
+
+        return (int) DB::table('sections')->insertGetId($this->filterColumns('sections', [
+            'school_id'  => $schoolId,
+            'program_id' => $program?->id,
+            'term_id'    => $term->id,
+            'name'       => $name,
+            'year_level' => $yearLevel,
+            'capacity'   => 0,
+            'is_active'  => 1,
+            'status'     => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]));
+    }
+
     protected function normalizeHeader(string $header): string
     {
         $key = strtolower(trim($header));
@@ -1161,6 +1340,7 @@ class StudentLedgerController extends Controller
             'program', 'course', 'course_code' => 'program_code',
             'grade_level', 'year', 'grade' => 'year_level',
             'contact_number', 'mobile', 'mobile_no' => 'mobile_number',
+            'section_name', 'sec' => 'section',
             default => $key,
         };
     }
