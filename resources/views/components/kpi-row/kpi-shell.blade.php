@@ -1,5 +1,11 @@
 {{-- resources/views/components/kpi-row/kpi-shell.blade.php --}}
 
+@props([
+    'title'    => '',
+    'icon'     => 'activity',
+    'accent'   => null,   // optional per-card colour key (violet|sky|amber|rose|…)
+    'subtitle' => null,   // optional small caption under the value
+])
 
 @php
 
@@ -34,6 +40,23 @@
         'dark'  => 'bg-gray-900 text-white',
         default => '',
     };
+
+    // Optional per-card icon colour. Inline hex keeps it build-independent
+    // (dynamic bg-{color}-100 utilities may be purged from the compiled CSS).
+    $palette = [
+        'violet'  => ['bg' => '#ede9fe', 'fg' => '#7c3aed'],
+        'indigo'  => ['bg' => '#e0e7ff', 'fg' => '#4f46e5'],
+        'blue'    => ['bg' => '#dbeafe', 'fg' => '#2563eb'],
+        'sky'     => ['bg' => '#e0f2fe', 'fg' => '#0284c7'],
+        'amber'   => ['bg' => '#fef3c7', 'fg' => '#d97706'],
+        'emerald' => ['bg' => '#d1fae5', 'fg' => '#059669'],
+        'rose'    => ['bg' => '#ffe4e6', 'fg' => '#e11d48'],
+        'red'     => ['bg' => '#fee2e2', 'fg' => '#dc2626'],
+        'slate'   => ['bg' => '#f1f5f9', 'fg' => '#475569'],
+    ];
+    $iconStyle = ($accent && isset($palette[$accent]))
+        ? 'background-color:'.$palette[$accent]['bg'].';color:'.$palette[$accent]['fg'].';'
+        : null;
 @endphp
 
 
@@ -49,11 +72,20 @@
             <div class="text-3xl font-black mt-2 text-gray-900 dark:text-gray">
                 {{ $slot }}
             </div>
+            @if($subtitle)
+                <p class="mt-1 text-xs font-semibold text-gray-400">{{ $subtitle }}</p>
+            @endif
         </div>
 
-        <div class="p-3 rounded-xl bg-{{ $accentColor }}-100 text-{{ $accentColor }}-600 dark:bg-{{ $accentColor }}-900/30 dark:text-{{ $accentColor }}-400">
-            <i data-lucide="{{ $icon }}" class="w-6 h-6"></i>
-        </div>
+        @if($iconStyle)
+            <div class="p-3 rounded-xl" style="{{ $iconStyle }}">
+                <i data-lucide="{{ $icon }}" class="w-6 h-6"></i>
+            </div>
+        @else
+            <div class="p-3 rounded-xl bg-{{ $accentColor }}-100 text-{{ $accentColor }}-600 dark:bg-{{ $accentColor }}-900/30 dark:text-{{ $accentColor }}-400">
+                <i data-lucide="{{ $icon }}" class="w-6 h-6"></i>
+            </div>
+        @endif
 
     </div>
 </div>

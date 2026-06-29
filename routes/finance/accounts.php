@@ -20,6 +20,7 @@ Route::middleware(['web', 'auth', 'role:finance_manager,admin,superadmin'])
 
         // Individual student ledgers
         Route::get('/ledger', [LedgerController::class, 'index'])->name('ledger.index');
+        Route::get('/ledger/export', [LedgerController::class, 'export'])->name('ledger.export');
         Route::get('/ledger/{student}', [LedgerController::class, 'show'])->name('ledger.show');
         Route::post('/ledger/{student}/adjust', [LedgerController::class, 'adjust'])->name('ledger.adjust');
 
