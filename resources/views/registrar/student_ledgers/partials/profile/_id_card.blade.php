@@ -1,5 +1,5 @@
 @php $landscape = ($idCard['orientation'] ?? 'portrait') === 'landscape'; @endphp
-<div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+<div class="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
     <div class="mb-4 flex items-center justify-between gap-2">
         <div class="flex items-center gap-2">
             <i data-lucide="id-card" class="h-4 w-4 text-indigo-600"></i>
@@ -11,7 +11,7 @@
         </a>
     </div>
 
-    <div x-data="{ side: 'front' }" class="flex flex-col items-center">
+    <div x-data="{ side: 'front' }" class="flex flex-1 flex-col items-center justify-center">
         {{-- FRONT --}}
         <div x-show="side === 'front'"
              class="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm"
