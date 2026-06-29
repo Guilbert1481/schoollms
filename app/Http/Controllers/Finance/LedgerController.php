@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\FinanceSetting;
 use App\Models\Invoice;
 use App\Models\LedgerEntry;
+use App\Models\Payment;
 use App\Models\StatementOfAccount;
 use App\Models\Student;
-use App\Models\StudentEnrollment;
 use App\Models\User;
 use App\Services\Finance\LedgerService;
 use App\Support\EducationLevels;
@@ -166,15 +166,7 @@ class LedgerController extends Controller
             : 'No student accounts for this selection yet.';
 
         // Per-row action — open the student's full ledger account.
-        $actions = [[
-            'type'  => 'link',
-            'name'  => 'open-ledger',
-            'label' => 'Open Ledger',
-            'route' => 'finance.ledger.show',
-            'icon'  => 'wallet',
-            'class' => 'text-indigo-600 hover:bg-indigo-50',
-        ]];
-
+        // No row action — clicking a row opens the resizable student drawer.
         return view('finance.ledger.index', [
             'columns'            => $columns,
             'levels'             => $levels,
@@ -196,65 +188,351 @@ class LedgerController extends Controller
             'sectionId'          => $sectionId,
             'statusOptions'      => $statusOptions,
             'statusFilter'       => $statusFilter,
-            'actions'            => $actions,
             'tableEmptyMessage'  => $tableEmptyMessage,
         ]);
     }
 
-    public function show(User $student)
+    /**
+     * Resizable student drawer (AJAX HTML partial) opened by clicking a ledger
+     * row. Shows the account summary, ledger, aging buckets, and quick info.
+     */
+    public function drawer(User $student)
+    {
+        $schoolId = (int) auth()->user()->school_id;
+        abort_unless((int) $student->school_id === $schoolId && $student->role === 'student', 404);
+        $this->currency = $this->currencySymbol($schoolId);
+
+        $uid     = (int) $student->id;
+        $profile = Student::query()->where('school_id', $schoolId)->where('user_id', $uid)->first();
+
+        // ---- Header (name / photo / status / grade & section) ----------------
+        $enr = $profile
+            ? DB::table('student_enrollments as se')
+                ->leftJoin('sections as sec', 'sec.id', '=', 'se.section_id')
+                ->leftJoin('programs as p', 'p.id', '=', 'se.program_id')
+                ->where('se.student_id', $profile?->id)
+                ->orderByDesc('se.id')
+                ->first([
+                    'se.year_level', 'se.education_node_id', 'se.status as enrollment_status',
+                    'sec.name as section_name', 'p.education_node_id as program_node_id',
+                ])
+            : null;
+
+        $nodeToRoot = $this->buildNodeRootMap();
+        $rootId   = $enr ? ($nodeToRoot[$enr?->education_node_id ?? null] ?? $nodeToRoot[$enr?->program_node_id ?? null] ?? null) : null;
+        $rootName = $rootId ? DB::table('education_nodes')->where('id', $rootId)->value('name') : null;
+        $isBasic  = $rootName && str_contains(strtolower((string) $rootName), 'basic');
+
+        $yearLevel  = $enr?->year_level ?? null;
+        $gradeLevel = ($yearLevel !== null && $yearLevel !== '')
+            ? (is_numeric($yearLevel) ? ($isBasic ? 'Grade ' : 'Year ').(int) $yearLevel : (string) $yearLevel)
+            : null;
+        $section      = $enr?->section_name ?? null;
+        $gradeSection = trim(($gradeLevel ?? '').($section ? ' - '.$section : ''), ' -') ?: '—';
+
+        $fn = $profile?->first_name  ?? $student->first_name  ?? '';
+        $mn = $profile?->middle_name ?? $student->middle_name ?? '';
+        $ln = $profile?->last_name   ?? $student->last_name   ?? '';
+        $firstMid = trim(implode(' ', array_filter([$fn, $mn])));
+        $name = $ln ? $ln.($firstMid !== '' ? ', '.$firstMid : '') : ($firstMid ?: ($profile?->student_number ?? 'Student'));
+        $initials = strtoupper(mb_substr((string) $fn, 0, 1).mb_substr((string) $ln, 0, 1)) ?: 'S';
+
+        $rawStatus    = strtolower((string) ($profile?->status ?? $enr?->enrollment_status ?? 'active'));
+        $statusActive = in_array($rawStatus, ['active', 'enrolled'], true);
+        $statusLabel  = ucwords(str_replace('_', ' ', $rawStatus ?: 'active'));
+
+        $header = [
+            'name'          => $name,
+            'initials'      => $initials,
+            'photo'         => $profile?->photo_path ?? null,
+            'student_id'    => $profile?->student_number ?? '—',
+            'lrn'           => $profile?->lrn ?? null,
+            'grade_section' => $gradeSection,
+            'status_label'  => $statusLabel,
+            'status_active' => $statusActive,
+        ];
+
+        // ---- Finance figures --------------------------------------------------
+        $balance = round((float) $this->ledger->currentBalance($schoolId, $uid), 2);
+        $today   = now()->startOfDay();
+
+        $invoices = Invoice::query()
+            ->where('school_id', $schoolId)->where('student_id', $uid)
+            ->orderByDesc('id')->get();
+
+        $overdue = 0.0;
+        $currentDue = 0.0;
+        $aging = ['0-30' => 0.0, '31-60' => 0.0, '61-90' => 0.0, '90+' => 0.0];
+        $nextDue = null;
+        foreach ($invoices as $inv) {
+            $bal = (float) $inv->balance;
+            if ($bal <= 0.005) {
+                continue;
+            }
+            $due = $inv->due_date ? Carbon::parse($inv->due_date)->startOfDay() : null;
+            if ($due && $due->lt($today)) {
+                $overdue += $bal;
+                $days = $due->diffInDays($today);
+            } else {
+                $currentDue += $bal;
+                $days = 0;
+                if ($due && ($nextDue === null || $due->lt($nextDue))) {
+                    $nextDue = $due;
+                }
+            }
+            if ($days <= 30) {
+                $aging['0-30'] += $bal;
+            } elseif ($days <= 60) {
+                $aging['31-60'] += $bal;
+            } elseif ($days <= 90) {
+                $aging['61-90'] += $bal;
+            } else {
+                $aging['90+'] += $bal;
+            }
+        }
+
+        $summary = [
+            'balance'     => $balance,
+            'as_of'       => now()->format('M d, Y'),
+            'current_due' => round($currentDue, 2),
+            'overdue'     => round($overdue, 2),
+            'future'      => 0.0,
+        ];
+
+        // ---- Ledger entries + other tab data ---------------------------------
+        $entries = LedgerEntry::query()
+            ->where('school_id', $schoolId)->where('student_id', $uid)
+            ->orderBy('entry_date')->orderBy('id')
+            ->get(['entry_date', 'type', 'description', 'reference', 'debit', 'credit', 'balance_after']);
+
+        $payments = DB::table('payments')
+            ->where('school_id', $schoolId)->where('student_id', $uid)
+            ->orderByDesc('paid_at')->orderByDesc('id')->get();
+
+        $statements = StatementOfAccount::query()
+            ->where('school_id', $schoolId)->where('student_id', $uid)
+            ->orderByDesc('id')->get();
+
+        // ---- Quick info -------------------------------------------------------
+        $lastPay = $payments->first();
+        $lastSoa = $statements->first();
+        $quick = [
+            'last_payment'   => $lastPay
+                ? Carbon::parse($lastPay->paid_at)->format('M d, Y').' ('.$this->currency.number_format((float) $lastPay->amount, 2).')'
+                : '—',
+            'last_soa'       => $lastSoa
+                ? Carbon::parse($lastSoa->generated_at ?? $lastSoa->created_at)->format('M d, Y')
+                : '—',
+            'account_status' => $statusLabel,
+            'status_active'  => $statusActive,
+            'next_due'       => $nextDue ? $nextDue->format('M d, Y') : '—',
+        ];
+
+        return view('finance.ledger._drawer', [
+            'currency'   => $this->currency,
+            'studentId'  => $uid,
+            'header'     => $header,
+            'summary'    => $summary,
+            'aging'      => $aging,
+            'entries'    => $entries,
+            'payments'   => $payments,
+            'invoices'   => $invoices,
+            'statements' => $statements,
+            'quick'      => $quick,
+        ]);
+    }
+
+    /** Full ledger table partial (HTML) for the "View Ledger" modal. */
+    public function entries(User $student)
+    {
+        $schoolId = (int) auth()->user()->school_id;
+        abort_unless((int) $student->school_id === $schoolId && $student->role === 'student', 404);
+        $this->currency = $this->currencySymbol($schoolId);
+
+        $entries = LedgerEntry::query()
+            ->where('school_id', $schoolId)->where('student_id', (int) $student->id)
+            ->orderBy('entry_date')->orderBy('id')
+            ->get(['entry_date', 'type', 'description', 'reference', 'debit', 'credit', 'balance_after']);
+
+        return view('finance.ledger._ledger_table', [
+            'entries'  => $entries,
+            'currency' => $this->currency,
+        ]);
+    }
+
+    /** Record a payment for a student: creates a Payment + a ledger credit. */
+    public function recordPayment(Request $request)
+    {
+        $schoolId = (int) auth()->user()->school_id;
+
+        $data = $request->validate([
+            'student_id'       => ['required', 'integer'],
+            'amount'           => ['required', 'numeric', 'min:0.01', 'max:9999999.99'],
+            'payment_method'   => ['required', 'string', 'max:50'],
+            'reference_number' => ['nullable', 'string', 'max:120'],
+            'paid_at'          => ['nullable', 'date'],
+        ]);
+
+        $student = User::query()
+            ->where('school_id', $schoolId)->where('role', 'student')
+            ->findOrFail((int) $data['student_id']);
+
+        $payment = Payment::create([
+            'school_id'        => $schoolId,
+            'student_id'       => (int) $student->id,
+            'amount'           => round((float) $data['amount'], 2),
+            'payment_method'   => $data['payment_method'],
+            'payment_type'     => 'tuition',
+            'reference_number' => $data['reference_number'] ?? null,
+            'paid_at'          => ! empty($data['paid_at']) ? Carbon::parse($data['paid_at']) : now(),
+        ]);
+
+        $this->ledger->postPaymentCredit($payment, null, (int) auth()->id());
+
+        $name = trim($student->first_name.' '.$student->last_name) ?: 'student';
+
+        return back()->with('success', 'Payment of '.$this->currencySymbol($schoolId).number_format((float) $data['amount'], 2)." recorded for {$name}.");
+    }
+
+    /** Prepare a payment reminder for a student. */
+    public function sendReminder(Request $request)
+    {
+        $schoolId = (int) auth()->user()->school_id;
+
+        $data = $request->validate([
+            'student_id' => ['required', 'integer'],
+            'channel'    => ['required', 'in:email,sms,portal'],
+            'message'    => ['required', 'string', 'max:1000'],
+        ]);
+
+        $student = User::query()
+            ->where('school_id', $schoolId)->where('role', 'student')
+            ->findOrFail((int) $data['student_id']);
+
+        // NOTE: actual delivery (mail / SMS / notification) is not yet wired —
+        // this confirms the intent. Hook a Notification dispatch here later.
+        $name = trim($student->first_name.' '.$student->last_name) ?: 'student';
+
+        return back()->with('success', "Payment reminder prepared for {$name} via ".$data['channel'].'.');
+    }
+
+    /** Export one student's full ledger as CSV or Excel (.xlsx). */
+    public function studentExport(Request $request, User $student)
     {
         $schoolId = (int) auth()->user()->school_id;
         abort_unless((int) $student->school_id === $schoolId && $student->role === 'student', 404);
 
-        $profile = Student::query()->where('school_id', $schoolId)->where('user_id', $student->id)->first();
-
         $entries = LedgerEntry::query()
-            ->where('school_id', $schoolId)
-            ->where('student_id', $student->id)
-            ->orderBy('id')
-            ->get();
+            ->where('school_id', $schoolId)->where('student_id', (int) $student->id)
+            ->orderBy('entry_date')->orderBy('id')
+            ->get(['entry_date', 'type', 'description', 'reference', 'debit', 'credit', 'balance_after']);
 
-        $invoices = Invoice::query()
-            ->where('school_id', $schoolId)
-            ->where('student_id', $student->id)
-            ->orderByDesc('id')
-            ->get();
+        $headers = ['Date', 'Type', 'Description', 'Reference', 'Debit', 'Credit', 'Balance'];
+        $rows = $entries->map(fn ($e) => [
+            Carbon::parse((string) $e->entry_date)->format('Y-m-d'),
+            ucfirst((string) $e->type),
+            (string) $e->description,
+            (string) $e->reference,
+            number_format((float) $e->debit, 2, '.', ''),
+            number_format((float) $e->credit, 2, '.', ''),
+            number_format((float) $e->balance_after, 2, '.', ''),
+        ])->all();
 
-        $statements = StatementOfAccount::query()
-            ->where('school_id', $schoolId)
-            ->where('student_id', $student->id)
-            ->orderByDesc('id')
-            ->get();
+        $format = strtolower((string) $request->query('format')) === 'xlsx' ? 'xlsx' : 'csv';
+        $base = 'ledger-'.($student->student_number ?? $student->id).'-'.now()->format('Ymd-His');
 
-        // Enrollments that could still be invoiced (drives "Generate Invoice").
-        $enrollments = collect();
-        if ($profile) {
-            $invoicedEnrollmentIds = $invoices->pluck('student_enrollment_id')->filter()->all();
-            $enrollments = StudentEnrollment::query()
-                ->where('school_id', $schoolId)
-                ->where('student_id', $profile->id)
-                ->with(['term:id,name', 'program:id,code,name', 'academicYear:id,name'])
-                ->orderByDesc('id')
-                ->get()
-                ->map(function (StudentEnrollment $e) use ($invoicedEnrollmentIds) {
-                    $e->has_invoice = in_array($e->id, $invoicedEnrollmentIds, true);
+        if ($format === 'xlsx') {
+            $path = Spreadsheet::xlsx($headers, $rows, 'Ledger');
 
-                    return $e;
-                });
+            return response()->download($path, $base.'.xlsx', [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])->deleteFileAfterSend(true);
         }
 
-        $setting = FinanceSetting::forSchool($schoolId);
+        return response()->streamDownload(function () use ($headers, $rows) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, $headers);
+            foreach ($rows as $r) {
+                fputcsv($out, array_values($r));
+            }
+            fclose($out);
+        }, $base.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
 
-        return view('finance.ledger.show', [
-            'student'     => $student,
-            'profile'     => $profile,
-            'entries'     => $entries,
-            'invoices'    => $invoices,
-            'statements'  => $statements,
-            'enrollments' => $enrollments,
-            'balance'     => $this->ledger->currentBalance($schoolId, (int) $student->id),
-            'setting'     => $setting,
+    /**
+     * Import ledger transactions for a student from a CSV
+     * (columns: date, type, description, reference, debit, credit).
+     */
+    public function importEntries(Request $request)
+    {
+        $schoolId = (int) auth()->user()->school_id;
+
+        $data = $request->validate([
+            'student_id' => ['required', 'integer'],
+            'file'       => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
         ]);
+
+        $student = User::query()
+            ->where('school_id', $schoolId)->where('role', 'student')
+            ->findOrFail((int) $data['student_id']);
+
+        $handle = fopen($request->file('file')->getRealPath(), 'r');
+        if ($handle === false) {
+            return back()->with('error', 'Could not read the uploaded file.');
+        }
+
+        $header = null;
+        $imported = 0;
+        $errors = [];
+        $line = 0;
+        while (($row = fgetcsv($handle)) !== false) {
+            $line++;
+            if ($header === null) {
+                $header = array_map(fn ($h) => strtolower(trim((string) $h)), $row);
+                continue;
+            }
+            if (count(array_filter($row, fn ($c) => trim((string) $c) !== '')) === 0) {
+                continue;
+            }
+
+            $r = [];
+            foreach ($header as $i => $key) {
+                $r[$key] = $row[$i] ?? null;
+            }
+
+            $debit  = round((float) ($r['debit'] ?? 0), 2);
+            $credit = round((float) ($r['credit'] ?? 0), 2);
+            if ($debit <= 0 && $credit <= 0) {
+                $errors[] = "Line {$line}: needs a debit or credit amount.";
+                continue;
+            }
+
+            $type = strtolower(trim((string) ($r['type'] ?? '')));
+            $type = in_array($type, ['charge', 'payment', 'discount', 'adjustment', 'refund'], true)
+                ? $type
+                : ($credit > 0 ? 'payment' : 'charge');
+
+            $this->ledger->record([
+                'school_id'   => $schoolId,
+                'student_id'  => (int) $student->id,
+                'entry_date'  => ! empty($r['date']) ? Carbon::parse($r['date'])->toDateString() : now()->toDateString(),
+                'type'        => $type,
+                'description' => trim((string) ($r['description'] ?? '')),
+                'reference'   => trim((string) ($r['reference'] ?? '')) ?: null,
+                'debit'       => $debit,
+                'credit'      => $credit,
+                'created_by'  => (int) auth()->id(),
+            ]);
+            $imported++;
+        }
+        fclose($handle);
+
+        $msg = "Imported {$imported} ledger ".($imported === 1 ? 'entry' : 'entries').'.';
+
+        return ! empty($errors)
+            ? back()->with('success', $msg)->with('import_errors', array_slice($errors, 0, 20))
+            : back()->with('success', $msg);
     }
 
     public function adjust(Request $request, User $student)

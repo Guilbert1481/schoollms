@@ -19,7 +19,7 @@
             </p>
         </div>
         <div class="flex gap-2">
-            <a href="{{ route('finance.settings.edit') }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Frequency Settings</a>
+            <a href="{{ route('finance.settings.preferences') }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Frequency Settings</a>
             <form method="POST" action="{{ route('finance.statements.batch') }}"
                   onsubmit="return confirm('Generate statements for the current period for every student with ledger activity?');">
                 @csrf

@@ -21,7 +21,12 @@ Route::middleware(['web', 'auth', 'role:finance_manager,admin,superadmin'])
         // Individual student ledgers
         Route::get('/ledger', [LedgerController::class, 'index'])->name('ledger.index');
         Route::get('/ledger/export', [LedgerController::class, 'export'])->name('ledger.export');
-        Route::get('/ledger/{student}', [LedgerController::class, 'show'])->name('ledger.show');
+        Route::post('/ledger/record-payment', [LedgerController::class, 'recordPayment'])->name('ledger.record-payment');
+        Route::post('/ledger/send-reminder', [LedgerController::class, 'sendReminder'])->name('ledger.send-reminder');
+        Route::post('/ledger/import-entries', [LedgerController::class, 'importEntries'])->name('ledger.import-entries');
+        Route::get('/ledger/{student}/drawer', [LedgerController::class, 'drawer'])->name('ledger.drawer');
+        Route::get('/ledger/{student}/entries', [LedgerController::class, 'entries'])->name('ledger.entries');
+        Route::get('/ledger/{student}/export', [LedgerController::class, 'studentExport'])->name('ledger.student-export');
         Route::post('/ledger/{student}/adjust', [LedgerController::class, 'adjust'])->name('ledger.adjust');
 
         // Invoices
@@ -38,7 +43,15 @@ Route::middleware(['web', 'auth', 'role:finance_manager,admin,superadmin'])
         Route::get('/statements/{statement}', [StatementController::class, 'show'])->name('statements.show');
         Route::get('/statements/{statement}/pdf', [StatementController::class, 'downloadPdf'])->name('statements.pdf');
 
-        // Finance settings (billing frequency, auto-generation, due days)
-        Route::get('/settings', [FinanceSettingController::class, 'edit'])->name('settings.edit');
-        Route::put('/settings', [FinanceSettingController::class, 'update'])->name('settings.update');
+        // Finance settings — grouped sub-pages under the Settings sidebar parent.
+        Route::prefix('settings')->name('settings.')->group(function () {
+            Route::get('/transaction-types', [FinanceSettingController::class, 'transactionTypes'])->name('transaction-types');
+            Route::get('/payment-methods', [FinanceSettingController::class, 'paymentMethods'])->name('payment-methods');
+            Route::get('/penalty-rules', [FinanceSettingController::class, 'penaltyRules'])->name('penalty-rules');
+            Route::get('/receipt-numbering', [FinanceSettingController::class, 'receiptNumbering'])->name('receipt-numbering');
+            Route::get('/invoice-numbering', [FinanceSettingController::class, 'invoiceNumbering'])->name('invoice-numbering');
+            Route::get('/soa-template', [FinanceSettingController::class, 'soaTemplate'])->name('soa-template');
+            Route::get('/preferences', [FinanceSettingController::class, 'preferences'])->name('preferences');
+            Route::put('/preferences', [FinanceSettingController::class, 'updatePreferences'])->name('preferences.update');
+        });
     });

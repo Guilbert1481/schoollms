@@ -63,7 +63,7 @@
         tableKey="finance_ledgers"
         :columns="$columns"
         :data="$rows->values()"
-        :actions="$actions"
+        :hideActions="true"
         perPage="20"
         :emptyMessage="$tableEmptyMessage"
     >
@@ -143,6 +143,116 @@
     </x-table.table>
 </div>
 
+{{-- Resizable student drawer (reusable component); content loaded on row click. --}}
+<x-drawer.right-drawer id="financeStudentDrawer" :width="480" :min="380" :max="760" />
+
+{{-- ===== Drawer action modals (reusable draggable + resizable modal) ===== --}}
+{{-- They live on the MAIN page so their drag/resize JS initialises on load;
+     the drawer's buttons just call openModal() with the current student. --}}
+
+<x-modal.form id="viewLedgerModal" title="Student Ledger" widthClass="w-full max-w-4xl" :hideFooter="true">
+    <div id="viewLedgerBody">
+        <div class="py-8 text-center text-sm text-slate-400">Loading…</div>
+    </div>
+</x-modal.form>
+
+<x-modal.form id="generateSoaModal" title="Generate Statement of Account" widthClass="w-full max-w-lg">
+    <form method="POST" action="{{ route('finance.statements.generate') }}" class="space-y-4">
+        @csrf
+        <input type="hidden" name="student_id" id="soaStudentId" value="">
+        <div>
+            <label class="mb-1 block text-sm font-semibold text-slate-700">Frequency</label>
+            <select name="frequency" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="">Use school default</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="semi_annual">Semi-Annual</option>
+                <option value="annual">Annual</option>
+                <option value="per_term">Per Term</option>
+                <option value="on_demand">On Demand</option>
+            </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="mb-1 block text-sm font-semibold text-slate-700">Period Start</label>
+                <input type="date" name="period_start" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="mb-1 block text-sm font-semibold text-slate-700">Period End</label>
+                <input type="date" name="period_end" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            </div>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" name="force" value="1"> Force regeneration (even with no new activity)
+        </label>
+        <p class="text-xs text-slate-400">Leave the period blank to use the frequency's current window.</p>
+    </form>
+</x-modal.form>
+
+<x-modal.form id="recordPaymentModal" title="Record Payment" widthClass="w-full max-w-lg">
+    <form method="POST" action="{{ route('finance.ledger.record-payment') }}" class="space-y-4">
+        @csrf
+        <input type="hidden" name="student_id" id="payStudentId" value="">
+        <div>
+            <label class="mb-1 block text-sm font-semibold text-slate-700">Amount</label>
+            <input type="number" step="0.01" min="0.01" name="amount" required
+                   class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="0.00">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="mb-1 block text-sm font-semibold text-slate-700">Payment Method</label>
+                <select name="payment_method" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <option value="cash">Cash</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="gcash">GCash</option>
+                    <option value="card">Card</option>
+                    <option value="cheque">Cheque</option>
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-sm font-semibold text-slate-700">Payment Date</label>
+                <input type="date" name="paid_at" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            </div>
+        </div>
+        <div>
+            <label class="mb-1 block text-sm font-semibold text-slate-700">Reference Number</label>
+            <input type="text" name="reference_number" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Optional">
+        </div>
+    </form>
+</x-modal.form>
+
+<x-modal.form id="sendReminderModal" title="Send Payment Reminder" widthClass="w-full max-w-lg">
+    <form method="POST" action="{{ route('finance.ledger.send-reminder') }}" class="space-y-4">
+        @csrf
+        <input type="hidden" name="student_id" id="reminderStudentId" value="">
+        <div>
+            <label class="mb-1 block text-sm font-semibold text-slate-700">Channel</label>
+            <select name="channel" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="email">Email</option>
+                <option value="sms">SMS</option>
+                <option value="portal">Portal Notification</option>
+            </select>
+        </div>
+        <div>
+            <label class="mb-1 block text-sm font-semibold text-slate-700">Message</label>
+            <textarea name="message" rows="4" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">This is a friendly reminder regarding your outstanding balance. Please settle it at your earliest convenience. Thank you.</textarea>
+        </div>
+    </form>
+</x-modal.form>
+
+<x-modal.form id="importLedgerModal" title="Import Ledger Transactions" widthClass="w-full max-w-lg">
+    <form method="POST" action="{{ route('finance.ledger.import-entries') }}" enctype="multipart/form-data" class="space-y-4">
+        @csrf
+        <input type="hidden" name="student_id" id="importStudentId" value="">
+        <p class="text-xs text-slate-500">
+            CSV columns: <code class="rounded bg-slate-100 px-1">date, type, description, reference, debit, credit</code>.
+            Type is one of charge / payment / discount / adjustment / refund.
+        </p>
+        <input type="file" name="file" accept=".csv,text/csv,text/plain" required
+               class="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-indigo-700">
+    </form>
+</x-modal.form>
+
 <script>
     const LEDGER_EXPORT_URL = @json(route('finance.ledger.export'));
 
@@ -178,6 +288,24 @@
         window.location = url.toString();
     }
 
+    // ===== Drawer action buttons → reusable modals =====
+    const LEDGER_BASE = @json(url('/finance/ledger'));
+
+    function drawerViewLedger(id) {
+        const body = document.getElementById('viewLedgerBody');
+        body.innerHTML = '<div class="py-8 text-center text-sm text-slate-400">Loading…</div>';
+        openModal('viewLedgerModal');
+        fetch(LEDGER_BASE + '/' + id + '/entries', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then((r) => r.text())
+            .then((html) => { body.innerHTML = html; })
+            .catch(() => { body.innerHTML = '<div class="py-8 text-center text-sm text-slate-400">Couldn\'t load the ledger.</div>'; });
+    }
+    function drawerGenerateSoa(id)   { document.getElementById('soaStudentId').value = id;      openModal('generateSoaModal'); }
+    function drawerRecordPayment(id) { document.getElementById('payStudentId').value = id;      openModal('recordPaymentModal'); }
+    function drawerSendReminder(id)  { document.getElementById('reminderStudentId').value = id; openModal('sendReminderModal'); }
+    function drawerImportLedger(id)  { document.getElementById('importStudentId').value = id;   openModal('importLedgerModal'); }
+    function drawerExportLedger(id)  { window.location = LEDGER_BASE + '/' + id + '/export?format=csv'; }
+
     document.addEventListener('DOMContentLoaded', () => {
         if (window.lucide?.createIcons) window.lucide.createIcons();
 
@@ -191,7 +319,8 @@
                 if (e.target.closest('button, a, input, select, label, form, [data-action], .action-column')) return;
                 const tr = e.target.closest('tr[data-row-id]');
                 if (!tr || !tr.dataset.rowId) return;
-                window.location = base + '/' + tr.dataset.rowId;
+                // Open the resizable drawer with this student's ledger (no page nav).
+                window.RightDrawer.load('financeStudentDrawer', base + '/' + tr.dataset.rowId + '/drawer');
             });
         }
     });

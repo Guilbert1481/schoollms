@@ -31,7 +31,6 @@ return [
             'finance_invoices',
             'finance_statements',
             'finance_tuition_setup',
-            'finance_settings',
             'finance_reports',
             'communication',
             'tools',
@@ -616,14 +615,6 @@ return [
             'roles'  => ['finance_manager'],
         ],
 
-        'finance_settings' => [
-            'icon'   => 'settings',
-            'label'  => 'Finance Settings',
-            'route'  => 'finance.settings.edit',
-            'active' => 'finance.settings.*',
-            'roles'  => ['finance_manager'],
-        ],
-
         'finance_reports' => [
             'icon'   => 'bar-chart-3',
             'label'  => 'Finance Reports',
@@ -792,6 +783,57 @@ return [
                     'route' => 'school.settings.master-data.academic_year.index',
                     'icon'  => 'graduation-cap',
                     'roles' => ['admin'],
+                ],
+
+                /* ---- Finance Manager settings ---- */
+                [
+                    'label'  => 'Transaction Types',
+                    'route'  => 'finance.settings.transaction-types',
+                    'active' => 'finance.settings.transaction-types',
+                    'icon'   => 'tags',
+                    'roles'  => ['finance_manager'],
+                ],
+                [
+                    'label'  => 'Payment Methods',
+                    'route'  => 'finance.settings.payment-methods',
+                    'active' => 'finance.settings.payment-methods',
+                    'icon'   => 'credit-card',
+                    'roles'  => ['finance_manager'],
+                ],
+                [
+                    'label'  => 'Penalty Rules',
+                    'route'  => 'finance.settings.penalty-rules',
+                    'active' => 'finance.settings.penalty-rules',
+                    'icon'   => 'alert-triangle',
+                    'roles'  => ['finance_manager'],
+                ],
+                [
+                    'label'  => 'OR & Receipt Numbering',
+                    'route'  => 'finance.settings.receipt-numbering',
+                    'active' => 'finance.settings.receipt-numbering',
+                    'icon'   => 'hash',
+                    'roles'  => ['finance_manager'],
+                ],
+                [
+                    'label'  => 'Invoice Numbering',
+                    'route'  => 'finance.settings.invoice-numbering',
+                    'active' => 'finance.settings.invoice-numbering',
+                    'icon'   => 'receipt-text',
+                    'roles'  => ['finance_manager'],
+                ],
+                [
+                    'label'  => 'SOA Template',
+                    'route'  => 'finance.settings.soa-template',
+                    'active' => 'finance.settings.soa-template',
+                    'icon'   => 'file-text',
+                    'roles'  => ['finance_manager'],
+                ],
+                [
+                    'label'  => 'Finance Preferences',
+                    'route'  => 'finance.settings.preferences',
+                    'active' => 'finance.settings.preferences*',
+                    'icon'   => 'sliders',
+                    'roles'  => ['finance_manager'],
                 ],
             ], // closes children
         ], // closes settings
