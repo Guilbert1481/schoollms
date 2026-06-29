@@ -4,7 +4,7 @@
 <div class="mx-auto w-full max-w-7xl space-y-4 p-4 md:p-6">
 
     {{-- Back link --}}
-    <a href="{{ route('registrar.student-ledgers.index') }}"
+    <a href="{{ route('registrar.student-registry.index') }}"
        class="inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:text-indigo-800">
         <i data-lucide="arrow-left" class="h-4 w-4"></i> Back to Student List
     </a>

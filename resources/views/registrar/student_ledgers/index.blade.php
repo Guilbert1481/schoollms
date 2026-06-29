@@ -25,20 +25,20 @@
     @endif
 
     {{-- Header --}}
-    <h1 class="text-xl font-extrabold text-slate-800">Student Ledgers</h1>
+    <h1 class="text-xl font-extrabold text-slate-800">Student Registry</h1>
 
     {{-- Education-level tabs (hidden when only one level is offered) --}}
     @if ($showTabs)
         @php
             $ledgerTabs = [[
                 'label'  => 'All Levels',
-                'url'    => route('registrar.student-ledgers.index', ['level' => 'all']),
+                'url'    => route('registrar.student-registry.index', ['level' => 'all']),
                 'active' => $showAll,
             ]];
             foreach ($levels as $lvl) {
                 $ledgerTabs[] = [
                     'label'  => $lvl->name,
-                    'url'    => route('registrar.student-ledgers.index', ['level' => $lvl->id]),
+                    'url'    => route('registrar.student-registry.index', ['level' => $lvl->id]),
                     'active' => ! $showAll && $activeLevelId === $lvl->id,
                 ];
             }
@@ -155,7 +155,7 @@
         </div>
 
         <form method="POST"
-              action="{{ route('registrar.student-ledgers.import') }}"
+              action="{{ route('registrar.student-registry.import') }}"
               enctype="multipart/form-data"
               class="space-y-4 px-5 py-5">
             @csrf
@@ -231,11 +231,11 @@
                         Not sure about the columns? Download the template for <strong>{{ $levelTitle }}</strong> — it already has every header. Just fill in your students and import.
                     </p>
                     <div class="flex flex-wrap gap-2">
-                        <a href="{{ route('registrar.student-ledgers.import-template', ['format' => 'csv', 'level' => $activeLevelId]) }}"
+                        <a href="{{ route('registrar.student-registry.import-template', ['format' => 'csv', 'level' => $activeLevelId]) }}"
                            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50">
                             <i data-lucide="file-text" class="h-4 w-4 text-slate-500"></i> CSV template
                         </a>
-                        <a href="{{ route('registrar.student-ledgers.import-template', ['format' => 'xlsx', 'level' => $activeLevelId]) }}"
+                        <a href="{{ route('registrar.student-registry.import-template', ['format' => 'xlsx', 'level' => $activeLevelId]) }}"
                            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50">
                             <i data-lucide="file-spreadsheet" class="h-4 w-4 text-emerald-600"></i> Excel template
                         </a>
@@ -311,7 +311,7 @@
 <script>
     // Student lookup for the Change Status modal: { id: { name, status } }.
     const LEDGER_STUDENTS = @json($ledgerStudents);
-    const LEDGER_STATUS_BASE = @json(url('/registrar/student-ledgers'));
+    const LEDGER_STATUS_BASE = @json(url('/registrar/student-registry'));
 
     function openChangeStatusModal(id) {
         const meta = LEDGER_STUDENTS[id] || {};
@@ -337,7 +337,7 @@
 
     // Export the current (filtered) list. Builds the export URL from the active
     // query params so the file matches what's on screen. "both" saves two files.
-    const LEDGER_EXPORT_URL = @json(route('registrar.student-ledgers.export'));
+    const LEDGER_EXPORT_URL = @json(route('registrar.student-registry.export'));
     function ledgerExport(format) {
         const current = new URLSearchParams(window.location.search);
         const buildUrl = (fmt) => {
@@ -410,7 +410,7 @@
         // action buttons / form controls are ignored so they keep working.
         const table = document.getElementById('student_ledgersTable');
         if (table) {
-            const base = @json(url('/registrar/student-ledgers'));
+            const base = @json(url('/registrar/student-registry'));
             table.querySelectorAll('tbody tr[data-row-id]').forEach((tr) => {
                 if (tr.dataset.rowId) tr.classList.add('cursor-pointer', 'hover:bg-slate-50');
             });

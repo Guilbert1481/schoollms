@@ -51,7 +51,7 @@ return [
 
         'registrar' => [
             'registrar_validate_enrollment',
-            'registrar_student_ledgers',
+            'registrar_student_registry',
             'registrar_subject_credits',
             'registrar_transcripts',
             'communication',
@@ -531,11 +531,11 @@ return [
             'roles'  => ['registrar'],
         ],
 
-        'registrar_student_ledgers' => [
+        'registrar_student_registry' => [
             'icon'   => 'id-card',
-            'label'  => 'Student Ledgers',
-            'route'  => 'registrar.student-ledgers.index',
-            'active' => 'registrar.student-ledgers.*',
+            'label'  => 'Student Registry',
+            'route'  => 'registrar.student-registry.index',
+            'active' => 'registrar.student-registry.*',
             'roles'  => ['registrar'],
         ],
 

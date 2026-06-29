@@ -19,7 +19,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
- * Registrar — Student Ledgers.
+ * Registrar — Student Registry.
  *
  * Detailed records of officially enrolled students (status = enrolled).
  * Provisionally enrolled, billed, and other in-flight statuses are excluded so
@@ -577,7 +577,7 @@ class StudentLedgerController extends Controller
         $format = strtolower((string) $request->query('format')) === 'xlsx' ? 'xlsx' : 'csv';
         [$headers, $rows, $title] = $this->buildExportRows($request);
 
-        $base = Str::slug($title ?: 'student-ledgers').'-'.now()->format('Ymd-His');
+        $base = Str::slug($title ?: 'student-registry').'-'.now()->format('Ymd-His');
 
         if ($format === 'xlsx') {
             $path = $this->buildXlsx($headers, $rows);
@@ -645,7 +645,7 @@ class StudentLedgerController extends Controller
             ->values();
 
         $label = fn ($key) => $statusLabels[$key] ?? ucwords(str_replace('_', ' ', (string) $key));
-        $title = $showAll ? 'All Levels' : ($activeLevel->name ?? 'Student Ledgers');
+        $title = $showAll ? 'All Levels' : ($activeLevel->name ?? 'Student Registry');
 
         if ($isBasic) {
             $headers = ['Student ID', 'Full Name', 'LRN', 'Grade Level', 'Section', 'Status', 'Academic Year'];
@@ -803,7 +803,7 @@ class StudentLedgerController extends Controller
     }
 
     /**
-     * Change a student's lifecycle status from a Student Ledgers row action.
+     * Change a student's lifecycle status from a Student Registry row action.
      * Writes the canonical students.status for the chosen ledger status (e.g.
      * Graduated, On Leave, Dropped); "Enrolled" resets it to "active".
      */

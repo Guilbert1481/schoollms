@@ -44,19 +44,19 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
         Route::post('transcripts/{student}/credit-edits', [TranscriptOfRecordController::class, 'applyCreditEdit'])
             ->name('transcripts.credit-edits.apply');
 
-        // 4. Student Ledgers — detailed records of officially enrolled students
-        Route::get('student-ledgers', [StudentLedgerController::class, 'index'])
-            ->name('student-ledgers.index');
-        Route::post('student-ledgers/import', [StudentLedgerController::class, 'import'])
-            ->name('student-ledgers.import');
-        Route::get('student-ledgers/export', [StudentLedgerController::class, 'export'])
-            ->name('student-ledgers.export');
-        Route::get('student-ledgers/import-template', [StudentLedgerController::class, 'importTemplate'])
-            ->name('student-ledgers.import-template');
-        Route::get('student-ledgers/{student}', [StudentLedgerController::class, 'show'])
-            ->name('student-ledgers.show');
-        Route::patch('student-ledgers/{student}/status', [StudentLedgerController::class, 'updateStatus'])
-            ->name('student-ledgers.status');
+        // 4. Student Registry — detailed records of officially enrolled students
+        Route::get('student-registry', [StudentLedgerController::class, 'index'])
+            ->name('student-registry.index');
+        Route::post('student-registry/import', [StudentLedgerController::class, 'import'])
+            ->name('student-registry.import');
+        Route::get('student-registry/export', [StudentLedgerController::class, 'export'])
+            ->name('student-registry.export');
+        Route::get('student-registry/import-template', [StudentLedgerController::class, 'importTemplate'])
+            ->name('student-registry.import-template');
+        Route::get('student-registry/{student}', [StudentLedgerController::class, 'show'])
+            ->name('student-registry.show');
+        Route::patch('student-registry/{student}/status', [StudentLedgerController::class, 'updateStatus'])
+            ->name('student-registry.status');
 
         // 5. Settings → Student ID (display options for the digital ID).
         Route::get('settings/student-id', [StudentIdSettingController::class, 'edit'])
