@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="p-6 max-w-3xl">
+<div class="w-full">
     <a href="{{ route('registrar.enrollments.index') }}" class="text-xs text-indigo-600 hover:underline">&larr; Back to queue</a>
 
     <h1 class="text-xl font-extrabold mt-2 mb-4">Enrollment Review</h1>

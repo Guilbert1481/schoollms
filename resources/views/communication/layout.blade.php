@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 px-10 py-10">
+<div class="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
 
     <div class="mb-10">
         <h1 class="text-3xl font-bold text-gray-900 tracking-tight">

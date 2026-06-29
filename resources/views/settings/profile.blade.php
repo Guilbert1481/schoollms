@@ -3,7 +3,7 @@
 @section('page-title', 'Profile Settings')
 
 @section('content')
-<div class="max-w-5xl mx-auto space-y-6">
+<div class="w-full space-y-6">
 
     {{-- Header --}}
     <div class="flex items-center gap-4">

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="mx-auto w-full max-w-3xl space-y-5 p-4 md:p-6">
+<div class="w-full space-y-5">
 
     <div class="flex items-center gap-3">
         <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">

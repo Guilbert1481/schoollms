@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="p-6 space-y-4">
+<div class="w-full space-y-4">
 
     <h1 class="text-xl font-extrabold text-slate-800">Validate Enrollment</h1>
 

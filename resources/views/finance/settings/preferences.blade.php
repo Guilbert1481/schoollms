@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="mx-auto w-full max-w-3xl space-y-5 p-4 md:p-6">
+<div class="w-full space-y-5">
 
     <div>
         <h1 class="text-2xl font-bold text-slate-800">Finance Preferences</h1>
