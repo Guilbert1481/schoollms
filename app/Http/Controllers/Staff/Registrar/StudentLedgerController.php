@@ -186,6 +186,18 @@ class StudentLedgerController extends Controller
             ];
         } else {
             $columns = config('tables.student_ledgers.columns', []);
+            // On "All Levels" the Program column becomes the student's education
+            // Level (Basic Education, Undergraduate Programs, …).
+            if ($showAll) {
+                $columns = array_map(function ($c) {
+                    if (($c['key'] ?? null) === 'program') {
+                        $c['key']   = 'level';
+                        $c['label'] = 'Level';
+                    }
+
+                    return $c;
+                }, $columns);
+            }
             $columns[] = ['key' => 'status', 'label' => 'Status', 'width' => '180px', 'raw' => true];
         }
 
@@ -527,6 +539,7 @@ class StudentLedgerController extends Controller
                 'year_term'     => $this->formatYearTerm($r->year_level, $r->term_name, $rootLevelId, $rootNameById),
                 'section'       => $r->section_name ?: '—',
                 'program'       => $r->program_code ?: ($r->program_name ?? '—'),
+                'level'         => ($rootLevelId && isset($rootNameById[$rootLevelId])) ? $rootNameById[$rootLevelId] : '—',
                 'academic_year' => $r->academic_year_name ?: '—',
                 'enrolled_at'   => $r->enrolled_at
                     ? \Carbon\Carbon::parse($r->enrolled_at)->format('M d, Y')
@@ -625,11 +638,12 @@ class StudentLedgerController extends Controller
                 return [$d->student_id, $d->full_name, $d->lrn, $grade, $d->section, $label($i->status_key), $d->academic_year];
             })->all();
         } else {
-            $headers = ['Student ID', 'Full Name', 'Email', 'Year Level', 'Program', 'Status', 'Academic Year'];
-            $data = $items->map(function ($i) use ($label) {
+            // On "All Levels" the Program column is the student's education Level.
+            $headers = ['Student ID', 'Full Name', 'Email', 'Year Level', $showAll ? 'Level' : 'Program', 'Status', 'Academic Year'];
+            $data = $items->map(function ($i) use ($label, $showAll) {
                 $d = $i->display;
 
-                return [$d->student_id, $d->full_name, $d->email, $d->year_term, $d->program, $label($i->status_key), $d->academic_year];
+                return [$d->student_id, $d->full_name, $d->email, $d->year_term, $showAll ? $d->level : $d->program, $label($i->status_key), $d->academic_year];
             })->all();
         }
 
