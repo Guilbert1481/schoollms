@@ -20,6 +20,8 @@ class Student extends Model
         'last_name',
         'preferred_name', // Added to match your UI
         'date_of_birth',
+        'place_of_birth',
+        'blood_type',
         'gender',
         'sexual_orientation', // Added demographic field
         'nationality',

@@ -17,6 +17,10 @@
                 <div class="text-[11px] font-semibold text-indigo-500">Contact Number</div>
                 <div class="text-sm font-semibold text-slate-800">{{ $emergency->contact }}</div>
             </div>
+            <div>
+                <div class="text-[11px] font-semibold text-indigo-500">Email Address</div>
+                <div class="text-sm font-semibold text-slate-800">{{ $emergency->email }}</div>
+            </div>
         </div>
     @else
         <p class="text-sm text-slate-400">No emergency contact on record.</p>

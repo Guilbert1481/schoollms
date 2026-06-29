@@ -226,7 +226,10 @@
                        required
                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100">
                 <p class="mt-2 text-xs text-slate-500">
-                    Optional headers: student_number, lrn, email, middle_name, phone, program_code, year_level, section, gender, date_of_birth, address.
+                    Optional headers — Student: student_number, lrn, email, middle_name, gender, date_of_birth, place_of_birth, blood_type, nationality, religion, phone, program_code, year_level, section, address.
+                    Parents/Guardians: guardian1_name, guardian1_relationship, guardian1_contact, guardian1_email, guardian1_occupation (and guardian2_*).
+                    Emergency: emergency_name, emergency_relationship, emergency_contact, emergency_email.
+                    Every imported student gets a login (default password: first name + 123456789).
                 </p>
             </div>
 

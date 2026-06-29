@@ -382,6 +382,7 @@ class StudentLedgerController extends Controller
             'name'         => $gname($emg),
             'relationship' => $emg->relationship ?: '—',
             'contact'      => $emg->mobile_number ?: ($emg->landline_number ?: '—'),
+            'email'        => $emg->email ?: '—',
         ] : null;
 
         $homeAddress = trim(implode(', ', array_filter([
@@ -405,11 +406,11 @@ class StudentLedgerController extends Controller
         $profile = [
             'full_name'            => $header['name'],
             'date_of_birth'        => $header['date_of_birth'],
-            'place_of_birth'       => '—', // no column
+            'place_of_birth'       => $dash($student->place_of_birth),
             'gender'               => $header['gender'],
             'nationality'          => $dash($student->nationality),
             'religion'             => $dash($student->religion),
-            'blood_type'           => '—', // no column
+            'blood_type'           => $dash($student->blood_type),
             'email'                => $dash($student->email),
             'lrn'                  => $header['lrn'],
             'student_id'           => $header['student_id'],
@@ -1009,7 +1010,7 @@ class StudentLedgerController extends Controller
                 'middle_name' => $this->clean($row['middle_name'] ?? null),
                 'last_name'   => $lastName,
                 'email'       => $email,
-                'password'    => Hash::make(Str::random(16)),
+                'password'    => Hash::make($firstName.'123456789'),
                 'role'        => 'student',
                 'school_id'   => $schoolId,
                 'phone'       => $this->clean($row['phone'] ?? $row['mobile_number'] ?? null),
@@ -1048,6 +1049,27 @@ class StudentLedgerController extends Controller
             ? $studentNumber
             : ($student?->student_number ?: $this->generateStudentNumber());
 
+        // Every imported student gets a login account so they can access the
+        // system. Use the provided email, or generate one from the student
+        // number; the default password is "<first name>123456789".
+        if (! $user) {
+            $loginEmail = $email
+                ?: strtolower(preg_replace('/[^A-Za-z0-9._-]/', '', $studentNumber)).'@'.$this->schoolDomain($schoolId);
+            $user = User::where('email', $loginEmail)->first();
+            if (! $user) {
+                $user = User::create([
+                    'first_name'  => $firstName,
+                    'middle_name' => $this->clean($row['middle_name'] ?? null),
+                    'last_name'   => $lastName,
+                    'email'       => $loginEmail,
+                    'password'    => Hash::make($firstName.'123456789'),
+                    'role'        => 'student',
+                    'school_id'   => $schoolId,
+                    'phone'       => $this->clean($row['phone'] ?? $row['mobile_number'] ?? null),
+                ]);
+            }
+        }
+
         $studentData = [
             'school_id'            => $schoolId,
             'user_id'              => $user?->id,
@@ -1061,6 +1083,9 @@ class StudentLedgerController extends Controller
             'mobile_number'        => $this->clean($row['mobile_number'] ?? $row['phone'] ?? null),
             'gender'               => $this->clean($row['gender'] ?? null),
             'date_of_birth'        => $this->parseDate($row['date_of_birth'] ?? $row['birthdate'] ?? null),
+            'place_of_birth'       => $this->clean($row['place_of_birth'] ?? null),
+            'blood_type'           => $this->clean($row['blood_type'] ?? null),
+            'religion'             => $this->clean($row['religion'] ?? null),
             'nationality'          => $this->clean($row['nationality'] ?? null),
             'barangay'             => $this->clean($row['barangay'] ?? null),
             'city_municipality'    => $this->clean($row['city_municipality'] ?? $row['city'] ?? null),
@@ -1082,6 +1107,11 @@ class StudentLedgerController extends Controller
         if ($user) {
             $this->syncProfileAndAccess($user, $student, $schoolId);
         }
+
+        // Parents / Guardians and Emergency Contact (optional CSV/Excel columns).
+        $this->importGuardian($student->id, $row, 'guardian1', false, true);
+        $this->importGuardian($student->id, $row, 'guardian2', false, false);
+        $this->importGuardian($student->id, $row, 'emergency', true, false);
 
         $term = $defaultTerm;
         $rowTermId = (int) ($row['term_id'] ?? 0);
@@ -1505,6 +1535,73 @@ class StudentLedgerController extends Controller
         }
 
         return $value;
+    }
+
+    /** The school's email domain, used to generate student login emails. */
+    protected function schoolDomain(int $schoolId): string
+    {
+        return DB::table('schools')->where('id', $schoolId)->value('domain') ?: 'school.local';
+    }
+
+    /** Split a full name into [first, last] (last token = last name). */
+    protected function splitName(string $full): array
+    {
+        $parts = preg_split('/\s+/', trim($full)) ?: [];
+        if (count($parts) <= 1) {
+            return [trim($full), ''];
+        }
+        $last = array_pop($parts);
+
+        return [implode(' ', $parts), $last];
+    }
+
+    /** First non-empty value among several possible row keys. */
+    protected function firstRowValue(array $row, array $keys): ?string
+    {
+        foreach ($keys as $k) {
+            if (array_key_exists($k, $row) && trim((string) ($row[$k] ?? '')) !== '') {
+                return trim((string) $row[$k]);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Create / update a guardian (parent or emergency contact) for a student
+     * from prefixed CSV columns, e.g.:
+     *   guardian1_name, guardian1_relationship, guardian1_contact,
+     *   guardian1_email, guardian1_occupation  (and guardian2_*, emergency_*).
+     * Matched by student + name + emergency-flag so re-imports update in place.
+     */
+    protected function importGuardian(int $studentId, array $row, string $prefix, bool $isEmergency, bool $isPrimary): void
+    {
+        $name = $this->firstRowValue($row, [$prefix.'_name', $prefix.'name']);
+        if ($name === null) {
+            return;
+        }
+
+        [$first, $last] = $this->splitName($name);
+
+        $fields = $this->filterColumns('guardians', [
+            'last_name'     => $last,
+            'relationship'  => $this->firstRowValue($row, [$prefix.'_relationship', $prefix.'_relation']),
+            'mobile_number' => $this->firstRowValue($row, [$prefix.'_contact', $prefix.'_contact_number', $prefix.'_mobile', $prefix.'_phone']),
+            'email'         => $this->firstRowValue($row, [$prefix.'_email', $prefix.'_email_address']),
+            'occupation'    => $isEmergency ? null : $this->firstRowValue($row, [$prefix.'_occupation']),
+            'updated_at'    => now(),
+        ]);
+
+        $match = ['student_id' => $studentId, 'first_name' => $first, 'is_emergency_contact' => $isEmergency ? 1 : 0];
+        $existing = DB::table('guardians')->where($match)->first();
+        if ($existing) {
+            DB::table('guardians')->where('id', $existing->id)->update($fields);
+        } else {
+            DB::table('guardians')->insert(array_merge($match, $fields, [
+                'is_primary' => $isPrimary ? 1 : 0,
+                'created_at' => now(),
+            ]));
+        }
     }
 
     protected function parseDate($value): ?string
