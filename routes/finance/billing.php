@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Finance\BillingController;
-use App\Http\Controllers\Finance\BillingQueueController;
 use App\Http\Controllers\Finance\TuitionSetupController;
 use Illuminate\Support\Facades\Route;
 
@@ -11,12 +10,6 @@ Route::middleware(['web', 'auth'])
 	->group(function () {
 		Route::get('/billing', [BillingController::class, 'index'])
 			->name('billing.index');
-
-		// Admissions → Billing handoff queue (Finance Manager)
-		Route::get('/billing-queue', [BillingQueueController::class, 'index'])
-			->name('billing.queue');
-		Route::post('/billing-queue/{enrollment}/paid', [BillingQueueController::class, 'markPaid'])
-			->name('billing.paid');
 
 		Route::middleware('role:finance_manager,admin,superadmin')
 			->prefix('tuition-setup')
@@ -38,5 +31,26 @@ Route::middleware(['web', 'auth'])
 					->name('discounts.update');
 				Route::delete('/discounts/{discount}', [TuitionSetupController::class, 'destroyDiscount'])
 					->name('discounts.destroy');
+
+				Route::post('/scholarships', [TuitionSetupController::class, 'storeScholarship'])
+					->name('scholarships.store');
+				Route::put('/scholarships/{scholarship}', [TuitionSetupController::class, 'updateScholarship'])
+					->name('scholarships.update');
+				Route::delete('/scholarships/{scholarship}', [TuitionSetupController::class, 'destroyScholarship'])
+					->name('scholarships.destroy');
+
+				Route::post('/payment-plans', [TuitionSetupController::class, 'storePaymentPlan'])
+					->name('payment-plans.store');
+				Route::put('/payment-plans/{paymentPlan}', [TuitionSetupController::class, 'updatePaymentPlan'])
+					->name('payment-plans.update');
+				Route::delete('/payment-plans/{paymentPlan}', [TuitionSetupController::class, 'destroyPaymentPlan'])
+					->name('payment-plans.destroy');
+
+				Route::post('/penalty-rules', [TuitionSetupController::class, 'storePenalty'])
+					->name('penalty-rules.store');
+				Route::put('/penalty-rules/{penaltyRule}', [TuitionSetupController::class, 'updatePenalty'])
+					->name('penalty-rules.update');
+				Route::delete('/penalty-rules/{penaltyRule}', [TuitionSetupController::class, 'destroyPenalty'])
+					->name('penalty-rules.destroy');
 			});
 	});

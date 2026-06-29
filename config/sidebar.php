@@ -24,16 +24,14 @@ return [
 
 
         'finance_manager' => [
-            'finance_billing_queue',
             'finance_billing',
             'finance_payments',
             'finance_student_ledgers',
-            'finance_invoices',
-            'finance_statements',
             'finance_tuition_setup',
-            'finance_reports',
+            'finance_statements',
             'communication',
             'tools',
+            'finance_reports',
             'settings',
             'logout',
         ],
@@ -559,14 +557,6 @@ return [
         | FINANCE MANAGER MODULES
         |--------------------------------------------------------------------------
         */
-        'finance_billing_queue' => [
-            'icon'   => 'file-text',
-            'label'  => 'Billing & Payment Queue',
-            'route'  => 'finance.billing.queue',
-            'active' => 'finance.billing.queue*',
-            'roles'  => ['finance_manager'],
-        ],
-
         'finance_billing' => [
             'icon'   => 'receipt',
             'label'  => 'Billing',
@@ -591,17 +581,9 @@ return [
             'roles'  => ['finance_manager'],
         ],
 
-        'finance_invoices' => [
-            'icon'   => 'receipt-text',
-            'label'  => 'Invoices',
-            'route'  => 'finance.invoices.index',
-            'active' => 'finance.invoices.*',
-            'roles'  => ['finance_manager'],
-        ],
-
         'finance_statements' => [
             'icon'   => 'receipt',
-            'label'  => 'Statements of Account',
+            'label'  => 'SOA',
             'route'  => 'finance.statements.index',
             'active' => 'finance.statements.*',
             'roles'  => ['finance_manager'],
@@ -609,7 +591,7 @@ return [
 
         'finance_tuition_setup' => [
             'icon'   => 'sliders',
-            'label'  => 'Tuition & Fees Setup',
+            'label'  => 'Tuition & Fees',
             'route'  => 'finance.tuition-setup.index',
             'active' => 'finance.tuition-setup.*',
             'roles'  => ['finance_manager'],
@@ -617,7 +599,7 @@ return [
 
         'finance_reports' => [
             'icon'   => 'bar-chart-3',
-            'label'  => 'Finance Reports',
+            'label'  => 'Reports',
             'route'  => '#',
             'roles'  => ['finance_manager'],
         ],

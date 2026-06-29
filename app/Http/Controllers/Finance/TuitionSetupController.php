@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Finance;
 use App\Http\Controllers\Controller;
 use App\Models\FinanceDiscountType;
 use App\Models\FinanceFeeSetup;
+use App\Models\PaymentPlan;
+use App\Models\PenaltyRule;
+use App\Models\Scholarship;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -12,263 +15,623 @@ use Illuminate\Validation\Rule;
 
 class TuitionSetupController extends Controller
 {
-    public function index()
+    /** Tab key => [label, lucide icon, add-button label]. */
+    public const TABS = [
+        'tuition'       => ['label' => 'Tuition Matrix',      'icon' => 'layout-grid',        'add' => 'Add Tuition Rate'],
+        'miscellaneous' => ['label' => 'Miscellaneous Fees',  'icon' => 'circle-dollar-sign', 'add' => 'Add Fee'],
+        'other'         => ['label' => 'Other Fees',          'icon' => 'file-text',          'add' => 'Add Fee'],
+        'discounts'     => ['label' => 'Discounts',           'icon' => 'badge-percent',      'add' => 'Add Discount'],
+        'scholarships'  => ['label' => 'Scholarships',        'icon' => 'graduation-cap',     'add' => 'Add Scholarship'],
+        'payment-plans' => ['label' => 'Payment Plans',       'icon' => 'credit-card',        'add' => 'Add Payment Plan'],
+        'penalty-rules' => ['label' => 'Penalty Rules',       'icon' => 'shield-alert',       'add' => 'Add Penalty Rule'],
+    ];
+
+    public function index(Request $request)
     {
         $schoolId = (int) auth()->user()->school_id;
 
-        $fees = FinanceFeeSetup::query()
-            ->with(['academicYear:id,name', 'term:id,name', 'educationNode:id,name,parent_id', 'program:id,code,name'])
-            ->where('school_id', $schoolId)
-            ->orderByDesc('is_active')
-            ->orderBy('fee_type')
-            ->orderBy('code')
-            ->get()
-            ->map(fn (FinanceFeeSetup $fee) => $this->formatFeeRow($fee));
+        $tab = $request->query('tab', 'tuition');
+        if (! array_key_exists($tab, self::TABS)) {
+            $tab = 'tuition';
+        }
 
-        $discounts = FinanceDiscountType::query()
-            ->where('school_id', $schoolId)
-            ->orderByDesc('is_active')
-            ->orderBy('code')
-            ->get()
-            ->map(fn (FinanceDiscountType $discount) => $this->formatDiscountRow($discount));
+        // Tuition Matrix filters.
+        $academicYearId = $request->integer('academic_year_id') ?: null;
+        $levelId        = $request->integer('education_level') ?: null;
+        $gradeYear      = $request->query('grade_year');
+        $gradeYear      = ($gradeYear === null || $gradeYear === '') ? null : (string) $gradeYear;
+        $paymentPlanId  = $request->integer('payment_plan') ?: null;
+
+        $nodeToRoot   = $this->buildNodeRootMap();
+        $rootNameById = DB::table('education_nodes')->whereNull('parent_id')->pluck('name', 'id')->all();
+
+        [$rows, $columns] = $this->tabData($tab, $schoolId, $nodeToRoot, $rootNameById, [
+            'academic_year_id' => $academicYearId,
+            'education_level'  => $levelId,
+            'grade_year'       => $gradeYear,
+            'payment_plan'     => $paymentPlanId,
+        ]);
+
+        // Shared lookups for filters + modal selects.
+        $academicYears = DB::table('academic_years')->where('school_id', $schoolId)
+            ->orderByDesc('start_date')->get(['id', 'name']);
+        $terms = DB::table('terms')->where('school_id', $schoolId)
+            ->orderByDesc('is_current')->orderByDesc('start_date')->get(['id', 'name', 'academic_year_id']);
+        $levels = DB::table('education_nodes')->whereNull('parent_id')
+            ->where('is_offered', 1)->where('is_active', 1)->orderBy('order_index')->get(['id', 'name']);
+        $paymentPlans = PaymentPlan::where('school_id', $schoolId)->orderBy('name')->get(['id', 'name', 'is_active']);
+        $programs = DB::table('programs')->where('school_id', $schoolId)->orderBy('code')->orderBy('name')->get(['id', 'code', 'name']);
+
+        // Grade / Year Level options for the filter (Grade 1..12, Year 1..6).
+        $gradeYearOptions = [];
+        for ($g = 1; $g <= 12; $g++) {
+            $gradeYearOptions[(string) $g] = 'Grade '.$g;
+        }
 
         return view('finance.tuition_setup', [
-            'fees' => $fees,
-            'discounts' => $discounts,
-            'feeColumns' => $this->feeColumns(),
-            'discountColumns' => $this->discountColumns(),
-            'feeActions' => $this->feeActions(),
-            'discountActions' => $this->discountActions(),
-            'academicYears' => DB::table('academic_years')
-                ->where('school_id', $schoolId)
-                ->orderByDesc('start_date')
-                ->get(['id', 'name']),
-            'terms' => DB::table('terms')
-                ->where('school_id', $schoolId)
-                ->orderByDesc('is_current')
-                ->orderByDesc('start_date')
-                ->get(['id', 'name', 'academic_year_id']),
-            'educationNodes' => $this->educationNodeOptions(),
-            'programs' => DB::table('programs')
-                ->where('school_id', $schoolId)
-                ->orderBy('code')
-                ->orderBy('name')
-                ->get(['id', 'code', 'name']),
-            'feeTypes' => FinanceFeeSetup::FEE_TYPES,
-            'billingBases' => FinanceFeeSetup::BILLING_BASES,
-            'discountKinds' => FinanceDiscountType::DISCOUNT_KINDS,
+            'tabs'             => self::TABS,
+            'tab'              => $tab,
+            'rows'             => $rows,
+            'columns'          => $columns,
+            'actions'          => $this->actionsFor($tab),
+            'addLabel'         => self::TABS[$tab]['add'],
+
+            // filters
+            'academicYears'    => $academicYears,
+            'levels'           => $levels,
+            'gradeYearOptions' => $gradeYearOptions,
+            'paymentPlans'     => $paymentPlans,
+            'filters'          => [
+                'academic_year_id' => $academicYearId,
+                'education_level'  => $levelId,
+                'grade_year'       => $gradeYear,
+                'payment_plan'     => $paymentPlanId,
+            ],
+
+            // modal lookups
+            'terms'            => $terms,
+            'programs'         => $programs,
+            'educationNodes'   => $this->educationNodeOptions(),
+            'feeTypes'         => FinanceFeeSetup::FEE_TYPES,
+            'billingBases'     => FinanceFeeSetup::BILLING_BASES,
+            'discountKinds'    => FinanceDiscountType::DISCOUNT_KINDS,
             'discountAppliesTo' => FinanceDiscountType::APPLIES_TO,
+            'scholarshipKinds' => Scholarship::KINDS,
+            'scholarshipCoverage' => Scholarship::COVERAGE,
+            'penaltyBases'     => PenaltyRule::BASES,
+
+            // edit payload for the active tab
+            'editPayload'      => $this->editPayload($tab, $schoolId),
         ]);
     }
 
-    public function storeFee(Request $request)
+    /* ===================================================================
+     | Per-tab row + column builders
+     * =================================================================== */
+
+    protected function tabData(string $tab, int $schoolId, array $nodeToRoot, array $rootNameById, array $filters): array
     {
-        $schoolId = (int) $request->user()->school_id;
-        $data = $this->validatedFeeData($request, $schoolId);
-        $data['school_id'] = $schoolId;
-
-        FinanceFeeSetup::create($data);
-
-        return back()->with('success', 'Fee setup created.');
+        return match ($tab) {
+            'tuition'       => [$this->feeRows($schoolId, ['tuition'], $nodeToRoot, $rootNameById, $filters, true), $this->tuitionColumns()],
+            'miscellaneous' => [$this->feeRows($schoolId, ['miscellaneous'], $nodeToRoot, $rootNameById, $filters, false), $this->feeColumns()],
+            'other'         => [$this->feeRows($schoolId, ['other', 'registration', 'laboratory'], $nodeToRoot, $rootNameById, $filters, false), $this->feeColumns()],
+            'discounts'     => [$this->discountRows($schoolId), $this->discountColumns()],
+            'scholarships'  => [$this->scholarshipRows($schoolId), $this->scholarshipColumns()],
+            'payment-plans' => [$this->paymentPlanRows($schoolId), $this->paymentPlanColumns()],
+            'penalty-rules' => [$this->penaltyRows($schoolId), $this->penaltyColumns()],
+        };
     }
 
-    public function updateFee(Request $request, FinanceFeeSetup $fee)
+    /** Fee rows (tuition / misc / other). $withPlan adds the Payment Plan column data. */
+    protected function feeRows(int $schoolId, array $types, array $nodeToRoot, array $rootNameById, array $filters, bool $withPlan)
     {
-        $this->authorizeSchool($fee->school_id);
+        return FinanceFeeSetup::query()
+            ->with(['program:id,code,name', 'paymentPlan:id,name', 'educationNode:id,name,parent_id'])
+            ->where('school_id', $schoolId)
+            ->whereIn('fee_type', $types)
+            ->when($filters['academic_year_id'] ?? null, fn ($q, $v) => $q->where('academic_year_id', $v))
+            ->when($filters['grade_year'] ?? null, fn ($q, $v) => $q->where('year_level', (int) $v))
+            ->when($filters['payment_plan'] ?? null, fn ($q, $v) => $q->where('payment_plan_id', $v))
+            ->orderByDesc('is_active')->orderBy('code')
+            ->get()
+            ->filter(function (FinanceFeeSetup $fee) use ($nodeToRoot, $filters) {
+                if (empty($filters['education_level'])) {
+                    return true;
+                }
+                $root = $nodeToRoot[$fee->education_node_id ?? null] ?? null;
 
-        $fee->update($this->validatedFeeData($request, (int) $fee->school_id, $fee->id));
+                return (int) $root === (int) $filters['education_level'];
+            })
+            ->map(function (FinanceFeeSetup $fee) use ($nodeToRoot, $rootNameById, $withPlan) {
+                $rootId   = $nodeToRoot[$fee->education_node_id ?? null] ?? null;
+                $rootName = $rootId ? ($rootNameById[$rootId] ?? '—') : '—';
+                $isBasic  = str_contains(strtolower((string) $rootName), 'basic');
 
-        return back()->with('success', 'Fee setup updated.');
+                $gradeYear = $fee->program
+                    ? trim(($fee->program->code ? $fee->program->code.' ' : '').$fee->program->name)
+                    : ($fee->year_level ? ($isBasic ? 'Grade ' : 'Year ').(int) $fee->year_level : '—');
+
+                return (object) [
+                    'id'             => $fee->id,
+                    'education_level'=> $this->levelCell($rootName),
+                    'grade_year'     => $gradeYear,
+                    'name'           => $fee->name,
+                    'payment_plan'   => $fee->paymentPlan?->name ?: '—',
+                    'amount'         => $this->peso($fee->amount),
+                    'status'         => $this->statusPill((bool) $fee->is_active),
+                ];
+            })->values();
     }
 
-    public function destroyFee(FinanceFeeSetup $fee)
+    protected function discountRows(int $schoolId)
     {
-        $this->authorizeSchool($fee->school_id);
-        $fee->delete();
-
-        return back()->with('success', 'Fee setup deleted.');
+        return FinanceDiscountType::where('school_id', $schoolId)
+            ->orderByDesc('is_active')->orderBy('code')->get()
+            ->map(fn (FinanceDiscountType $d) => (object) [
+                'id'         => $d->id,
+                'code'       => $d->code,
+                'name'       => $d->name,
+                'kind'       => FinanceDiscountType::DISCOUNT_KINDS[$d->discount_kind] ?? Str::headline($d->discount_kind),
+                'value'      => $d->discount_kind === 'percentage' ? number_format((float) $d->value, 2).'%' : $this->peso($d->value),
+                'applies_to' => FinanceDiscountType::APPLIES_TO[$d->applies_to] ?? Str::headline($d->applies_to),
+                'status'     => $this->statusPill((bool) $d->is_active),
+            ])->values();
     }
 
-    public function storeDiscount(Request $request)
+    protected function scholarshipRows(int $schoolId)
     {
-        $schoolId = (int) $request->user()->school_id;
-        $data = $this->validatedDiscountData($request, $schoolId);
-        $data['school_id'] = $schoolId;
-
-        FinanceDiscountType::create($data);
-
-        return back()->with('success', 'Discount type created.');
+        return Scholarship::where('school_id', $schoolId)
+            ->orderByDesc('is_active')->orderBy('code')->get()
+            ->map(fn (Scholarship $s) => (object) [
+                'id'       => $s->id,
+                'code'     => $s->code,
+                'name'     => $s->name,
+                'kind'     => Scholarship::KINDS[$s->kind] ?? Str::headline($s->kind),
+                'value'    => $s->kind === 'percentage' ? number_format((float) $s->value, 2).'%' : $this->peso($s->value),
+                'coverage' => Scholarship::COVERAGE[$s->coverage] ?? Str::headline($s->coverage),
+                'status'   => $this->statusPill((bool) $s->is_active),
+            ])->values();
     }
 
-    public function updateDiscount(Request $request, FinanceDiscountType $discount)
+    protected function paymentPlanRows(int $schoolId)
     {
-        $this->authorizeSchool($discount->school_id);
-
-        $discount->update($this->validatedDiscountData($request, (int) $discount->school_id, $discount->id));
-
-        return back()->with('success', 'Discount type updated.');
+        return PaymentPlan::where('school_id', $schoolId)
+            ->orderByDesc('is_active')->orderBy('name')->get()
+            ->map(fn (PaymentPlan $p) => (object) [
+                'id'           => $p->id,
+                'code'         => $p->code,
+                'name'         => $p->name,
+                'installments' => $p->installments == 1 ? 'Full payment' : $p->installments.' installments',
+                'status'       => $this->statusPill((bool) $p->is_active),
+            ])->values();
     }
 
-    public function destroyDiscount(FinanceDiscountType $discount)
+    protected function penaltyRows(int $schoolId)
     {
-        $this->authorizeSchool($discount->school_id);
-        $discount->delete();
-
-        return back()->with('success', 'Discount type deleted.');
+        return PenaltyRule::where('school_id', $schoolId)
+            ->orderByDesc('is_active')->orderBy('code')->get()
+            ->map(fn (PenaltyRule $r) => (object) [
+                'id'         => $r->id,
+                'code'       => $r->code,
+                'name'       => $r->name,
+                'basis'      => PenaltyRule::BASES[$r->basis] ?? Str::headline($r->basis),
+                'amount'     => $r->basis === 'percentage' ? number_format((float) $r->amount, 2).'%' : $this->peso($r->amount),
+                'grace_days' => $r->grace_days.' day'.($r->grace_days == 1 ? '' : 's'),
+                'status'     => $this->statusPill((bool) $r->is_active),
+            ])->values();
     }
 
-    protected function validatedFeeData(Request $request, int $schoolId, ?int $ignoreId = null): array
+    /* ===================================================================
+     | Columns + actions
+     * =================================================================== */
+
+    protected function tuitionColumns(): array
     {
-        $data = $request->validate([
-            'academic_year_id' => ['nullable', 'integer', Rule::exists('academic_years', 'id')->where('school_id', $schoolId)],
-            'term_id' => ['nullable', 'integer', Rule::exists('terms', 'id')->where('school_id', $schoolId)],
-            'education_node_id' => ['nullable', 'integer', Rule::exists('education_nodes', 'id')],
-            'program_id' => ['nullable', 'integer', Rule::exists('programs', 'id')->where('school_id', $schoolId)],
-            'year_level' => ['nullable', 'integer', 'min:1', 'max:20'],
-            'fee_type' => ['required', Rule::in(array_keys(FinanceFeeSetup::FEE_TYPES))],
-            'code' => [
-                'required',
-                'string',
-                'max:40',
-                'regex:/^[A-Za-z0-9_-]+$/',
-                Rule::unique('finance_fee_setups', 'code')
-                    ->where('school_id', $schoolId)
-                    ->ignore($ignoreId),
-            ],
-            'name' => ['required', 'string', 'max:191'],
-            'billing_basis' => ['required', Rule::in(array_keys(FinanceFeeSetup::BILLING_BASES))],
-            'amount' => ['required', 'numeric', 'min:0', 'max:999999999.99'],
-            'is_active' => ['nullable', 'boolean'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
-
-        $data['code'] = Str::upper(trim($data['code']));
-        $data['is_active'] = (bool) ($data['is_active'] ?? false);
-        $data['amount'] = round((float) $data['amount'], 2);
-
-        return $data;
-    }
-
-    protected function validatedDiscountData(Request $request, int $schoolId, ?int $ignoreId = null): array
-    {
-        $data = $request->validate([
-            'code' => [
-                'required',
-                'string',
-                'max:40',
-                'regex:/^[A-Za-z0-9_-]+$/',
-                Rule::unique('finance_discount_types', 'code')
-                    ->where('school_id', $schoolId)
-                    ->ignore($ignoreId),
-            ],
-            'name' => ['required', 'string', 'max:191'],
-            'discount_kind' => ['required', Rule::in(array_keys(FinanceDiscountType::DISCOUNT_KINDS))],
-            'value' => ['required', 'numeric', 'min:0', 'max:999999999.99'],
-            'applies_to' => ['required', Rule::in(array_keys(FinanceDiscountType::APPLIES_TO))],
-            'requires_approval' => ['nullable', 'boolean'],
-            'is_active' => ['nullable', 'boolean'],
-            'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
-
-        $data['code'] = Str::upper(trim($data['code']));
-        $data['requires_approval'] = (bool) ($data['requires_approval'] ?? false);
-        $data['is_active'] = (bool) ($data['is_active'] ?? false);
-        $data['value'] = round((float) $data['value'], 2);
-
-        return $data;
-    }
-
-    protected function formatFeeRow(FinanceFeeSetup $fee): FinanceFeeSetup
-    {
-        $scope = collect([
-            $fee->academicYear?->name,
-            $fee->term?->name,
-            $fee->educationNode?->name,
-            $fee->program ? trim(($fee->program->code ? $fee->program->code.' - ' : '').$fee->program->name) : null,
-            $fee->year_level ? 'Year/Grade '.$fee->year_level : null,
-        ])->filter()->implode(' / ');
-
-        $fee->scope_label = e($scope !== '' ? $scope : 'All students');
-        $fee->fee_type_label = e(FinanceFeeSetup::FEE_TYPES[$fee->fee_type] ?? Str::headline($fee->fee_type));
-        $fee->billing_basis_label = e(FinanceFeeSetup::BILLING_BASES[$fee->billing_basis] ?? Str::headline($fee->billing_basis));
-        $fee->amount_label = 'PHP '.number_format((float) $fee->amount, 2);
-        $fee->status_label = $this->statusPill($fee->is_active);
-
-        return $fee;
-    }
-
-    protected function formatDiscountRow(FinanceDiscountType $discount): FinanceDiscountType
-    {
-        $discount->discount_kind_label = e(FinanceDiscountType::DISCOUNT_KINDS[$discount->discount_kind] ?? Str::headline($discount->discount_kind));
-        $discount->value_label = $discount->discount_kind === 'percentage'
-            ? number_format((float) $discount->value, 2).'%'
-            : 'PHP '.number_format((float) $discount->value, 2);
-        $discount->applies_to_label = e(FinanceDiscountType::APPLIES_TO[$discount->applies_to] ?? Str::headline($discount->applies_to));
-        $discount->approval_label = $discount->requires_approval
-            ? '<span class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">Approval</span>'
-            : '<span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">Automatic</span>';
-        $discount->status_label = $this->statusPill($discount->is_active);
-
-        return $discount;
-    }
-
-    protected function statusPill(bool $active): string
-    {
-        return $active
-            ? '<span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">Active</span>'
-            : '<span class="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">Inactive</span>';
+        return [
+            ['key' => 'education_level', 'label' => 'Education Level',  'width' => '200px', 'raw' => true],
+            ['key' => 'grade_year',     'label' => 'Grade / Year Level', 'width' => '180px'],
+            ['key' => 'payment_plan',   'label' => 'Payment Plan',     'width' => '180px'],
+            ['key' => 'amount',         'label' => 'Tuition Amount',   'width' => '150px'],
+            ['key' => 'status',         'label' => 'Status',           'width' => '110px', 'raw' => true],
+        ];
     }
 
     protected function feeColumns(): array
     {
         return [
-            ['key' => 'code', 'label' => 'Code', 'width' => '120px'],
-            ['key' => 'name', 'label' => 'Fee Name', 'width' => '220px'],
-            ['key' => 'fee_type_label', 'label' => 'Type', 'width' => '140px'],
-            ['key' => 'scope_label', 'label' => 'Scope', 'width' => '300px'],
-            ['key' => 'billing_basis_label', 'label' => 'Basis', 'width' => '140px'],
-            ['key' => 'amount_label', 'label' => 'Amount', 'width' => '140px'],
-            ['key' => 'status_label', 'label' => 'Status', 'width' => '110px', 'raw' => true],
+            ['key' => 'education_level', 'label' => 'Education Level', 'width' => '200px', 'raw' => true],
+            ['key' => 'grade_year',     'label' => 'Grade / Year Level', 'width' => '160px'],
+            ['key' => 'name',           'label' => 'Fee Name',        'width' => '220px'],
+            ['key' => 'amount',         'label' => 'Amount',          'width' => '150px'],
+            ['key' => 'status',         'label' => 'Status',          'width' => '110px', 'raw' => true],
         ];
     }
 
     protected function discountColumns(): array
     {
         return [
-            ['key' => 'code', 'label' => 'Code', 'width' => '120px'],
-            ['key' => 'name', 'label' => 'Discount Name', 'width' => '230px'],
-            ['key' => 'discount_kind_label', 'label' => 'Kind', 'width' => '130px'],
-            ['key' => 'value_label', 'label' => 'Value', 'width' => '120px'],
-            ['key' => 'applies_to_label', 'label' => 'Applies To', 'width' => '150px'],
-            ['key' => 'approval_label', 'label' => 'Approval', 'width' => '120px', 'raw' => true],
-            ['key' => 'status_label', 'label' => 'Status', 'width' => '110px', 'raw' => true],
+            ['key' => 'code',       'label' => 'Code',       'width' => '120px'],
+            ['key' => 'name',       'label' => 'Discount Name', 'width' => '230px'],
+            ['key' => 'kind',       'label' => 'Kind',       'width' => '130px'],
+            ['key' => 'value',      'label' => 'Value',      'width' => '120px'],
+            ['key' => 'applies_to', 'label' => 'Applies To', 'width' => '150px'],
+            ['key' => 'status',     'label' => 'Status',     'width' => '110px', 'raw' => true],
         ];
     }
 
-    protected function feeActions(): array
+    protected function scholarshipColumns(): array
     {
         return [
-            ['type' => 'modal', 'label' => 'Edit', 'modal' => 'feeEditModal', 'handler' => 'openFeeEditModal({id})', 'class' => 'bg-indigo-600 text-white hover:bg-indigo-700'],
-            ['type' => 'delete', 'label' => 'Delete', 'class' => 'bg-rose-600 text-white hover:bg-rose-700'],
+            ['key' => 'code',     'label' => 'Code',     'width' => '120px'],
+            ['key' => 'name',     'label' => 'Scholarship Name', 'width' => '230px'],
+            ['key' => 'kind',     'label' => 'Kind',     'width' => '130px'],
+            ['key' => 'value',    'label' => 'Value',    'width' => '120px'],
+            ['key' => 'coverage', 'label' => 'Coverage', 'width' => '160px'],
+            ['key' => 'status',   'label' => 'Status',   'width' => '110px', 'raw' => true],
         ];
     }
 
-    protected function discountActions(): array
+    protected function paymentPlanColumns(): array
     {
         return [
-            ['type' => 'modal', 'label' => 'Edit', 'modal' => 'discountEditModal', 'handler' => 'openDiscountEditModal({id})', 'class' => 'bg-indigo-600 text-white hover:bg-indigo-700'],
-            ['type' => 'delete', 'label' => 'Delete', 'class' => 'bg-rose-600 text-white hover:bg-rose-700'],
+            ['key' => 'code',         'label' => 'Code',         'width' => '120px'],
+            ['key' => 'name',         'label' => 'Plan Name',    'width' => '240px'],
+            ['key' => 'installments', 'label' => 'Schedule',     'width' => '180px'],
+            ['key' => 'status',       'label' => 'Status',       'width' => '110px', 'raw' => true],
         ];
+    }
+
+    protected function penaltyColumns(): array
+    {
+        return [
+            ['key' => 'code',       'label' => 'Code',       'width' => '120px'],
+            ['key' => 'name',       'label' => 'Rule Name',  'width' => '220px'],
+            ['key' => 'basis',      'label' => 'Basis',      'width' => '170px'],
+            ['key' => 'amount',     'label' => 'Amount',     'width' => '130px'],
+            ['key' => 'grace_days', 'label' => 'Grace',      'width' => '120px'],
+            ['key' => 'status',     'label' => 'Status',     'width' => '110px', 'raw' => true],
+        ];
+    }
+
+    protected function actionsFor(string $tab): array
+    {
+        $modal = match ($tab) {
+            'tuition', 'miscellaneous', 'other' => 'feeModal',
+            'discounts'     => 'discountModal',
+            'scholarships'  => 'scholarshipModal',
+            'payment-plans' => 'paymentPlanModal',
+            'penalty-rules' => 'penaltyModal',
+        };
+
+        return [
+            ['type' => 'modal', 'name' => 'edit', 'label' => 'Edit', 'modal' => $modal, 'handler' => "openRowModal('{$modal}', {id})", 'icon' => 'pencil', 'class' => 'text-indigo-600 hover:bg-indigo-50'],
+            ['type' => 'delete', 'name' => 'delete', 'label' => 'Delete', 'icon' => 'trash-2', 'class' => 'text-rose-600 hover:bg-rose-50'],
+        ];
+    }
+
+    /** Edit payload (id-keyed) for the active tab so the modal can prefill. */
+    protected function editPayload(string $tab, int $schoolId)
+    {
+        return match ($tab) {
+            'tuition', 'miscellaneous', 'other' => FinanceFeeSetup::where('school_id', $schoolId)
+                ->get(['id', 'academic_year_id', 'term_id', 'education_node_id', 'program_id', 'payment_plan_id', 'year_level', 'fee_type', 'code', 'name', 'billing_basis', 'amount', 'is_active', 'notes'])
+                ->keyBy('id'),
+            'discounts' => FinanceDiscountType::where('school_id', $schoolId)
+                ->get(['id', 'code', 'name', 'discount_kind', 'value', 'applies_to', 'requires_approval', 'is_active', 'notes'])->keyBy('id'),
+            'scholarships' => Scholarship::where('school_id', $schoolId)
+                ->get(['id', 'code', 'name', 'kind', 'value', 'coverage', 'requires_approval', 'is_active', 'notes'])->keyBy('id'),
+            'payment-plans' => PaymentPlan::where('school_id', $schoolId)
+                ->get(['id', 'code', 'name', 'installments', 'is_active', 'notes'])->keyBy('id'),
+            'penalty-rules' => PenaltyRule::where('school_id', $schoolId)
+                ->get(['id', 'code', 'name', 'basis', 'amount', 'grace_days', 'is_active', 'notes'])->keyBy('id'),
+        };
+    }
+
+    /* ===================================================================
+     | Fee CRUD
+     * =================================================================== */
+
+    public function storeFee(Request $request)
+    {
+        $schoolId = (int) $request->user()->school_id;
+        $data = $this->validatedFeeData($request, $schoolId);
+        $data['school_id'] = $schoolId;
+        FinanceFeeSetup::create($data);
+
+        return back()->with('success', 'Fee saved.');
+    }
+
+    public function updateFee(Request $request, FinanceFeeSetup $fee)
+    {
+        $this->authorizeSchool((int) $fee->school_id);
+        $fee->update($this->validatedFeeData($request, (int) $fee->school_id, $fee->id));
+
+        return back()->with('success', 'Fee updated.');
+    }
+
+    public function destroyFee(FinanceFeeSetup $fee)
+    {
+        $this->authorizeSchool((int) $fee->school_id);
+        $fee->delete();
+
+        return back()->with('success', 'Fee deleted.');
+    }
+
+    protected function validatedFeeData(Request $request, int $schoolId, ?int $ignoreId = null): array
+    {
+        $data = $request->validate([
+            'academic_year_id'  => ['nullable', 'integer', Rule::exists('academic_years', 'id')->where('school_id', $schoolId)],
+            'term_id'           => ['nullable', 'integer', Rule::exists('terms', 'id')->where('school_id', $schoolId)],
+            'education_node_id' => ['nullable', 'integer', Rule::exists('education_nodes', 'id')],
+            'program_id'        => ['nullable', 'integer', Rule::exists('programs', 'id')->where('school_id', $schoolId)],
+            'payment_plan_id'   => ['nullable', 'integer', Rule::exists('payment_plans', 'id')->where('school_id', $schoolId)],
+            'year_level'        => ['nullable', 'integer', 'min:1', 'max:20'],
+            'fee_type'          => ['required', Rule::in(array_keys(FinanceFeeSetup::FEE_TYPES))],
+            'code'              => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('finance_fee_setups', 'code')->where('school_id', $schoolId)->ignore($ignoreId)],
+            'name'              => ['required', 'string', 'max:191'],
+            'billing_basis'     => ['required', Rule::in(array_keys(FinanceFeeSetup::BILLING_BASES))],
+            'amount'            => ['required', 'numeric', 'min:0', 'max:999999999.99'],
+            'is_active'         => ['nullable', 'boolean'],
+            'notes'             => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $data['code']      = Str::upper(trim($data['code']));
+        $data['is_active'] = (bool) ($data['is_active'] ?? false);
+        $data['amount']    = round((float) $data['amount'], 2);
+
+        return $data;
+    }
+
+    /* ===================================================================
+     | Discount CRUD
+     * =================================================================== */
+
+    public function storeDiscount(Request $request)
+    {
+        $schoolId = (int) $request->user()->school_id;
+        $data = $this->validatedDiscountData($request, $schoolId);
+        $data['school_id'] = $schoolId;
+        FinanceDiscountType::create($data);
+
+        return back()->with('success', 'Discount saved.');
+    }
+
+    public function updateDiscount(Request $request, FinanceDiscountType $discount)
+    {
+        $this->authorizeSchool((int) $discount->school_id);
+        $discount->update($this->validatedDiscountData($request, (int) $discount->school_id, $discount->id));
+
+        return back()->with('success', 'Discount updated.');
+    }
+
+    public function destroyDiscount(FinanceDiscountType $discount)
+    {
+        $this->authorizeSchool((int) $discount->school_id);
+        $discount->delete();
+
+        return back()->with('success', 'Discount deleted.');
+    }
+
+    protected function validatedDiscountData(Request $request, int $schoolId, ?int $ignoreId = null): array
+    {
+        $data = $request->validate([
+            'code'              => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('finance_discount_types', 'code')->where('school_id', $schoolId)->ignore($ignoreId)],
+            'name'              => ['required', 'string', 'max:191'],
+            'discount_kind'     => ['required', Rule::in(array_keys(FinanceDiscountType::DISCOUNT_KINDS))],
+            'value'             => ['required', 'numeric', 'min:0', 'max:999999999.99'],
+            'applies_to'        => ['required', Rule::in(array_keys(FinanceDiscountType::APPLIES_TO))],
+            'requires_approval' => ['nullable', 'boolean'],
+            'is_active'         => ['nullable', 'boolean'],
+            'notes'             => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $data['code']              = Str::upper(trim($data['code']));
+        $data['requires_approval'] = (bool) ($data['requires_approval'] ?? false);
+        $data['is_active']         = (bool) ($data['is_active'] ?? false);
+        $data['value']             = round((float) $data['value'], 2);
+
+        return $data;
+    }
+
+    /* ===================================================================
+     | Scholarship CRUD
+     * =================================================================== */
+
+    public function storeScholarship(Request $request)
+    {
+        $schoolId = (int) $request->user()->school_id;
+        $data = $this->validatedScholarshipData($request, $schoolId);
+        $data['school_id'] = $schoolId;
+        Scholarship::create($data);
+
+        return back()->with('success', 'Scholarship saved.');
+    }
+
+    public function updateScholarship(Request $request, Scholarship $scholarship)
+    {
+        $this->authorizeSchool((int) $scholarship->school_id);
+        $scholarship->update($this->validatedScholarshipData($request, (int) $scholarship->school_id, $scholarship->id));
+
+        return back()->with('success', 'Scholarship updated.');
+    }
+
+    public function destroyScholarship(Scholarship $scholarship)
+    {
+        $this->authorizeSchool((int) $scholarship->school_id);
+        $scholarship->delete();
+
+        return back()->with('success', 'Scholarship deleted.');
+    }
+
+    protected function validatedScholarshipData(Request $request, int $schoolId, ?int $ignoreId = null): array
+    {
+        $data = $request->validate([
+            'code'              => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('scholarships', 'code')->where('school_id', $schoolId)->ignore($ignoreId)],
+            'name'              => ['required', 'string', 'max:191'],
+            'kind'              => ['required', Rule::in(array_keys(Scholarship::KINDS))],
+            'value'             => ['required', 'numeric', 'min:0', 'max:999999999.99'],
+            'coverage'          => ['required', Rule::in(array_keys(Scholarship::COVERAGE))],
+            'requires_approval' => ['nullable', 'boolean'],
+            'is_active'         => ['nullable', 'boolean'],
+            'notes'             => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $data['code']              = Str::upper(trim($data['code']));
+        $data['requires_approval'] = (bool) ($data['requires_approval'] ?? false);
+        $data['is_active']         = (bool) ($data['is_active'] ?? false);
+        $data['value']             = round((float) $data['value'], 2);
+
+        return $data;
+    }
+
+    /* ===================================================================
+     | Payment Plan CRUD
+     * =================================================================== */
+
+    public function storePaymentPlan(Request $request)
+    {
+        $schoolId = (int) $request->user()->school_id;
+        $data = $this->validatedPaymentPlanData($request, $schoolId);
+        $data['school_id'] = $schoolId;
+        PaymentPlan::create($data);
+
+        return back()->with('success', 'Payment plan saved.');
+    }
+
+    public function updatePaymentPlan(Request $request, PaymentPlan $paymentPlan)
+    {
+        $this->authorizeSchool((int) $paymentPlan->school_id);
+        $paymentPlan->update($this->validatedPaymentPlanData($request, (int) $paymentPlan->school_id, $paymentPlan->id));
+
+        return back()->with('success', 'Payment plan updated.');
+    }
+
+    public function destroyPaymentPlan(PaymentPlan $paymentPlan)
+    {
+        $this->authorizeSchool((int) $paymentPlan->school_id);
+        $paymentPlan->delete();
+
+        return back()->with('success', 'Payment plan deleted.');
+    }
+
+    protected function validatedPaymentPlanData(Request $request, int $schoolId, ?int $ignoreId = null): array
+    {
+        $data = $request->validate([
+            'code'         => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('payment_plans', 'code')->where('school_id', $schoolId)->ignore($ignoreId)],
+            'name'         => ['required', 'string', 'max:191'],
+            'installments' => ['required', 'integer', 'min:1', 'max:48'],
+            'is_active'    => ['nullable', 'boolean'],
+            'notes'        => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $data['code']      = Str::upper(trim($data['code']));
+        $data['is_active'] = (bool) ($data['is_active'] ?? false);
+
+        return $data;
+    }
+
+    /* ===================================================================
+     | Penalty Rule CRUD
+     * =================================================================== */
+
+    public function storePenalty(Request $request)
+    {
+        $schoolId = (int) $request->user()->school_id;
+        $data = $this->validatedPenaltyData($request, $schoolId);
+        $data['school_id'] = $schoolId;
+        PenaltyRule::create($data);
+
+        return back()->with('success', 'Penalty rule saved.');
+    }
+
+    public function updatePenalty(Request $request, PenaltyRule $penaltyRule)
+    {
+        $this->authorizeSchool((int) $penaltyRule->school_id);
+        $penaltyRule->update($this->validatedPenaltyData($request, (int) $penaltyRule->school_id, $penaltyRule->id));
+
+        return back()->with('success', 'Penalty rule updated.');
+    }
+
+    public function destroyPenalty(PenaltyRule $penaltyRule)
+    {
+        $this->authorizeSchool((int) $penaltyRule->school_id);
+        $penaltyRule->delete();
+
+        return back()->with('success', 'Penalty rule deleted.');
+    }
+
+    protected function validatedPenaltyData(Request $request, int $schoolId, ?int $ignoreId = null): array
+    {
+        $data = $request->validate([
+            'code'       => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('penalty_rules', 'code')->where('school_id', $schoolId)->ignore($ignoreId)],
+            'name'       => ['required', 'string', 'max:191'],
+            'basis'      => ['required', Rule::in(array_keys(PenaltyRule::BASES))],
+            'amount'     => ['required', 'numeric', 'min:0', 'max:999999999.99'],
+            'grace_days' => ['required', 'integer', 'min:0', 'max:365'],
+            'is_active'  => ['nullable', 'boolean'],
+            'notes'      => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $data['code']      = Str::upper(trim($data['code']));
+        $data['is_active'] = (bool) ($data['is_active'] ?? false);
+        $data['amount']    = round((float) $data['amount'], 2);
+
+        return $data;
+    }
+
+    /* ===================================================================
+     | Helpers
+     * =================================================================== */
+
+    protected function peso($v): string
+    {
+        return '₱'.number_format((float) $v, 2);
+    }
+
+    protected function statusPill(bool $active): string
+    {
+        return $active
+            ? '<span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">Active</span>'
+            : '<span class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">Inactive</span>';
+    }
+
+    /** Education-level cell: a coloured icon chip + the level name (raw HTML). */
+    protected function levelCell(string $rootName): string
+    {
+        $n = strtolower($rootName);
+        [$icon, $bg, $fg] = match (true) {
+            str_contains($n, 'basic')                                => ['book-open', '#dcfce7', '#16a34a'],
+            str_contains($n, 'senior') || str_contains($n, 'shs')    => ['graduation-cap', '#ede9fe', '#7c3aed'],
+            str_contains($n, 'college') || str_contains($n, 'under') => ['building-2', '#ffedd5', '#ea580c'],
+            str_contains($n, 'graduate') || str_contains($n, 'post') => ['award', '#dbeafe', '#2563eb'],
+            default                                                  => ['layers', '#f1f5f9', '#475569'],
+        };
+
+        return '<span class="inline-flex items-center gap-2">'
+            .'<span class="inline-flex h-7 w-7 items-center justify-center rounded-lg" style="background-color:'.$bg.';color:'.$fg.';">'
+            .'<i data-lucide="'.$icon.'" class="h-4 w-4"></i></span>'
+            .'<span class="font-semibold text-slate-700">'.e($rootName).'</span></span>';
+    }
+
+    protected function buildNodeRootMap(): array
+    {
+        $all = DB::table('education_nodes')->get(['id', 'parent_id'])->keyBy('id');
+        $rootOf = [];
+        foreach ($all as $id => $node) {
+            $cur = $node;
+            for ($i = 0; $i < 32 && $cur && $cur->parent_id; $i++) {
+                $cur = $all[$cur->parent_id] ?? null;
+            }
+            $rootOf[$id] = $cur?->id;
+        }
+
+        return $rootOf;
     }
 
     protected function educationNodeOptions()
     {
-        $nodes = DB::table('education_nodes')
-            ->where('is_active', 1)
-            ->orderBy('order_index')
-            ->orderBy('name')
-            ->get(['id', 'name', 'parent_id'])
-            ->keyBy('id');
+        $nodes = DB::table('education_nodes')->where('is_active', 1)
+            ->orderBy('order_index')->orderBy('name')->get(['id', 'name', 'parent_id'])->keyBy('id');
 
         return $nodes->map(function ($node) use ($nodes) {
             $segments = [$node->name];
@@ -278,10 +641,7 @@ class TuitionSetupController extends Controller
                 $parentId = $nodes[$parentId]->parent_id;
             }
 
-            return (object) [
-                'id' => $node->id,
-                'label' => implode(' / ', $segments),
-            ];
+            return (object) ['id' => $node->id, 'label' => implode(' / ', $segments)];
         })->sortBy('label')->values();
     }
 

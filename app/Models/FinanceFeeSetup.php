@@ -25,6 +25,7 @@ class FinanceFeeSetup extends Model
         'term_id',
         'education_node_id',
         'program_id',
+        'payment_plan_id',
         'year_level',
         'fee_type',
         'code',
@@ -64,5 +65,10 @@ class FinanceFeeSetup extends Model
     public function program()
     {
         return $this->belongsTo(Program::class);
+    }
+
+    public function paymentPlan()
+    {
+        return $this->belongsTo(PaymentPlan::class);
     }
 }

@@ -17,15 +17,7 @@
 
     @include('partials.dashboard.stat-card', ['trendCharts' => $trendCharts])
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <a href="{{ route('finance.billing.queue') }}"
-           class="rounded-2xl border bg-white p-5 hover:shadow transition">
-            <div class="text-xs font-bold uppercase tracking-widest text-slate-500">Admissions</div>
-            <div class="mt-1 text-lg font-extrabold text-slate-800">Billing &amp; Payment Queue</div>
-            <p class="text-sm text-slate-500 mt-1">
-                Applicants cleared by the Registrar awaiting payment.
-            </p>
-        </a>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <a href="{{ route('finance.billing.index') }}"
            class="rounded-2xl border bg-white p-5 hover:shadow transition">
             <div class="text-xs font-bold uppercase tracking-widest text-slate-500">Billing</div>
