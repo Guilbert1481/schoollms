@@ -676,21 +676,70 @@ class StudentLedgerController extends Controller
     {
         $matrix = array_merge([$headers], $rows);
 
+        // Shared strings (what Excel expects) — every value goes here as text.
+        $shared = [];      // value => index
+        $sharedList = [];  // ordered unique values
+        $intern = function ($value) use (&$shared, &$sharedList) {
+            $v = (string) $value;
+            if (! array_key_exists($v, $shared)) {
+                $shared[$v] = count($sharedList);
+                $sharedList[] = $v;
+            }
+
+            return $shared[$v];
+        };
+
         $sheetRows = '';
+        $maxCols = 0;
         foreach ($matrix as $ri => $cells) {
             $rowNum = $ri + 1;
             $cellsXml = '';
-            foreach (array_values($cells) as $ci => $val) {
+            $ci = 0;
+            foreach (array_values($cells) as $val) {
                 $ref = $this->columnLetter($ci).$rowNum;
-                $esc = htmlspecialchars((string) $val, ENT_QUOTES | ENT_XML1, 'UTF-8');
-                $cellsXml .= '<c r="'.$ref.'" t="inlineStr"><is><t xml:space="preserve">'.$esc.'</t></is></c>';
+                $cellsXml .= '<c r="'.$ref.'" t="s"><v>'.$intern($val).'</v></c>';
+                $ci++;
             }
+            $maxCols = max($maxCols, $ci);
             $sheetRows .= '<row r="'.$rowNum.'">'.$cellsXml.'</row>';
         }
 
+        $dimension = 'A1:'.$this->columnLetter(max(0, $maxCols - 1)).max(1, count($matrix));
+
+        $ssItems = '';
+        foreach ($sharedList as $s) {
+            $ssItems .= '<si><t xml:space="preserve">'.htmlspecialchars($s, ENT_QUOTES | ENT_XML1, 'UTF-8').'</t></si>';
+        }
+        $sharedStrings = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="'.count($sharedList).'" uniqueCount="'.count($sharedList).'">'
+            .$ssItems.'</sst>';
+
         $sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            .'<dimension ref="'.$dimension.'"/>'
+            .'<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
+            .'<sheetFormatPr defaultRowHeight="15"/>'
             .'<sheetData>'.$sheetRows.'</sheetData></worksheet>';
+
+        $styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            .'<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>'
+            .'<fills count="1"><fill><patternFill patternType="none"/></fill></fills>'
+            .'<borders count="1"><border/></borders>'
+            .'<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+            .'<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>'
+            .'<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+            .'</styleSheet>';
+
+        $core = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
+            .'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" '
+            .'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>Sophentis</dc:creator>'
+            .'<cp:lastModifiedBy>Sophentis</cp:lastModifiedBy></cp:coreProperties>';
+
+        $appProps = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            .'<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">'
+            .'<Application>Sophentis</Application></Properties>';
 
         $contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             .'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
@@ -698,11 +747,17 @@ class StudentLedgerController extends Controller
             .'<Default Extension="xml" ContentType="application/xml"/>'
             .'<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
             .'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            .'<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+            .'<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>'
+            .'<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+            .'<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'
             .'</Types>';
 
         $rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
             .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            .'<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'
+            .'<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>'
             .'</Relationships>';
 
         $workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -712,6 +767,8 @@ class StudentLedgerController extends Controller
         $workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             .'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
             .'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            .'<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+            .'<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
             .'</Relationships>';
 
         $tmp = tempnam(sys_get_temp_dir(), 'xlsx');
@@ -719,8 +776,12 @@ class StudentLedgerController extends Controller
         $zip->open($tmp, \ZipArchive::OVERWRITE);
         $zip->addFromString('[Content_Types].xml', $contentTypes);
         $zip->addFromString('_rels/.rels', $rels);
+        $zip->addFromString('docProps/core.xml', $core);
+        $zip->addFromString('docProps/app.xml', $appProps);
         $zip->addFromString('xl/workbook.xml', $workbook);
         $zip->addFromString('xl/_rels/workbook.xml.rels', $workbookRels);
+        $zip->addFromString('xl/styles.xml', $styles);
+        $zip->addFromString('xl/sharedStrings.xml', $sharedStrings);
         $zip->addFromString('xl/worksheets/sheet1.xml', $sheet);
         $zip->close();
 
