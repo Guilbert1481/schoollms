@@ -435,7 +435,7 @@ class StudentLedgerController extends Controller
         $idCard = [
             'orientation'   => $idSettings->orientation,
             'show_back'     => (bool) $idSettings->show_back,
-            'school_name'   => DB::table('system_settings')->where('school_id', $schoolId)->value('school_name') ?: 'School',
+            'school_name'   => DB::table('schools')->where('id', $schoolId)->value('school_name') ?: 'School',
             'photo'         => $header['photo'],
             'name'          => $header['name'],
             'student_id'    => $header['student_id'],
