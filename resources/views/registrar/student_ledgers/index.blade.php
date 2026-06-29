@@ -225,17 +225,17 @@
                        accept=".csv,.xlsx,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                        required
                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100">
-                {{-- Download the ready-to-fill template (Basic Education). --}}
+                {{-- Download the ready-to-fill template (matched to this tab's level). --}}
                 <div class="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/60 p-3 text-xs text-slate-600">
                     <p class="mb-2 font-semibold text-slate-700">
-                        Not sure about the columns? Download the template — it already has every header. Just fill in your students and import.
+                        Not sure about the columns? Download the template for <strong>{{ $levelTitle }}</strong> — it already has every header. Just fill in your students and import.
                     </p>
                     <div class="flex flex-wrap gap-2">
-                        <a href="{{ route('registrar.student-ledgers.import-template', ['format' => 'csv']) }}"
+                        <a href="{{ route('registrar.student-ledgers.import-template', ['format' => 'csv', 'level' => $activeLevelId]) }}"
                            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50">
                             <i data-lucide="file-text" class="h-4 w-4 text-slate-500"></i> CSV template
                         </a>
-                        <a href="{{ route('registrar.student-ledgers.import-template', ['format' => 'xlsx']) }}"
+                        <a href="{{ route('registrar.student-ledgers.import-template', ['format' => 'xlsx', 'level' => $activeLevelId]) }}"
                            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50">
                             <i data-lucide="file-spreadsheet" class="h-4 w-4 text-emerald-600"></i> Excel template
                         </a>

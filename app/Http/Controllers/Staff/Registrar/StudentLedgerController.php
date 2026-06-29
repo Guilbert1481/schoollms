@@ -770,9 +770,24 @@ class StudentLedgerController extends Controller
      */
     public function importTemplate(Request $request)
     {
-        $format  = strtolower((string) $request->query('format')) === 'xlsx' ? 'xlsx' : 'csv';
-        $headers = $this->basicImportHeaders();
-        $base    = 'basic-education-student-import-template';
+        $format = strtolower((string) $request->query('format')) === 'xlsx' ? 'xlsx' : 'csv';
+
+        // Template adapts to the level being imported into.
+        $levelId   = (int) $request->query('level');
+        $levelName = $levelId ? DB::table('education_nodes')->where('id', $levelId)->value('name') : null;
+        $isBasic   = $levelName && str_contains(strtolower((string) $levelName), 'basic');
+
+        if ($isBasic) {
+            $headers = $this->basicImportHeaders();
+            $slug = 'basic-education';
+        } elseif (! $levelId) {
+            $headers = $this->allLevelsImportHeaders();
+            $slug = 'all-levels';
+        } else {
+            $headers = $this->higherEdImportHeaders();
+            $slug = 'higher-education';
+        }
+        $base = $slug.'-student-import-template';
 
         if ($format === 'xlsx') {
             $path = $this->buildXlsx($headers, []);
@@ -790,14 +805,10 @@ class StudentLedgerController extends Controller
         }, $base.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    /** Complete header set for the Basic Education student import template. */
-    protected function basicImportHeaders(): array
+    /** Common student + address + guardian + emergency columns. */
+    protected function commonImportHeaders(): array
     {
         return [
-            // Student
-            'first_name', 'last_name', 'student_number', 'lrn', 'email', 'middle_name',
-            'gender', 'date_of_birth', 'place_of_birth', 'blood_type', 'nationality', 'religion',
-            'phone', 'section',
             // Address
             'address', 'barangay', 'city_municipality', 'province', 'zip_code',
             // Parents / Guardians
@@ -806,6 +817,36 @@ class StudentLedgerController extends Controller
             // Emergency contact
             'emergency_name', 'emergency_relationship', 'emergency_contact', 'emergency_email',
         ];
+    }
+
+    /** Header set for the Basic Education student import template. */
+    protected function basicImportHeaders(): array
+    {
+        return array_merge([
+            'first_name', 'last_name', 'student_number', 'lrn', 'email', 'middle_name',
+            'gender', 'date_of_birth', 'place_of_birth', 'blood_type', 'nationality', 'religion',
+            'phone', 'section',
+        ], $this->commonImportHeaders());
+    }
+
+    /** Header set for a higher-education student import template (program + year). */
+    protected function higherEdImportHeaders(): array
+    {
+        return array_merge([
+            'first_name', 'last_name', 'student_number', 'email', 'middle_name',
+            'gender', 'date_of_birth', 'place_of_birth', 'blood_type', 'nationality', 'religion',
+            'phone', 'program_code', 'year_level', 'section',
+        ], $this->commonImportHeaders());
+    }
+
+    /** Comprehensive template for the All Levels tab (works for any level). */
+    protected function allLevelsImportHeaders(): array
+    {
+        return array_merge([
+            'first_name', 'last_name', 'student_number', 'lrn', 'email', 'middle_name',
+            'gender', 'date_of_birth', 'place_of_birth', 'blood_type', 'nationality', 'religion',
+            'phone', 'program_code', 'year_level', 'section',
+        ], $this->commonImportHeaders());
     }
 
     public function import(Request $request)
