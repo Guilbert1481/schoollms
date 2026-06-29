@@ -159,50 +159,62 @@
               enctype="multipart/form-data"
               class="space-y-4 px-5 py-5">
             @csrf
-            {{-- Import into the active education-level tab (0 = All Levels). --}}
-            <input type="hidden" name="level" value="{{ $activeLevelId }}">
 
+            {{-- Educational Level: locked to the active tab, or chosen on All Levels. --}}
             <div>
-                <label for="import_term_id" class="mb-1 block text-sm font-semibold text-slate-700">Term</label>
-                <select id="import_term_id"
-                        name="term_id"
-                        required
-                        onchange="toggleImportOthers()"
-                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
-                    @foreach($importTerms as $term)
-                        <option value="{{ $term->id }}" @selected($term->is_current)>
-                            {{ $term->academic_year_name ? $term->academic_year_name.' - ' : '' }}{{ $term->name }}
-                        </option>
+                <label class="mb-1 block text-sm font-semibold text-slate-700">Educational Level</label>
+                @if($showAll)
+                    <select id="import_level" name="level" required onchange="importToggleLevel()"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                        <option value="">Select level</option>
+                        @foreach($levels as $lvl)
+                            <option value="{{ $lvl->id }}" data-basic="{{ str_contains(strtolower($lvl->name), 'basic') ? '1' : '0' }}">{{ $lvl->name }}</option>
+                        @endforeach
+                    </select>
+                @else
+                    <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+                        <i data-lucide="lock" class="h-4 w-4 text-slate-400"></i>
+                        {{ $levelTitle }}
+                    </div>
+                    <input type="hidden" name="level" value="{{ $activeLevelId }}">
+                @endif
+            </div>
+
+            {{-- Academic Year (find-or-create). --}}
+            <div>
+                <label for="import_academic_year" class="mb-1 block text-sm font-semibold text-slate-700">Academic Year</label>
+                <input type="text"
+                       id="import_academic_year"
+                       name="academic_year"
+                       list="import_academic_year_options"
+                       placeholder="e.g. 2025 - 2026"
+                       autocomplete="off"
+                       required
+                       class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                <datalist id="import_academic_year_options">
+                    @foreach($importAcademicYears as $ay)
+                        <option value="{{ $ay->name }}"></option>
                     @endforeach
-                    <option value="others">Others — specify academic year{{ $showImportTermNumber ? ' & term' : '' }}…</option>
+                </datalist>
+                <p class="mt-1 text-xs text-slate-500">Type any year — current or historical. A new academic year is created automatically if it doesn't exist yet.</p>
+            </div>
+
+            {{-- Grade Level (Basic Education) — no term. --}}
+            <div id="import_yearlevel_wrap" class="{{ (! $showAll && $activeLevelIsBasic) ? '' : 'hidden' }}">
+                <label for="import_year_level" class="mb-1 block text-sm font-semibold text-slate-700">Grade Level</label>
+                <select id="import_year_level" name="year_level"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                    <option value="">Select grade level</option>
+                    @foreach($importGradeOptions as $glVal => $glLabel)
+                        <option value="{{ $glVal }}">{{ $glLabel }}</option>
+                    @endforeach
                 </select>
             </div>
 
-            {{-- Shown only when "Others" is selected: bypasses the term list. --}}
-            <div id="importOthersFields" class="hidden space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div>
-                    <label for="import_academic_year" class="mb-1 block text-sm font-semibold text-slate-700">Academic Year</label>
-                    <input type="text"
-                           id="import_academic_year"
-                           name="academic_year"
-                           list="import_academic_year_options"
-                           placeholder="e.g. 2018 - 2019"
-                           autocomplete="off"
-                           class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100">
-                    <datalist id="import_academic_year_options">
-                        @foreach($importAcademicYears as $ay)
-                            <option value="{{ $ay->name }}"></option>
-                        @endforeach
-                    </datalist>
-                    <p class="mt-1 text-xs text-slate-500">Type any year — current or historical. A new academic year is created automatically if it doesn't exist yet.</p>
-                </div>
-
-                @if($showImportTermNumber)
-                    <div>
-                        <label for="import_term_number" class="mb-1 block text-sm font-semibold text-slate-700">Term</label>
-                        <x-forms.term-select id="import_term_number" name="term_number" placeholder="Select term" />
-                    </div>
-                @endif
+            {{-- Term (higher education). --}}
+            <div id="import_term_wrap" class="{{ (! $showAll && ! $activeLevelIsBasic) ? '' : 'hidden' }}">
+                <label for="import_term_number" class="mb-1 block text-sm font-semibold text-slate-700">Term</label>
+                <x-forms.term-select id="import_term_number" name="term_number" placeholder="Select term" />
             </div>
 
             <div>
@@ -343,17 +355,20 @@
         window.location = url.toString();
     }
 
-    // Toggle the "Others" fields (academic year / term) when the term
-    // dropdown is set to "Others"; bypasses the normal term selection.
-    function toggleImportOthers() {
-        const select = document.getElementById('import_term_id');
-        const others = document.getElementById('importOthersFields');
-        const ay = document.getElementById('import_academic_year');
-        if (!select || !others) return;
+    // On the All Levels tab the chosen level decides whether the form asks for a
+    // Grade Level (Basic Ed) or a Term (higher ed). On a specific tab the level is
+    // locked and the correct field is already shown server-side (no-op here).
+    function importToggleLevel() {
+        const sel = document.getElementById('import_level');
+        const yl  = document.getElementById('import_yearlevel_wrap');
+        const tm  = document.getElementById('import_term_wrap');
+        if (!sel || !yl || !tm) return;
 
-        const isOthers = select.value === 'others';
-        others.classList.toggle('hidden', !isOthers);
-        if (ay) ay.required = isOthers;
+        const opt = sel.options[sel.selectedIndex];
+        const hasLevel = sel.value !== '';
+        const isBasic = opt && opt.dataset.basic === '1';
+        yl.classList.toggle('hidden', !(hasLevel && isBasic));
+        tm.classList.toggle('hidden', !(hasLevel && ! isBasic));
     }
 
     function openStudentImportModal() {
@@ -361,7 +376,7 @@
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         document.body.style.overflow = 'hidden';
-        toggleImportOthers();
+        importToggleLevel();
         if (window.lucide?.createIcons) window.lucide.createIcons();
     }
 

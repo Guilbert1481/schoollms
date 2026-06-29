@@ -276,6 +276,7 @@ class StudentLedgerController extends Controller
             'tableEmptyMessage'  => $tableEmptyMessage,
             'importAcademicYears'  => $importAcademicYears,
             'showImportTermNumber' => $showImportTermNumber,
+            'importGradeOptions'   => EducationLevels::basicGradeOptions(),
         ]);
     }
 
@@ -735,46 +736,41 @@ class StudentLedgerController extends Controller
     {
         $schoolId = (int) auth()->user()->school_id;
 
-        // The education-level tab being imported into. Used as the enrollment's
-        // education level so imported students appear under that tab — Basic
-        // Education grades have no program to infer the level from.
-        $levelNodeId = (int) $request->input('level') ?: null;
+        $request->validate([
+            'level'         => ['required', 'integer'],
+            'academic_year' => ['required', 'string', 'max:255'],
+            'file'          => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'year_level'    => ['nullable', 'integer'],
+            'term_number'   => ['nullable', 'in:1,2,3'],
+        ]);
 
-        // "Others" bypasses the term list: the importer specifies an academic
-        // year (and, for higher-ed, a term number) instead.
-        $isOthers = $request->input('term_id') === 'others';
+        // The education level being imported into (locked to the active tab, or
+        // chosen on the All Levels tab). Used as the enrollment's education level
+        // so imported students appear under that tab.
+        $levelNodeId = (int) $request->input('level');
+        $levelName   = DB::table('education_nodes')->where('id', $levelNodeId)->value('name');
+        $isBasic     = $levelName && str_contains(strtolower((string) $levelName), 'basic');
 
-        $rules = [
-            'file'  => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
-            'level' => ['nullable', 'integer'],
-        ];
-        if ($isOthers) {
-            $rules['term_id']       = ['required', 'in:others'];
-            $rules['academic_year'] = ['required', 'string', 'max:255'];
-            $rules['term_number']   = ['nullable', 'in:1,2,3'];
-        } else {
-            $rules['term_id'] = ['required', 'integer'];
-        }
-        $validated = $request->validate($rules);
-
-        if ($isOthers) {
-            $term = $this->resolveImportTerm(
-                $schoolId,
-                (string) $validated['academic_year'],
-                $request->input('term_number'),
-            );
-
-            if (! $term) {
-                return back()->with('error', 'Please enter a valid academic year (for example, 2018 - 2019).');
+        // Basic Education enrols by Grade Level (no semester); higher-ed by Term.
+        $defaultYearLevel = null;
+        if ($isBasic) {
+            if (! $request->filled('year_level')) {
+                return back()->with('error', 'Please choose a grade level for Basic Education.');
             }
+            $defaultYearLevel = (int) $request->input('year_level');
+            $term = $this->resolveImportTerm($schoolId, (string) $request->input('academic_year'), null);
         } else {
-            $term = Term::query()
-                ->where('school_id', $schoolId)
-                ->findOrFail((int) $validated['term_id']);
+            if (! $request->filled('term_number')) {
+                return back()->with('error', 'Please choose a term for this level.');
+            }
+            $term = $this->resolveImportTerm($schoolId, (string) $request->input('academic_year'), $request->input('term_number'));
         }
 
+        if (! $term) {
+            return back()->with('error', 'Please enter a valid academic year (for example, 2025 - 2026).');
+        }
         if (! $term->academic_year_id) {
-            return back()->with('error', 'The selected term is missing an academic year. Please fix the term setup before importing.');
+            return back()->with('error', 'The resolved term is missing an academic year. Please try again.');
         }
 
         [$rows, $parseErrors] = $this->readCsvRows($request->file('file')->getRealPath());
@@ -788,8 +784,8 @@ class StudentLedgerController extends Controller
             $line = $index + 2;
 
             try {
-                $result = DB::transaction(function () use ($row, $schoolId, $term, $levelNodeId) {
-                    return $this->importStudentRow($row, (int) $schoolId, $term, $levelNodeId);
+                $result = DB::transaction(function () use ($row, $schoolId, $term, $levelNodeId, $defaultYearLevel) {
+                    return $this->importStudentRow($row, (int) $schoolId, $term, $levelNodeId, $defaultYearLevel);
                 });
 
                 if ($result === 'created') {
@@ -940,7 +936,7 @@ class StudentLedgerController extends Controller
         return $rootOf;
     }
 
-    protected function importStudentRow(array $row, int $schoolId, Term $defaultTerm, ?int $fallbackNodeId = null): string
+    protected function importStudentRow(array $row, int $schoolId, Term $defaultTerm, ?int $fallbackNodeId = null, ?int $defaultYearLevel = null): string
     {
         $firstName = trim((string) ($row['first_name'] ?? ''));
         $lastName  = trim((string) ($row['last_name'] ?? ''));
@@ -1089,7 +1085,7 @@ class StudentLedgerController extends Controller
             'program_id'         => $program?->id,
             'education_node_id'  => (int) ($row['education_node_id'] ?? 0)
                 ?: ($program?->education_node_id ?: $fallbackNodeId),
-            'year_level'         => (int) ($row['year_level'] ?? 0) ?: null,
+            'year_level'         => (int) ($row['year_level'] ?? 0) ?: $defaultYearLevel,
             'student_type'       => $this->clean($row['student_type'] ?? null) ?: 'continuing',
             'enrollee_type'      => $this->clean($row['enrollee_type'] ?? null) ?: 'continuing',
             'program_type'       => $this->clean($row['program_type'] ?? null) ?: 'regular',
