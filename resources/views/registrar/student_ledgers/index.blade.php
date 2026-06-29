@@ -225,12 +225,25 @@
                        accept=".csv,.xlsx,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                        required
                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100">
-                <p class="mt-2 text-xs text-slate-500">
-                    Optional headers — Student: student_number, lrn, email, middle_name, gender, date_of_birth, place_of_birth, blood_type, nationality, religion, phone, program_code, year_level, section, address.
-                    Parents/Guardians: guardian1_name, guardian1_relationship, guardian1_contact, guardian1_email, guardian1_occupation (and guardian2_*).
-                    Emergency: emergency_name, emergency_relationship, emergency_contact, emergency_email.
-                    Every imported student gets a login (default password: first name + 123456789).
-                </p>
+                {{-- Download the ready-to-fill template (Basic Education). --}}
+                <div class="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/60 p-3 text-xs text-slate-600">
+                    <p class="mb-2 font-semibold text-slate-700">
+                        Not sure about the columns? Download the template — it already has every header. Just fill in your students and import.
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                        <a href="{{ route('registrar.student-ledgers.import-template', ['format' => 'csv']) }}"
+                           class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50">
+                            <i data-lucide="file-text" class="h-4 w-4 text-slate-500"></i> CSV template
+                        </a>
+                        <a href="{{ route('registrar.student-ledgers.import-template', ['format' => 'xlsx']) }}"
+                           class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:bg-slate-50">
+                            <i data-lucide="file-spreadsheet" class="h-4 w-4 text-emerald-600"></i> Excel template
+                        </a>
+                    </div>
+                    <p class="mt-2 text-slate-500">
+                        Only <strong>first_name</strong> and <strong>last_name</strong> are required. Every imported student gets a login (default password: first name + 123456789).
+                    </p>
+                </div>
             </div>
 
             <div class="flex justify-end gap-2 border-t border-slate-100 pt-4">

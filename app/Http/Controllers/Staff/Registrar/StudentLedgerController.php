@@ -764,6 +764,50 @@ class StudentLedgerController extends Controller
         return back()->with('success', "{$name}'s status set to {$options[$validated['status']]}.");
     }
 
+    /**
+     * Download a ready-to-fill import template (CSV or Excel) with every column
+     * header. Basic Education for now (higher-ed later).
+     */
+    public function importTemplate(Request $request)
+    {
+        $format  = strtolower((string) $request->query('format')) === 'xlsx' ? 'xlsx' : 'csv';
+        $headers = $this->basicImportHeaders();
+        $base    = 'basic-education-student-import-template';
+
+        if ($format === 'xlsx') {
+            $path = $this->buildXlsx($headers, []);
+
+            return response()->download($path, $base.'.xlsx', [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])->deleteFileAfterSend(true);
+        }
+
+        return response()->streamDownload(function () use ($headers) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
+            fputcsv($out, $headers);
+            fclose($out);
+        }, $base.'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** Complete header set for the Basic Education student import template. */
+    protected function basicImportHeaders(): array
+    {
+        return [
+            // Student
+            'first_name', 'last_name', 'student_number', 'lrn', 'email', 'middle_name',
+            'gender', 'date_of_birth', 'place_of_birth', 'blood_type', 'nationality', 'religion',
+            'phone', 'section',
+            // Address
+            'address', 'barangay', 'city_municipality', 'province', 'zip_code',
+            // Parents / Guardians
+            'guardian1_name', 'guardian1_relationship', 'guardian1_contact', 'guardian1_email', 'guardian1_occupation',
+            'guardian2_name', 'guardian2_relationship', 'guardian2_contact', 'guardian2_email', 'guardian2_occupation',
+            // Emergency contact
+            'emergency_name', 'emergency_relationship', 'emergency_contact', 'emergency_email',
+        ];
+    }
+
     public function import(Request $request)
     {
         $schoolId = (int) auth()->user()->school_id;
