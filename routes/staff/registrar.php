@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Staff\Registrar\EnrollmentValidationController;
+use App\Http\Controllers\Staff\Registrar\Settings\StudentIdSettingController;
 use App\Http\Controllers\Staff\Registrar\StudentLedgerController;
 use App\Http\Controllers\Staff\Registrar\SubjectCreditController;
 use App\Http\Controllers\Staff\Registrar\TranscriptOfRecordController;
@@ -54,4 +55,10 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
             ->name('student-ledgers.show');
         Route::patch('student-ledgers/{student}/status', [StudentLedgerController::class, 'updateStatus'])
             ->name('student-ledgers.status');
+
+        // 5. Settings → Student ID (display options for the digital ID).
+        Route::get('settings/student-id', [StudentIdSettingController::class, 'edit'])
+            ->name('settings.student-id.edit');
+        Route::put('settings/student-id', [StudentIdSettingController::class, 'update'])
+            ->name('settings.student-id.update');
     });

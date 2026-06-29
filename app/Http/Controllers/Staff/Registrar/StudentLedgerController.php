@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
+use App\Models\StudentIdSetting;
 use App\Models\Term;
 use App\Models\User;
 use App\Support\EducationLevels;
@@ -339,9 +340,104 @@ class StudentLedgerController extends Controller
             'term'          => $enr->term_name ?? null,
         ];
 
+        // ---- Profile tab data -------------------------------------------------
+        $schoolId   = (int) auth()->user()->school_id;
+        $idSettings = StudentIdSetting::forSchool($schoolId);
+
+        // Guardians: parents (non-emergency) and the emergency contact.
+        $guardians = DB::table('guardians')->where('student_id', $student->id)->get();
+        $gname = fn ($g) => trim(implode(' ', array_filter([$g->first_name ?? null, $g->middle_name ?? null, $g->last_name ?? null]))) ?: '—';
+
+        $parentRows = $guardians->filter(fn ($g) => ! $g->is_emergency_contact)->values();
+        if ($parentRows->isEmpty()) {
+            $parentRows = $guardians->values();
+        }
+        $parents = $parentRows->map(fn ($g) => (object) [
+            'name'         => $gname($g),
+            'relationship' => $g->relationship ?: ($g->type ?: '—'),
+            'contact'      => $g->mobile_number ?: ($g->landline_number ?: '—'),
+            'email'        => $g->email ?: '—',
+            'occupation'   => $g->occupation ?: '—',
+        ]);
+
+        $emg = $guardians->firstWhere('is_emergency_contact', 1) ?: $guardians->firstWhere('is_primary', 1);
+        $emergency = $emg ? (object) [
+            'name'         => $gname($emg),
+            'relationship' => $emg->relationship ?: '—',
+            'contact'      => $emg->mobile_number ?: ($emg->landline_number ?: '—'),
+        ] : null;
+
+        $homeAddress = trim(implode(', ', array_filter([
+            $student->address_line_1 ?: $student->street,
+            $student->address_line_2 ?: $student->subdivision,
+            $student->barangay,
+            $student->city_municipality,
+            trim(($student->province ?? '').' '.($student->zip_code ?? '')),
+        ])), ', ');
+
+        $statusLabel = $header['status_key']
+            ? (EnrollmentStatuses::options('ledger')[$header['status_key']]
+                ?? EnrollmentStatuses::options('validate')[$header['status_key']]
+                ?? ucwords(str_replace('_', ' ', $header['status_key'])))
+            : '—';
+
+        $totalEnrollments = DB::table('student_enrollments')->where('student_id', $student->id)->count();
+        $distinctYears = DB::table('student_enrollments')->where('student_id', $student->id)
+            ->whereNotNull('year_level')->distinct()->count('year_level');
+
+        $profile = [
+            'full_name'            => $header['name'],
+            'date_of_birth'        => $header['date_of_birth'],
+            'place_of_birth'       => '—', // no column
+            'gender'               => $header['gender'],
+            'nationality'          => $dash($student->nationality),
+            'religion'             => $dash($student->religion),
+            'blood_type'           => '—', // no column
+            'email'                => $dash($student->email),
+            'lrn'                  => $header['lrn'],
+            'student_id'           => $header['student_id'],
+            'grade_level'          => $header['grade_level'],
+            'section'              => $header['section'],
+            'academic_year'        => $header['academic_year'],
+            'status'               => $statusLabel,
+            'date_of_registration' => $student->created_at ? \Carbon\Carbon::parse($student->created_at)->format('M d, Y') : '—',
+            'home_address'         => $homeAddress !== '' ? $homeAddress : '—',
+            'phone'                => $dash($student->mobile_number ?: $student->phone),
+            'alternate'            => $dash($student->landline_number),
+        ];
+
+        $quick = [
+            'age'               => $student->date_of_birth ? \Carbon\Carbon::parse($student->date_of_birth)->age.' years old' : '—',
+            'current_status'    => $statusLabel,
+            'total_enrollments' => $totalEnrollments,
+            'promotions'        => max(0, $distinctYears - 1),
+            'last_updated'      => $student->updated_at ? \Carbon\Carbon::parse($student->updated_at)->format('M d, Y g:i A') : '—',
+        ];
+
+        $barcode = $idSettings->barcode_source === 'student_number'
+            ? ($student->student_number ?: '')
+            : ($student->lrn ?: $student->student_number ?: '');
+
+        $idCard = [
+            'orientation'   => $idSettings->orientation,
+            'show_back'     => (bool) $idSettings->show_back,
+            'school_name'   => DB::table('system_settings')->where('school_id', $schoolId)->value('school_name') ?: 'School',
+            'photo'         => $header['photo'],
+            'name'          => $header['name'],
+            'student_id'    => $header['student_id'],
+            'grade_section' => trim(($header['grade_level'] !== '—' ? $header['grade_level'] : '')
+                                .($header['section'] !== '—' ? ' - '.$header['section'] : ''), ' -') ?: '—',
+            'barcode'       => $barcode ?: '—',
+        ];
+
         return view('registrar.student_ledgers.show', [
-            'student' => $student,
-            'header'  => $header,
+            'student'   => $student,
+            'header'    => $header,
+            'profile'   => $profile,
+            'parents'   => $parents,
+            'emergency' => $emergency,
+            'quick'     => $quick,
+            'idCard'    => $idCard,
         ]);
     }
 

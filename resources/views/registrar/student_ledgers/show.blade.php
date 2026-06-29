@@ -69,8 +69,8 @@
             'fees'      => 'Fees & Payments',
         ];
     @endphp
-    <div x-data="{ tab: 'profile' }" class="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <nav class="flex flex-wrap gap-1 border-b border-slate-200 px-2">
+    <div x-data="{ tab: 'profile' }">
+        <nav class="flex flex-wrap gap-1 border-b border-slate-200">
             @foreach($tabs as $key => $label)
                 <button type="button"
                         @click="tab = '{{ $key }}'"
@@ -83,8 +83,14 @@
             @endforeach
         </nav>
 
-        <div class="p-6">
-            @foreach($tabs as $key => $label)
+        <div class="pt-6">
+            {{-- Profile tab (wired) --}}
+            <div x-show="tab === 'profile'" x-cloak>
+                @include('registrar.student_ledgers.partials.profile')
+            </div>
+
+            {{-- Remaining tabs — blank for now --}}
+            @foreach(['history' => 'Enrollment History', 'documents' => 'Documents', 'fees' => 'Fees & Payments'] as $key => $label)
                 <div x-show="tab === '{{ $key }}'" x-cloak>
                     <div class="flex flex-col items-center justify-center py-20 text-center text-slate-400">
                         <i data-lucide="layout-dashboard" class="mb-3 h-8 w-8"></i>

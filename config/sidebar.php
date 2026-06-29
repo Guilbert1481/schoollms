@@ -743,9 +743,17 @@ return [
                 ],
 
                 [
+                    'label' => 'Student ID',
+                    'route' => 'registrar.settings.student-id.edit',
+                    'active' => 'registrar.settings.student-id.*',
+                    'icon'  => 'id-card',
+                    'roles' => ['registrar'],
+                ],
+
+                [
                     'label' => 'Profile Settings',
                     'route' => 'settings.profile',
-                    
+
                     'icon'  => 'user',
                     'roles' => ['admin','dean','principal','admission_manager','teacher','student','registrar','program_head','trainer','trainee','course_architect','guidance_counselor','superadmin'],
                 ],
