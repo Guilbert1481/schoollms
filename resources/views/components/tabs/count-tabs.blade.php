@@ -27,25 +27,83 @@
         'emerald' => ['active' => 'border-emerald-600 text-emerald-700 bg-emerald-50', 'hover' => 'hover:text-emerald-700'],
     ];
     $a = $accents[$accent] ?? $accents['indigo'];
+
+    // Label shown on the mobile hamburger trigger = the active tab.
+    $activeTab   = collect($tabs)->firstWhere('active', true);
+    $activeLabel = $activeTab['label'] ?? ($empty ?? 'Menu');
 @endphp
 
-<div class="flex flex-wrap gap-2 border-b border-slate-200">
-    @forelse($tabs as $tab)
-        <a href="{{ $tab['url'] ?? '#' }}"
-           class="relative px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 -mb-px
-                  {{ ($tab['active'] ?? false)
-                        ? $a['active']
-                        : 'border-transparent text-slate-600 '.$a['hover'].' hover:bg-slate-50' }}">
-            {{ $tab['label'] ?? '' }}
-            @if((int) ($tab['count'] ?? 0) > 0)
-                <sup class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none">
-                    {{ $tab['count'] }}
-                </sup>
+<style>
+    /* Mobile (< 768px): tabs collapse into a hamburger dropdown. Real @media
+       queries + custom classes so this works regardless of the compiled build. */
+    .ctabs-toggle { display: none; }
+    @media (max-width: 767.98px) {
+        .ctabs-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .5rem;
+            width: 100%;
+            padding: .5rem .75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: .5rem;
+            background: #fff;
+            font-size: .875rem;
+            font-weight: 700;
+            color: #334155;
+        }
+        .ctabs-list {
+            display: none;
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% + 4px);
+            z-index: 40;
+            flex-direction: column;
+            gap: .25rem;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: .5rem;
+            box-shadow: 0 12px 28px -8px rgba(15, 23, 42, .25);
+            padding: .375rem;
+        }
+        .ctabs-list.is-open { display: flex; }
+        .ctabs-list > a { border-radius: .375rem; margin-bottom: 0; }
+    }
+    @media (min-width: 768px) {
+        .ctabs-list { display: flex !important; } /* horizontal, unchanged */
+    }
+</style>
+
+<div class="relative" x-data="{ open: false }" @click.outside="open = false">
+    {{-- Mobile-only hamburger trigger (hidden on desktop). --}}
+    <button type="button" class="ctabs-toggle" @click="open = ! open">
+        <span class="inline-flex items-center gap-2 truncate">
+            <i data-lucide="menu" class="h-4 w-4 shrink-0 text-indigo-600"></i>
+            <span class="truncate">{{ $activeLabel }}</span>
+        </span>
+        <i data-lucide="chevron-down" class="h-4 w-4 shrink-0 text-slate-400"></i>
+    </button>
+
+    {{-- Tab list: horizontal bar on desktop, dropdown on mobile. --}}
+    <div class="ctabs-list flex flex-wrap gap-2 border-b border-slate-200" :class="{ 'is-open': open }">
+        @forelse($tabs as $tab)
+            <a href="{{ $tab['url'] ?? '#' }}"
+               class="relative px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 -mb-px
+                      {{ ($tab['active'] ?? false)
+                            ? $a['active']
+                            : 'border-transparent text-slate-600 '.$a['hover'].' hover:bg-slate-50' }}">
+                {{ $tab['label'] ?? '' }}
+                @if((int) ($tab['count'] ?? 0) > 0)
+                    <sup class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none">
+                        {{ $tab['count'] }}
+                    </sup>
+                @endif
+            </a>
+        @empty
+            @if($empty)
+                <span class="px-4 py-2 text-sm text-slate-400">{{ $empty }}</span>
             @endif
-        </a>
-    @empty
-        @if($empty)
-            <span class="px-4 py-2 text-sm text-slate-400">{{ $empty }}</span>
-        @endif
-    @endforelse
+        @endforelse
+    </div>
 </div>

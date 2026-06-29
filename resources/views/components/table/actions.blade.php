@@ -5,6 +5,8 @@
     - Hovering a button reveals its text label (styled tooltip).
     - When there are more than {{ $threshold }} actions, they collapse into a
       kebab (⋮) dropdown to keep the row clean.
+    - On mobile (< 768px) ALL actions collapse into the kebab regardless of
+      count (the inline icon row is hidden via the table's scoped CSS).
 
     Icons come from the action's optional 'icon' key (a Lucide name); otherwise
     a sensible icon is inferred from the action name/label. So existing
@@ -50,34 +52,11 @@
 @endphp
 
 @if(! empty($actions))
-    @if($useKebab)
-        <div x-data="{ open: false }" class="relative inline-flex">
-            <button type="button"
-                    @click="open = ! open"
-                    @click.away="open = false"
-                    @keydown.escape.window="open = false"
-                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-                    aria-label="More actions" title="More actions">
-                <i data-lucide="more-vertical" class="h-4 w-4"></i>
-            </button>
-
-            <div x-show="open" x-transition x-cloak
-                 class="absolute right-0 top-9 z-30 min-w-[180px] overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
-                 style="display:none;">
-                @foreach($actions as $action)
-                    @include('components.table.action-control', [
-                        'action' => $action,
-                        'rowId' => $rowId,
-                        'tableKey' => $tableKey,
-                        'deleteRoute' => $deleteRoute,
-                        'icon' => $resolveIcon($action),
-                        'style' => 'menu',
-                    ])
-                @endforeach
-            </div>
-        </div>
-    @else
-        <div class="flex items-center gap-1">
+    {{-- Inline icon buttons — desktop only, used when there are few actions.
+         Hidden on mobile (< 768px) by the .tbl-actions-inline rule; the kebab
+         below takes over there. --}}
+    @unless($useKebab)
+        <div class="tbl-actions-inline flex items-center gap-1">
             @foreach($actions as $action)
                 @include('components.table.action-control', [
                     'action' => $action,
@@ -89,5 +68,34 @@
                 ])
             @endforeach
         </div>
-    @endif
+    @endunless
+
+    {{-- Kebab (⋮): always shown when there are many actions; mobile-only when
+         few (the .tbl-actions-kebab class hides it on desktop >= 768px). --}}
+    <div x-data="{ open: false }"
+         class="relative inline-flex {{ $useKebab ? '' : 'tbl-actions-kebab' }}">
+        <button type="button"
+                @click="open = ! open"
+                @click.away="open = false"
+                @keydown.escape.window="open = false"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                aria-label="More actions" title="More actions">
+            <i data-lucide="more-vertical" class="h-4 w-4"></i>
+        </button>
+
+        <div x-show="open" x-transition x-cloak
+             class="absolute right-0 top-9 z-30 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+             style="min-width:180px; display:none;">
+            @foreach($actions as $action)
+                @include('components.table.action-control', [
+                    'action' => $action,
+                    'rowId' => $rowId,
+                    'tableKey' => $tableKey,
+                    'deleteRoute' => $deleteRoute,
+                    'icon' => $resolveIcon($action),
+                    'style' => 'menu',
+                ])
+            @endforeach
+        </div>
+    </div>
 @endif

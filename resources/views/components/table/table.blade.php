@@ -39,25 +39,92 @@
         height: 100%;
         background: #4f46e5; /* indigo-600 while dragging */
     }
+
+    /* ================================================================
+       Mobile responsiveness — written with real @media queries and
+       custom classes (NOT Tailwind sm:/md: variants, which may be
+       absent from the compiled Vite build). Breakpoint: < 768px = mobile.
+       Desktop (>= 768px) renders exactly as before.
+       ================================================================ */
+    @media (max-width: 767.98px) {
+        /* Force the table wider than the viewport so the overflow-x-auto
+           wrapper actually scrolls instead of squishing every column. */
+        .tbl-scroll { min-width: var(--tbl-min, 720px); }
+
+        /* Row actions: hide the inline icon row — the kebab takes over. */
+        .tbl-actions-inline { display: none !important; }
+
+        /* Page-level filters collapse behind the "Filters" button. */
+        .tbl-filters-toggle { display: inline-flex !important; }
+        .tbl-filters-panel {
+            display: none;
+            position: absolute;
+            left: 0;
+            right: auto;
+            top: calc(100% + 6px);
+            z-index: 40;
+            width: 15rem;
+            max-width: 85vw;
+            flex-direction: column;
+            align-items: stretch;
+            gap: .5rem;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: .75rem;
+            box-shadow: 0 12px 28px -8px rgba(15, 23, 42, .25);
+            padding: .625rem;
+        }
+        .tbl-filters-panel.is-open { display: flex; }
+        .tbl-filters-panel select { width: 100%; }
+    }
+    @media (min-width: 768px) {
+        /* Desktop: kebab/toggle hidden, filters stay inline — unchanged. */
+        .tbl-actions-kebab  { display: none !important; }
+        .tbl-filters-toggle { display: none !important; }
+        .tbl-filters-panel  { display: flex !important; }
+    }
 </style>
+
+@php
+    // Approximate the table's natural width so it overflows (and scrolls)
+    // on phones. ~150px per data column + fixed extras. Desktop is unaffected
+    // because the min-width only applies under the 768px media query.
+    $minTableWidth = (!empty($reorderable) ? 36 : 0)
+        + (!empty($rowNumbers) ? 56 : 0)
+        + (count($columns) * 150)
+        + (empty($hideActions) ? 150 : 0);
+    $minTableWidth = max($minTableWidth, 640);
+@endphp
 
 <div class="bg-white border border-gray-200 rounded-xl p-4">
 
     {{-- Top Bar (filter + columns + create). Hidden for read-only views
          like the student transcript via :hideToolbar="true". --}}
     @if(empty($hideToolbar ?? false))
-    <div class="flex justify-between items-center mb-3 gap-3">
+    <div class="flex flex-wrap justify-between items-center mb-3 gap-3">
         <div class="flex items-center gap-3 flex-1 min-w-0">
             <input type="text"
                    id="{{ $tableKey }}Filter"
                    placeholder="Filter..."
-                   class="border border-gray-300 rounded px-3 py-2 w-64 text-sm">
+                   class="border border-gray-300 rounded px-3 py-2 w-64 max-w-full text-sm">
 
             {{-- Optional content rendered immediately to the right of the
-                 filter input (e.g. term pills on the Admissions list). --}}
+                 filter input (e.g. term pills / filter selects). Inline on
+                 desktop; collapses behind a "Filters" button on mobile. --}}
             @isset($afterFilter)
-                <div class="flex flex-wrap items-center gap-2 min-w-0">
-                    {{ $afterFilter }}
+                <div class="relative" x-data="{ filtersOpen: false }" @click.outside="filtersOpen = false">
+                    {{-- Mobile-only trigger (hidden on desktop via scoped CSS). --}}
+                    <button type="button" @click="filtersOpen = ! filtersOpen"
+                            class="tbl-filters-toggle items-center gap-2 rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+                        <i data-lucide="filter" class="h-4 w-4 text-indigo-600"></i>
+                        Filters
+                        <i data-lucide="chevron-down" class="h-3.5 w-3.5 text-slate-400"></i>
+                    </button>
+                    {{-- Inline on desktop; dropdown panel on mobile. --}}
+                    <div class="tbl-filters-panel flex flex-wrap items-center gap-2 min-w-0"
+                         :class="{ 'is-open': filtersOpen }">
+                        {{ $afterFilter }}
+                    </div>
                 </div>
             @endisset
         </div>
@@ -87,7 +154,8 @@
 
     {{-- Table --}}
     <div class="overflow-x-auto">
-        <table id="{{ $tableKey }}Table" class="w-full border table-fixed">
+        <table id="{{ $tableKey }}Table" class="w-full border table-fixed tbl-scroll"
+               style="--tbl-min: {{ $minTableWidth }}px;">
 
             {{-- LOCK COLUMN WIDTHS --}}
             <colgroup id="{{ $tableKey }}ColGroup">
