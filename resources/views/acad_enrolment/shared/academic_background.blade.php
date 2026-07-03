@@ -4,10 +4,10 @@
 <div class="px-8 py-6 max-w-4xl">
 
     <div class="text-xs font-extrabold text-slate-500 tracking-widest mb-1">
-        STEP 5 OF 8 — ACADEMIC BACKGROUND
+        STEP 5 OF 9 — ACADEMIC BACKGROUND
     </div>
     <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden mb-6">
-        <div class="h-full bg-indigo-600" style="width:71%"></div>
+        <div class="h-full bg-indigo-600" style="width:56%"></div>
     </div>
 
     <h1 class="text-2xl font-extrabold text-slate-800 mb-1">Academic Background</h1>

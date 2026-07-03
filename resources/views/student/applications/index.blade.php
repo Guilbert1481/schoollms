@@ -93,10 +93,10 @@
                                         <i data-lucide="pencil" class="w-3 h-3"></i> Edit
                                     </a>
 
-                                    <a href="{{ route('student.applications.pdf', $r->id) }}"
+                                    <a href="{{ route('student.applications.view', $r->id) }}"
                                        target="_blank"
                                        rel="noopener"
-                                       onclick="openApplicationPdf(event, '{{ route('student.applications.pdf', $r->id) }}', '{{ $r->reference }}')"
+                                       onclick="openApplicationPdf(event, '{{ route('student.applications.view', $r->id) }}', '{{ $r->reference }}')"
                                        class="inline-flex items-center gap-1 px-3 py-1 rounded text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600">
                                         <i data-lucide="file-text" class="w-3 h-3"></i> View
                                     </a>

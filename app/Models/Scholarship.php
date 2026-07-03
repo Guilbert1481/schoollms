@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToSchool;
 
 class Scholarship extends Model
 {
+    use BelongsToSchool;
+
     /** value kinds */
     public const KINDS = [
         'percentage' => 'Percentage',

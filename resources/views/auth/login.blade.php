@@ -64,6 +64,15 @@
                 </p>
             </div>
 
+            @if (session('status'))
+                <div class="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 text-emerald-600">
+                    <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
+                    <p class="text-[10px] font-black uppercase tracking-wider">
+                        {{ session('status') }}
+                    </p>
+                </div>
+            @endif
+
             @if ($errors->any())
                 <div class="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-600">
                     <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
@@ -95,7 +104,7 @@
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
                             Security Key
                         </label>
-                        <a href="#" class="text-[10px] font-black text-indigo-500 uppercase hover:text-indigo-600 transition-colors">
+                        <a href="{{ route('password.request') }}" class="text-[10px] font-black text-indigo-500 uppercase hover:text-indigo-600 transition-colors">
                             Recover?
                         </a>
                     </div>

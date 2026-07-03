@@ -3,6 +3,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\SchoolRegistrationController;
 use App\Http\Controllers\Auth\OnboardingController;
 use App\Http\Controllers\Auth\StudentRegisterController;
@@ -28,13 +29,19 @@ Route::get('/', function () {
 
 // Main Login (for superadmins/platform)
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [LoginController::class, 'login']);
+Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
 
 // School-Specific Login (using {slug})
 Route::get('{slug}/login', [LoginController::class, 'showLoginForm'])->name('school.login');
-Route::post('{slug}/login', [LoginController::class, 'login'])->name('school.login.post');
+Route::post('{slug}/login', [LoginController::class, 'login'])->name('school.login.post')->middleware('throttle:login');
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+// Password Reset (M1 — self-service forgot/reset password; built-in broker)
+Route::get('/forgot-password',        [PasswordResetController::class, 'showLinkRequest'])->name('password.request');
+Route::post('/forgot-password',       [PasswordResetController::class, 'sendLink'])->name('password.email')->middleware('throttle:6,1');
+Route::get('/reset-password/{token}', [PasswordResetController::class, 'showReset'])->name('password.reset');
+Route::post('/reset-password',        [PasswordResetController::class, 'reset'])->name('password.update')->middleware('throttle:6,1');
 
 
 

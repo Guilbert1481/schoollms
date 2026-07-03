@@ -4,7 +4,7 @@
 <div class="px-8 py-12 max-w-2xl text-center mx-auto">
 
     <div class="text-xs font-extrabold text-slate-500 tracking-widest mb-1">
-        STEP 8 OF 8 — CONFIRMATION
+        STEP 9 OF 9 — CONFIRMATION
     </div>
     <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden mb-8">
         <div class="h-full bg-emerald-500" style="width:100%"></div>

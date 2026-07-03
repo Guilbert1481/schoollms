@@ -81,6 +81,17 @@ return [
                     ['field' => 'school_logo', 'col_span' => 2],
                     ['field' => 'school_seal', 'col_span' => 2],
                 ],
+                [
+                    ['field' => 'school_header', 'col_span' => 3],
+                    ['field' => 'header_space', 'col_span' => 1],
+                ],
+                [
+                    ['field' => 'school_footer', 'col_span' => 3],
+                    ['field' => 'footer_space', 'col_span' => 1],
+                ],
+                [
+                    ['field' => 'school_background', 'col_span' => 4],
+                ],
             ],
 
             'modalities' => [

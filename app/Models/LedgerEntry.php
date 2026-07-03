@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToSchool;
 
 /**
  * One append-only row in a student's individual ledger.
@@ -13,6 +14,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class LedgerEntry extends Model
 {
+    use BelongsToSchool;
+
     public const TYPE_CHARGE     = 'charge';
     public const TYPE_PAYMENT    = 'payment';
     public const TYPE_DISCOUNT   = 'discount';

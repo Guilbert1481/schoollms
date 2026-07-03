@@ -40,6 +40,11 @@
         background: #4f46e5; /* indigo-600 while dragging */
     }
 
+    /* Columns fill the full table width (no right-hand gap) via % widths; this
+       min-width (= the columns' px sum, set inline per table) lets a wide table
+       scroll instead of squishing. */
+    .tbl-scroll { min-width: var(--tbl-min, 0); }
+
     /* ================================================================
        Mobile responsiveness — written with real @media queries and
        custom classes (NOT Tailwind sm:/md: variants, which may be
@@ -47,10 +52,6 @@
        Desktop (>= 768px) renders exactly as before.
        ================================================================ */
     @media (max-width: 767.98px) {
-        /* Force the table wider than the viewport so the overflow-x-auto
-           wrapper actually scrolls instead of squishing every column. */
-        .tbl-scroll { min-width: var(--tbl-min, 720px); }
-
         /* Row actions: hide the inline icon row — the kebab takes over. */
         .tbl-actions-inline { display: none !important; }
 
@@ -86,14 +87,16 @@
 </style>
 
 @php
-    // Approximate the table's natural width so it overflows (and scrolls)
-    // on phones. ~150px per data column + fixed extras. Desktop is unaffected
-    // because the min-width only applies under the 768px media query.
-    $minTableWidth = (!empty($reorderable) ? 36 : 0)
-        + (!empty($rowNumbers) ? 56 : 0)
-        + (count($columns) * 150)
-        + (empty($hideActions) ? 150 : 0);
-    $minTableWidth = max($minTableWidth, 640);
+    // Column widths drive a proportional fill so the columns always span the
+    // full table (no right-hand gap), while their px sum becomes the scroll
+    // min-width so a wide table scrolls instead of squishing.
+    $tblParseW = fn ($w) => (is_string($w) && preg_match('/(\d+(?:\.\d+)?)/', (string) $w, $m)) ? (float) $m[1] : 150;
+    $tblDragW  = !empty($reorderable) ? 36 : 0;
+    $tblNumW   = !empty($rowNumbers) ? 56 : 0;
+    $tblActW   = empty($hideActions) ? 150 : 0;
+    $tblTotalW = max(1, $tblDragW + $tblNumW + $tblActW
+        + array_sum(array_map(fn ($c) => $tblParseW($c['width'] ?? null), $columns)));
+    $tblPct    = fn ($px) => round($px / $tblTotalW * 100, 4).'%';
 @endphp
 
 <div class="bg-white border border-gray-200 rounded-xl p-4">
@@ -155,25 +158,26 @@
     {{-- Table --}}
     <div class="overflow-x-auto">
         <table id="{{ $tableKey }}Table" class="w-full border table-fixed tbl-scroll"
-               style="--tbl-min: {{ $minTableWidth }}px;">
+               style="--tbl-min: {{ $tblTotalW }}px; width: 100%; table-layout: fixed;">
 
             {{-- LOCK COLUMN WIDTHS --}}
             <colgroup id="{{ $tableKey }}ColGroup">
                 @if(!empty($reorderable))
-                    <col data-table="{{ $tableKey }}" data-col-key="__drag" style="width: 36px;">
+                    <col data-table="{{ $tableKey }}" data-col-key="__drag" style="width: {{ $tblPct($tblDragW) }};">
                 @endif
                 @if(!empty($rowNumbers))
-                    <col data-table="{{ $tableKey }}" data-col-key="__num" style="width: 56px;">
+                    <col data-table="{{ $tableKey }}" data-col-key="__num" style="width: {{ $tblPct($tblNumW) }};">
                 @endif
                 @foreach($columns as $index => $col)
                     <col data-index="{{ $index }}"
                          data-table="{{ $tableKey }}"
-                         data-col-key="{{ $col['key'] }}">
+                         data-col-key="{{ $col['key'] }}"
+                         style="width: {{ $tblPct($tblParseW($col['width'] ?? null)) }};">
                 @endforeach
                 @if(empty($hideActions))
                     <col data-table="{{ $tableKey }}"
                          data-col-key="actions"
-                         style="width: 150px;">
+                         style="width: {{ $tblPct($tblActW) }};">
                 @endif
             </colgroup>
 

@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToSchool;
 
 class PenaltyRule extends Model
 {
+    use BelongsToSchool;
+
     /** how the penalty is computed */
     public const BASES = [
         'fixed'      => 'Fixed Amount',

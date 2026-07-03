@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToSchool;
 
 class Invoice extends Model
 {
+    use BelongsToSchool;
+
     public const STATUS_PAID    = 'paid';
     public const STATUS_PARTIAL = 'partial';
     public const STATUS_UNPAID  = 'unpaid';

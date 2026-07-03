@@ -250,74 +250,136 @@
         </section>
 
         {{-- Purpose & scoring --}}
-        <section class="lg:col-span-2 rounded-2xl border bg-white p-6">
+        <section class="lg:col-span-2 rounded-2xl border bg-white p-6"
+                 x-data="{
+                    purpose: @js(old('exam_purpose', in_array($exam->exam_purpose, ['diagnostic_only','admission_requirement'], true) ? $exam->exam_purpose : 'diagnostic_only')),
+                    scholarship: @js((bool) old('grants_scholarship', $exam->grants_scholarship ?? false)),
+                    bands: @js(old('scholarship_bands', $exam->scholarship_bands ?: [])),
+                    addBand() { this.bands.push({ label: '', percent: '', apply_to: 'total', min_score: '' }); },
+                    removeBand(i) { this.bands.splice(i, 1); },
+                 }"
+                 x-init="if (scholarship && bands.length === 0) addBand()">
+            <style>
+                [x-cloak]{display:none!important;}
+                .ae-lbl{display:block;font-size:0.66rem;font-weight:800;letter-spacing:0.03em;text-transform:uppercase;color:#64748b;margin-bottom:0.3rem;}
+                .ae-input{width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:0.6rem 0.75rem;font-size:0.85rem;color:#1e293b;background:#fff;line-height:1.2;}
+                .ae-input:focus{outline:none;border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.15);}
+                .ae-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.8rem;align-items:end;}
+                .ae-band{display:grid;grid-template-columns:2.4fr 1fr 1.6fr 1fr auto;gap:0.6rem;align-items:end;border:1px solid #cbd5e1;border-radius:10px;padding:0.85rem;}
+                @media (max-width:640px){.ae-band{grid-template-columns:1fr 1fr;}}
+            </style>
+
             <h2 class="text-sm font-extrabold mb-1">Exam purpose &amp; scoring</h2>
             <p class="text-xs text-slate-500 mb-4">
-                A diagnostic exam never blocks admission. An admission-requirement exam gates the application behind a passing score.
+                Pick one gating stance (diagnostic or admission requirement). <strong>Scholarship grants</strong> can be added on top of either.
             </p>
 
             <div class="space-y-3 mb-5">
-                <label class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer
-                              {{ old('exam_purpose', $exam->exam_purpose) === 'diagnostic_only' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200' }}">
-                    <input type="radio" name="exam_purpose" value="diagnostic_only"
-                        {{ old('exam_purpose', $exam->exam_purpose) === 'diagnostic_only' ? 'checked' : '' }}
-                        class="mt-1">
+                {{-- Gating stance (radio: exactly one) --}}
+                <label class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer"
+                       :class="purpose === 'diagnostic_only' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200'">
+                    <input type="radio" name="exam_purpose" value="diagnostic_only" x-model="purpose" class="mt-1">
                     <span>
                         <span class="font-bold block">Diagnostic only</span>
-                        <span class="text-xs text-slate-500">
-                            Result is used for placement / advising. Applicant proceeds regardless of score.
-                        </span>
+                        <span class="text-xs text-slate-500">Result is used for placement / advising. Applicant proceeds regardless of score.</span>
                     </span>
                 </label>
 
-                <label class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer
-                              {{ old('exam_purpose', $exam->exam_purpose) === 'admission_requirement' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200' }}">
-                    <input type="radio" name="exam_purpose" value="admission_requirement"
-                        {{ old('exam_purpose', $exam->exam_purpose) === 'admission_requirement' ? 'checked' : '' }}
-                        class="mt-1">
+                <label class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer"
+                       :class="purpose === 'admission_requirement' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200'">
+                    <input type="radio" name="exam_purpose" value="admission_requirement" x-model="purpose" class="mt-1">
                     <span>
                         <span class="font-bold block">Admission requirement</span>
-                        <span class="text-xs text-slate-500">
-                            Applicant must reach the passing score to advance from <em>Applicant</em> to <em>Assessed</em>.
-                        </span>
+                        <span class="text-xs text-slate-500">Applicant must reach the passing score to advance from <em>Applicant</em> to <em>Assessed</em>.</span>
+                    </span>
+                </label>
+
+                {{-- Scholarship grants (independent add-on: combinable with either gating stance) --}}
+                <label class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer"
+                       :class="scholarship ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200'">
+                    <input type="checkbox" name="grants_scholarship" value="1" x-model="scholarship"
+                           @change="if (scholarship && bands.length === 0) addBand()" class="mt-1">
+                    <span>
+                        <span class="font-bold block">Scholarship grants <span class="text-[10px] font-extrabold text-emerald-600 uppercase">add-on</span></span>
+                        <span class="text-xs text-slate-500">The exam score grants a tuition / assessment discount. Configure the score bands below.</span>
                     </span>
                 </label>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {{-- Scoring fields — only for "Admission requirement" (one row, taller, bordered).
+                 Kept in the DOM via x-show so max_score / max_attempts always submit. --}}
+            <div x-show="purpose === 'admission_requirement'" x-cloak class="ae-grid">
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">Maximum score</label>
-                    <input type="number" name="max_score" min="1" max="1000"
-                        value="{{ old('max_score', $exam->max_score) }}"
-                        class="w-full rounded-lg border-slate-300 text-sm">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">Passing score</label>
-                    <input type="number" name="passing_score" min="0"
-                        value="{{ old('passing_score', $exam->passing_score) }}"
-                        class="w-full rounded-lg border-slate-300 text-sm"
-                        placeholder="Required if admission requirement">
+                    <label class="ae-lbl">Maximum score</label>
+                    <input type="number" name="max_score" min="1" max="1000" value="{{ old('max_score', $exam->max_score) }}" class="ae-input">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">Max attempts</label>
-                    <input type="number" name="max_attempts" min="1" max="10"
-                        value="{{ old('max_attempts', $exam->max_attempts) }}"
-                        class="w-full rounded-lg border-slate-300 text-sm">
+                    <label class="ae-lbl">Passing score</label>
+                    <input type="number" name="passing_score" min="0" value="{{ old('passing_score', $exam->passing_score) }}" class="ae-input" placeholder="Required">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">Retake cooldown (days)</label>
-                    <input type="number" name="retake_cooldown_days" min="0" max="365"
-                        value="{{ old('retake_cooldown_days', $exam->retake_cooldown_days) }}"
-                        class="w-full rounded-lg border-slate-300 text-sm"
-                        placeholder="Leave blank for none">
+                    <label class="ae-lbl">Max attempts</label>
+                    <input type="number" name="max_attempts" min="1" max="10" value="{{ old('max_attempts', $exam->max_attempts) }}" class="ae-input">
                 </div>
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-bold text-slate-600 mb-1">Result validity (months)</label>
-                    <input type="number" name="result_validity_months" min="0" max="120"
-                        value="{{ old('result_validity_months', $exam->result_validity_months) }}"
-                        class="w-full rounded-lg border-slate-300 text-sm"
-                        placeholder="Leave blank for indefinite">
+                <div>
+                    <label class="ae-lbl">Retake cooldown (days)</label>
+                    <input type="number" name="retake_cooldown_days" min="0" max="365" value="{{ old('retake_cooldown_days', $exam->retake_cooldown_days) }}" class="ae-input" placeholder="None">
                 </div>
+                <div>
+                    <label class="ae-lbl">Result validity (months)</label>
+                    <input type="number" name="result_validity_months" min="0" max="120" value="{{ old('result_validity_months', $exam->result_validity_months) }}" class="ae-input" placeholder="Indefinite">
+                </div>
+            </div>
+
+            {{-- Scholarship bands — only when the Scholarship grants add-on is on.
+                 Each band is one row (taller, bordered) via inline .ae-band. --}}
+            <div x-show="scholarship" x-cloak class="mt-4">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-extrabold text-slate-600 uppercase tracking-wide">Scholarship bands</h3>
+                    <button type="button" @click="addBand()"
+                            class="text-xs font-bold text-indigo-600 hover:text-indigo-700">+ Add scholarship</button>
+                </div>
+                <p class="text-[11px] text-slate-400 mb-3">The highest minimum-score band the applicant reaches wins (no stacking).</p>
+
+                <template x-if="bands.length === 0">
+                    <p class="text-xs text-slate-400 italic py-2">No bands yet — click “Add scholarship”.</p>
+                </template>
+
+                <div class="space-y-3">
+                    <template x-for="(band, i) in bands" :key="i">
+                        <div class="ae-band">
+                            <div>
+                                <label class="ae-lbl">Scholarship type</label>
+                                <input type="text" :name="`scholarship_bands[${i}][label]`" x-model="band.label" placeholder="e.g. 100% Full Scholarship" class="ae-input">
+                            </div>
+                            <div>
+                                <label class="ae-lbl">Discount %</label>
+                                <input type="number" min="0" max="100" step="0.01" :name="`scholarship_bands[${i}][percent]`" x-model="band.percent" placeholder="100" class="ae-input">
+                            </div>
+                            <div>
+                                <label class="ae-lbl">Apply to</label>
+                                <select :name="`scholarship_bands[${i}][apply_to]`" x-model="band.apply_to" class="ae-input">
+                                    <option value="tuition">Tuition Fee only</option>
+                                    <option value="total">Full Assessment fee</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="ae-lbl">Min. score</label>
+                                <input type="number" min="0" :name="`scholarship_bands[${i}][min_score]`" x-model="band.min_score" placeholder="90" class="ae-input">
+                            </div>
+                            <div style="display:flex;align-items:flex-end;padding-bottom:0.35rem;">
+                                <button type="button" @click="removeBand(i)" title="Remove band" style="color:#f43f5e;font-size:1.3rem;font-weight:700;line-height:1;padding:0 0.35rem;">&times;</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            {{-- Save (submits the whole Admission-Exam form) --}}
+            <div class="mt-6 flex justify-end">
+                <button type="submit" class="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold">
+                    Save settings
+                </button>
             </div>
         </section>
 

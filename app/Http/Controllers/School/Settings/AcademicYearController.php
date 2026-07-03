@@ -43,11 +43,19 @@ class AcademicYearController extends Controller
             ->orderBy('name')
             ->get(['id', 'code', 'name']);
 
+        // Education-level options for the term form come from the Education
+        // Structure Tree (offered roots), so un-ticking a level hides it here too.
+        // This is the higher-ed admin, so Basic Education is managed elsewhere.
+        $levelRoots = \App\Support\EducationLevels::offeredRoots()
+            ->reject(fn ($r) => \App\Support\EducationLevels::isBasic($r->name))
+            ->values();
+
         return view('school.settings.master-data.ay_terms', compact(
             'academicYears',
             'termsByAcademicYearId',
             'subjects',
-            'programs'
+            'programs',
+            'levelRoots'
         ));
     }
 

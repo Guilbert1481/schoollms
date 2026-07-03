@@ -44,10 +44,10 @@
      })">
 
     <div class="text-xs font-extrabold text-slate-500 tracking-widest mb-1">
-        STEP 6 OF 8 — HEALTH INFORMATION
+        STEP 6 OF 9 — HEALTH INFORMATION
     </div>
     <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden mb-6">
-        <div class="h-full bg-indigo-600" style="width:75%"></div>
+        <div class="h-full bg-indigo-600" style="width:67%"></div>
     </div>
 
     <h1 class="text-2xl font-extrabold text-slate-800 mb-1">Health Information</h1>

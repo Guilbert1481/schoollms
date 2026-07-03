@@ -187,7 +187,8 @@
                                                     @js(\Carbon\Carbon::parse($t->start_date)->format('Y-m-d')),
                                                     @js(\Carbon\Carbon::parse($t->end_date)->format('Y-m-d')),
                                                     @js($t->enrollment_type ?? 'regular'),
-                                                    @js($t->title ?? '')
+                                                    @js($t->title ?? ''),
+                                                    @js($t->education_node_id)
                                                 )">
                                             <i data-lucide="pencil" class="h-4 w-4"></i>
                                             <x-table.action-tooltip label="Edit" />

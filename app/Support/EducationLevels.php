@@ -29,6 +29,21 @@ class EducationLevels
     }
 
     /**
+     * Levels limited to ONE open/active term per academic year — Basic Education
+     * and Undergraduate. Every other level (Post-Bacc, Graduate, Post-Doctoral,
+     * Training, …) may have unlimited concurrent active terms in the same year.
+     */
+    public static function isLimited(?string $name): bool
+    {
+        if ($name === null) {
+            return false;
+        }
+        $n = strtolower($name);
+
+        return self::isBasic($name) || str_contains($n, 'undergrad');
+    }
+
+    /**
      * Grade levels offered under Basic Education, as [yearLevel => label],
      * e.g. ['1' => 'Grade 1', … '12' => 'Grade 12']. Numbers are read from node
      * names like "Grade 7" / "Grade 11 (Core)", deduped and sorted — so every
@@ -130,6 +145,31 @@ class EducationLevels
         }
 
         return $rootOf;
+    }
+
+    /**
+     * A node's own id plus every ancestor id up to the root — so a fee scoped to
+     * a parent level (e.g. "Basic Education") still applies to a leaf enrolment
+     * node (e.g. "Grade 5"). Returns [] for a null/0 node.
+     *
+     * @return int[]
+     */
+    public static function ancestorIds(?int $nodeId): array
+    {
+        if (! $nodeId) {
+            return [];
+        }
+
+        $all = DB::table('education_nodes')->get(['id', 'parent_id'])->keyBy('id');
+
+        $ids = [];
+        $cur = $all[$nodeId] ?? null;
+        for ($i = 0; $i < 32 && $cur; $i++) {
+            $ids[] = (int) $cur->id;
+            $cur = $cur->parent_id ? ($all[$cur->parent_id] ?? null) : null;
+        }
+
+        return $ids;
     }
 
     /** Whether $nodeId is the same as, or a descendant of, $ancestorId. */

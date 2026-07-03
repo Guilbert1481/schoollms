@@ -78,17 +78,18 @@
 @php
     /*
     |----------------------------------------------------------------------
-    | UNIFIED 8-STEP ENROLMENT WIZARD
+    | UNIFIED 9-STEP ENROLMENT WIZARD
     |----------------------------------------------------------------------
-    |  1. Personal Info       — student row created
-    |  2. Contact Details     — student.mobile_number filled
-    |  3. Family & Emergency  — session("apply.family.{term}")
-    |  4. Learning Pathway    — session("apply.pathway_done.{term}")
-    |  5. Academic Background — session("apply.academic_done.{term}")
-    |                            (skipped automatically when student_type=regular)
-    |  6. Health Information  — session("apply.health_done.{term}")
-    |  7. Review & Submit
-    |  8. Confirmation        — only after submission
+    |  1. Personal Info        — student row created
+    |  2. Contact Details      — student.mobile_number filled
+    |  3. Family & Emergency   — session("apply.family.{term}")
+    |  4. Learning Pathway     — session("apply.pathway_done.{term}")
+    |  5. Academic Background  — session("apply.academic_done.{term}")
+    |                             (skipped automatically when student_type=regular)
+    |  6. Health Information   — session("apply.health_done.{term}")
+    |  7. Financial Assessment — session("apply.financial_done.{term}")
+    |  8. Review & Submit
+    |  9. Confirmation         — only after submission
     */
     $student        = auth()->user()?->student;
     $tid            = $term->id;
@@ -108,11 +109,14 @@
     $academicSkip   = (bool) session("apply.academic_skipped.{$tid}");
     $academicDone   = $pathwayDone && ($academicSkip || (bool) session("apply.academic_done.{$tid}"));
     $healthDone     = $academicDone && (bool) session("apply.health_done.{$tid}");
-    $reviewDone     = $healthDone   && (bool) session("apply.review_done.{$tid}");
+    $diagnosticSkip = (bool) session("apply.diagnostic_skipped.{$tid}");
+    $diagnosticDone = $healthDone && ($diagnosticSkip || (bool) session("apply.diagnostic_done.{$tid}"));
+    $financialDone  = $diagnosticDone && (bool) session("apply.financial_done.{$tid}");
+    $reviewDone     = $financialDone && (bool) session("apply.review_done.{$tid}");
 
     if ($hasEnrollment) {
         $step1Done = $step2Done = $familyDone = $pathwayDone = true;
-        $academicDone = $healthDone = $reviewDone = true;
+        $academicDone = $healthDone = $diagnosticDone = $financialDone = $reviewDone = true;
     }
 
     $unlocked = [
@@ -122,8 +126,10 @@
         4 => $familyDone,
         5 => $pathwayDone && ! $academicSkip,
         6 => $academicDone,
-        7 => $healthDone,
-        8 => $reviewDone,
+        7 => $healthDone && ! $diagnosticSkip,   // Diagnostic Test (conditional)
+        8 => $diagnosticDone,                     // Financial Assessment requires Diagnostic done
+        9 => $financialDone,                      // Review requires Financial done
+        10 => $reviewDone,                        // Confirmation requires Review done
     ];
     $done = [
         1 => $step1Done,
@@ -132,8 +138,10 @@
         4 => $pathwayDone,
         5 => $academicDone,
         6 => $healthDone,
-        7 => $reviewDone,
-        8 => false,
+        7 => $diagnosticDone,
+        8 => $financialDone,
+        9 => $reviewDone,
+        10 => false,
     ];
 
     $stepClasses = function ($key, $isActive) use ($unlocked, $done) {
@@ -208,24 +216,48 @@
         <span class="nav-item locked"><span>6. Health Information</span><span class="lock-icon">🔒</span></span>
     @endif
 
-    {{-- 7. Review & Submit --}}
-    @if ($unlocked[7])
-        <a href="{{ route('public.apply.review', $tid) }}"
-           class="{{ $stepClasses(7, request()->routeIs('public.apply.review')) }}">
-            <span>7. Review &amp; Submit</span>
+    {{-- 7. Diagnostic Test (auto-skipped when not required for this applicant) --}}
+    @if ($diagnosticSkip)
+        <span class="nav-item locked" title="Skipped — not required for your applicant type.">
+            <span>7. Diagnostic Test</span><span class="lock-icon">⏭</span>
+        </span>
+    @elseif ($unlocked[7])
+        <a href="{{ route('public.apply.diagnostic', $tid) }}"
+           class="{{ $stepClasses(7, request()->routeIs('public.apply.diagnostic')) }}">
+            <span>7. Diagnostic Test</span>
         </a>
     @else
-        <span class="nav-item locked"><span>7. Review &amp; Submit</span><span class="lock-icon">🔒</span></span>
+        <span class="nav-item locked"><span>7. Diagnostic Test</span><span class="lock-icon">🔒</span></span>
     @endif
 
-    {{-- 8. Confirmation --}}
+    {{-- 8. Financial Assessment --}}
     @if ($unlocked[8])
+        <a href="{{ route('public.apply.financial', $tid) }}"
+           class="{{ $stepClasses(8, request()->routeIs('public.apply.financial')) }}">
+            <span>8. Financial Assessment</span>
+        </a>
+    @else
+        <span class="nav-item locked"><span>8. Financial Assessment</span><span class="lock-icon">🔒</span></span>
+    @endif
+
+    {{-- 9. Review & Submit --}}
+    @if ($unlocked[9])
+        <a href="{{ route('public.apply.review', $tid) }}"
+           class="{{ $stepClasses(9, request()->routeIs('public.apply.review')) }}">
+            <span>9. Review &amp; Submit</span>
+        </a>
+    @else
+        <span class="nav-item locked"><span>9. Review &amp; Submit</span><span class="lock-icon">🔒</span></span>
+    @endif
+
+    {{-- 10. Confirmation --}}
+    @if ($unlocked[10])
         <span class="nav-item complete" style="cursor:default;">
-            <span>8. Confirmation</span>
+            <span>10. Confirmation</span>
         </span>
     @else
         <span class="nav-item locked" style="cursor:default;">
-            <span>8. Confirmation</span><span class="lock-icon">🔒</span>
+            <span>10. Confirmation</span><span class="lock-icon">🔒</span>
         </span>
     @endif
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Finance;
 use App\Http\Controllers\Controller;
 use App\Models\FinanceSetting;
 use App\Models\LedgerEntry;
+use App\Models\PenaltyRule;
 use App\Models\StatementOfAccount;
 use App\Models\Term;
 use App\Models\User;
@@ -35,16 +36,30 @@ class StatementController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        $rows = $soas->map(function (StatementOfAccount $s) {
+        // Active penalty rules drive the computed late penalty per statement.
+        $penaltyRules = PenaltyRule::query()
+            ->where('school_id', $schoolId)->where('is_active', true)
+            ->orderBy('grace_days')
+            ->get(['basis', 'amount', 'grace_days']);
+
+        $rows = $soas->map(function (StatementOfAccount $s) use ($penaltyRules) {
+            $principal   = round((float) $s->closing_balance, 2);
+            $due         = $s->due_date ? Carbon::parse($s->due_date)->startOfDay() : null;
+            $daysOverdue = ($due && $principal > 0.005 && $due->isPast()) ? (int) $due->diffInDays(now()->startOfDay()) : 0;
+            $penalty     = $this->computePenalty($principal, $daysOverdue, $penaltyRules);
+            $balance     = round($principal + $penalty, 2);
+
             return (object) [
-                'id'             => $s->id,
-                'soa_number'     => $s->soa_number,
-                'student'        => $s->student ? trim($s->student->first_name.' '.$s->student->last_name) : '—',
-                'period_label'   => $s->period_label ?: '—',
-                'charges_label'  => 'PHP '.number_format((float) $s->total_charges, 2),
-                'credits_label'  => 'PHP '.number_format((float) $s->total_credits, 2),
-                'balance'        => $this->balancePill((float) $s->closing_balance),
-                'due'            => optional($s->due_date)->format('M d, Y') ?? '—',
+                'id'           => $s->id,
+                'soa_number'   => $s->soa_number,
+                'name'         => $s->student ? trim($s->student->first_name.' '.$s->student->last_name) : '—',
+                'duration'     => $this->durationLabel($s),
+                'due_date'     => $due ? $due->format('M d, Y') : '—',
+                'description'  => $s->period_label ?: '—',
+                'days_overdue' => $daysOverdue > 0 ? $daysOverdue.' day'.($daysOverdue === 1 ? '' : 's') : '—',
+                'principal'    => $this->peso($principal),
+                'penalty'      => $this->peso($penalty),
+                'balance'      => $this->balanceCell($balance),
             ];
         });
 
@@ -240,14 +255,69 @@ class StatementController extends Controller
     protected function columns(): array
     {
         return [
-            ['key' => 'soa_number', 'label' => 'SOA #', 'width' => '180px'],
-            ['key' => 'student', 'label' => 'Student', 'width' => '220px'],
-            ['key' => 'period_label', 'label' => 'Period', 'width' => '170px'],
-            ['key' => 'charges_label', 'label' => 'Charges', 'width' => '130px'],
-            ['key' => 'credits_label', 'label' => 'Payments', 'width' => '130px'],
-            ['key' => 'balance', 'label' => 'Closing Balance', 'width' => '150px', 'raw' => true],
-            ['key' => 'due', 'label' => 'Due', 'width' => '120px'],
+            ['key' => 'soa_number',   'label' => 'SOA #',        'width' => '150px'],
+            ['key' => 'name',         'label' => 'Name',         'width' => '180px'],
+            ['key' => 'duration',     'label' => 'Duration',     'width' => '160px'],
+            ['key' => 'due_date',     'label' => 'Due Date',     'width' => '120px'],
+            ['key' => 'description',  'label' => 'Description',  'width' => '180px'],
+            ['key' => 'days_overdue', 'label' => 'Days Overdue', 'width' => '120px'],
+            ['key' => 'principal',    'label' => 'Principal',    'width' => '130px'],
+            ['key' => 'penalty',      'label' => 'Penalty',      'width' => '120px'],
+            ['key' => 'balance',      'label' => 'Balance',      'width' => '140px', 'raw' => true],
         ];
+    }
+
+    /** ₱ amount. */
+    protected function peso(float $v): string
+    {
+        return '₱'.number_format($v, 2);
+    }
+
+    /** The statement's billing window — date range, or its period label. */
+    protected function durationLabel(StatementOfAccount $s): string
+    {
+        if ($s->period_start && $s->period_end) {
+            return Carbon::parse($s->period_start)->format('M d').' – '.Carbon::parse($s->period_end)->format('M d, Y');
+        }
+
+        return $s->period_label ?: '—';
+    }
+
+    /**
+     * Late penalty for a statement, from the school's active Penalty Rules:
+     * the first rule whose grace period has lapsed (fixed amount or % of the
+     * principal). Returns 0 when nothing is overdue or no rules are configured.
+     */
+    protected function computePenalty(float $principal, int $daysOverdue, $rules): float
+    {
+        if ($principal <= 0.005 || $daysOverdue <= 0 || $rules->isEmpty()) {
+            return 0.0;
+        }
+
+        foreach ($rules as $rule) {
+            if ($daysOverdue <= (int) $rule->grace_days) {
+                continue;
+            }
+
+            return $rule->basis === 'percentage'
+                ? round($principal * (float) $rule->amount / 100, 2)
+                : round((float) $rule->amount, 2);
+        }
+
+        return 0.0;
+    }
+
+    /** Balance cell — coloured amount (rose = owes, emerald = settled). */
+    protected function balanceCell(float $balance): string
+    {
+        if ($balance > 0.005) {
+            return '<span class="font-bold text-rose-600">'.$this->peso($balance).'</span>';
+        }
+        if ($balance < -0.005) {
+            return '<span class="font-bold text-sky-600">'.$this->peso(abs($balance)).' cr</span>';
+        }
+
+        return '<span class="font-bold text-emerald-600">'.$this->peso(0).'</span>';
     }
 
     protected function actions(): array

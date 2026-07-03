@@ -6,18 +6,20 @@ use App\Http\Controllers\Public\EnrollmentQrLandingController;
 
 /*
 |--------------------------------------------------------------------------
-| Public Enrolment Wizard — 7-step unified flow
+| Public Enrolment Wizard — 9-step unified flow
 |--------------------------------------------------------------------------
 |  1. Personal Info        → public.apply.show / store
 |  2. Contact Details      → public.apply.step2 / step2.store
 |  3. Family & Emergency   → public.apply.family / family.store
 |  4. Learning Pathway     → public.apply.pathway / pathway.store
 |  5. Academic Background  → public.apply.academic / academic.store  (skipped for student_type=regular)
-|  6. Review & Submit      → public.apply.review / submit
-|  7. Confirmation         → public.apply.confirmation
+|  6. Health Information   → public.apply.health / health.store
+|  7. Financial Assessment → public.apply.financial / financial.store
+|  8. Review & Submit      → public.apply.review / submit
+|  9. Confirmation         → public.apply.confirmation
 */
 
-Route::prefix('apply')->name('public.apply.')->group(function () {
+Route::prefix('apply')->name('public.apply.')->middleware('enrollment.open')->group(function () {
 
     // QR-code landing (public — handles auth state internally)
     Route::get('/qr/{term}',           [EnrollmentQrLandingController::class, 'show'])->name('qr');
@@ -62,11 +64,20 @@ Route::prefix('apply')->name('public.apply.')->group(function () {
         Route::get('/{term}/health',  [EnrollmentController::class, 'showHealth'])->name('health');
         Route::post('/{term}/health', [EnrollmentController::class, 'storeHealth'])->name('health.store');
 
-        // Step 7 — Review & Submit
+        // Step 7 — Diagnostic / Admission Test (pre-submission; conditional per
+        // the school's "who must take the admission exam" config)
+        Route::get('/{term}/diagnostic',  [EnrollmentController::class, 'showDiagnostic'])->name('diagnostic');
+        Route::post('/{term}/diagnostic', [EnrollmentController::class, 'storeDiagnostic'])->name('diagnostic.store');
+
+        // Step 8 — Financial Assessment (fee review + payment-plan selection)
+        Route::get('/{term}/financial',  [EnrollmentController::class, 'showFinancial'])->name('financial');
+        Route::post('/{term}/financial', [EnrollmentController::class, 'storeFinancial'])->name('financial.store');
+
+        // Step 9 — Review & Submit
         Route::get('/{term}/review',  [EnrollmentController::class, 'showReview'])->name('review');
         Route::post('/{term}/submit', [EnrollmentController::class, 'submit'])->name('submit');
 
-        // Step 8 — Confirmation
+        // Step 10 — Confirmation
         Route::get('/{term}/confirmation/{enrollment}', [EnrollmentController::class, 'confirmation'])
             ->name('confirmation');
 

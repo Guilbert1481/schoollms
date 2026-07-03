@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToSchool;
 
 class Payment extends Model
 {
+    use BelongsToSchool;
+
     public const TYPES = [
         'tuition',
         'registration',

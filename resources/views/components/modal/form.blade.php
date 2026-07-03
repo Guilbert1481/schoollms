@@ -7,11 +7,33 @@
     'hideFooter' => false,   // hide the Cancel/Save footer (e.g. a read-only table)
 ])
 
+@php
+    // The compiled Tailwind build is stale, so max-w-* / arbitrary w-[..] classes
+    // may not exist — which left every modal falling back to w-full (95vw).
+    // Resolve the requested width to an inline max-width so the panel is sized to
+    // its content regardless of the build, while width:100% keeps it responsive.
+    $wc = (string) $widthClass;
+    $maxScale = [
+        'xs' => '20rem', 'sm' => '24rem', 'md' => '28rem', 'lg' => '32rem',
+        'xl' => '36rem', '2xl' => '42rem', '3xl' => '48rem', '4xl' => '56rem',
+        '5xl' => '64rem', '6xl' => '72rem', '7xl' => '80rem',
+    ];
+    if (preg_match('/max-w-(xs|sm|md|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl)/', $wc, $m)) {
+        $modalMaxW = $maxScale[$m[1]];                 // e.g. max-w-2xl -> 42rem
+    } elseif (preg_match('/w-\[([^\]]+)\]/', $wc, $m)) {
+        $modalMaxW = $m[1];                            // arbitrary e.g. w-[480px] -> 480px
+    } elseif (preg_match('/(?:^|\s)w-(\d+(?:\.\d+)?)(?:\s|$)/', $wc, $m)) {
+        $modalMaxW = ((float) $m[1] * 0.25).'rem';     // spacing scale e.g. w-96 -> 24rem
+    } else {
+        $modalMaxW = '28rem';
+    }
+@endphp
+
 <div id="{{ $id }}" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
 
         <div id="{{ $id }}Draggable"
             class="modal-draggable bg-white {{ $widthClass }} rounded-lg shadow-lg absolute flex flex-col"
-         style="top:80px; left:50%; transform:translateX(-50%); max-height:90vh; max-width:95vw;">
+         style="top:80px; left:50%; transform:translateX(-50%); max-height:90vh; width:100%; max-width:min({{ $modalMaxW }}, 95vw);">
 
         {{-- Header --}}
         <div id="{{ $id }}Header" class="modal-header flex flex-none justify-between items-center border-b px-4 py-2 cursor-move">

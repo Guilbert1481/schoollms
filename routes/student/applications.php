@@ -17,4 +17,9 @@ Route::middleware(['web', 'auth', 'role:student'])
         Route::get('/applications/{id}/pdf', [ApplicationsController::class, 'pdf'])
             ->whereNumber('id')
             ->name('applications.pdf');
+
+        // Full letterhead preview (same design as the enrolment "Preview Application")
+        Route::get('/applications/{id}/view', [ApplicationsController::class, 'view'])
+            ->whereNumber('id')
+            ->name('applications.view');
     });

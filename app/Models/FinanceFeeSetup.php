@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
+use App\Support\EducationLevels;
 
 class FinanceFeeSetup extends Model
 {
@@ -70,5 +72,48 @@ class FinanceFeeSetup extends Model
     public function paymentPlan()
     {
         return $this->belongsTo(PaymentPlan::class);
+    }
+
+    /**
+     * Collapse matched TUITION rows to a single "most-specific node wins" charge,
+     * so a broad default (e.g. a Senior High School-level tuition) and a narrower
+     * override (e.g. a specific strand/grade node) never double-charge the same
+     * student. The tuition whose education_node_id sits deepest in the student's
+     * branch wins; a null-node tuition is the least specific. Non-tuition fees
+     * are left untouched (they stack). Incoming row order is preserved.
+     *
+     * Used by both the Financial Assessment preview (PaymentScheduleService) and
+     * the actual billing (InvoiceService) so the quote always matches the charge.
+     *
+     * @param  Collection<int,self>  $rows
+     * @return Collection<int,self>
+     */
+    public static function keepMostSpecificTuition(Collection $rows, ?int $studentNodeId): Collection
+    {
+        $tuition = $rows->where('fee_type', 'tuition');
+        if ($tuition->count() <= 1) {
+            return $rows; // nothing to disambiguate
+        }
+
+        // ancestorIds() returns [self, parent, …, root]; a lower index = closer
+        // to the student's own node = more specific.
+        $ancestors = EducationLevels::ancestorIds((int) $studentNodeId);
+
+        $depth = function ($nodeId) use ($ancestors) {
+            if ($nodeId === null) {
+                return PHP_INT_MAX; // wildcard tuition = least specific
+            }
+            $pos = array_search((int) $nodeId, $ancestors, true);
+            return $pos === false ? PHP_INT_MAX : $pos;
+        };
+
+        // Most specific wins; ties break to the most recently created row (highest id).
+        $winnerId = $tuition
+            ->sort(fn ($a, $b) => [$depth($a->education_node_id), -$a->id] <=> [$depth($b->education_node_id), -$b->id])
+            ->first()
+            ->id;
+
+        // Drop only the losing tuition rows; keep everything else where it was.
+        return $rows->reject(fn ($r) => $r->fee_type === 'tuition' && $r->id !== $winnerId)->values();
     }
 }

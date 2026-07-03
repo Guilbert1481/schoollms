@@ -25,6 +25,8 @@ class TestBuilderController extends Controller
     public function index($testId)
     {
         $test = Test::with(['testSources', 'testSettings'])->findOrFail($testId);
+        // C1 — tenant guard: never expose a test from another school.
+        abort_unless((int) $test->school_id === (int) auth()->user()->school_id, 404);
 
         $academicLevels = \App\Models\AcademicLevel::where('school_id', auth()->user()->school_id)->orderBy('sequence_order')->get();
 
@@ -59,6 +61,9 @@ class TestBuilderController extends Controller
 
     public function edit(Test $test)
     {
+        // C1 — tenant guard: never expose a test from another school.
+        abort_unless((int) $test->school_id === (int) auth()->user()->school_id, 404);
+
         $test->load(['testSources', 'testSettings', 'testQuestions.question']);
 
         $academicLevels = \App\Models\AcademicLevel::where('school_id', auth()->user()->school_id)->orderBy('sequence_order')->get();
@@ -87,6 +92,8 @@ class TestBuilderController extends Controller
             'lesson',
             'competency'
         ])->findOrFail($testId);
+        // C1 — tenant guard: never expose a test from another school.
+        abort_unless((int) $test->school_id === (int) auth()->user()->school_id, 404);
 
         // Format test sources for frontend
         $questionSettings = $test->testSources->map(function ($source) {

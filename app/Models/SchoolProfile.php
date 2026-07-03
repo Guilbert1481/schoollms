@@ -12,6 +12,11 @@ class SchoolProfile extends Model
         'school_logo',
         'school_seal',
         'school_hero',
+        'school_header',
+        'school_footer',
+        'school_background',
+        'header_space',
+        'footer_space',
         'address',
         'contact_number',
         'mobile_number',
@@ -30,6 +35,11 @@ class SchoolProfile extends Model
         'tax_number',
         'sss_number',
         'business_permit_number',
+    ];
+
+    protected $casts = [
+        'header_space' => 'float',
+        'footer_space' => 'float',
     ];
 
     protected static function booted(): void

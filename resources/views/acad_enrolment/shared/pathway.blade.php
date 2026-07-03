@@ -4,10 +4,10 @@
 <div class="px-8 py-6 w-full">
 
     <div class="text-xs font-extrabold text-slate-500 tracking-widest mb-1">
-        STEP 4 OF 8 — LEARNING PATHWAY
+        STEP 4 OF 9 — LEARNING PATHWAY
     </div>
     <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden mb-6">
-        <div class="h-full bg-indigo-600" style="width:57%"></div>
+        <div class="h-full bg-indigo-600" style="width:44%"></div>
     </div>
 
     <h1 class="text-2xl font-extrabold text-slate-800 mb-1">Learning Pathway</h1>

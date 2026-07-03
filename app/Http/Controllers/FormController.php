@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Services\FormService;
 
@@ -99,6 +100,9 @@ class FormController extends Controller
                             | FILE UPLOAD
                             |------------------------------------------------------------------
                             */
+                            $uploadConfig = $fieldConfig['upload'] ?? [];
+                            $disk = $uploadConfig['disk'] ?? 'public';
+
                             if ($request->hasFile($fieldKey)) {
 
                                 $file = $request->file($fieldKey);
@@ -106,12 +110,15 @@ class FormController extends Controller
                                 $extension = $file->getClientOriginalExtension();
                                 $filename = $fieldKey . '_' . $schoolId . '_' . time() . '.' . $extension;
 
-                                $uploadConfig = $fieldConfig['upload'] ?? [];
-                                $disk = $uploadConfig['disk'] ?? 'public';
                                 $path = $uploadConfig['path'] ?? $fieldKey;
 
                                 // Replace {school_id}
                                 $path = str_replace('{school_id}', $schoolId, $path);
+
+                                // Remove the previously stored file so we don't orphan it.
+                                if (!empty($model->$column)) {
+                                    Storage::disk($disk)->delete($model->$column);
+                                }
 
                                 // Store file
                                 $filePath = $file->storeAs($path, $filename, $disk);
@@ -119,8 +126,17 @@ class FormController extends Controller
                                 // Save FILE PATH to database
                                 $model->$column = $filePath;
                             }
+                            elseif (($fieldConfig['type'] ?? null) === 'file'
+                                    && $request->boolean('remove_' . $fieldKey)) {
+                                // Explicit delete from the UI (× button): drop the file
+                                // and clear the column.
+                                if (!empty($model->$column)) {
+                                    Storage::disk($disk)->delete($model->$column);
+                                }
+                                $model->$column = null;
+                            }
                             elseif (($fieldConfig['type'] ?? null) === 'file') {
-                                // No new file uploaded — keep existing value, do not overwrite.
+                                // No new file and no removal — keep existing value.
                             }
                             else {
                                 $model->$column = $request->$fieldKey;

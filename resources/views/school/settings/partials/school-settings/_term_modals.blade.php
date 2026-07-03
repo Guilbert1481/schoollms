@@ -12,6 +12,17 @@
         <div id="createTermSub" class="text-xs text-slate-500"></div>
 
         <div>
+            <label class="block text-sm font-bold mb-1">Education Level</label>
+            <select id="create_education_node_id" name="education_node_id" class="w-full rounded-lg border p-2">
+                <option value="" disabled selected>Select education level</option>
+                @foreach(($levelRoots ?? []) as $root)
+                    <option value="{{ $root->id }}">{{ $root->name }}</option>
+                @endforeach
+            </select>
+            <p class="mt-1 text-[11px] text-slate-400">From the Education Structure Tree. Basic Education &amp; Undergraduate allow only one active term per year.</p>
+        </div>
+
+        <div>
             <label class="block text-sm font-bold mb-1">Enrollment Type</label>
             <select id="create_enrollment_type"
                     name="enrollment_type"
@@ -75,6 +86,17 @@
         @method('PUT')
 
         <div id="editTermSub" class="text-xs text-slate-500"></div>
+
+        <div>
+            <label class="block text-sm font-bold mb-1">Education Level</label>
+            <select id="edit_education_node_id" name="education_node_id" class="w-full rounded-lg border p-2">
+                <option value="" disabled>Select education level</option>
+                @foreach(($levelRoots ?? []) as $root)
+                    <option value="{{ $root->id }}">{{ $root->name }}</option>
+                @endforeach
+            </select>
+            <p class="mt-1 text-[11px] text-slate-400">From the Education Structure Tree. Basic Education &amp; Undergraduate allow only one active term per year.</p>
+        </div>
 
         <div>
             <label class="block text-sm font-bold mb-1">Enrollment Type</label>

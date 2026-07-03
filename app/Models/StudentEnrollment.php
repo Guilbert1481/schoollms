@@ -25,6 +25,18 @@ class StudentEnrollment extends Model
         'academic_year_id',
         'term_id',
         'program_id',
+        'payment_plan_id',
+        'payment_option',
+        'payment_frequency',
+        'scholarship_label',
+        'scholarship_amount',
+        'scholarship_percent',
+        'scholarship_apply_to',
+        'agreed_to_penalty',
+        'certified_by',
+        'acknowledged_accuracy',
+        'data_privacy_consent',
+        'certified_at',
         'modality_id',
         'education_node_id',
         'year_level',
@@ -46,9 +58,15 @@ class StudentEnrollment extends Model
     ];
 
     protected $casts = [
-        'total_units'    => 'decimal:2',
-        'approved_at'    => 'datetime',
-        'payment_due_at' => 'datetime',
+        'total_units'           => 'decimal:2',
+        'scholarship_amount'    => 'decimal:2',
+        'scholarship_percent'   => 'decimal:2',
+        'approved_at'           => 'datetime',
+        'payment_due_at'        => 'datetime',
+        'agreed_to_penalty'     => 'boolean',
+        'acknowledged_accuracy' => 'boolean',
+        'data_privacy_consent'  => 'boolean',
+        'certified_at'          => 'datetime',
     ];
 
     /* -----------------------------------------------------------------
@@ -96,6 +114,11 @@ class StudentEnrollment extends Model
     public function program()
     {
         return $this->belongsTo(Program::class);
+    }
+
+    public function paymentPlan()
+    {
+        return $this->belongsTo(PaymentPlan::class);
     }
 
     public function modality()

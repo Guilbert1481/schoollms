@@ -19,8 +19,12 @@ trait BelongsToSchool
 
             $user = Auth::user();
 
-            // Superadmin sees everything
-            if ($user->role('super_admin')) {
+            // Superadmin sees everything across all schools.
+            // NOTE: must use isSuperadmin() (canonical `role === 'superadmin'`).
+            // The old `$user->role('super_admin')` actually invoked the role()
+            // *relationship* and returned a truthy BelongsTo object, so this
+            // bypass fired for EVERY user — silently disabling the scope.
+            if ($user->isSuperadmin()) {
                 return;
             }
 
@@ -40,7 +44,7 @@ trait BelongsToSchool
             $user = Auth::user();
 
             // Auto-assign the user's school_id to the new record
-            if ($user->role !== 'superadmin' && !$model->school_id) {
+            if (! $user->isSuperadmin() && !$model->school_id) {
                 $model->school_id = $user->school_id;
             }
         });

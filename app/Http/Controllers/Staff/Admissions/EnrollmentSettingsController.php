@@ -116,6 +116,7 @@ class EnrollmentSettingsController extends Controller
             'require_for_returnee'         => 'sometimes|boolean',
             'require_for_shiftee'          => 'sometimes|boolean',
             'exam_purpose'                 => 'required|in:diagnostic_only,admission_requirement',
+            'grants_scholarship'           => 'sometimes|boolean',
             'max_score'                    => 'required|integer|min:1|max:1000',
             'passing_score'                => 'nullable|integer|min:0|lte:max_score',
             'max_attempts'                 => 'required|integer|min:1|max:10',
@@ -125,6 +126,11 @@ class EnrollmentSettingsController extends Controller
             'notify_applicant_on_schedule' => 'sometimes|boolean',
             'auto_assess_after_pass'       => 'sometimes|boolean',
             'instructions'                 => 'nullable|string|max:5000',
+            'scholarship_bands'                 => 'nullable|array',
+            'scholarship_bands.*.label'         => 'nullable|string|max:100',
+            'scholarship_bands.*.percent'       => 'nullable|numeric|min:0|max:100',
+            'scholarship_bands.*.apply_to'      => 'nullable|in:tuition,total',
+            'scholarship_bands.*.min_score'     => 'nullable|integer|min:0',
         ]);
 
         // When the exam is a hard requirement, passing_score is mandatory.
@@ -140,10 +146,24 @@ class EnrollmentSettingsController extends Controller
             'require_for_new_student', 'require_for_transferee',
             'require_for_returnee', 'require_for_shiftee',
             'allow_program_head_waiver', 'notify_applicant_on_schedule',
-            'auto_assess_after_pass',
+            'auto_assess_after_pass', 'grants_scholarship',
         ] as $flag) {
             $validated[$flag] = (bool) ($request->input($flag, false));
         }
+
+        // Keep only complete scholarship bands (a percent + a minimum score),
+        // normalised. Stored as JSON; only meaningful for the scholarship purpose.
+        $validated['scholarship_bands'] = collect($request->input('scholarship_bands', []))
+            ->filter(fn ($b) => is_numeric($b['percent'] ?? null) && is_numeric($b['min_score'] ?? null))
+            ->map(fn ($b) => [
+                'label'     => trim((string) ($b['label'] ?? '')) ?: (((float) $b['percent']).'% scholarship'),
+                'percent'   => round((float) $b['percent'], 2),
+                'apply_to'  => in_array($b['apply_to'] ?? null, ['tuition', 'total'], true) ? $b['apply_to'] : 'total',
+                'min_score' => (int) $b['min_score'],
+            ])
+            ->sortByDesc('min_score')
+            ->values()
+            ->all();
 
         AdmissionExamSetting::updateOrCreate(
             ['school_id' => auth()->user()->school_id],

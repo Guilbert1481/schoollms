@@ -102,7 +102,7 @@
     hideModal("createTermModal");
   };
 
-  window.openEditTermModal = function (academicYearId, termId, termType, startDate, endDate, enrollmentType, title) {
+  window.openEditTermModal = function (academicYearId, termId, termType, startDate, endDate, enrollmentType, title, educationNodeId) {
     const sub = byId("editTermSub");
     if (sub) {
       sub.textContent = `Academic Year ID: ${academicYearId}`;
@@ -113,12 +113,14 @@
     const startEl = byId("edit_term_start");
     const endEl = byId("edit_term_end");
     const titleEl = byId("edit_title");
+    const levelEl = byId("edit_education_node_id");
 
     if (enrollmentEl) enrollmentEl.value = enrollmentType || "regular";
     if (termSel) termSel.value = termType || "";
     if (startEl) startEl.value = startDate || "";
     if (endEl) endEl.value = endDate || "";
     if (titleEl) titleEl.value = title || "";
+    if (levelEl) levelEl.value = (educationNodeId !== null && educationNodeId !== undefined && educationNodeId !== "") ? String(educationNodeId) : "";
     if (typeof toggleTitleField === "function") toggleTitleField("edit");
 
     // PUT /academic-years/{academicYearId}/terms/{id}

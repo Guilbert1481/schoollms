@@ -60,6 +60,8 @@
     };
 @endphp
 
+<style>[x-cloak]{display:none!important;}</style>
+
 @if(!$formConfig)
     <div class="text-red-500">Form config not found.</div>
     @return
@@ -140,9 +142,28 @@
 
                         {{-- NUMBER --}}
                         @if($field['type'] == 'number')
-                            <input type="number" name="{{ $fieldKey }}"
-                                   class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2"
-                                   value="{{ old($fieldKey, $currentValue) }}">
+                            @php
+                                // Fall back to the field's configured default when there's
+                                // no stored value yet.
+                                $numVal = old($fieldKey, ($currentValue ?? null) !== null && $currentValue !== ''
+                                    ? $currentValue
+                                    : ($field['default'] ?? ''));
+                            @endphp
+                            <div style="position:relative;">
+                                <input type="number" name="{{ $fieldKey }}"
+                                       class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2"
+                                       style="{{ !empty($field['unit']) ? 'padding-right:2.6rem;' : '' }}"
+                                       value="{{ $numVal }}"
+                                       @isset($field['step']) step="{{ $field['step'] }}" @endisset
+                                       @isset($field['min']) min="{{ $field['min'] }}" @endisset
+                                       @isset($field['max']) max="{{ $field['max'] }}" @endisset>
+                                @if(!empty($field['unit']))
+                                    <span style="position:absolute; right:0.7rem; top:50%; transform:translateY(-50%); font-size:0.72rem; color:#94a3b8; pointer-events:none;">{{ $field['unit'] }}</span>
+                                @endif
+                            </div>
+                            @if(!empty($field['help']))
+                                <p class="text-xs text-slate-400 mt-1">{{ $field['help'] }}</p>
+                            @endif
                         @endif
 
                         {{-- EMAIL --}}
@@ -271,15 +292,47 @@
 
                         {{-- FILE --}}
                         @if($field['type'] == 'file')
-                            @if(!empty($currentValue))
-                                <div class="mb-2">
-                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($currentValue) }}"
-                                         alt="current {{ $field['label'] }}"
-                                         class="h-20 object-contain rounded border border-slate-200 bg-slate-50 p-1">
-                                </div>
-                            @endif
-                            <input type="file" name="{{ $fieldKey }}"
-                                   class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2">
+                            @php
+                                // Preview box sizing per field. All keep aspect ratio
+                                // (object-contain) so the thumbnail reflects how the
+                                // image scales onto the paper:
+                                //   band → wide header/footer strip
+                                //   page → A4 sheet proportion (1 : √2)
+                                //   default → compact logo / seal
+                                $previewKind = $field['preview'] ?? 'default';
+                                $previewBoxStyle = match($previewKind) {
+                                    'band'  => 'width:100%; aspect-ratio:6 / 1;',
+                                    'page'  => 'width:160px; aspect-ratio:1 / 1.414;',
+                                    default => 'height:80px; min-width:80px;',
+                                };
+                            @endphp
+                            <div x-data="{ removed: false }">
+                                @if(!empty($currentValue))
+                                    {{-- Current image with a small delete (×) overlay --}}
+                                    <div x-show="!removed" class="relative inline-block mb-2 align-top">
+                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($currentValue) }}"
+                                             alt="current {{ $field['label'] }}"
+                                             class="object-contain rounded border border-slate-200 bg-slate-50 p-1"
+                                             style="{{ $previewBoxStyle }} max-width:100%;">
+                                        <button type="button"
+                                                @click="removed = true"
+                                                title="Remove this image"
+                                                class="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-red-600 text-white shadow hover:bg-red-700"
+                                                style="line-height:1; font-size:15px; font-weight:700;">&times;</button>
+                                    </div>
+                                    {{-- Marked for removal: tell the server + allow undo --}}
+                                    <div x-show="removed" x-cloak class="mb-2 flex items-center gap-2 text-sm text-red-600">
+                                        <input type="hidden" name="remove_{{ $fieldKey }}" value="1">
+                                        <span>Image will be removed when you click Save.</span>
+                                        <button type="button" @click="removed = false" class="underline text-slate-500 hover:text-slate-700">Undo</button>
+                                    </div>
+                                @endif
+                                <input type="file" name="{{ $fieldKey }}" accept="image/*"
+                                       class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2">
+                                @if(!empty($field['help']))
+                                    <p class="text-xs text-slate-400 mt-1">{{ $field['help'] }}</p>
+                                @endif
+                            </div>
                         @endif
 
                         {{-- DATE --}}

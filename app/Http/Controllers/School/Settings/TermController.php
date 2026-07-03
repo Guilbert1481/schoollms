@@ -4,7 +4,9 @@ namespace App\Http\Controllers\School\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
+use App\Models\EducationNode;
 use App\Models\Term;
+use App\Support\EducationLevels;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\EnrollmentType;
@@ -48,6 +50,7 @@ class TermController extends Controller
         $validated = $request->validate([
             'title' => ['nullable', 'string', 'max:255'],
             'enrollment_type' => ['required'],
+            'education_node_id' => ['required', 'integer', 'exists:education_nodes,id'],
             'term'       => ['required', 'string', 'max:50'],
             'start_date' => ['required', 'date'],
             'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
@@ -55,6 +58,10 @@ class TermController extends Controller
 
         if ($validated['start_date'] < $ay->start_date || $validated['end_date'] > $ay->end_date) {
             return back()->with('error', 'Term dates must be within the academic year range.');
+        }
+
+        if ($conflict = $this->limitedLevelOverlap($schoolId, $academicYearId, (int) $validated['education_node_id'], $validated['start_date'], $validated['end_date'])) {
+            return back()->with('error', $conflict);
         }
 
         $startDate = Carbon::parse($validated['start_date']);
@@ -72,22 +79,26 @@ class TermController extends Controller
             $name = $this->makeTermName($validated['term'], $ay->name);
         }
 
+        // Name uniqueness is per education level, so e.g. a "1st Semester"
+        // Undergraduate term and a "1st Semester" Graduate term can coexist.
         $exists = Term::where('school_id', $schoolId)
             ->where('academic_year_id', $academicYearId)
             ->where('name', $name)
+            ->where('education_node_id', $validated['education_node_id'])
             ->exists();
 
         if ($exists) {
-            return back()->with('error', 'This term already exists.');
+            return back()->with('error', 'This term already exists for that education level.');
         }
 
         $term = Term::create([
-            'school_id'        => $schoolId,
-            'academic_year_id' => $academicYearId,
-            'academic_year'    => $ay->name,
-            'title'            => $validated['title'] ?? null,
-            'enrollment_type'  => $validated['enrollment_type'],
-            'term'             => $validated['term'],
+            'school_id'         => $schoolId,
+            'academic_year_id'  => $academicYearId,
+            'academic_year'     => $ay->name,
+            'education_node_id' => $validated['education_node_id'],
+            'title'             => $validated['title'] ?? null,
+            'enrollment_type'   => $validated['enrollment_type'],
+            'term'              => $validated['term'],
             'name'             => $name,
             'start_date'       => $validated['start_date'],
             'end_date'         => $validated['end_date'],
@@ -123,13 +134,19 @@ class TermController extends Controller
         $validated = $request->validate([
             'title' => ['nullable', 'string', 'max:255'],
             'enrollment_type' => ['required'],
+            'education_node_id' => ['required', 'integer', 'exists:education_nodes,id'],
             'term' => ['required', 'string', 'max:50'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
         ]);
 
+        if ($conflict = $this->limitedLevelOverlap($schoolId, $academicYearId, (int) $validated['education_node_id'], $validated['start_date'], $validated['end_date'], $term->id)) {
+            return back()->with('error', $conflict);
+        }
+
         $term->update([
-            'enrollment_type' => $validated['enrollment_type'],
+            'enrollment_type'   => $validated['enrollment_type'],
+            'education_node_id' => $validated['education_node_id'],
             'term'       => $validated['term'],
             'start_date' => $validated['start_date'],
             'end_date'   => $validated['end_date'],
@@ -226,6 +243,33 @@ class TermController extends Controller
 
                 $term->save();
             });
+    }
+
+    /**
+     * Basic Education and Undergraduate may have only ONE open/active term per
+     * academic year — so a new/edited term of those levels must not overlap the
+     * dates of another term of the SAME level in the same year. Every other level
+     * (Graduate, Post-Doctoral, Training, …) may run concurrently. Returns an
+     * error message to flash, or null when the term is allowed.
+     */
+    protected function limitedLevelOverlap(int $schoolId, int $academicYearId, int $nodeId, $start, $end, ?int $exceptId = null): ?string
+    {
+        $node = EducationNode::find($nodeId);
+        if (! $node || ! EducationLevels::isLimited($node->name)) {
+            return null;
+        }
+
+        $overlap = Term::where('school_id', $schoolId)
+            ->where('academic_year_id', $academicYearId)
+            ->where('education_node_id', $nodeId)
+            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
+            ->where('start_date', '<=', $end)
+            ->where('end_date', '>=', $start)
+            ->exists();
+
+        return $overlap
+            ? "Only one active {$node->name} term is allowed per academic year — another {$node->name} term already overlaps these dates."
+            : null;
     }
 
     private function makeTermName(string $term, string $academicYearName): string

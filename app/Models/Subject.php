@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToSchool;
 
 class Subject extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToSchool;
 
     // TEMPORARY: default school while building the system
     protected static function booted()

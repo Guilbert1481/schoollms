@@ -60,7 +60,15 @@ class InvoiceController extends Controller
             return back()->with('error', 'Could not generate an invoice — the student has no linked account, or no active fees match this enrollment. Check Tuition & Fees Setup.');
         }
 
-        return back()->with('success', "Invoice {$invoice->invoice_number} generated.");
+        $count = Invoice::where('school_id', $schoolId)
+            ->where('student_enrollment_id', $enrollment->id)
+            ->count();
+
+        $message = $count > 1
+            ? "Generated {$count} invoices for the payment schedule (starting {$invoice->invoice_number})."
+            : "Invoice {$invoice->invoice_number} generated.";
+
+        return back()->with('success', $message);
     }
 
     public function pay(Request $request, Invoice $invoice)

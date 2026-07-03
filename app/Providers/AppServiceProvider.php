@@ -6,6 +6,10 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use App\Models\ChatMessage;
 use App\Models\Quote;
 
@@ -18,6 +22,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Phase 0 hardening (see MODERNIZATION_ROADMAP.md): production-debug
+        // guard + login rate limiting. Both are inert in normal local use.
+        $this->enforceProductionSafety();
+        $this->configureRateLimiting();
+
         // Apply DB-stored SMTP settings to the runtime mail config so that
         // Mail::send() uses the school's configured SMTP credentials.
         $this->applyDynamicMailConfig();
@@ -182,6 +191,37 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable $e) {
             // Don't let a config error block app boot.
             \Illuminate\Support\Facades\Log::warning('Dynamic mail config failed: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * H1 — Throttle login attempts to slow credential stuffing / brute force.
+     * Keyed on the submitted email + client IP so one attacker on a shared IP
+     * can't lock out every user, while per-account guessing stays bounded.
+     * A wider per-IP ceiling catches distributed email spraying.
+     */
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('login', function (Request $request) {
+            $email = strtolower((string) $request->input('email'));
+
+            return [
+                Limit::perMinute(6)->by($email.'|'.$request->ip()),
+                Limit::perMinute(20)->by($request->ip()),
+            ];
+        });
+    }
+
+    /**
+     * M5 — Never expose debug output in production. If APP_DEBUG is somehow true
+     * in a production environment, log it loudly and force debug off at runtime
+     * so stack traces / secrets cannot leak. Local and staging are unaffected.
+     */
+    protected function enforceProductionSafety(): void
+    {
+        if (app()->environment('production') && config('app.debug') === true) {
+            Log::critical('APP_DEBUG is TRUE in production — forcing it off at runtime. Fix the .env immediately.');
+            config(['app.debug' => false]);
         }
     }
 }

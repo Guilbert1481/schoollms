@@ -10,12 +10,17 @@ use App\Models\Term;
 use App\Models\EducationNode;
 use App\Models\EnrollmentDraft;
 use App\Models\Modality;
+use App\Models\PaymentPlan;
+use App\Models\PenaltyRule;
 use App\Models\Program;
 use App\Models\Student;
 use App\Models\StudentAcademicBackground;
 use App\Models\StudentEnrollment;
+use App\Services\Finance\PaymentScheduleService;
+use App\Support\EducationLevels;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -85,7 +90,7 @@ class EnrollmentController extends Controller
 
         EnrollmentDraft::updateOrCreate(
             ['student_id' => $student->id, 'term_id' => $term->id],
-            ['data' => json_encode($snapshot)]
+            ['data' => $snapshot]
         );
 
         return redirect()->route('student.dashboard')
@@ -259,7 +264,7 @@ class EnrollmentController extends Controller
                 'term_id' => $termId,
             ],
             [
-                'data' => json_encode($request->all())
+                'data' => $request->all()
             ]
         );
 
@@ -413,27 +418,57 @@ class EnrollmentController extends Controller
                 ->withErrors(['student' => 'Please complete Step 1 first.']);
         }
 
-        // Top-level (root) educational levels — these are the entry points
-        // (Basic Ed, Senior High, College, Post-Bac, Masteral, Doctoral, etc.).
-        $isBasicEd = ($term->education_level ?? null) === 'basic_ed';
+        // Top-level (root) educational levels come from the Education Structure
+        // Tree (offered roots), gated by the student's history:
+        //   • first-timer / transferee (no COMPLETED cycle on record) → all levels
+        //   • returning student → levels they have already completed are hidden
+        //     (e.g. finished Basic Ed → Basic Ed no longer offered)
+        // "Training" sits outside the academic ladder, so it is always available.
+        $offered  = EducationLevels::offeredRoots();   // id, name — ordered by order_index
+        $nodeRoot = EducationLevels::nodeRootMap();     // node id → root id
 
-        $rootLevels = EducationNode::query()
-            ->whereNull('parent_id')
-            ->where('is_active', true)
-            ->where('is_offered', true)
-            ->when($isBasicEd, fn ($q) => $q->where('name', 'like', '%Basic%Education%'))
-            ->when(!$isBasicEd, fn ($q) => $q->where('name', 'not like', '%Basic%Education%'))
-            ->orderBy('order_index')
-            ->orderBy('id')
-            ->get(['id', 'name', 'node_type']);
+        $isTraining = fn ($name) => str_contains(strtolower((string) $name), 'training');
 
-        // When the enrollment session is for basic-ed, lock the root selection
-        // to the Basic Education node so the form only shows the dropdown for
-        // grade-level / strand drill-down.
-        $lockedRootId = null;
-        if ($isBasicEd && $rootLevels->count() === 1) {
-            $lockedRootId = $rootLevels->first()->id;
+        // Ladder rank per non-Training root, in offered order (Basic=0, Undergrad=1, …).
+        $ladderRank = [];
+        $rank = 0;
+        foreach ($offered as $root) {
+            if (! $isTraining($root->name)) {
+                $ladderRank[(int) $root->id] = $rank++;
+            }
         }
+
+        // Highest ladder level the student has already COMPLETED (-1 if none).
+        $maxCompletedRank = -1;
+        $completedNodeIds = StudentEnrollment::query()
+            ->where('student_id', $student->id)
+            ->where('status', StudentEnrollment::STATUS_COMPLETED)
+            ->pluck('education_node_id')->filter()->all();
+        foreach ($completedNodeIds as $nid) {
+            $rootId = $nodeRoot[(int) $nid] ?? null;
+            if ($rootId !== null && isset($ladderRank[$rootId])) {
+                $maxCompletedRank = max($maxCompletedRank, $ladderRank[$rootId]);
+            }
+        }
+
+        $visible = $offered->filter(function ($root) use ($ladderRank, $maxCompletedRank, $isTraining) {
+            if ($isTraining($root->name) || ! isset($ladderRank[(int) $root->id])) {
+                return true;                                  // Training / non-ladder → always
+            }
+            return $ladderRank[(int) $root->id] > $maxCompletedRank;
+        })->values();
+
+        // Re-attach node_type (the picker uses it to drive the drill-down).
+        $rootTypes  = DB::table('education_nodes')->whereIn('id', $visible->pluck('id')->all())
+            ->pluck('node_type', 'id')->all();
+        $rootLevels = $visible->map(fn ($r) => (object) [
+            'id'        => $r->id,
+            'name'      => $r->name,
+            'node_type' => $rootTypes[$r->id] ?? 'level',
+        ]);
+
+        // Pre-select when only one level is available.
+        $lockedRootId = $rootLevels->count() === 1 ? (int) $rootLevels->first()->id : null;
 
         $modalities = Modality::orderBy('id')->get(['id', 'name', 'code']);
 
@@ -871,12 +906,183 @@ class EnrollmentController extends Controller
 
         session()->put("apply.health_done.{$term->id}", true);
 
-        return redirect()->route('public.apply.review', $term->id)
+        return redirect()->route('public.apply.financial', $term->id)
             ->with('status', 'Health information saved.');
     }
 
     /* =================================================================
-     |  STEP 7 — REVIEW & SUBMIT
+     |  STEP 7 — FINANCIAL ASSESSMENT
+     | =================================================================*/
+
+    public function showFinancial($termId)
+    {
+        $term    = Term::findOrFail($termId);
+        $student = auth()->user()->student;
+
+        if (! $student) {
+            return redirect()->route('public.apply.show', $term->id);
+        }
+
+        $draft   = EnrollmentDraft::where('student_id', $student->id)
+            ->where('term_id', $term->id)->first();
+        $pathway = $draft?->data['pathway'] ?? session("apply.pathway.{$term->id}", []);
+
+        // Gate: a required diagnostic must be taken before Financial Assessment
+        // (its result drives the scholarship). Not-required applicants pass through.
+        if (empty(session("apply.diagnostic_done.{$term->id}"))) {
+            [$diagRequired] = $this->resolveDiagnosticPrompt((int) $student->school_id, $pathway['student_type'] ?? null);
+            if ($diagRequired) {
+                return redirect()->route('public.apply.diagnostic', $term->id);
+            }
+        }
+
+        // A transient (unsaved) enrolment just to resolve the applicable fees.
+        $preview = new StudentEnrollment([
+            'school_id'         => $student->school_id,
+            'academic_year_id'  => $term->academic_year_id,
+            'term_id'           => $term->id,
+            'program_id'        => $pathway['program_id'] ?? null,
+            'education_node_id' => $pathway['education_node_id'] ?? null,
+            'year_level'        => $pathway['year_level'] ?? null,
+        ]);
+
+        $svc  = new PaymentScheduleService();
+        $fees = $svc->feePreview($preview);
+
+        // Diagnostic-exam scholarship (if the applicant's score qualifies for a
+        // configured band). The discount is applied to the fee total BEFORE the
+        // plan computations, so every plan/option is computed on the net payable.
+        $diagnostic  = $draft?->data['diagnostic'] ?? session("apply.diagnostic.{$term->id}", []);
+        $scholarship = $this->diagnosticScholarship((int) $student->school_id, $diagnostic['score'] ?? null, $fees);
+        $grossTotal  = (float) $fees['total'];
+        $netTotal    = round($grossTotal - ($scholarship['amount'] ?? 0), 2);
+
+        $plans = PaymentPlan::where('school_id', $student->school_id)
+            ->where('is_active', true)->orderBy('name')->get();
+
+        // Every enabled option of every active plan is its own selectable card,
+        // keyed "planId:option", each computed independently on the net total.
+        $choices      = [];
+        $computations = [];
+        foreach ($plans as $plan) {
+            foreach ($svc->enabledOptions($plan) as $option) {
+                $key  = $plan->id.':'.$option;
+                $comp = $svc->computeForOption($plan, $option, $netTotal, $term);
+                $comp['key']         = $key;
+                $comp['gross_fees']  = $grossTotal;
+                $comp['scholarship'] = $scholarship['amount'] ?? 0;
+                $computations[$key] = $comp;
+                $choices[] = $comp;
+            }
+        }
+
+        $penalty = PenaltyRule::where('school_id', $student->school_id)
+            ->where('is_active', true)->orderBy('grace_days')->first();
+
+        $program = ! empty($pathway['program_id'])        ? Program::find($pathway['program_id'])        : null;
+        $node    = ! empty($pathway['education_node_id']) ? EducationNode::find($pathway['education_node_id']) : null;
+
+        $saved    = $draft?->data['financial'] ?? session("apply.financial.{$term->id}", []);
+        $savedKey = (! empty($saved['payment_plan_id']) && ! empty($saved['payment_option']))
+            ? $saved['payment_plan_id'].':'.$saved['payment_option']
+            : null;
+
+        return view('acad_enrolment.shared.financial_assessment', [
+            'term'         => $term,
+            'student'      => $student,
+            'pathway'      => $pathway,
+            'program'      => $program,
+            'node'         => $node,
+            'fees'         => $fees,
+            'plans'        => $plans,
+            'choices'      => $choices,
+            'computations' => $computations,
+            'penalty'      => $penalty,
+            'saved'        => $saved,
+            'savedKey'     => $savedKey,
+            'scholarship'  => $scholarship,
+            'netTotal'     => $netTotal,
+        ]);
+    }
+
+    /**
+     * Diagnostic-exam scholarship for an applicant, when their score qualifies
+     * for a band configured under the "Scholarship grants" exam purpose. The
+     * amount is computed against the tuition subtotal or the full assessment,
+     * per the band's coverage. Returns ['label','percent','apply_to','amount']
+     * or null when no scholarship applies.
+     */
+    protected function diagnosticScholarship(int $schoolId, ?int $score, array $fees): ?array
+    {
+        $band = \App\Models\AdmissionExamSetting::where('school_id', $schoolId)->first()?->scholarshipForScore($score);
+        if (! $band) {
+            return null;
+        }
+
+        $tuition = collect($fees['items'] ?? [])
+            ->filter(fn ($i) => strcasecmp((string) ($i->fee_type ?? ''), 'Tuition') === 0)
+            ->sum(fn ($i) => (float) $i->amount);
+
+        $base   = ($band['apply_to'] ?? 'total') === 'tuition' ? (float) $tuition : (float) ($fees['total'] ?? 0);
+        $amount = round($base * ((float) ($band['percent'] ?? 0)) / 100, 2);
+
+        return [
+            'label'    => $band['label'] ?? 'Scholarship',
+            'percent'  => (float) ($band['percent'] ?? 0),
+            'apply_to' => $band['apply_to'] ?? 'total',
+            'amount'   => $amount,
+        ];
+    }
+
+    public function storeFinancial(Request $request, $termId)
+    {
+        $term    = Term::findOrFail($termId);
+        $student = auth()->user()->student;
+
+        if (! $student) {
+            return redirect()->route('public.apply.show', $term->id);
+        }
+
+        $data = $request->validate([
+            'choice'            => ['required', 'string'],
+            'agreed_to_penalty' => ['accepted'],
+        ]);
+
+        // "planId:option" — both must be valid for an active plan in this school.
+        [$planId, $option] = array_pad(explode(':', $data['choice'], 2), 2, null);
+        $plan = PaymentPlan::where('school_id', $student->school_id)
+            ->where('is_active', true)->find((int) $planId);
+
+        $svc = new PaymentScheduleService();
+        if (! $plan || ! in_array($option, $svc->enabledOptions($plan), true)) {
+            return back()->withErrors(['choice' => 'Please select a valid payment option.'])->withInput();
+        }
+
+        $financial = [
+            'payment_plan_id'   => $plan->id,
+            'plan_name'         => $plan->name,
+            'payment_option'    => $option,
+            'payment_frequency' => $svc->planFrequency($plan),
+            'agreed_to_penalty' => true,
+        ];
+
+        session()->put("apply.financial.{$term->id}", $financial);
+        session()->put("apply.financial_done.{$term->id}", true);
+
+        // Mirror into the DB draft so it survives a session expiry, matching
+        // how the pathway step persists.
+        $draft = EnrollmentDraft::firstOrNew(['student_id' => $student->id, 'term_id' => $term->id]);
+        $draftData = $draft->data ?? [];
+        $draftData['financial'] = $financial;
+        $draft->data = $draftData;
+        $draft->save();
+
+        return redirect()->route('public.apply.review', $term->id)
+            ->with('status', 'Payment plan confirmed.');
+    }
+
+    /* =================================================================
+     |  STEP 8 — REVIEW & SUBMIT
      | =================================================================*/
 
     public function showReview($termId)
@@ -917,10 +1123,42 @@ class EnrollmentController extends Controller
         $emergencyContact = $student->guardians()->where('is_emergency_contact', true)->first();
         $health           = \App\Models\StudentHealthRecord::where('student_id', $student->id)->first();
 
+        // Confirmed Financial Assessment summary (read-only) — fees + the chosen
+        // option's live computation + payment schedule (no plan-selection cards).
+        $svc = new PaymentScheduleService();
+        $previewEnrollment = new StudentEnrollment([
+            'school_id'         => $student->school_id,
+            'academic_year_id'  => $term->academic_year_id,
+            'term_id'           => $term->id,
+            'program_id'        => $pathway['program_id'] ?? null,
+            'education_node_id' => $pathway['education_node_id'] ?? null,
+            'year_level'        => $pathway['year_level'] ?? null,
+        ]);
+        $fees      = $svc->feePreview($previewEnrollment);
+        $financial = $draft?->data['financial'] ?? session("apply.financial.{$term->id}", []);
+
+        // Same diagnostic-exam scholarship as the Financial Assessment step, so the
+        // review + payment schedule reflect the net payable.
+        $diagnostic  = $draft?->data['diagnostic'] ?? session("apply.diagnostic.{$term->id}", []);
+        $scholarship = $this->diagnosticScholarship((int) $student->school_id, $diagnostic['score'] ?? null, $fees);
+        $netTotal    = round(((float) $fees['total']) - ($scholarship['amount'] ?? 0), 2);
+
+        $financialComp = null;
+        if (! empty($financial['payment_plan_id']) && ! empty($financial['payment_option'])) {
+            $plan = PaymentPlan::where('school_id', $student->school_id)->find($financial['payment_plan_id']);
+            if ($plan) {
+                $financialComp = $svc->computeForOption($plan, $financial['payment_option'], $netTotal, $term);
+            }
+        }
+
+        // School branding/contact for the printable letterhead (header + footer).
+        $profile = \App\Models\SchoolProfile::where('school_id', $student->school_id)->first();
+
         return view('acad_enrolment.shared.review', compact(
             'term', 'student', 'pathway', 'program', 'modality', 'node',
             'rootLevel', 'pathLabel', 'chain',
-            'backgrounds', 'skipped', 'parents', 'emergencyContact', 'health'
+            'backgrounds', 'skipped', 'parents', 'emergencyContact', 'health',
+            'fees', 'financial', 'financialComp', 'profile', 'scholarship', 'netTotal'
         ));
     }
 
@@ -940,7 +1178,42 @@ class EnrollmentController extends Controller
                 ->withErrors(['pathway' => 'Please complete the Learning Pathway step.']);
         }
 
-        $enrollment = DB::transaction(function () use ($term, $student, $pathway) {
+        // Payment-plan choice from the Financial Assessment step (draft survives
+        // session expiry, mirroring pathway).
+        $finDraft  = EnrollmentDraft::where('student_id', $student->id)
+            ->where('term_id', $term->id)->first();
+        $financial = $finDraft?->data['financial'] ?? session("apply.financial.{$term->id}", []);
+
+        // Legal consents captured on the Review & Submit page. Both consents are
+        // gated client-side, but we re-require them server-side so a record is
+        // never created without them, and we keep an audit of who certified.
+        $consent = $request->validate([
+            'certified_by'          => ['required', 'in:student,guardian'],
+            'acknowledged_accuracy' => ['accepted'],
+            'data_privacy_consent'  => ['accepted'],
+        ], [
+            'certified_by.required'          => 'Please select who is certifying this application (Student or Legal guardian).',
+            'certified_by.in'                => 'Please select who is certifying this application (Student or Legal guardian).',
+            'acknowledged_accuracy.accepted' => 'Please confirm the Acknowledgement of Accuracy and Truthfulness.',
+            'data_privacy_consent.accepted'  => 'Please agree to the Data Privacy Consent (RA 10173).',
+        ]);
+
+        // Resolve the diagnostic-exam scholarship the applicant qualified for and
+        // persist it on the enrollment, so billing bills the true net payable
+        // instead of the gross total. Mirrors the Financial Assessment step.
+        $svc = new PaymentScheduleService();
+        $feePreview = $svc->feePreview(new StudentEnrollment([
+            'school_id'         => $student->school_id,
+            'academic_year_id'  => $term->academic_year_id,
+            'term_id'           => $term->id,
+            'program_id'        => $pathway['program_id'] ?? null,
+            'education_node_id' => $pathway['education_node_id'] ?? null,
+            'year_level'        => $pathway['year_level'] ?? null,
+        ]));
+        $diagnostic  = $finDraft?->data['diagnostic'] ?? session("apply.diagnostic.{$term->id}", []);
+        $scholarship = $this->diagnosticScholarship((int) $student->school_id, $diagnostic['score'] ?? null, $feePreview);
+
+        $enrollment = DB::transaction(function () use ($term, $student, $pathway, $financial, $consent, $scholarship) {
             // Resolve the active enrollment setting for this term so the bell
             // notification is dismissed cleanly after submission.
             $setting = \App\Models\EnrollmentSetting::where('term_id', $term->id)
@@ -958,6 +1231,18 @@ class EnrollmentController extends Controller
                 'education_node_id'     => $pathway['education_node_id'] ?? null,
                 'year_level'            => $pathway['year_level'] ?? null,
                 'student_type'          => $pathway['student_type'] ?? null,
+                'payment_plan_id'       => $financial['payment_plan_id'] ?? null,
+                'payment_option'        => $financial['payment_option'] ?? null,
+                'payment_frequency'     => $financial['payment_frequency'] ?? null,
+                'scholarship_label'     => $scholarship['label'] ?? null,
+                'scholarship_amount'    => $scholarship['amount'] ?? 0,
+                'scholarship_percent'   => $scholarship['percent'] ?? null,
+                'scholarship_apply_to'  => $scholarship['apply_to'] ?? null,
+                'agreed_to_penalty'     => (bool) ($financial['agreed_to_penalty'] ?? false),
+                'certified_by'          => $consent['certified_by'],
+                'acknowledged_accuracy' => true,
+                'data_privacy_consent'  => true,
+                'certified_at'          => now(),
                 // Map student_type → enrollee_type for backward-compat with
                 // the existing approval / billing pipeline.
                 'enrollee_type'     => match ($pathway['student_type'] ?? null) {
@@ -1115,12 +1400,165 @@ class EnrollmentController extends Controller
         $enrollment = StudentEnrollment::with(['program', 'modality', 'educationNode'])
             ->findOrFail($enrollmentId);
 
-        [$examRequired, $examPurpose, $examInstructions] =
-            $this->resolveExamPrompt($enrollment);
+        // The diagnostic / admission exam is now taken during the wizard
+        // (Step 7 — Diagnostic Test), so the post-submission prompt is suppressed.
+        $examRequired     = false;
+        $examPurpose      = null;
+        $examInstructions = null;
 
         return view('acad_enrolment.shared.confirmation', compact(
             'term', 'enrollment', 'examRequired', 'examPurpose', 'examInstructions'
         ));
+    }
+
+    /* =================================================================
+     |  STEP 7 — DIAGNOSTIC / ADMISSION TEST (pre-submission)
+     |  Runs off session/draft (no enrollment record yet). Only shown for the
+     |  enrollee types the admission_manager configured under "Who must take the
+     |  admission exam"; otherwise it auto-skips to Financial Assessment.
+     | =================================================================*/
+
+    public function showDiagnostic($termId)
+    {
+        $term    = Term::findOrFail($termId);
+        $student = auth()->user()->student;
+        if (! $student) {
+            return redirect()->route('public.apply.show', $term->id);
+        }
+
+        $draft   = EnrollmentDraft::where('student_id', $student->id)->where('term_id', $term->id)->first();
+        $pathway = $draft?->data['pathway'] ?? session("apply.pathway.{$term->id}", []);
+
+        [$required, $label, $instructions, $setting] =
+            $this->resolveDiagnosticPrompt((int) $student->school_id, $pathway['student_type'] ?? null);
+
+        // Not required for this applicant → mark skipped and move straight on.
+        if (! $required) {
+            session()->put("apply.diagnostic_skipped.{$term->id}", true);
+            session()->put("apply.diagnostic_done.{$term->id}", true);
+            return redirect()->route('public.apply.financial', $term->id);
+        }
+
+        // Result of a completed attempt (unless the applicant chose to retake).
+        $result = $request->boolean('retake')
+            ? null
+            : ($draft?->data['diagnostic'] ?? session("apply.diagnostic.{$term->id}", null));
+        $result = (is_array($result) && isset($result['score'])) ? $result : null;
+
+        // Scholarship the score qualifies for (band or null), for the congrats popup.
+        $scholarship = ($result && $setting) ? $setting->scholarshipForScore((int) $result['score']) : null;
+
+        return view('acad_enrolment.shared.diagnostic', [
+            'term'         => $term,
+            'label'        => $label,
+            'instructions' => $instructions,
+            'setting'      => $setting,
+            'questions'    => $this->diagnosticQuestions(),
+            'result'       => $result,
+            'scholarship'  => $scholarship,
+        ]);
+    }
+
+    public function storeDiagnostic(Request $request, $termId)
+    {
+        $term    = Term::findOrFail($termId);
+        $student = auth()->user()->student;
+        if (! $student) {
+            return redirect()->route('public.apply.show', $term->id);
+        }
+
+        $questions = $this->diagnosticQuestions();
+
+        $request->validate([
+            'answers'   => ['required', 'array', 'size:' . count($questions)],
+            'answers.*' => ['required', 'integer', 'min:0'],
+        ], [
+            'answers.size'     => 'Please answer all questions before submitting.',
+            'answers.required' => 'Please answer all questions before submitting.',
+        ]);
+
+        // Score the attempt against the answer key, scaled to the exam's max score.
+        $answers = $request->input('answers', []);
+        $correct = 0;
+        foreach ($questions as $i => $q) {
+            if ((int) ($answers[$i] ?? -1) === (int) $q['answer']) {
+                $correct++;
+            }
+        }
+
+        $setting = \App\Models\AdmissionExamSetting::where('school_id', $student->school_id)->first();
+        $max     = (int) ($setting->max_score ?? 100);
+        $total   = count($questions);
+        $score   = (int) round($correct / max($total, 1) * $max);
+
+        $result = [
+            'score'     => $score,
+            'max_score' => $max,
+            'correct'   => $correct,
+            'total'     => $total,
+            'passed'    => $score >= (int) ($setting->passing_score ?? 0),
+        ];
+
+        session()->put("apply.diagnostic.{$term->id}", $result);
+        session()->put("apply.diagnostic_done.{$term->id}", true);
+        session()->put("apply.diagnostic_skipped.{$term->id}", false);
+
+        // Mirror into the DB draft so it survives a session expiry (same pattern
+        // as the pathway / financial steps).
+        $draft = EnrollmentDraft::firstOrNew(['student_id' => $student->id, 'term_id' => $term->id]);
+        $draftData = $draft->data ?? [];
+        $draftData['diagnostic'] = $result;
+        $draft->data = $draftData;
+        $draft->save();
+
+        // Back to the diagnostic page, which now shows the score + (if eligible)
+        // the scholarship congratulations and a Proceed button.
+        return redirect()->route('public.apply.diagnostic', $term->id);
+    }
+
+    /**
+     * The diagnostic questionnaire (placeholder set for testing — one item each
+     * for Math, English, Science, History, Economics). `answer` is the index of
+     * the correct option. Kept server-side so the key is never exposed.
+     */
+    protected function diagnosticQuestions(): array
+    {
+        return [
+            ['subject' => 'Mathematics', 'question' => 'What is 12 × 8?',                                'options' => ['84', '96', '108', '88'],                                             'answer' => 1],
+            ['subject' => 'English',     'question' => 'Which word is a synonym for “happy”?',           'options' => ['Joyful', 'Gloomy', 'Furious', 'Weary'],                               'answer' => 0],
+            ['subject' => 'Science',     'question' => 'Which planet is known as the “Red Planet”?',     'options' => ['Venus', 'Jupiter', 'Mars', 'Saturn'],                                 'answer' => 2],
+            ['subject' => 'History',     'question' => 'Who was the first President of the Philippines?', 'options' => ['José Rizal', 'Manuel L. Quezon', 'Andrés Bonifacio', 'Emilio Aguinaldo'], 'answer' => 3],
+            ['subject' => 'Economics',   'question' => 'What does “GDP” stand for?',                      'options' => ['Global Data Point', 'Gross Domestic Product', 'General Domestic Price', 'Gross Domestic Payment'], 'answer' => 1],
+        ];
+    }
+
+    /**
+     * Pre-submission variant of resolveExamPrompt: decide whether the admission/
+     * diagnostic exam is required for an applicant using session pathway data
+     * (student_type) rather than a saved enrollment.
+     *
+     * @return array{0:bool,1:string,2:?string,3:?\App\Models\AdmissionExamSetting}
+     */
+    protected function resolveDiagnosticPrompt(int $schoolId, ?string $studentType): array
+    {
+        $setting = \App\Models\AdmissionExamSetting::where('school_id', $schoolId)->first();
+        if (! $setting) {
+            return [false, 'Diagnostic Test', null, null];
+        }
+
+        $required = match ($studentType) {
+            'new'        => (bool) $setting->require_for_new_student,
+            'transferee' => (bool) $setting->require_for_transferee,
+            'returnee'   => (bool) $setting->require_for_returnee,
+            'shiftee'    => (bool) $setting->require_for_shiftee,
+            default      => false,
+        };
+
+        $label = $setting->exam_purpose === \App\Models\AdmissionExamSetting::PURPOSE_REQUIREMENT
+            ? 'Admission Exam'
+            : 'Diagnostic Test';
+
+        return [$required, $label, $setting->instructions, $setting];
     }
 
     /**

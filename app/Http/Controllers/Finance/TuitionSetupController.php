@@ -8,10 +8,12 @@ use App\Models\FinanceFeeSetup;
 use App\Models\PaymentPlan;
 use App\Models\PenaltyRule;
 use App\Models\Scholarship;
+use App\Support\EducationLevels;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class TuitionSetupController extends Controller
 {
@@ -41,15 +43,34 @@ class TuitionSetupController extends Controller
         $gradeYear      = $request->query('grade_year');
         $gradeYear      = ($gradeYear === null || $gradeYear === '') ? null : (string) $gradeYear;
         $paymentPlanId  = $request->integer('payment_plan') ?: null;
+        $programId      = $request->integer('program') ?: null;
 
         $nodeToRoot   = $this->buildNodeRootMap();
         $rootNameById = DB::table('education_nodes')->whereNull('parent_id')->pluck('name', 'id')->all();
+
+        // The selected Education Level drives the Grade/Year + Program dropdowns.
+        $levelName    = $levelId ? ($rootNameById[$levelId] ?? null) : null;
+        $isBasicLevel = $levelName && EducationLevels::isBasic($levelName);
+
+        // Program dropdown only appears for a specific non-basic level.
+        $showProgramFilter = (bool) ($levelId && ! $isBasicLevel);
+        $programId = $showProgramFilter ? $programId : null;
+        $programOptions = [];
+        if ($showProgramFilter) {
+            $programOptions = DB::table('programs')
+                ->where('school_id', $schoolId)->orderBy('code')->orderBy('name')
+                ->get(['id', 'code', 'name', 'education_node_id'])
+                ->filter(fn ($p) => (int) ($nodeToRoot[$p->education_node_id ?? null] ?? 0) === (int) $levelId)
+                ->mapWithKeys(fn ($p) => [(int) $p->id => ($p->code ? $p->code.' - ' : '').$p->name])
+                ->all();
+        }
 
         [$rows, $columns] = $this->tabData($tab, $schoolId, $nodeToRoot, $rootNameById, [
             'academic_year_id' => $academicYearId,
             'education_level'  => $levelId,
             'grade_year'       => $gradeYear,
             'payment_plan'     => $paymentPlanId,
+            'program'          => $programId,
         ]);
 
         // Shared lookups for filters + modal selects.
@@ -62,10 +83,17 @@ class TuitionSetupController extends Controller
         $paymentPlans = PaymentPlan::where('school_id', $schoolId)->orderBy('name')->get(['id', 'name', 'is_active']);
         $programs = DB::table('programs')->where('school_id', $schoolId)->orderBy('code')->orderBy('name')->get(['id', 'code', 'name']);
 
-        // Grade / Year Level options for the filter (Grade 1..12, Year 1..6).
-        $gradeYearOptions = [];
-        for ($g = 1; $g <= 12; $g++) {
-            $gradeYearOptions[(string) $g] = 'Grade '.$g;
+        // Grade / Year Level options — dynamic to the selected Education Level:
+        // Basic -> Grade N (from the tree); higher-ed -> Year N; none -> Grade 1..12.
+        if ($levelId && $isBasicLevel) {
+            $gradeYearOptions = EducationLevels::basicGradeOptions();
+        } elseif ($levelId) {
+            $gradeYearOptions = EducationLevels::yearLevelOptions($levelId);
+        } else {
+            $gradeYearOptions = [];
+            for ($g = 1; $g <= 12; $g++) {
+                $gradeYearOptions[(string) $g] = 'Grade '.$g;
+            }
         }
 
         return view('finance.tuition_setup', [
@@ -86,7 +114,10 @@ class TuitionSetupController extends Controller
                 'education_level'  => $levelId,
                 'grade_year'       => $gradeYear,
                 'payment_plan'     => $paymentPlanId,
+                'program'          => $programId,
             ],
+            'showProgramFilter' => $showProgramFilter,
+            'programOptions'    => $programOptions,
 
             // modal lookups
             'terms'            => $terms,
@@ -99,6 +130,8 @@ class TuitionSetupController extends Controller
             'scholarshipKinds' => Scholarship::KINDS,
             'scholarshipCoverage' => Scholarship::COVERAGE,
             'penaltyBases'     => PenaltyRule::BASES,
+            'planFrequencies'  => PaymentPlan::FREQUENCIES,
+            'planValueTypes'   => PaymentPlan::VALUE_TYPES,
 
             // edit payload for the active tab
             'editPayload'      => $this->editPayload($tab, $schoolId),
@@ -132,6 +165,7 @@ class TuitionSetupController extends Controller
             ->when($filters['academic_year_id'] ?? null, fn ($q, $v) => $q->where('academic_year_id', $v))
             ->when($filters['grade_year'] ?? null, fn ($q, $v) => $q->where('year_level', (int) $v))
             ->when($filters['payment_plan'] ?? null, fn ($q, $v) => $q->where('payment_plan_id', $v))
+            ->when($filters['program'] ?? null, fn ($q, $v) => $q->where('program_id', $v))
             ->orderByDesc('is_active')->orderBy('code')
             ->get()
             ->filter(function (FinanceFeeSetup $fee) use ($nodeToRoot, $filters) {
@@ -198,11 +232,12 @@ class TuitionSetupController extends Controller
         return PaymentPlan::where('school_id', $schoolId)
             ->orderByDesc('is_active')->orderBy('name')->get()
             ->map(fn (PaymentPlan $p) => (object) [
-                'id'           => $p->id,
-                'code'         => $p->code,
-                'name'         => $p->name,
-                'installments' => $p->installments == 1 ? 'Full payment' : $p->installments.' installments',
-                'status'       => $this->statusPill((bool) $p->is_active),
+                'id'          => $p->id,
+                'code'        => $p->code,
+                'name'        => $p->name,
+                'options'     => $this->planOptionsCell($p),
+                'frequencies' => $this->planFrequenciesCell($p),
+                'status'      => $this->statusPill((bool) $p->is_active),
             ])->values();
     }
 
@@ -274,10 +309,11 @@ class TuitionSetupController extends Controller
     protected function paymentPlanColumns(): array
     {
         return [
-            ['key' => 'code',         'label' => 'Code',         'width' => '120px'],
-            ['key' => 'name',         'label' => 'Plan Name',    'width' => '240px'],
-            ['key' => 'installments', 'label' => 'Schedule',     'width' => '180px'],
-            ['key' => 'status',       'label' => 'Status',       'width' => '110px', 'raw' => true],
+            ['key' => 'code',        'label' => 'Code',        'width' => '110px'],
+            ['key' => 'name',        'label' => 'Plan Name',   'width' => '190px'],
+            ['key' => 'options',     'label' => 'Options',     'width' => '320px', 'raw' => true],
+            ['key' => 'frequencies', 'label' => 'Frequencies', 'width' => '200px', 'raw' => true],
+            ['key' => 'status',      'label' => 'Status',      'width' => '110px', 'raw' => true],
         ];
     }
 
@@ -321,7 +357,7 @@ class TuitionSetupController extends Controller
             'scholarships' => Scholarship::where('school_id', $schoolId)
                 ->get(['id', 'code', 'name', 'kind', 'value', 'coverage', 'requires_approval', 'is_active', 'notes'])->keyBy('id'),
             'payment-plans' => PaymentPlan::where('school_id', $schoolId)
-                ->get(['id', 'code', 'name', 'installments', 'is_active', 'notes'])->keyBy('id'),
+                ->get(['id', 'code', 'name', 'frequencies', 'class_start_date', 'class_end_date', 'billing_end_date', 'billing_day', 'cash_enabled', 'cash_discount_type', 'cash_discount_value', 'dp_enabled', 'down_payment_type', 'down_payment_value', 'interest_enabled', 'interest_rate', 'is_active', 'notes'])->keyBy('id'),
             'penalty-rules' => PenaltyRule::where('school_id', $schoolId)
                 ->get(['id', 'code', 'name', 'basis', 'amount', 'grace_days', 'is_active', 'notes'])->keyBy('id'),
         };
@@ -516,18 +552,76 @@ class TuitionSetupController extends Controller
 
     protected function validatedPaymentPlanData(Request $request, int $schoolId, ?int $ignoreId = null): array
     {
+        $freqKeys   = array_keys(PaymentPlan::FREQUENCIES);
+        $cashOn     = $request->boolean('cash_enabled');
+        $dpOn       = $request->boolean('dp_enabled');
+        $interestOn = $request->boolean('interest_enabled');
+        $cashType   = $request->input('cash_discount_type') === 'fixed' ? 'fixed' : 'percentage';
+        $dpType     = $request->input('down_payment_type') === 'fixed' ? 'fixed' : 'percentage';
+
         $data = $request->validate([
-            'code'         => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('payment_plans', 'code')->where('school_id', $schoolId)->ignore($ignoreId)],
-            'name'         => ['required', 'string', 'max:191'],
-            'installments' => ['required', 'integer', 'min:1', 'max:48'],
-            'is_active'    => ['nullable', 'boolean'],
-            'notes'        => ['nullable', 'string', 'max:2000'],
+            'code'                => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('payment_plans', 'code')->where('school_id', $schoolId)->ignore($ignoreId)],
+            'name'                => ['required', 'string', 'max:191'],
+            'frequencies'         => ['array'],
+            'frequencies.*'       => [Rule::in($freqKeys)],
+
+            // Class & billing schedule — drives the installment count + due dates.
+            'class_start_date'    => ['nullable', 'date'],
+            'class_end_date'      => ['nullable', 'date', 'after_or_equal:class_start_date'],
+            'billing_end_date'    => ['nullable', 'date', 'after_or_equal:class_start_date'],
+            'billing_day'         => ['nullable', 'integer', 'min:1', 'max:31'],
+
+            // Option 1 — Cash + optional discount (% capped at 100, fixed is not).
+            'cash_enabled'        => ['nullable', 'boolean'],
+            'cash_discount_type'  => ['nullable', Rule::in(['percentage', 'fixed'])],
+            'cash_discount_value' => ['nullable', 'numeric', 'min:0', Rule::when($cashType === 'percentage', ['max:100'], ['max:999999999.99'])],
+
+            // Option 2 — Down payment + installment.
+            'dp_enabled'          => ['nullable', 'boolean'],
+            'down_payment_type'   => ['nullable', Rule::in(['percentage', 'fixed'])],
+            'down_payment_value'  => ['nullable', 'numeric', 'min:0', Rule::when($dpType === 'percentage', ['max:100'], ['max:999999999.99'])],
+
+            // Option 3 — Installment + interest.
+            'interest_enabled'    => ['nullable', 'boolean'],
+            'interest_rate'       => ['nullable', 'numeric', 'min:0', 'max:100'],
+
+            'is_active'           => ['nullable', 'boolean'],
+            'notes'               => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $data['code']      = Str::upper(trim($data['code']));
-        $data['is_active'] = (bool) ($data['is_active'] ?? false);
+        // At least one option must be offered.
+        if (! $cashOn && ! $dpOn && ! $interestOn) {
+            throw ValidationException::withMessages(['cash_enabled' => 'Enable at least one payment option.']);
+        }
+        // Installment-based options need a frequency to divide the balance over.
+        if (($dpOn || $interestOn) && empty($data['frequencies'])) {
+            throw ValidationException::withMessages(['frequencies' => 'Select at least one billing frequency for installment options.']);
+        }
 
-        return $data;
+        return [
+            'code'                => Str::upper(trim($data['code'])),
+            'name'                => $data['name'],
+            'frequencies'         => array_values(array_intersect($freqKeys, $data['frequencies'] ?? [])),
+
+            'class_start_date'    => $data['class_start_date'] ?? null,
+            'class_end_date'      => $data['class_end_date'] ?? null,
+            'billing_end_date'    => $data['billing_end_date'] ?? null,
+            'billing_day'         => $data['billing_day'] ?? null,
+
+            'cash_enabled'        => $cashOn,
+            'cash_discount_type'  => $cashType,
+            'cash_discount_value' => $cashOn ? round((float) ($data['cash_discount_value'] ?? 0), 2) : 0,
+
+            'dp_enabled'          => $dpOn,
+            'down_payment_type'   => $dpType,
+            'down_payment_value'  => $dpOn ? round((float) ($data['down_payment_value'] ?? 0), 2) : 0,
+
+            'interest_enabled'    => $interestOn,
+            'interest_rate'       => $interestOn ? round((float) ($data['interest_rate'] ?? 0), 2) : 0,
+
+            'is_active'           => $request->boolean('is_active'),
+            'notes'               => $data['notes'] ?? null,
+        ];
     }
 
     /* ===================================================================
@@ -586,6 +680,72 @@ class TuitionSetupController extends Controller
     protected function peso($v): string
     {
         return '₱'.number_format((float) $v, 2);
+    }
+
+    /** A "% or ₱" amount label, e.g. "20%" or "₱5,000.00". */
+    protected function valueLabel(string $type, float $value): string
+    {
+        return $type === 'fixed'
+            ? $this->peso($value)
+            : rtrim(rtrim(number_format($value, 2), '0'), '.').'%';
+    }
+
+    /** Small pill used in the plan Options / Frequencies cells. */
+    protected function planBadge(string $text, string $bg, string $fg): string
+    {
+        return '<span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold" '
+            .'style="background:'.$bg.'; color:'.$fg.';">'.e($text).'</span>';
+    }
+
+    /** Enabled payment options as coloured badges. */
+    protected function planOptionsCell(PaymentPlan $p): string
+    {
+        $badges = [];
+
+        if ($p->cash_enabled) {
+            $text = 'Cash';
+            if ((float) $p->cash_discount_value > 0) {
+                $text .= ' −'.$this->valueLabel((string) $p->cash_discount_type, (float) $p->cash_discount_value);
+            }
+            $badges[] = $this->planBadge($text, '#dcfce7', '#15803d');
+        }
+        if ($p->dp_enabled) {
+            $dp = (float) $p->down_payment_value > 0
+                ? $this->valueLabel((string) $p->down_payment_type, (float) $p->down_payment_value).' down'
+                : 'Down payment';
+            $badges[] = $this->planBadge($dp.' + installment', '#e0e7ff', '#4338ca');
+        }
+        if ($p->interest_enabled) {
+            $text = 'Installment';
+            if ((float) $p->interest_rate > 0) {
+                $text .= ' + '.rtrim(rtrim(number_format((float) $p->interest_rate, 2), '0'), '.').'% interest';
+            }
+            $badges[] = $this->planBadge($text, '#fef3c7', '#b45309');
+        }
+
+        if (empty($badges)) {
+            return '<span class="text-xs text-slate-400">No options set</span>';
+        }
+
+        return '<div class="flex flex-wrap gap-1">'.implode('', $badges).'</div>';
+    }
+
+    /** Allowed billing frequencies as badges. */
+    protected function planFrequenciesCell(PaymentPlan $p): string
+    {
+        $freqs = is_array($p->frequencies) ? $p->frequencies : [];
+        $badges = [];
+        foreach ($freqs as $key) {
+            if (isset(PaymentPlan::FREQUENCIES[$key])) {
+                $badges[] = $this->planBadge(PaymentPlan::FREQUENCIES[$key], '#f1f5f9', '#475569');
+            }
+        }
+
+        if (empty($badges)) {
+            return '<span class="text-xs text-slate-400">—</span>';
+        }
+
+        return '<div class="flex flex-wrap gap-1">'.implode('', $badges).'</div>';
     }
 
     protected function statusPill(bool $active): string

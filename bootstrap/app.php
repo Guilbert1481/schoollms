@@ -277,11 +277,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
 
-            'role'           => \App\Http\Middleware\CheckRole::class,
-            '2fa'            => \App\Http\Middleware\TwoFactorMiddleware::class,
-            'subscription'   => \App\Http\Middleware\CheckSubscription::class,
-            'multi_redirect' => \App\Http\Middleware\RedirectAfterLogin::class,
-            'school.active'  => \App\Http\Middleware\EnsureSchoolIsActive::class,
+            'role'             => \App\Http\Middleware\CheckRole::class,
+            '2fa'              => \App\Http\Middleware\TwoFactorMiddleware::class,
+            'subscription'     => \App\Http\Middleware\CheckSubscription::class,
+            'multi_redirect'   => \App\Http\Middleware\RedirectAfterLogin::class,
+            'school.active'    => \App\Http\Middleware\EnsureSchoolIsActive::class,
+            'enrollment.open'  => \App\Http\Middleware\EnsureEnrollmentOpen::class,
 
         ]);
 

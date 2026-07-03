@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Support\EducationLevels;
 
 class AcademicYear extends Model
 {
@@ -14,6 +15,7 @@ class AcademicYear extends Model
     protected $fillable = [
         'school_id',
         'education_level',
+        'education_node_id',
         'name',
         'start_date',
         'end_date',
@@ -32,9 +34,27 @@ class AcademicYear extends Model
         'can_activate',
     ];
 
+    /** Keep the legacy `education_level` string synced with the chosen tree root. */
+    protected static function booted(): void
+    {
+        static::saving(function (self $ay) {
+            if ($ay->education_node_id) {
+                $node = EducationNode::find($ay->education_node_id);
+                if ($node) {
+                    $ay->education_level = EducationLevels::isBasic($node->name) ? 'basic_ed' : 'higher_ed';
+                }
+            }
+        });
+    }
+
     public function school()
     {
         return $this->belongsTo(School::class);
+    }
+
+    public function educationLevelNode()
+    {
+        return $this->belongsTo(EducationNode::class, 'education_node_id');
     }
 
     public function getComputedStatusAttribute()

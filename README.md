@@ -1,3 +1,21 @@
+# Sophentis (schoollms)
+
+Multi-school LMS / SIS built with Laravel 12, PHP 8.2, Blade, JavaScript, and MySQL.
+
+## Project Documentation
+
+| Document | Purpose |
+|---|---|
+| [MODERNIZATION_ROADMAP.md](MODERNIZATION_ROADMAP.md) | Phased hardening plan — resolved one item at a time |
+| [ENGINEERING_PRINCIPLES.md](ENGINEERING_PRINCIPLES.md) | Coding philosophy, thin controllers, testing discipline |
+| [ARCHITECTURE_PRINCIPLES.md](ARCHITECTURE_PRINCIPLES.md) | Layering, services, tenancy, events/jobs |
+| [SECURITY_PRINCIPLES.md](SECURITY_PRINCIPLES.md) | AuthN/Z, RBAC, tenant isolation, uploads, audit |
+| [ACCESS_CONTROL.md](ACCESS_CONTROL.md) | Detailed route/table gating playbook |
+| [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) | RFC/ADR, branching/PR, testing, release |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | GitHub → VPS deployment runbook |
+
+---
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">

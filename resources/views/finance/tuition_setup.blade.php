@@ -77,6 +77,17 @@
                     @endforeach
                 </select>
             </div>
+            @if($showProgramFilter)
+                <div>
+                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Program</label>
+                    <select onchange="tuitionFilter('program', this.value)" class="{{ $fieldCls }} w-52">
+                        <option value="">All Programs</option>
+                        @foreach($programOptions as $pid => $pname)
+                            <option value="{{ $pid }}" @selected((int) ($filters['program'] ?? 0) === (int) $pid)>{{ $pname }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
             <div>
                 <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Grade / Year Level</label>
                 <select onchange="tuitionFilter('grade_year', this.value)" class="{{ $fieldCls }} w-40">
@@ -175,6 +186,10 @@
                     <label class="mb-1 block text-sm font-semibold text-slate-700">Grade / Year Level</label>
                     <input type="number" name="year_level" min="1" max="20" class="{{ $fieldCls }}" placeholder="1">
                 </div>
+                {{-- Payment plan applies once to the whole assessment (tuition +
+                     miscellaneous + other − discounts − scholarships), chosen by the
+                     guardian at enrollment — so it is not set per miscellaneous/other fee. --}}
+                @if($tab === 'tuition')
                 <div>
                     <label class="mb-1 block text-sm font-semibold text-slate-700">Payment Plan</label>
                     <select name="payment_plan_id" class="{{ $fieldCls }}">
@@ -182,6 +197,7 @@
                         @foreach($paymentPlans as $pp)<option value="{{ $pp->id }}">{{ $pp->name }}</option>@endforeach
                     </select>
                 </div>
+                @endif
                 <div>
                     <label class="mb-1 block text-sm font-semibold text-slate-700">Academic Year</label>
                     <select name="academic_year_id" class="{{ $fieldCls }}">
@@ -257,15 +273,98 @@
         </form>
     </x-modal.form>
 @elseif($tab === 'payment-plans')
-    <x-modal.form id="paymentPlanModal" title="Payment Plan" widthClass="w-full max-w-lg">
+    @php
+        $dpSymStyle = 'position:absolute; left:0.75rem; top:50%; transform:translateY(-50%); pointer-events:none; color:#94a3b8; font-size:0.875rem;';
+        $cardCls    = 'rounded-lg border border-slate-200 p-3';
+    @endphp
+    <x-modal.form id="paymentPlanModal" title="Payment Plan" widthClass="w-full max-w-2xl">
         <form id="tuitionSetupForm" method="POST" action="{{ $storeUrl }}" class="space-y-4">
             @csrf
             <input type="hidden" name="_method" value="POST">
+
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div><label class="mb-1 block text-sm font-semibold text-slate-700">Code</label><input type="text" name="code" class="{{ $fieldCls }}" placeholder="CASH"></div>
-                <div><label class="mb-1 block text-sm font-semibold text-slate-700">Name</label><input type="text" name="name" class="{{ $fieldCls }}" placeholder="Cash (Full Payment)"></div>
-                <div><label class="mb-1 block text-sm font-semibold text-slate-700">Installments</label><input type="number" min="1" max="48" name="installments" value="1" class="{{ $fieldCls }}"></div>
+                <div><label class="mb-1 block text-sm font-semibold text-slate-700">Code</label><input type="text" name="code" class="{{ $fieldCls }}" placeholder="STANDARD"></div>
+                <div><label class="mb-1 block text-sm font-semibold text-slate-700">Plan Name</label><input type="text" name="name" class="{{ $fieldCls }}" placeholder="Standard Plan"></div>
             </div>
+
+            {{-- Class & Billing schedule — drives how many installments are computed --}}
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div><label class="mb-1 block text-sm font-semibold text-slate-700">Class Start Date</label><input type="date" name="class_start_date" class="{{ $fieldCls }}"></div>
+                <div><label class="mb-1 block text-sm font-semibold text-slate-700">Class End Date</label><input type="date" name="class_end_date" class="{{ $fieldCls }}"></div>
+                <div><label class="mb-1 block text-sm font-semibold text-slate-700">Billing / SOA End Date</label><input type="date" name="billing_end_date" class="{{ $fieldCls }}"></div>
+            </div>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-slate-700">Billing Day <span class="font-normal text-slate-400">(of the month)</span></label>
+                    <input type="number" name="billing_day" min="1" max="31" placeholder="e.g. 8" class="{{ $fieldCls }}">
+                </div>
+            </div>
+            <p class="text-xs text-slate-500">No. of installments = periods from Class Start to the Billing/SOA End Date at the chosen frequency. Each invoice/SOA falls on the Billing Day of its period (monthly, or every 3/6 months for quarterly/semi-annual). Leave blank to fall back to the term dates.</p>
+
+            {{-- Billing Invoice / SOA Frequency --}}
+            <div>
+                <label class="mb-1 block text-sm font-semibold text-slate-700">Billing Invoice / SOA Frequency</label>
+                <div style="display:flex; flex-wrap:wrap; gap:0.5rem 1.75rem;">
+                    @foreach($planFrequencies as $val => $label)
+                        <label class="text-sm text-slate-700" style="display:inline-flex; align-items:center; gap:0.5rem;"><input type="checkbox" name="frequencies[]" value="{{ $val }}" class="rounded border-slate-300 text-indigo-600"> {{ $label }}</label>
+                    @endforeach
+                </div>
+                <p class="mt-1 text-xs text-slate-500">Installment options divide the balance across the selected frequency.</p>
+            </div>
+
+            {{-- Payment Plan options --}}
+            <div class="space-y-3">
+                <label class="block text-sm font-semibold text-slate-700">Payment Plan Options</label>
+
+                {{-- Option 1: Cash (Full Payment) + optional discount --}}
+                <div class="{{ $cardCls }}">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" name="cash_enabled" value="1" data-opt-toggle="cash" onchange="planOptToggle(this)" class="rounded border-slate-300 text-indigo-600"> Cash (Full Payment)</label>
+                    <div data-opt-body="cash" class="mt-3" style="display:none;">
+                        <label class="mb-1 block text-xs font-medium text-slate-600">Discount (optional)</label>
+                        <div class="flex gap-2">
+                            <select name="cash_discount_type" data-sym-for="cash" onchange="planSymSync(this)" class="{{ $fieldCls }}" style="max-width:11rem;">
+                                @foreach($planValueTypes as $v => $l)<option value="{{ $v }}">{{ $l }}</option>@endforeach
+                            </select>
+                            <div class="relative flex-1">
+                                <span data-sym="cash" style="{{ $dpSymStyle }}">%</span>
+                                <input type="number" step="0.01" min="0" name="cash_discount_value" value="0" data-val="cash" class="{{ $fieldCls }}" style="padding-left:1.75rem;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Option 2: Down Payment + Installment --}}
+                <div class="{{ $cardCls }}">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" name="dp_enabled" value="1" data-opt-toggle="dp" onchange="planOptToggle(this)" class="rounded border-slate-300 text-indigo-600"> Down Payment + Installment</label>
+                    <div data-opt-body="dp" class="mt-3" style="display:none;">
+                        <label class="mb-1 block text-xs font-medium text-slate-600">Down Payment</label>
+                        <div class="flex gap-2">
+                            <select name="down_payment_type" data-sym-for="dp" onchange="planSymSync(this)" class="{{ $fieldCls }}" style="max-width:11rem;">
+                                @foreach($planValueTypes as $v => $l)<option value="{{ $v }}">{{ $l }}</option>@endforeach
+                            </select>
+                            <div class="relative flex-1">
+                                <span data-sym="dp" style="{{ $dpSymStyle }}">%</span>
+                                <input type="number" step="0.01" min="0" name="down_payment_value" value="0" data-val="dp" class="{{ $fieldCls }}" style="padding-left:1.75rem;">
+                            </div>
+                        </div>
+                        <p class="mt-1 text-xs text-slate-500">The remaining balance is divided across the selected frequency.</p>
+                    </div>
+                </div>
+
+                {{-- Option 3: Installment + Interest --}}
+                <div class="{{ $cardCls }}">
+                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" name="interest_enabled" value="1" data-opt-toggle="interest" onchange="planOptToggle(this)" class="rounded border-slate-300 text-indigo-600"> Installment + Interest</label>
+                    <div data-opt-body="interest" class="mt-3" style="display:none;">
+                        <label class="mb-1 block text-xs font-medium text-slate-600">Interest Rate (%) &mdash; optional</label>
+                        <div class="relative" style="max-width:11rem;">
+                            <input type="number" step="0.01" min="0" max="100" name="interest_rate" value="0" class="{{ $fieldCls }}" style="padding-right:1.75rem;">
+                            <span style="position:absolute; right:0.75rem; top:50%; transform:translateY(-50%); pointer-events:none; color:#94a3b8; font-size:0.875rem;">%</span>
+                        </div>
+                        <p class="mt-1 text-xs text-slate-500">(Tuition + miscellaneous + interest) divided across the selected frequency.</p>
+                    </div>
+                </div>
+            </div>
+
             <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="is_active" value="1" checked class="rounded border-slate-300 text-indigo-600"> Active</label>
         </form>
     </x-modal.form>
@@ -300,10 +399,78 @@
         url.searchParams.set('tab', @json($tab));
         if (value === '' || value === null) url.searchParams.delete(key);
         else url.searchParams.set(key, value);
+        // Switching the Education Level invalidates the Grade/Year + Program picks.
+        if (key === 'education_level') {
+            url.searchParams.delete('grade_year');
+            url.searchParams.delete('program');
+        }
         window.location = url.toString();
     }
 
     function tsForm() { return document.getElementById('tuitionSetupForm'); }
+
+    // Payment-plan option block: show/hide its fields with the header checkbox.
+    function planOptToggle(cb) {
+        if (!cb) return;
+        const key = cb.getAttribute('data-opt-toggle');
+        const body = cb.form ? cb.form.querySelector('[data-opt-body="' + key + '"]') : null;
+        if (body) body.style.display = cb.checked ? '' : 'none';
+    }
+    window.planOptToggle = planOptToggle;
+
+    // Swap the %/₱ adornment and lift the 0–100 cap when "Fixed amount" is chosen.
+    function planSymSync(sel) {
+        if (!sel) return;
+        const key = sel.getAttribute('data-sym-for');
+        if (!key || !sel.form) return;
+        const fixed = sel.value === 'fixed';
+        const sym = sel.form.querySelector('[data-sym="' + key + '"]');
+        const val = sel.form.querySelector('[data-val="' + key + '"]');
+        if (sym) sym.textContent = fixed ? '₱' : '%';
+        if (val) { fixed ? val.removeAttribute('max') : val.setAttribute('max', '100'); }
+    }
+    window.planSymSync = planSymSync;
+
+    // Re-sync every option block + symbol in the payment-plan form.
+    function planVisualsSync(form) {
+        if (!form) return;
+        form.querySelectorAll('[data-opt-toggle]').forEach(planOptToggle);
+        form.querySelectorAll('[data-sym-for]').forEach(planSymSync);
+    }
+
+    // Dedicated edit-fill for the payment-plan modal (multi-checkbox frequencies + option blocks).
+    function fillPaymentPlan(form, d) {
+        const setVal = (name, v) => { const el = form.querySelector('[name="' + name + '"]'); if (el) el.value = (v === null || v === undefined) ? '' : v; };
+        const setChk = (name, on) => { const el = form.querySelector('[name="' + name + '"]'); if (el) el.checked = !!Number(on); };
+
+        const asDate = (v) => (v ? String(v).slice(0, 10) : ''); // ISO datetime → YYYY-MM-DD
+
+        setVal('code', d.code);
+        setVal('name', d.name);
+        setVal('class_start_date', asDate(d.class_start_date));
+        setVal('class_end_date', asDate(d.class_end_date));
+        setVal('billing_end_date', asDate(d.billing_end_date));
+        setVal('billing_day', d.billing_day);
+        setChk('is_active', d.is_active);
+
+        setChk('cash_enabled', d.cash_enabled);
+        setVal('cash_discount_type', d.cash_discount_type || 'percentage');
+        setVal('cash_discount_value', d.cash_discount_value);
+
+        setChk('dp_enabled', d.dp_enabled);
+        setVal('down_payment_type', d.down_payment_type || 'percentage');
+        setVal('down_payment_value', d.down_payment_value);
+
+        setChk('interest_enabled', d.interest_enabled);
+        setVal('interest_rate', d.interest_rate);
+
+        let freqs = d.frequencies;
+        if (typeof freqs === 'string') { try { freqs = JSON.parse(freqs); } catch (e) { freqs = []; } }
+        if (!Array.isArray(freqs)) freqs = [];
+        form.querySelectorAll('[name="frequencies[]"]').forEach((el) => { el.checked = freqs.indexOf(el.value) !== -1; });
+
+        planVisualsSync(form);
+    }
 
     function openCreateModal(modalId) {
         const form = tsForm();
@@ -315,6 +482,7 @@
             if (TS_DEFAULT_FEE_TYPE) {
                 const ft = form.querySelector('[name="fee_type"]'); if (ft) ft.value = TS_DEFAULT_FEE_TYPE;
             }
+            if (modalId === 'paymentPlanModal') planVisualsSync(form);
         }
         openModal(modalId);
     }
@@ -326,12 +494,16 @@
             form.reset();
             form.action = TS_UPDATE_BASE + '/' + id;
             const m = form.querySelector('[name="_method"]'); if (m) m.value = 'PUT';
-            Object.keys(data).forEach((k) => {
-                const el = form.querySelector('[name="' + k + '"]');
-                if (!el) return;
-                if (el.type === 'checkbox') el.checked = !!Number(data[k]);
-                else el.value = (data[k] === null || data[k] === undefined) ? '' : data[k];
-            });
+            if (modalId === 'paymentPlanModal') {
+                fillPaymentPlan(form, data);
+            } else {
+                Object.keys(data).forEach((k) => {
+                    const el = form.querySelector('[name="' + k + '"]');
+                    if (!el) return;
+                    if (el.type === 'checkbox') el.checked = !!Number(data[k]);
+                    else el.value = (data[k] === null || data[k] === undefined) ? '' : data[k];
+                });
+            }
         }
         openModal(modalId);
     }
