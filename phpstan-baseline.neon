@@ -1,0 +1,2413 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Anonymous function has an unused use \$term\.$#'
+			identifier: closure.unusedUse
+			count: 1
+			path: app/Console/Commands/GenerateClassSessions.php
+
+		-
+			message: '#^Negated boolean expression is always false\.$#'
+			identifier: booleanNot.alwaysFalse
+			count: 2
+			path: app/Console/Commands/GenerateClassSessions.php
+
+		-
+			message: '#^Result of \|\| is always false\.$#'
+			identifier: booleanOr.alwaysFalse
+			count: 1
+			path: app/Console/Commands/GenerateClassSessions.php
+
+		-
+			message: '#^Relation ''deadline'' is not found in App\\Models\\DeadlineUserCompletion model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Console/Commands/UpdateOverdueDeadlines.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\EnrollmentSetting\:\:\$enrollmentType\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Helpers/CourseCatalog.php
+
+		-
+			message: '#^Call to function compact\(\) contains undefined variable \$academicLevels\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/Http/Controllers/Admin/QuestionConfigController.php
+
+		-
+			message: '#^Relation ''college'' is not found in App\\Models\\Program model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Admin/School/Settings/Assignments/AssignmentManagementController.php
+
+		-
+			message: '#^Relation ''dean'' is not found in App\\Models\\College model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Admin/School/Settings/Assignments/AssignmentManagementController.php
+
+		-
+			message: '#^Relation ''officeHead'' is not found in App\\Models\\Office model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Admin/School/Settings/Assignments/AssignmentManagementController.php
+
+		-
+			message: '#^Relation ''programHead'' is not found in App\\Models\\Program model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Admin/School/Settings/Assignments/AssignmentManagementController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SchoolSetting\:\:\$academic_levels\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TestManagerController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SchoolSetting\:\:\$assessment_types\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TestManagerController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SchoolSetting\:\:\$difficulty_levels\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TestManagerController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SchoolSetting\:\:\$question_types\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/TestManagerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>academic_levels" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Admin/TestManagerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>assessment_types" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Admin/TestManagerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>difficulty_levels" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Admin/TestManagerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>question_types" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Admin/TestManagerController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Auth/LoginController.php
+
+		-
+			message: '#^Left side of && is always true\.$#'
+			identifier: booleanAnd.leftAlwaysTrue
+			count: 1
+			path: app/Http/Controllers/Auth/LoginController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Auth/LogoutController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Semester\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Semester\>\:\:\$school_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Auth/StudentRegisterController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Certificates\\CertificateEventController\:\:totalEventDays\(\) should return int but returns float\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Certificates/CertificateEventController.php
+
+		-
+			message: '#^Relation ''template'' is not found in App\\Models\\CertificateEvent model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Certificates/CertificateEventController.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Certificates/CertificateEventController.php
+
+		-
+			message: '#^Offset 1 on array\{non\-falsy\-string, non\-empty\-string, non\-empty\-string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Controllers/Certificates/CertificateTemplateController.php
+
+		-
+			message: '#^Relation ''approvedBy'' is not found in App\\Models\\Chat model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Communication/AdminChatController.php
+
+		-
+			message: '#^Relation ''student'' is not found in App\\Models\\Chat model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Communication/AdminChatController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Announcement\:\:\$ack_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/AnnouncementController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Announcement\:\:\$sent_count\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/AnnouncementController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Announcement\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/AnnouncementController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Office\:\:\$office_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/AnnouncementController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Program\:\:\$program_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/AnnouncementController.php
+
+		-
+			message: '#^Call to an undefined method App\\Http\\Controllers\\Communication\\AnnouncementController\:\:authorizeSchool\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/AnnouncementController.php
+
+		-
+			message: '#^Relation ''creator'' is not found in App\\Models\\Announcement model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Communication/AnnouncementController.php
+
+		-
+			message: '#^Undefined variable\: \$deadline$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/Http/Controllers/Communication/AnnouncementController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ChatMessage\:\:\$thread\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Communication/ChatController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ChatThread\:\:\$class_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/ChatController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ChatThread\:\:\$department_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/ChatController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ChatThread\:\:\$messages\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/ChatController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ChatThread\:\:\$participants\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Http/Controllers/Communication/ChatController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$classes\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/ChatController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Communication/ChatController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$profile\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Communication/ChatController.php
+
+		-
+			message: '#^Relation ''participants'' is not found in App\\Models\\ChatThread model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Communication/ChatController.php
+
+		-
+			message: '#^Relation ''profile'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Communication/ChatController.php
+
+		-
+			message: '#^Relation ''participants'' is not found in App\\Models\\ChatThread model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Communication/CommunicationController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DeadlineUserCompletion\:\:\$completed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/DeadlineController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DeadlineUserCompletion\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/DeadlineController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$is_admin\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Communication/DeadlineController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Communication\\DeadlineController\:\:expandToUsers\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Http/Controllers/Communication/DeadlineController.php
+
+		-
+			message: '#^Relation ''creator'' is not found in App\\Models\\Deadline model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Communication/DeadlineController.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\DeadlineUserCompletion model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Communication/DeadlineController.php
+
+		-
+			message: '#^Relation ''userCompletions'' is not found in App\\Models\\Deadline model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Communication/DeadlineController.php
+
+		-
+			message: '#^Variable \$lesson might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/Http/Controllers/CourseArchitect/LessonStudioController.php
+
+		-
+			message: '#^Variable \$msg might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/Http/Controllers/CourseArchitect/LessonStudioController.php
+
+		-
+			message: '#^Variable \$topic might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/Http/Controllers/CourseArchitect/LessonStudioController.php
+
+		-
+			message: '#^Array has 2 duplicate keys with value ''admission_manager'' \(''admission_manager'', ''admission_manager''\)\.$#'
+			identifier: array.duplicateKey
+			count: 1
+			path: app/Http/Controllers/DashboardController.php
+
+		-
+			message: '#^Relation ''program'' is not found in App\\Models\\AcademicPolicy model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Dean/AcademicPoliciesController.php
+
+		-
+			message: '#^Relation ''term'' is not found in App\\Models\\AcademicPolicy model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Dean/AcademicPoliciesController.php
+
+		-
+			message: '#^Relation ''program'' is not found in App\\Models\\Curriculum model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Dean/CurriculaController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\CertificateEvent\:\:\$recipients\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Events/EventAttendanceController.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Events/EventAttendanceController.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between '''' and '''' will always evaluate to true\.$#'
+			identifier: identical.alwaysTrue
+			count: 2
+			path: app/Http/Controllers/Events/EventAttendanceController.php
+
+		-
+			message: '#^Ternary operator condition is always true\.$#'
+			identifier: ternary.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Events/EventAttendanceController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>capture_source" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Events/EventAttendanceController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>status" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Events/EventAttendanceController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Events\\EventCertificatePolicyController\:\:totalEventDays\(\) should return int but returns float\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Events/EventCertificatePolicyController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\CertificateEvent\:\:\$eventRoles\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Events/MasterDataEventFormController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\CertificateEvent\:\:\$eventTypes\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Events/MasterDataEventFormController.php
+
+		-
+			message: '#^Relation ''eventRoles'' is not found in App\\Models\\CertificateEvent model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Events/MasterDataEventFormController.php
+
+		-
+			message: '#^Relation ''eventTypes'' is not found in App\\Models\\CertificateEvent model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Events/MasterDataEventFormController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Invoice\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Finance/BillingController.php
+
+		-
+			message: '#^Relation ''enrollment'' is not found in App\\Models\\Invoice model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Finance/BillingController.php
+
+		-
+			message: '#^Relation ''student'' is not found in App\\Models\\Invoice model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Finance/BillingController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Invoice\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Finance/InvoiceController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Invoice\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Finance/InvoiceController.php
+
+		-
+			message: '#^Relation ''enrollment'' is not found in App\\Models\\Invoice model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Finance/InvoiceController.php
+
+		-
+			message: '#^Relation ''student'' is not found in App\\Models\\Invoice model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Finance/InvoiceController.php
+
+		-
+			message: '#^Relation ''student'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Finance/InvoiceController.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 5
+			path: app/Http/Controllers/Finance/LedgerController.php
+
+		-
+			message: '#^Ternary operator condition is always true\.$#'
+			identifier: ternary.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Finance/LedgerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>education_node_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Finance/LedgerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>enrollment_status" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Finance/LedgerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>lrn" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Finance/LedgerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>middle_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Finance/LedgerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>photo_path" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Finance/LedgerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>program_node_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Finance/LedgerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>section_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Finance/LedgerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>year_level" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Finance/LedgerController.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\Student\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Finance/LedgerController.php
+
+		-
+			message: '#^Relation ''student'' is not found in App\\Models\\Payment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Finance/PaymentController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StatementOfAccount\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Finance/StatementController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StatementOfAccount\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Finance/StatementController.php
+
+		-
+			message: '#^Relation ''student'' is not found in App\\Models\\StatementOfAccount model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Finance/StatementController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\FinanceFeeSetup\:\:\$paymentPlan\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Finance/TuitionSetupController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\FinanceFeeSetup\:\:\$program\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Finance/TuitionSetupController.php
+
+		-
+			message: '#^Anonymous function has an unused use \$withPlan\.$#'
+			identifier: closure.unusedUse
+			count: 1
+			path: app/Http/Controllers/Finance/TuitionSetupController.php
+
+		-
+			message: '#^Match expression does not handle remaining value\: string$#'
+			identifier: match.unhandled
+			count: 3
+			path: app/Http/Controllers/Finance/TuitionSetupController.php
+
+		-
+			message: '#^Relation ''educationNode'' is not found in App\\Models\\FinanceFeeSetup model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Finance/TuitionSetupController.php
+
+		-
+			message: '#^Relation ''paymentPlan'' is not found in App\\Models\\FinanceFeeSetup model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Finance/TuitionSetupController.php
+
+		-
+			message: '#^Relation ''program'' is not found in App\\Models\\FinanceFeeSetup model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Finance/TuitionSetupController.php
+
+		-
+			message: '#^Cannot call static method create\(\) on \(int\<min, \-1\>\|int\<1, max\>\|string\)\.$#'
+			identifier: staticMethod.nonObject
+			count: 1
+			path: app/Http/Controllers/FormController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ChatMessage\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/GuidanceCounselor/FlaggedInterventionsController.php
+
+		-
+			message: '#^Relation ''thread'' is not found in App\\Models\\ChatMessage model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/GuidanceCounselor/FlaggedInterventionsController.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\ChatMessage model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/GuidanceCounselor/FlaggedInterventionsController.php
+
+		-
+			message: '#^Call to static method where\(\) on an unknown class App\\Models\\Teacher\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Http/Controllers/KPIController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Test\:\:\$class\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/PDFController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Test\:\:\$section\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/PDFController.php
+
+		-
+			message: '#^Property App\\Models\\Term\:\:\$is_active \(bool\) does not accept int\.$#'
+			identifier: assign.propertyType
+			count: 3
+			path: app/Http/Controllers/Principal/AcademicYearController.php
+
+		-
+			message: '#^Property App\\Models\\Term\:\:\$is_current \(bool\) does not accept int\.$#'
+			identifier: assign.propertyType
+			count: 3
+			path: app/Http/Controllers/Principal/AcademicYearController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\CurriculumSubject\:\:\$subject\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\EnrollmentDraft\:\:\$data\.$#'
+			identifier: property.notFound
+			count: 15
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Student\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 20
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$node_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Relation ''educationNode'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Relation ''modality'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Relation ''program'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Relation ''subject'' is not found in App\\Models\\CurriculumSubject model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Undefined variable\: \$request$#'
+			identifier: variable.undefined
+			count: 1
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>term" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Public/EnrollmentController.php
+
+		-
+			message: '#^Relation ''section'' is not found in App\\Models\\ClassModel model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Public/HigherEdIrregularEnrollmentController.php
+
+		-
+			message: '#^Relation ''subject'' is not found in App\\Models\\ClassModel model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Public/HigherEdIrregularEnrollmentController.php
+
+		-
+			message: '#^Relation ''subject'' is not found in App\\Models\\CurriculumSubject model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Public/HigherEdIrregularEnrollmentController.php
+
+		-
+			message: '#^Relation ''subject'' is not found in App\\Models\\ClassModel model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Public/HigherEdRegularEnrollmentController.php
+
+		-
+			message: '#^Relation ''subjectOfferings'' is not found in App\\Models\\Term model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/School/Settings/AcademicYearController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Base\\BaseCrudController\:\:updateRecord\(\) invoked with 3 parameters, 1 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: app/Http/Controllers/School/Settings/Organization/DepartmentController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Base\\BaseCrudController\:\:updateRecord\(\) invoked with 3 parameters, 1 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: app/Http/Controllers/School/Settings/Organization/OfficeController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SubjectOffering\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\SubjectOffering\>\:\:\$term\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/School/Settings/SubjectOfferingController.php
+
+		-
+			message: '#^Relation ''term'' is not found in App\\Models\\SubjectOffering model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/School/Settings/SubjectOfferingController.php
+
+		-
+			message: '#^Property App\\Models\\Term\:\:\$is_active \(bool\) does not accept int\.$#'
+			identifier: assign.propertyType
+			count: 3
+			path: app/Http/Controllers/School/Settings/TermController.php
+
+		-
+			message: '#^Property App\\Models\\Term\:\:\$is_current \(bool\) does not accept int\.$#'
+			identifier: assign.propertyType
+			count: 3
+			path: app/Http/Controllers/School/Settings/TermController.php
+
+		-
+			message: '#^Relation ''accountAccess'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/School/Settings/TermController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/SchoolController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Staff/Admissions/AdmissionSettingsController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Application\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$academicYear\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$program\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$setting\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$term\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Call to function is_numeric\(\) with int\<0, max\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 2
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Relation ''academicYear'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Relation ''educationNode'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Relation ''modality'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Relation ''program'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Relation ''setting'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Relation ''student'' is not found in App\\Models\\Application model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Relation ''student'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Relation ''term'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between int\<0, max\> and '''' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between int\<0, max\> and ''—'' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between int\<0, max\> and '''' will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between int\<0, max\> and ''—'' will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>student_number" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/AdmissionsController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\EnrollmentSetting\:\:\$term\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/EnrollmentSettingsController.php
+
+		-
+			message: '#^Property App\\Models\\EnrollmentSetting\:\:\$is_open \(bool\) does not accept int\.$#'
+			identifier: assign.propertyType
+			count: 6
+			path: app/Http/Controllers/Staff/Admissions/EnrollmentSettingsController.php
+
+		-
+			message: '#^Relation ''academicYear'' is not found in App\\Models\\EnrollmentSetting model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Staff/Admissions/EnrollmentSettingsController.php
+
+		-
+			message: '#^Relation ''creator'' is not found in App\\Models\\EnrollmentSetting model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Staff/Admissions/EnrollmentSettingsController.php
+
+		-
+			message: '#^Relation ''enrollmentType'' is not found in App\\Models\\EnrollmentSetting model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Staff/Admissions/EnrollmentSettingsController.php
+
+		-
+			message: '#^Relation ''term'' is not found in App\\Models\\EnrollmentSetting model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Staff/Admissions/EnrollmentSettingsController.php
+
+		-
+			message: '#^Relation ''program'' is not found in App\\Models\\Section model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Admissions/SectionsController.php
+
+		-
+			message: '#^Match expression does not handle remaining value\: mixed$#'
+			identifier: match.unhandled
+			count: 1
+			path: app/Http/Controllers/Staff/ProgramHead/LessonStudioController.php
+
+		-
+			message: '#^Property App\\Models\\Subject\:\:\$is_active \(0\|1\|bool\) does not accept int\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: app/Http/Controllers/Staff/ProgramHead/SubjectController.php
+
+		-
+			message: '#^Relation ''topics'' is not found in App\\Models\\Subject model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/ProgramHead/TopicLessonController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$program\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Staff/Registrar/EnrollmentValidationController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Staff/Registrar/EnrollmentValidationController.php
+
+		-
+			message: '#^Relation ''program'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/EnrollmentValidationController.php
+
+		-
+			message: '#^Relation ''student'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/EnrollmentValidationController.php
+
+		-
+			message: '#^If condition is always true\.$#'
+			identifier: if.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/StudentLedgerController.php
+
+		-
+			message: '#^Offset 0 on array\{non\-empty\-list\<string\>\} in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.offset
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/StudentLedgerController.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between non\-empty\-string and '''' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/StudentLedgerController.php
+
+		-
+			message: '#^Ternary operator condition is always false\.$#'
+			identifier: ternary.alwaysFalse
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/StudentLedgerController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/StudentLedgerController.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\User\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/StudentLedgerController.php
+
+		-
+			message: '#^Relation ''evaluator'' is not found in App\\Models\\SubjectCreditEvaluation model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/SubjectCreditController.php
+
+		-
+			message: '#^Relation ''student'' is not found in App\\Models\\SubjectCreditEvaluation model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/SubjectCreditController.php
+
+		-
+			message: '#^Relation ''subject'' is not found in App\\Models\\SubjectCreditEvaluation model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/SubjectCreditController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$academicYear\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$program\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Anonymous function should return Illuminate\\Support\\Collection\<\(int\|string\), Illuminate\\Support\\Collection\<int, object\{id\: mixed, subject_id\: mixed, enrollment_subject_id\: int\|null, year_level\: int, semester\: int, semester_label\: string, subject_code\: mixed, descriptive_title\: mixed, final_grade\: string, final_grade_raw\: float\|null, units\: string, status_label\: ''Credit''\|''Failed''\|''Not Taken''\|''Passed'', _grade_numeric\: float\|null, _units_numeric\: float, _is_passed\: bool, _is_credit\: bool, _finished\: bool\}&stdClass\>\> but returns Illuminate\\Support\\Collection\<\(int\|string\), Illuminate\\Support\\Collection\<int, object\{id\: mixed, subject_id\: mixed, enrollment_subject_id\: int\|null, year_level\: int, semester\: int, semester_label\: string, subject_code\: mixed, descriptive_title\: mixed, final_grade\: string, final_grade_raw\: float\|null, units\: string, status_label\: ''Credit''\|''Failed''\|''Not Taken''\|''Passed'', _grade_numeric\: float\|null, _units_numeric\: float, _is_passed\: bool, _is_credit\: bool, _finished\: bool\}&stdClass\>\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Call to function is_numeric\(\) with int\<0, max\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Called ''count'' on Laravel collection, but could have been retrieved as a query\.$#'
+			identifier: larastan.noUnnecessaryCollectionCall
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^If condition is always true\.$#'
+			identifier: if.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Relation ''academicYear'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Relation ''educationNode'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Relation ''enrollment'' is not found in App\\Models\\StudentEnrollmentSubject model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Relation ''modality'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Relation ''program'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Relation ''student'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Relation ''subject'' is not found in App\\Models\\CurriculumSubject model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between int\<0, max\> and '''' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between int\<0, max\> and ''—'' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between ''''\|''completed''\|''dropped''\|''ongoing'' and ''enrolled'' will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between ''''\|''completed''\|''dropped''\|''ongoing'' and ''failed'' will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>code" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>education_node_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>first_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>last_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\StudentEnrollment\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Controllers/Staff/Registrar/TranscriptOfRecordController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\EnrollmentDraft\:\:\$data\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Student/ApplicationsController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$term\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Http/Controllers/Student/ApplicationsController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Http/Controllers/Student/ApplicationsController.php
+
+		-
+			message: '#^Relation ''academicYear'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Student/ApplicationsController.php
+
+		-
+			message: '#^Relation ''program'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Student/ApplicationsController.php
+
+		-
+			message: '#^Relation ''term'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Http/Controllers/Student/ApplicationsController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Http/Controllers/Student/ApplicationsController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$enrollment_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Student/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Invoice\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Student/FinanceController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StatementOfAccount\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Student/FinanceController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$term\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Student/SubjectController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollmentSubject\:\:\$subject\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Student/SubjectController.php
+
+		-
+			message: '#^Relation ''class'' is not found in App\\Models\\StudentEnrollmentSubject model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Student/SubjectController.php
+
+		-
+			message: '#^Relation ''program'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Student/SubjectController.php
+
+		-
+			message: '#^Relation ''section'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Student/SubjectController.php
+
+		-
+			message: '#^Relation ''term'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Student/SubjectController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$program\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollmentSubject\:\:\$enrollment\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Anonymous function should return Illuminate\\Support\\Collection\<\(int\|string\), Illuminate\\Support\\Collection\<int, object\{id\: mixed, year_level\: int, semester\: int, term\: non\-falsy\-string, subject_code\: mixed, descriptive_title\: mixed, final_grade\: non\-falsy\-string, units\: string, status\: ''\<span style\=…'', _grade_numeric\: float\|null, _units_numeric\: float, _is_passed\: bool, _is_credit\: bool\}&stdClass\>\> but returns Illuminate\\Support\\Collection\<\(int\|string\), Illuminate\\Support\\Collection\<int, object\{id\: mixed, year_level\: int, semester\: int, term\: non\-falsy\-string, subject_code\: mixed, descriptive_title\: mixed, final_grade\: non\-falsy\-string, units\: string, status\: ''\<span style\=…'', _grade_numeric\: float\|null, _units_numeric\: float, _is_passed\: bool, _is_credit\: bool\}&stdClass\>\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^If condition is always true\.$#'
+			identifier: if.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Match arm comparison between true and false is always false\.$#'
+			identifier: match.alwaysFalse
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Relation ''enrollment'' is not found in App\\Models\\StudentEnrollmentSubject model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Relation ''program'' is not found in App\\Models\\StudentEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Relation ''subject'' is not found in App\\Models\\CurriculumSubject model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Result of && is always false\.$#'
+			identifier: booleanAnd.alwaysFalse
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between ''''\|''completed''\|''dropped''\|''ongoing'' and ''enrolled'' will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between ''''\|''completed''\|''dropped''\|''ongoing'' and ''failed'' will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>student" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\StudentEnrollment\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Student/TranscriptController.php
+
+		-
+			message: '#^Ternary operator condition is always true\.$#'
+			identifier: ternary.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Superadmin/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\School\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Superadmin/ExportController.php
+
+		-
+			message: '#^Call to static method where\(\) on an unknown class App\\Models\\Course\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Http/Controllers/Superadmin/ExportController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Superadmin/ProfileController.php
+
+		-
+			message: '#^Relation ''modules'' is not found in App\\Models\\School model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Superadmin/SubscriptionController.php
+
+		-
+			message: '#^Relation ''users'' is not found in App\\Models\\School model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Superadmin/SuperAdminController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\School\:\:\$status_label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Superadmin/SuperSchoolRegistrationController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\School\:\:\$type_label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Superadmin/SuperSchoolRegistrationController.php
+
+		-
+			message: '#^Left side of && is always true\.$#'
+			identifier: booleanAnd.leftAlwaysTrue
+			count: 1
+			path: app/Http/Controllers/Superadmin/SuperSchoolRegistrationController.php
+
+		-
+			message: '#^Relation ''modules'' is not found in App\\Models\\School model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Superadmin/SuperSchoolRegistrationController.php
+
+		-
+			message: '#^Relation ''users'' is not found in App\\Models\\School model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Superadmin/SuperSchoolRegistrationController.php
+
+		-
+			message: '#^Relation ''subject'' is not found in App\\Models\\Question model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Teacher/QuestionController.php
+
+		-
+			message: '#^Relation ''topic'' is not found in App\\Models\\Question model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Teacher/QuestionController.php
+
+		-
+			message: '#^Match arm comparison between ''essay'' and ''essay'' is always true\.$#'
+			identifier: match.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Teacher/QuestionMetadataController.php
+
+		-
+			message: '#^Relation ''questions'' is not found in App\\Models\\Test model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/PreviewTestController.php
+
+		-
+			message: '#^Match arm comparison between ''essay'' and ''essay'' is always true\.$#'
+			identifier: match.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/SaveBuilderController.php
+
+		-
+			message: '#^Property App\\Models\\TestSetting\:\:\$end_at \(Carbon\\Carbon\|null\) does not accept string\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/SaveBuilderController.php
+
+		-
+			message: '#^Property App\\Models\\TestSetting\:\:\$start_at \(Carbon\\Carbon\|null\) does not accept string\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/SaveBuilderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Test\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Test\>\:\:\$academic_level\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Test\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Test\>\:\:\$assessment_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Test\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Test\>\:\:\$competency_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Test\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Test\>\:\:\$lesson_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Test\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Test\>\:\:\$testSettings\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Test\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Test\>\:\:\$testSources\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Test\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Test\>\:\:\$topic_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Call to an undefined method App\\Models\\Test\:\:testAvailability\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Teacher\\Test\\TestBuilder\\TestBuilderController\:\:generateTestAvailability\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Teacher\\Test\\TestBuilder\\TestBuilderController\:\:generateTestQuestions\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Relation ''competency'' is not found in App\\Models\\Test model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Relation ''lesson'' is not found in App\\Models\\Competency model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Relation ''lesson'' is not found in App\\Models\\Test model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Relation ''questions'' is not found in App\\Models\\Lesson model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Relation ''questions'' is not found in App\\Models\\Topic model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Relation ''section'' is not found in App\\Models\\ClassModel model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Relation ''subject'' is not found in App\\Models\\ClassModel model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Relation ''subject'' is not found in App\\Models\\Test model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Relation ''testSettings'' is not found in App\\Models\\Test model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Relation ''testSources'' is not found in App\\Models\\Test model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Relation ''topic'' is not found in App\\Models\\Test model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
+
+		-
+			message: '#^Relation ''program'' is not found in App\\Models\\Test model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Teacher/TestManagementController.php
+
+		-
+			message: '#^Relation ''section'' is not found in App\\Models\\Test model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Teacher/TestManagementController.php
+
+		-
+			message: '#^Relation ''subject'' is not found in App\\Models\\Test model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Teacher/TestManagementController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$action\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Tools/DriveController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Tools/DriveController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Tools/DriveController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Tools/DriveController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$owner\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Tools/DriveController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$path\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Tools/DriveController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$permission\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Tools/DriveController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$summary\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Tools/DriveController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Tools/DriveController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Tools/DriveController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:isFolder\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/Tools/DriveController.php
+
+		-
+			message: '#^Left side of && is always true\.$#'
+			identifier: booleanAnd.leftAlwaysTrue
+			count: 1
+			path: app/Http/Controllers/Tools/DriveController.php
+
+		-
+			message: '#^Relation ''grantedBy'' is not found in App\\Models\\VideoConferencePermission model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/PermissionController.php
+
+		-
+			message: '#^Relation ''group'' is not found in App\\Models\\VideoConferencePermission model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/PermissionController.php
+
+		-
+			message: '#^Relation ''student'' is not found in App\\Models\\VideoConferencePermission model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/PermissionController.php
+
+		-
+			message: '#^Relation ''teacher'' is not found in App\\Models\\VideoConferencePermission model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/PermissionController.php
+
+		-
+			message: '#^Relation ''group'' is not found in App\\Models\\VideoConferencePermission model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/RoomController.php
+
+		-
+			message: '#^Relation ''permission'' is not found in App\\Models\\VideoConferenceRoom model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/RoomController.php
+
+		-
+			message: '#^Relation ''teacher'' is not found in App\\Models\\VideoConferencePermission model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/RoomController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\VideoConferenceSession\:\:\$room\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/SessionController.php
+
+		-
+			message: '#^Relation ''endedBy'' is not found in App\\Models\\VideoConferenceSession model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/SessionController.php
+
+		-
+			message: '#^Relation ''host'' is not found in App\\Models\\VideoConferenceSession model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/SessionController.php
+
+		-
+			message: '#^Relation ''reopenedFrom'' is not found in App\\Models\\VideoConferenceSession model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/SessionController.php
+
+		-
+			message: '#^Relation ''room'' is not found in App\\Models\\VideoConferenceSession model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/SessionController.php
+
+		-
+			message: '#^Relation ''starter'' is not found in App\\Models\\VideoConferenceSession model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Tools/VideoConference/SessionController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$profile\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Training/Trainee/CertificateController.php
+
+		-
+			message: '#^Relation ''enrollment'' is not found in App\\Models\\TrainingCertificate model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Http/Controllers/Training/Trainee/CertificateController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\TrainingEnrollment\:\:\$course\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Training/Trainee/CourseController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\TrainingEnrollment\:\:\$session\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Training/Trainee/CourseController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$profile\.$#'
+			identifier: property.notFound
+			count: 5
+			path: app/Http/Controllers/Training/Trainee/CourseController.php
+
+		-
+			message: '#^Call to static method table\(\) on an unknown class App\\Http\\Controllers\\Training\\Trainee\\DB\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Http/Controllers/Training/Trainee/CourseController.php
+
+		-
+			message: '#^Relation ''academicYear'' is not found in App\\Models\\EnrollmentSetting model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Training/Trainee/CourseController.php
+
+		-
+			message: '#^Relation ''course'' is not found in App\\Models\\TrainingEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Training/Trainee/CourseController.php
+
+		-
+			message: '#^Relation ''enrollmentType'' is not found in App\\Models\\EnrollmentSetting model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Http/Controllers/Training/Trainee/CourseController.php
+
+		-
+			message: '#^Relation ''session'' is not found in App\\Models\\TrainingEnrollment model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Training/Trainee/CourseController.php
+
+		-
+			message: '#^Relation ''sessions'' is not found in App\\Models\\TrainingCourse model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Training/Trainee/CourseController.php
+
+		-
+			message: '#^Relation ''term'' is not found in App\\Models\\EnrollmentSetting model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Training/Trainee/CourseController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$profile\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Training/Trainee/DashboardController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$profile\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Training/Trainee/EnrollmentController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$profile\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Training/Trainee/SessionController.php
+
+		-
+			message: '#^Call to static method create\(\) on an unknown class App\\Models\\TrainingSubject\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Http/Controllers/Training/Trainor/CourseController.php
+
+		-
+			message: '#^Call to static method where\(\) on an unknown class App\\Models\\TrainingSubject\.$#'
+			identifier: class.notFound
+			count: 2
+			path: app/Http/Controllers/Training/Trainor/CourseController.php
+
+		-
+			message: '#^Relation ''enrollmentType'' is not found in App\\Models\\EnrollmentSetting model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Training/Trainor/CourseController.php
+
+		-
+			message: '#^Property App\\Models\\Role\:\:\$is_head_role \(bool\) does not accept int\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: app/Http/Controllers/UserManagementController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$profile\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Website/FileController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 5
+			path: app/Http/Controllers/tests/Features/TestInfoTest.php
+
+		-
+			message: '#^Call to an undefined static method App\\Models\\Competency\:\:factory\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: app/Http/Controllers/tests/Features/TestInfoTest.php
+
+		-
+			message: '#^Call to an undefined static method App\\Models\\Lesson\:\:factory\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: app/Http/Controllers/tests/Features/TestInfoTest.php
+
+		-
+			message: '#^Call to an undefined static method App\\Models\\Topic\:\:factory\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: app/Http/Controllers/tests/Features/TestInfoTest.php
+
+		-
+			message: '#^Class App\\Http\\Middleware\\Authenticate not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Http/Kernel.php
+
+		-
+			message: '#^Class App\\Http\\Middleware\\EncryptCookies not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Http/Kernel.php
+
+		-
+			message: '#^Class App\\Http\\Middleware\\PreventRequestsDuringMaintenance not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Http/Kernel.php
+
+		-
+			message: '#^Class App\\Http\\Middleware\\RoleMiddleware not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Http/Kernel.php
+
+		-
+			message: '#^Class App\\Http\\Middleware\\TrimStrings not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Http/Kernel.php
+
+		-
+			message: '#^Class App\\Http\\Middleware\\TrustProxies not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Http/Kernel.php
+
+		-
+			message: '#^Class App\\Http\\Middleware\\VerifyCsrfToken not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Http/Kernel.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Middleware/CheckSubscription.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Middleware/EnsureSchoolIsActive.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Mail/EnrollmentSubmittedMail.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Mail/EnrollmentSubmittedMail.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>first_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Mail/EnrollmentSubmittedMail.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>last_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Mail/EnrollmentSubmittedMail.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>school_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Mail/EnrollmentSubmittedMail.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\AcademicYear\:\:\$education_level\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/AcademicYear.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\AcademicYear\:\:\$education_node_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/AcademicYear.php
+
+		-
+			message: '#^Class App\\Models\\Grade not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/ClassModel.php
+
+		-
+			message: '#^Class App\\Models\\Teacher not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/ClassModel.php
+
+		-
+			message: '#^Class App\\Models\\DocumentRequest not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Document.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DriveFile\:\:\$lastEdit\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/DriveFile.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/DriveFile.php
+
+		-
+			message: '#^Class App\\Models\\ClassGradingTemplate not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/GradingSystem.php
+
+		-
+			message: '#^Class App\\Models\\Teacher not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Section.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Semester\:\:\$end_date\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Models/Semester.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Semester\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Models/Semester.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Semester\:\:\$is_current\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Models/Semester.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Semester\:\:\$term\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Semester.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/StudentEnrollment.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SubjectOffering\:\:\$program\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/SubjectOffering.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SubjectOffering\:\:\$subject\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/SubjectOffering.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Models/SubjectOffering.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Term\:\:\$education_level\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Term.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Term\:\:\$education_node_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Term.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$profile\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\VideoConferenceSession\:\:\$room\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/VideoConferenceSession.php
+
+		-
+			message: '#^Relation ''room'' is not found in App\\Models\\VideoConferenceSession model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Models/VideoConferenceSession.php
+
+		-
+			message: '#^Relation ''enrollment'' is not found in App\\Models\\StudentEnrollmentSubject model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Modules/AcadEnrolment/Services/AcademicStandingService.php
+
+		-
+			message: '#^Match expression does not handle remaining value\: string$#'
+			identifier: match.unhandled
+			count: 1
+			path: app/Modules/AcadEnrolment/Services/Validation/AcademicStandingValidator.php
+
+		-
+			message: '#^Relation ''acknowledgements'' is not found in App\\Models\\Announcement model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Providers/AppServiceProvider.php
+
+		-
+			message: '#^Relation ''creator'' is not found in App\\Models\\Announcement model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Providers/AppServiceProvider.php
+
+		-
+			message: '#^PHPDoc tag @param references unknown parameter\: \$lessons$#'
+			identifier: parameter.notFound
+			count: 1
+			path: app/Services/Curriculum/CreateCurriculum.php
+
+		-
+			message: '#^PHPDoc tag @param references unknown parameter\: \$topicId$#'
+			identifier: parameter.notFound
+			count: 1
+			path: app/Services/Curriculum/CreateCurriculum.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Payment\:\:\$m\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Dashboard/Charts/RevenueTrendChart.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Payment\:\:\$total\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Dashboard/Charts/RevenueTrendChart.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Payment\:\:\$y\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Dashboard/Charts/RevenueTrendChart.php
+
+		-
+			message: '#^Method App\\Services\\Dashboard\\KPIRegistry\:\:resolveYearlyRevenue\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Services/Dashboard/KPIRegistry.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$student\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Finance/InvoiceService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$term\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Finance/InvoiceService.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 4
+			path: app/Services/Finance/PaymentScheduleService.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: app/Services/Finance/StatementService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>soa_number" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Finance/StatementService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\TrainingEnrollment\:\:\$session\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Payments/PaymentService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>fee" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Payments/PaymentService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$profile\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Reusable/AssignableService.php
+
+		-
+			message: '#^Relation ''profile'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/Reusable/AssignableService.php
+
+		-
+			message: '#^Empty array passed to foreach\.$#'
+			identifier: foreach.emptyArray
+			count: 1
+			path: app/Services/Scheduler/ScheduleAutoFixService.php
+
+		-
+			message: '#^Offset non\-falsy\-string on array\{\} on left side of \?\? does not exist\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/Scheduler/ScheduleAutoFixService.php
+
+		-
+			message: '#^Method App\\Services\\Scheduler\\ScheduleGeneratorService\:\:buildShapeSplits\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Services/Scheduler/ScheduleGeneratorService.php
+
+		-
+			message: '#^Method App\\Services\\Scheduler\\ScheduleGeneratorService\:\:candidateChunks\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Services/Scheduler/ScheduleGeneratorService.php
+
+		-
+			message: '#^Method App\\Services\\Scheduler\\ScheduleGeneratorService\:\:chooseChunk\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Services/Scheduler/ScheduleGeneratorService.php
+
+		-
+			message: '#^Method App\\Services\\Scheduler\\ScheduleGeneratorService\:\:labSplits\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Services/Scheduler/ScheduleGeneratorService.php
+
+		-
+			message: '#^Method App\\Services\\Scheduler\\ScheduleGeneratorService\:\:orderDaysByGrouping\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Services/Scheduler/ScheduleGeneratorService.php
+
+		-
+			message: '#^Method App\\Services\\Scheduler\\ScheduleGeneratorService\:\:pickDayCombos\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Services/Scheduler/ScheduleGeneratorService.php
+
+		-
+			message: '#^Method App\\Services\\Scheduler\\ScheduleGeneratorService\:\:planSplits\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Services/Scheduler/ScheduleGeneratorService.php
+
+		-
+			message: '#^Relation ''term'' is not found in App\\Models\\EnrollmentSetting model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Support/EnrollmentNotifications.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StudentEnrollment\:\:\$modality\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Support/EnrollmentProgramLabel.php
+
+		-
+			message: '#^Call to function is_numeric\(\) with int\<0, max\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: app/Support/EnrollmentProgramLabel.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between int\<0, max\> and '''' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Support/EnrollmentProgramLabel.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between int\<0, max\> and ''—'' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Support/EnrollmentProgramLabel.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>education_node_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Support/EnrollmentProgramLabel.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Support/EnrollmentProgramLabel.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$school\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Support/ExpiredSessionRedirect.php

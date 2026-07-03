@@ -1,0 +1,19 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
+
+parameters:
+    level: 4
+    phpVersion: 80200   # analyze against PHP 8.2 (the CI/runtime target), not the local CLI
+
+    paths:
+        - app
+
+    # ── Adoption notes ──────────────────────────────────────────────────────────
+    # The starting level is deliberately modest (4) — raise it one notch at a time
+    # as the codebase is cleaned (tracked in MODERNIZATION_ROADMAP.md).
+    #
+    # A baseline of the pre-existing findings keeps CI green while the legacy tree
+    # is fixed down incrementally. Generate it once and commit it:
+    #     vendor/bin/phpstan analyse --generate-baseline
+    # then add "- phpstan-baseline.neon" to the includes: list above.

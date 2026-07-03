@@ -1,0 +1,21 @@
+# Architecture Decision Records (ADRs)
+
+Short, append-only records of decisions that shape Sophentis's structure. Per
+[`DEVELOPMENT_WORKFLOW.md`](../../DEVELOPMENT_WORKFLOW.md) §3, any decision that shapes structure —
+tenancy, the auth model, module boundaries, schema strategy — gets an ADR here.
+
+**Rules**
+- One decision per file: `NNNN-short-title.md` (copy [`0000-adr-template.md`](0000-adr-template.md)).
+- **Append-only.** To change a decision, write a *new* ADR that supersedes the old one — never rewrite history.
+- Status lifecycle: `Proposed` → `Accepted` → (`Superseded by ADR-XXXX` | `Deprecated`).
+
+## Index
+
+| ADR | Title | Status |
+|---|---|---|
+| [0001](0001-multi-tenancy-via-belongs-to-school.md) | Multi-tenancy via `BelongsToSchool` global scope + explicit checks | Accepted |
+| [0002](0002-roles-as-string-with-checkrole.md) | Roles as a canonical string + `CheckRole` middleware | Accepted |
+| [0003](0003-service-layer-and-thin-controllers.md) | Business logic in services; controllers are a thin HTTP boundary | Accepted |
+
+> ADRs 0001–0003 are **retroactive** — they record decisions already embodied in the code so the "why"
+> is legible. Written 2026-07-03 as part of Tier 1 hardening (see [`CODEBASE_AUDIT.md`](../../CODEBASE_AUDIT.md)).

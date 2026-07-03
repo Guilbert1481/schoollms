@@ -29,6 +29,8 @@ test.txt
 routes.txt
 lms_db.sql
 diag_*.php
+tmp_*.php
+download_test.bin
 *.sql
 *.sqlite
 *.sqlite-journal
