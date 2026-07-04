@@ -44,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/superadmin/pricing.php',
             __DIR__.'/../routes/superadmin/subscriptions.php',
             __DIR__.'/../routes/superadmin/dashboard.php',
+            __DIR__.'/../routes/superadmin/configuration.php',
 
 
             /*
@@ -225,6 +226,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/finance/billing.php',
             __DIR__.'/../routes/finance/accounts.php',
             __DIR__.'/../routes/student/finance.php',
+            __DIR__.'/../routes/checkout.php',
 
             /*Tools routes*/
             __DIR__.'/../routes/tools/index.php',
