@@ -95,6 +95,14 @@
         :hideToolbar="true"
         emptyMessage="No invoices yet."
     />
+
+    {{-- Invoice detail modal — the "View" row action loads the invoice card here
+         (finance.invoices.preview) instead of navigating to a page. --}}
+    <x-modal.base id="invoiceModal" title="Invoice Details" width="4xl">
+        <div id="invoiceModalBody" class="max-h-[75vh] overflow-y-auto">
+            <div class="py-12 text-center text-sm text-slate-400">Loading…</div>
+        </div>
+    </x-modal.base>
 </div>
 
 <script>
@@ -109,5 +117,18 @@
             url.searchParams.delete('program');
         }
         window.location = url.toString();
+    }
+
+    // Row "View" action → load the invoice detail card into the modal (no navigation).
+    function openInvoiceModal(id) {
+        var body = document.getElementById('invoiceModalBody');
+        if (!body) return;
+        body.innerHTML = '<div class="py-12 text-center text-sm text-slate-400">Loading…</div>';
+        if (typeof openModal === 'function') openModal('invoiceModal');
+        var url = @json(route('finance.invoices.preview', ['invoice' => '__ID__'])).replace('__ID__', id);
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.text(); })
+            .then(function (html) { body.innerHTML = html; if (window.lucide && lucide.createIcons) lucide.createIcons(); })
+            .catch(function () { body.innerHTML = '<div class="py-12 text-center text-sm text-rose-500">Could not load this invoice.</div>'; });
     }
 </script>

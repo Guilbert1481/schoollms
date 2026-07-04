@@ -35,6 +35,18 @@ class InvoiceController extends Controller
     }
 
     /**
+     * The invoice detail card only (no layout) — fetched over AJAX and shown in
+     * a modal on the Billing / Invoices list.
+     */
+    public function preview(Invoice $invoice)
+    {
+        $this->authorizeSchool($invoice);
+        $invoice->load(['items', 'student', 'payments', 'enrollment.term', 'enrollment.program']);
+
+        return view('finance.invoices._detail', compact('invoice'));
+    }
+
+    /**
      * Generate an invoice for an enrollment (manual trigger from the ledger or
      * billing queue). Idempotent — one invoice per enrollment.
      */
