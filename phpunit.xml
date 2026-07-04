@@ -23,8 +23,15 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <!-- Automated tests run against a dedicated, isolated MySQL database
+             (schoollms_test) — NOT sqlite. The app targets MySQL and its
+             migrations use MySQL-specific DDL (ENUM / MODIFY), so testing on
+             the same engine keeps the schema identical to production. This DB
+             is fully separate from the dev/prod database and is wiped+rebuilt
+             by RefreshDatabase on each run. Host/user/password are inherited
+             from the environment (.env locally, CI secrets in pipelines). -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_DATABASE" value="schoollms_test"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\School;
 use App\Models\StudentEnrollment;
 use App\Services\Finance\PaymentScheduleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,12 +20,15 @@ class TuitionMostSpecificTest extends TestCase
 
     private function seedFees(): void
     {
+        // FK parent: finance_fee_setups.school_id -> schools.id (MySQL enforces it).
+        School::factory()->create(['id' => 1]);
+
         // Minimal tree: Basic Education > Senior High School > {Grade 11 STEM, Grade 11 ABM}
         DB::table('education_nodes')->insert([
-            ['id' => 1,  'name' => 'Basic Education',    'parent_id' => null, 'is_offered' => 1, 'is_active' => 1, 'order_index' => 1],
-            ['id' => 15, 'name' => 'Senior High School', 'parent_id' => 1,    'is_offered' => 1, 'is_active' => 1, 'order_index' => 1],
-            ['id' => 43, 'name' => 'Grade 11',           'parent_id' => 15,   'is_offered' => 1, 'is_active' => 1, 'order_index' => 1],
-            ['id' => 45, 'name' => 'Grade 11',           'parent_id' => 15,   'is_offered' => 1, 'is_active' => 1, 'order_index' => 2],
+            ['id' => 1,  'name' => 'Basic Education',    'parent_id' => null, 'node_type' => 'level', 'is_offered' => 1, 'is_active' => 1, 'order_index' => 1],
+            ['id' => 15, 'name' => 'Senior High School', 'parent_id' => 1,    'node_type' => 'level', 'is_offered' => 1, 'is_active' => 1, 'order_index' => 1],
+            ['id' => 43, 'name' => 'Grade 11',           'parent_id' => 15,   'node_type' => 'stage', 'is_offered' => 1, 'is_active' => 1, 'order_index' => 1],
+            ['id' => 45, 'name' => 'Grade 11',           'parent_id' => 15,   'node_type' => 'stage', 'is_offered' => 1, 'is_active' => 1, 'order_index' => 2],
         ]);
 
         $base = [

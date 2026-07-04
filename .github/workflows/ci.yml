@@ -13,6 +13,24 @@ jobs:
   tests:
     name: Tests (PHP 8.2)
     runs-on: ubuntu-latest
+
+    # The app targets MySQL and its migrations use MySQL-specific DDL, so the
+    # suite runs against a real, isolated MySQL database (schoollms_test) — not
+    # sqlite. RefreshDatabase loads database/schema/mysql-schema.sql into it.
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: schoollms_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+
     steps:
       - uses: actions/checkout@v4
 
@@ -20,7 +38,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: mbstring, bcmath, intl, pdo_sqlite, sqlite3, gd, zip, fileinfo, exif
+          extensions: mbstring, bcmath, intl, pdo_mysql, mysqli, gd, zip, fileinfo, exif
           coverage: none
 
       - name: Cache Composer packages
@@ -38,8 +56,8 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
-      # Tests run against sqlite :memory: (see phpunit.xml), but Feature tests
-      # that render Blade views need the Vite manifest — so build assets first.
+      # Feature tests that render Blade views need the Vite manifest — build
+      # assets first.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -52,6 +70,13 @@ jobs:
           npm run build
 
       - name: Run tests
+        env:
+          # phpunit.xml pins the connection (mysql) and database (schoollms_test);
+          # point it at the service container here.
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USERNAME: root
+          DB_PASSWORD: ""
         run: composer test
 
   code-style:

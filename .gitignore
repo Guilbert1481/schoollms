@@ -34,6 +34,10 @@ download_test.bin
 *.sql
 *.sqlite
 *.sqlite-journal
+# ...but the squashed test-schema baseline MUST be committed: RefreshDatabase
+# loads it to build the schoollms_test database (regenerate with `schema:dump`).
+!database/schema/
+!database/schema/*.sql
 /storage/logs/*.log
 /storage/framework/cache/data/*
 /storage/framework/sessions/*

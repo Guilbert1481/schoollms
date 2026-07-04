@@ -60,10 +60,40 @@
 - **Security fixes** additionally re-run the attacker scenario to prove it's blocked.
 - A change that touches money or grades **does not merge without a test.**
 
-## 8. CI (to be added)
+### 7a. Test database (MySQL, not sqlite)
 
-- A GitHub Actions workflow runs: `composer install`, Pint check, `php artisan test`,
-  (later) Larastan. `.github/` exists but has no workflows yet — Roadmap follow-up.
+The app targets MySQL and several migrations use MySQL-specific DDL (`ENUM`,
+`ALTER … MODIFY`), so the automated suite runs against a **real, isolated MySQL
+database** — never sqlite, and never the dev/prod database.
+
+- **Connection:** `phpunit.xml` pins `DB_CONNECTION=mysql` and
+  `DB_DATABASE=schoollms_test`. Host / user / password are inherited from your
+  environment (`.env` locally, CI secrets in the pipeline).
+- **One-time local setup:** create the empty database once —
+  `CREATE DATABASE schoollms_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+  Your `.env` `DB_USERNAME` / `DB_PASSWORD` must be able to reach it. It is
+  wiped and rebuilt by `RefreshDatabase` on every run, so keep it separate from
+  your working database.
+- **Schema squash (why migrate:fresh is fast and reliable):** instead of
+  replaying every migration, `RefreshDatabase`/`migrate:fresh` loads the
+  committed schema baseline `database/schema/mysql-schema.sql`. This keeps the
+  test schema identical to production and avoids fresh-replay ordering issues.
+- **Regenerate the baseline after adding migrations:** run
+  `php artisan schema:dump` against a database that is fully migrated. It writes
+  `database/schema/mysql-schema.sql` (committed — do not gitignore it). On
+  Windows/Laragon, put the MySQL `bin/` on `PATH` first so `mysqldump`/`mysql`
+  resolve; the `column-statistics` warning from MySQL 5.7's `mysqldump` is
+  harmless.
+- **Run the suite:** `php artisan test` (or `composer test`).
+
+## 8. CI
+
+- `.github/workflows/ci.yml` runs on every push to `main` and every PR:
+  - **tests** — spins up a `mysql:8.0` service, creates `schoollms_test`, builds
+    front-end assets (Vite manifest is needed by Blade-rendering Feature tests),
+    then `composer test` against that database.
+  - **code-style** — `vendor/bin/pint --test` (currently non-blocking).
+  - **static-analysis** — Larastan (currently non-blocking until a baseline lands).
 
 ## 9. Release process
 
