@@ -31,6 +31,7 @@ class PaymentPlan extends Model
         'class_end_date',
         'billing_end_date',
         'billing_day',
+        'due_days',
         'installments',
         // Option 1 — Cash (full payment) + optional discount.
         'cash_enabled',
@@ -53,6 +54,7 @@ class PaymentPlan extends Model
         'class_end_date'      => 'date',
         'billing_end_date'    => 'date',
         'billing_day'         => 'integer',
+        'due_days'            => 'integer',
         'installments'        => 'integer',
         'cash_enabled'        => 'boolean',
         'cash_discount_value' => 'decimal:2',

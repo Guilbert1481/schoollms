@@ -130,6 +130,10 @@ class PaymentScheduleService
         [$classStart, $dueDates] = $this->scheduleDates($plan, $term, $freq);
         $count = max(1, count($dueDates));
 
+        // Grace window: every bill's due date is its billing date + due_days
+        // (applied to cash, the down payment and each installment alike).
+        $dueDays = max(0, (int) ($plan->due_days ?? 0));
+
         $discount = 0.0;
         $downpayment = 0.0;
         $interest = 0.0;
@@ -142,7 +146,7 @@ class PaymentScheduleService
             $count    = 1;
             $perInstallment = $net;
             $totalDue = $net;
-            $schedule[] = ['due' => $classStart->copy(), 'description' => 'Full Payment', 'amount' => $net];
+            $schedule[] = $this->row($classStart, $dueDays, 'Full Payment', $net);
         } elseif ($mode === 'downpayment') {
             // Down Payment + Installment is its own option: down payment, then the
             // remaining balance split evenly. Interest belongs to the separate
@@ -153,8 +157,8 @@ class PaymentScheduleService
             $perInstallment = round($base / $count, 2);
             $totalDue       = round($downpayment + $base, 2);
 
-            $schedule[] = ['due' => $classStart->copy(), 'description' => 'Downpayment', 'amount' => $downpayment];
-            $this->appendDatedInstallments($schedule, $dueDates, $base, $perInstallment);
+            $schedule[] = $this->row($classStart, $dueDays, 'Downpayment', $downpayment);
+            $this->appendDatedInstallments($schedule, $dueDates, $base, $perInstallment, $dueDays);
         } else { // installment (+ optional interest)
             if ($plan->interest_enabled) {
                 $interest = round($totalFees * (float) $plan->interest_rate / 100, 2);
@@ -164,7 +168,7 @@ class PaymentScheduleService
             $perInstallment = round($base / $count, 2);
             $totalDue       = $base;
 
-            $this->appendDatedInstallments($schedule, $dueDates, $base, $perInstallment);
+            $this->appendDatedInstallments($schedule, $dueDates, $base, $perInstallment, $dueDays);
         }
 
         $freqLabel  = self::FREQ_LABELS[$freq] ?? ucfirst($freq);
@@ -196,6 +200,7 @@ class PaymentScheduleService
             // issue one dated invoice per scheduled payment (identical figures to
             // the formatted 'schedule' the Financial Assessment renders).
             'schedule_raw'     => array_map(fn ($r) => [
+                'bill'        => $r['bill']->copy(),
                 'due'         => $r['due']->copy(),
                 'description' => $r['description'],
                 'amount'      => round($r['amount'], 2),
@@ -218,7 +223,7 @@ class PaymentScheduleService
     }
 
     /** Append the dated installments, the last absorbing any rounding remainder. */
-    protected function appendDatedInstallments(array &$schedule, array $dueDates, float $base, float $per): void
+    protected function appendDatedInstallments(array &$schedule, array $dueDates, float $base, float $per, int $dueDays = 0): void
     {
         $count   = count($dueDates);
         $running = 0.0;
@@ -226,12 +231,22 @@ class PaymentScheduleService
             $n      = $i + 1;
             $amount = ($n === $count) ? round($base - $running, 2) : $per;
             $running = round($running + $amount, 2);
-            $schedule[] = [
-                'due'         => $due->copy(),
-                'description' => "Installment {$n} of {$count}",
-                'amount'      => $amount,
-            ];
+            $schedule[] = $this->row($due, $dueDays, "Installment {$n} of {$count}", $amount);
         }
+    }
+
+    /**
+     * A schedule row carrying both the billing date (when the bill is issued /
+     * becomes collectible) and the derived due date (billing date + due_days).
+     */
+    protected function row(Carbon $bill, int $dueDays, string $description, float $amount): array
+    {
+        return [
+            'bill'        => $bill->copy(),
+            'due'         => $bill->copy()->addDays(max(0, $dueDays)),
+            'description' => $description,
+            'amount'      => round($amount, 2),
+        ];
     }
 
     /**

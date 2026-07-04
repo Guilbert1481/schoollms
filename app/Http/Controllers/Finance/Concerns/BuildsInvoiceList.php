@@ -21,7 +21,7 @@ trait BuildsInvoiceList
      *     levels: \Illuminate\Support\Collection, programOptions: array, showProgramFilter: bool,
      *     gradeYearOptions: array, paymentPlans: \Illuminate\Support\Collection, invoiceFilters: array}
      */
-    protected function invoiceListData(Request $request): array
+    protected function invoiceListData(Request $request, bool $onlyBilled = false): array
     {
         $schoolId = (int) auth()->user()->school_id;
 
@@ -67,6 +67,10 @@ trait BuildsInvoiceList
 
         $invoices = Invoice::query()
             ->where('school_id', $schoolId)
+            // Billing page only: show a bill once its billing date has arrived —
+            // current + past (incl. all still-unpaid); future installments stay
+            // hidden until their billing date.
+            ->when($onlyBilled, fn ($q) => $q->billed())
             ->when($status !== 'all', fn ($q) => $q->where('status', $status))
             ->when($academicYearId, fn ($q, $v) => $q->where('academic_year_id', $v))
             ->when($levelId || $programId || $gradeYear || $paymentPlanId, function ($q) use ($levelId, $levelNodeIds, $programId, $gradeYear, $paymentPlanId) {
@@ -181,7 +185,9 @@ trait BuildsInvoiceList
     protected function invoiceActions(): array
     {
         return [
-            ['type' => 'link', 'label' => 'View', 'route' => 'finance.invoices.show', 'class' => 'bg-indigo-600 text-white hover:bg-indigo-700'],
+            // Opens the invoice detail in a modal (openInvoiceModal is defined in
+            // finance/invoices/_list.blade.php) instead of navigating to a page.
+            ['type' => 'js', 'label' => 'View', 'handler' => 'openInvoiceModal', 'class' => 'bg-indigo-600 text-white hover:bg-indigo-700'],
         ];
     }
 }

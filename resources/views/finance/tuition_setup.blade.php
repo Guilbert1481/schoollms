@@ -298,8 +298,12 @@
                     <label class="mb-1 block text-sm font-semibold text-slate-700">Billing Day <span class="font-normal text-slate-400">(of the month)</span></label>
                     <input type="number" name="billing_day" min="1" max="31" placeholder="e.g. 8" class="{{ $fieldCls }}">
                 </div>
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-slate-700">Days to Due Date <span class="font-normal text-slate-400">(after billing day)</span></label>
+                    <input type="number" name="due_days" min="0" max="60" placeholder="e.g. 5" class="{{ $fieldCls }}">
+                </div>
             </div>
-            <p class="text-xs text-slate-500">No. of installments = periods from Class Start to the Billing/SOA End Date at the chosen frequency. Each invoice/SOA falls on the Billing Day of its period (monthly, or every 3/6 months for quarterly/semi-annual). Leave blank to fall back to the term dates.</p>
+            <p class="text-xs text-slate-500">No. of installments = periods from Class Start to the Billing/SOA End Date at the chosen frequency. Each invoice/SOA is billed on the Billing Day of its period (monthly, or every 3/6 months for quarterly/semi-annual). The due date is the Billing Day plus Days to Due Date (e.g. billing day 8 + 5 → due on the 13th; leave blank/0 to fall due on the billing day). Leave the schedule blank to fall back to the term dates.</p>
 
             {{-- Billing Invoice / SOA Frequency --}}
             <div>
@@ -451,6 +455,7 @@
         setVal('class_end_date', asDate(d.class_end_date));
         setVal('billing_end_date', asDate(d.billing_end_date));
         setVal('billing_day', d.billing_day);
+        setVal('due_days', d.due_days);
         setChk('is_active', d.is_active);
 
         setChk('cash_enabled', d.cash_enabled);

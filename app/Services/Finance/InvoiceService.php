@@ -122,7 +122,7 @@ class InvoiceService
             // payable. When the plan grants a cash discount, that is folded in too.
             $total = ($comp && $net > 0.005) ? (float) $comp['total_due'] : $net;
 
-            return $this->createItemisedInvoice($enrollment, $studentUserId, $lineItems, $gross, $total, $actorId);
+            return $this->createItemisedInvoice($enrollment, $studentUserId, $lineItems, $gross, $total, $actorId, $plan?->due_days);
         });
     }
 
@@ -170,13 +170,17 @@ class InvoiceService
         array $lineItems,
         float $gross,
         float $total,
-        ?int $actorId
+        ?int $actorId,
+        ?int $planDueDays = null
     ): Invoice {
         $setting   = FinanceSetting::forSchool((int) $enrollment->school_id);
         $issueDate = Carbon::now();
+        // The plan's grace window wins; fall back to the school-wide default when
+        // the enrollment has no plan (walk-in / cash with no plan selected).
+        $dueDays   = $planDueDays ?? (int) $setting->invoice_due_days;
         $dueDate   = $enrollment->payment_due_at
             ? Carbon::parse($enrollment->payment_due_at)
-            : $issueDate->copy()->addDays((int) $setting->invoice_due_days);
+            : $issueDate->copy()->addDays(max(0, $dueDays));
 
         $total    = round(max($total, 0), 2);
         $discount = round(max($gross - $total, 0), 2);
@@ -197,6 +201,7 @@ class InvoiceService
             // collect — surface it as settled rather than a red "Unpaid".
             'status'                => $total <= 0.005 ? Invoice::STATUS_PAID : Invoice::STATUS_UNPAID,
             'issue_date'            => $issueDate->toDateString(),
+            'billing_date'          => $issueDate->toDateString(),
             'due_date'              => $dueDate->toDateString(),
             'issued_by'             => $actorId,
             'notes'                 => $enrollment->scholarship_label
@@ -249,9 +254,16 @@ class InvoiceService
 
             $due = $row['due'] instanceof Carbon ? $row['due']->copy() : Carbon::parse($row['due']);
 
-            // The down payment (billed now) must never be born overdue by a
-            // scheduled date that already passed.
-            $dueDate = ($isDownpayment && $due->lt($today)) ? $today->copy() : $due;
+            $bill = isset($row['bill'])
+                ? ($row['bill'] instanceof Carbon ? $row['bill']->copy() : Carbon::parse($row['bill']))
+                : $due->copy();
+
+            // The down payment is collected at enrollment: it bills today and must
+            // never be born overdue by a scheduled date that already passed. Each
+            // installment bills on its own billing date and stays hidden from the
+            // Billing page until that date arrives (due date = billing + due_days).
+            $billingDate = $isDownpayment ? $today->copy() : $bill;
+            $dueDate     = ($isDownpayment && $due->lt($today)) ? $today->copy() : $due;
 
             $invoice = Invoice::create([
                 'invoice_number'        => $this->generateInvoiceNumber((int) $enrollment->school_id),
@@ -267,6 +279,7 @@ class InvoiceService
                 'balance'               => $amount,
                 'status'                => Invoice::STATUS_UNPAID,
                 'issue_date'            => $today->toDateString(),
+                'billing_date'          => $billingDate->toDateString(),
                 'due_date'              => $dueDate->toDateString(),
                 'issued_by'             => $actorId,
                 // The first bill of the schedule carries the plan summary + the

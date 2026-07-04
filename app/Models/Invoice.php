@@ -28,6 +28,7 @@ class Invoice extends Model
         'status',
         'due_date',
         'issue_date',
+        'billing_date',
         'issued_by',
         'notes',
     ];
@@ -40,6 +41,7 @@ class Invoice extends Model
         'balance'         => 'decimal:2',
         'due_date'        => 'date',
         'issue_date'      => 'date',
+        'billing_date'    => 'date',
     ];
 
     public function student()
@@ -104,5 +106,21 @@ class Invoice extends Model
         return $this->balance > 0
             && $this->due_date
             && $this->due_date->isPast();
+    }
+
+    /**
+     * Bills whose billing date has arrived (on or before $asOf, default today).
+     * This is what the Billing page shows: the current + past bills — including
+     * everything still unpaid — while installment invoices dated to a future
+     * month stay hidden until their billing date. Legacy rows without a
+     * billing_date are treated as already billed so nothing pre-existing hides.
+     */
+    public function scopeBilled($query, $asOf = null)
+    {
+        $date = ($asOf ? \Illuminate\Support\Carbon::parse($asOf) : \Illuminate\Support\Carbon::now())->toDateString();
+
+        return $query->where(function ($q) use ($date) {
+            $q->whereNull('billing_date')->orWhereDate('billing_date', '<=', $date);
+        });
     }
 }

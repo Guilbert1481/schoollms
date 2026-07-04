@@ -13,6 +13,9 @@ class BillingController extends Controller
     public function index(Request $request)
     {
         // The Billing page hosts two tabs: Invoices (the list) and Billing Run.
-        return view('finance.billing', $this->invoiceListData($request));
+        // Only bills whose billing date has arrived show here — future-dated
+        // installments stay hidden until then (the standalone Invoices page still
+        // lists every invoice).
+        return view('finance.billing', $this->invoiceListData($request, onlyBilled: true));
     }
 }

@@ -357,7 +357,7 @@ class TuitionSetupController extends Controller
             'scholarships' => Scholarship::where('school_id', $schoolId)
                 ->get(['id', 'code', 'name', 'kind', 'value', 'coverage', 'requires_approval', 'is_active', 'notes'])->keyBy('id'),
             'payment-plans' => PaymentPlan::where('school_id', $schoolId)
-                ->get(['id', 'code', 'name', 'frequencies', 'class_start_date', 'class_end_date', 'billing_end_date', 'billing_day', 'cash_enabled', 'cash_discount_type', 'cash_discount_value', 'dp_enabled', 'down_payment_type', 'down_payment_value', 'interest_enabled', 'interest_rate', 'is_active', 'notes'])->keyBy('id'),
+                ->get(['id', 'code', 'name', 'frequencies', 'class_start_date', 'class_end_date', 'billing_end_date', 'billing_day', 'due_days', 'cash_enabled', 'cash_discount_type', 'cash_discount_value', 'dp_enabled', 'down_payment_type', 'down_payment_value', 'interest_enabled', 'interest_rate', 'is_active', 'notes'])->keyBy('id'),
             'penalty-rules' => PenaltyRule::where('school_id', $schoolId)
                 ->get(['id', 'code', 'name', 'basis', 'amount', 'grace_days', 'is_active', 'notes'])->keyBy('id'),
         };
@@ -570,6 +570,7 @@ class TuitionSetupController extends Controller
             'class_end_date'      => ['nullable', 'date', 'after_or_equal:class_start_date'],
             'billing_end_date'    => ['nullable', 'date', 'after_or_equal:class_start_date'],
             'billing_day'         => ['nullable', 'integer', 'min:1', 'max:31'],
+            'due_days'            => ['nullable', 'integer', 'min:0', 'max:60'],
 
             // Option 1 — Cash + optional discount (% capped at 100, fixed is not).
             'cash_enabled'        => ['nullable', 'boolean'],
@@ -607,6 +608,7 @@ class TuitionSetupController extends Controller
             'class_end_date'      => $data['class_end_date'] ?? null,
             'billing_end_date'    => $data['billing_end_date'] ?? null,
             'billing_day'         => $data['billing_day'] ?? null,
+            'due_days'            => $data['due_days'] ?? null,
 
             'cash_enabled'        => $cashOn,
             'cash_discount_type'  => $cashType,
