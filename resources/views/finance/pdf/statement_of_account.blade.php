@@ -2,7 +2,10 @@
     $cur = 'PHP';
     $student = $statement->student;
     $studentName = $student ? trim(($student->first_name ?? '').' '.($student->last_name ?? '')) : '—';
-    $schoolName = $school->name ?? config('app.name', 'School');
+    // schools has no `name` column (it is school_name) — the old fallback made
+    // every SOA say "Laravel". Prefer the branding profile's display name.
+    $schoolName = \App\Models\SchoolProfile::where('school_id', $statement->school_id)->value('school_name')
+        ?: ($school->school_name ?? 'School');
     $items = $statement->line_items ?? [];
     $note = \App\Models\FinanceSetting::where('school_id', $statement->school_id)->value('soa_footer_note');
 @endphp
