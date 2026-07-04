@@ -103,7 +103,7 @@
     {{-- ===== Tabs ===== --}}
     <div x-data="{ tab: 'ledger' }">
         <nav class="fd-tabs border-b border-slate-200 text-sm">
-            @foreach(['ledger'=>'Ledger','billings'=>'Billings','payments'=>'Payments','invoices'=>'Invoices','documents'=>'Documents','notes'=>'Notes'] as $key => $label)
+            @foreach(['ledger'=>'Ledger','schedule'=>'Schedule','billings'=>'Billings','payments'=>'Payments','invoices'=>'Invoices','documents'=>'Documents','notes'=>'Notes'] as $key => $label)
                 <button type="button" @click="tab = '{{ $key }}'"
                         :class="tab === '{{ $key }}' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
                         class="-mb-px border-b-2 py-2 font-semibold">{{ $label }}</button>
@@ -132,6 +132,54 @@
                                 class="text-xs font-semibold text-indigo-600 hover:underline">View Full Ledger</button>
                     </div>
                 @endif
+            </div>
+
+            {{-- Schedule — chronological masterlist of every payable (per invoice):
+                 downpayment, installments, and ad-hoc charges from enrolment on. --}}
+            <div x-show="tab === 'schedule'" x-cloak>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                <th class="py-2 pr-2">Date</th>
+                                <th class="py-2 pr-2">Description</th>
+                                <th class="py-2 pr-2">Billing Date</th>
+                                <th class="py-2 pr-2">Due Date</th>
+                                <th class="py-2 pr-2">Status</th>
+                                <th class="py-2 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($schedule as $s)
+                                @php
+                                    $stMap = [
+                                        'paid'    => ['#d1fae5', '#047857'],
+                                        'partial' => ['#fef3c7', '#b45309'],
+                                        'overdue' => ['#ffe4e6', '#be123c'],
+                                        'unpaid'  => ['#f1f5f9', '#475569'],
+                                    ];
+                                    $st = $stMap[$s->status] ?? ['#f1f5f9', '#475569'];
+                                @endphp
+                                <tr class="border-t border-slate-100 align-top">
+                                    <td class="whitespace-nowrap py-2 pr-2 text-slate-600">{{ $s->date ? $fmt($s->date) : '—' }}</td>
+                                    <td class="py-2 pr-2 text-slate-700">{{ $s->description }}</td>
+                                    <td class="whitespace-nowrap py-2 pr-2 text-slate-600">{{ $s->billing_date ? $fmt($s->billing_date) : '—' }}</td>
+                                    <td class="whitespace-nowrap py-2 pr-2 text-slate-600">{{ $s->due_date ? $fmt($s->due_date) : '—' }}</td>
+                                    <td class="py-2 pr-2">
+                                        <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold"
+                                              style="background-color:{{ $st[0] }};color:{{ $st[1] }};">{{ ucfirst($s->status) }}</span>
+                                    </td>
+                                    <td class="whitespace-nowrap py-2 text-right">
+                                        <a href="{{ route('finance.invoices.show', $s->invoice_id) }}" target="_blank" rel="noopener"
+                                           class="text-xs font-semibold text-indigo-600 hover:underline">View</a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="6" class="py-6 text-center text-xs text-slate-400">No schedule items yet.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {{-- Billings (Statements of Account) --}}

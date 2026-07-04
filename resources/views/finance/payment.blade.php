@@ -1,18 +1,23 @@
 @extends('layouts.app')
 
+@php $cur = 'PHP'; @endphp
+
 @section('content')
 <div class="w-full space-y-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-800">Finance Payments</h1>
-        <p class="text-sm text-slate-500">Record non-training payments from a single, shared payment engine.</p>
+        <p class="text-sm text-slate-500">Verify online proof-of-payment submissions and record manual payments.</p>
     </div>
 
     @if(session('success'))
-        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">
-            {{ session('success') }}
-        </div>
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">{{ session('success') }}</div>
     @endif
-
+    @if(session('info'))
+        <div class="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sky-700">{{ session('info') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700">{{ session('error') }}</div>
+    @endif
     @if($errors->any())
         <div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700">
             <ul class="list-disc pl-5">
@@ -23,6 +28,76 @@
         </div>
     @endif
 
+    {{-- ===== Pending proof-of-payment verifications (review queue) ===== --}}
+    @php
+        // Base columns: ID, Name, Grade/Year, Invoice#, Due, Proof, Payment date, Action.
+        $colspan = 8 + ($showLevel ? 1 : 0) + ($showProgram ? 1 : 0);
+    @endphp
+    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-slate-800">Pending Payment Verifications</h2>
+            <span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-700">{{ $pendingRows->count() }} awaiting</span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-left text-sm">
+                <thead class="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-400">
+                    <tr>
+                        <th class="px-3 py-2 font-semibold">Student ID</th>
+                        <th class="px-3 py-2 font-semibold">Name</th>
+                        @if($showLevel)<th class="px-3 py-2 font-semibold">Level</th>@endif
+                        @if($showProgram)<th class="px-3 py-2 font-semibold">Program</th>@endif
+                        <th class="px-3 py-2 font-semibold">Grade / Year</th>
+                        <th class="px-3 py-2 font-semibold">Invoice #</th>
+                        <th class="px-3 py-2 font-semibold">Due Date</th>
+                        <th class="px-3 py-2 font-semibold">Proof</th>
+                        <th class="px-3 py-2 font-semibold">Payment Date</th>
+                        <th class="px-3 py-2 font-semibold text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($pendingRows as $row)
+                        <tr class="border-b border-slate-100 align-middle">
+                            <td class="px-3 py-2 text-slate-500">{{ $row->student_id }}</td>
+                            <td class="px-3 py-2 font-medium text-slate-700">{{ $row->name }}</td>
+                            @if($showLevel)<td class="px-3 py-2 text-slate-600">{{ $row->level }}</td>@endif
+                            @if($showProgram)<td class="px-3 py-2 text-slate-600">{{ $row->program }}</td>@endif
+                            <td class="px-3 py-2 text-slate-600">{{ $row->grade_year }}</td>
+                            <td class="px-3 py-2 text-slate-600">{{ $row->invoice_number }}</td>
+                            <td class="px-3 py-2 text-slate-600">{{ optional($row->due_date)->format('M d, Y') ?? '—' }}</td>
+                            <td class="px-3 py-2">
+                                @if($row->proof_url)
+                                    <a href="{{ $row->proof_url }}" target="_blank" rel="noopener"
+                                       class="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-indigo-600 hover:bg-slate-200">View proof</a>
+                                @else
+                                    <span class="text-xs text-slate-400">—</span>
+                                @endif
+                            </td>
+                            <td class="px-3 py-2 text-slate-600">{{ optional($row->payment_date)->format('M d, Y g:i A') ?? '—' }}</td>
+                            <td class="px-3 py-2">
+                                <div style="display:inline-flex; gap:0.375rem; align-items:center; justify-content:flex-end; width:100%;">
+                                    <button type="button" onclick="openStudentLedger({{ $row->student_id }})"
+                                            class="rounded bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200">View</button>
+                                    <form method="POST" action="{{ route('finance.payments.submissions.verify', $row->submission_id) }}"
+                                          onsubmit="return confirm('Verify {{ $cur }} {{ number_format($row->amount, 2) }} for {{ $row->invoice_number }} and post it to the ledger?');"
+                                          style="display:inline;">
+                                        @csrf
+                                        <button type="submit" class="rounded bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700">Verify</button>
+                                    </form>
+                                    <button type="button" onclick="rejectSubmission({{ $row->submission_id }})"
+                                            class="rounded bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-200">Reject</button>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="{{ $colspan }}" class="px-3 py-8 text-center text-slate-400">No payments are awaiting verification.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {{-- ===== Manual record + recent payments ===== --}}
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div class="xl:col-span-1 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 class="mb-4 text-lg font-semibold text-slate-800">Record Payment</h2>
@@ -117,4 +192,33 @@
         </div>
     </div>
 </div>
+
+{{-- Student ledger drawer (reused from the Ledger page) — opened by the row "View" action. --}}
+<x-drawer.right-drawer id="financeStudentDrawer" :width="480" :min="380" :max="760" />
+
+{{-- Hidden reject form — submitted (with an optional reason) by rejectSubmission(). --}}
+<form id="rejectSubmissionForm" method="POST" style="display:none;">
+    @csrf
+    <input type="hidden" name="review_note" id="rejectSubmissionNote">
+</form>
+
+<script>
+    // Row "View" → open the same student-ledger drawer used on the Ledger page
+    // (its Schedule / Invoices tabs are the student's paid-invoice masterlist).
+    function openStudentLedger(studentId) {
+        if (window.RightDrawer && window.RightDrawer.load) {
+            window.RightDrawer.load('financeStudentDrawer', @json(url('/finance/ledger')) + '/' + studentId + '/drawer');
+        }
+    }
+
+    // Reject → capture an optional reason, then POST to the reject route.
+    function rejectSubmission(id) {
+        var note = prompt('Reason for rejecting this payment (optional):', '');
+        if (note === null) return; // cancelled
+        var form = document.getElementById('rejectSubmissionForm');
+        form.action = @json(route('finance.payments.submissions.reject', ['submission' => '__ID__'])).replace('__ID__', id);
+        document.getElementById('rejectSubmissionNote').value = note;
+        form.submit();
+    }
+</script>
 @endsection

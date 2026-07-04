@@ -328,6 +328,46 @@ class LedgerController extends Controller
             'next_due'       => $nextDue ? $nextDue->format('M d, Y') : '—',
         ];
 
+        // ---- Schedule: every payable (invoice) as a chronological row, from the
+        // student's enrolment forward — downpayment, each installment, and any
+        // ad-hoc charges. Ordered ascending by when it bills (falling back to
+        // issue/created date) so it reads enrolment → graduation, top to bottom.
+        // Item descriptions are pulled in one query (not via a relation) to match
+        // the finance modules' query style.
+        $descByInvoice = DB::table('invoice_items')
+            ->whereIn('invoice_id', $invoices->pluck('id')->all() ?: [-1])
+            ->orderBy('id')
+            ->get(['invoice_id', 'description'])
+            ->groupBy('invoice_id')
+            ->map(fn ($g) => collect($g)->pluck('description')->filter()->implode(', '))
+            ->all();
+
+        $schedule = $invoices
+            ->map(function (Invoice $inv) use ($today, $descByInvoice) {
+                $desc = $descByInvoice[$inv->id] ?? '';
+                if ($desc === '') {
+                    $desc = $inv->invoice_number ?? ('Invoice #'.$inv->id);
+                }
+
+                $due       = $inv->due_date ? Carbon::parse($inv->due_date)->startOfDay() : null;
+                $isOverdue = (float) $inv->balance > 0.005 && $due && $due->lt($today);
+
+                $sortDate = $inv->billing_date ?? $inv->issue_date ?? $inv->created_at;
+
+                return (object) [
+                    'date'           => $inv->issue_date,
+                    'description'    => $desc,
+                    'billing_date'   => $inv->billing_date,
+                    'due_date'       => $inv->due_date,
+                    'status'         => $isOverdue ? 'overdue' : (string) $inv->status,
+                    'invoice_id'     => $inv->id,
+                    'invoice_number' => $inv->invoice_number,
+                    '_sort'          => $sortDate ? Carbon::parse($sortDate)->timestamp : 0,
+                ];
+            })
+            ->sortBy('_sort')
+            ->values();
+
         return view('finance.ledger._drawer', [
             'currency'   => $this->currency,
             'studentId'  => $uid,
@@ -337,6 +377,7 @@ class LedgerController extends Controller
             'entries'    => $entries,
             'payments'   => $payments,
             'invoices'   => $invoices,
+            'schedule'   => $schedule,
             'statements' => $statements,
             'quick'      => $quick,
         ]);
