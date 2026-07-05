@@ -26,7 +26,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('public.apply.pathway.store', $term->id) }}" class="space-y-5 max-w-4xl">
+    <form method="POST" action="{{ route('public.apply.pathway.store', $term->id) }}" enctype="multipart/form-data" class="space-y-5 max-w-4xl">
         @csrf
 
         {{-- Educational Level (root nodes) — full width since it controls cascade --}}
@@ -119,6 +119,75 @@
                 </p>
             </div>
         </div>
+
+        {{-- Registrar-required documents (transferee / shifter / returnee) --}}
+        <div id="docRequirementsSection" class="hidden">
+            <label class="block text-sm font-bold mb-1">Required Documents <span class="text-red-500">*</span></label>
+            <p class="text-xs text-slate-500 mb-2">
+                The registrar requires these documents for your student type.
+                Accepted: PDF, JPG, PNG, WEBP — max 5&nbsp;MB each.
+            </p>
+            <div id="docRequirementInputs" class="space-y-2"></div>
+        </div>
+
+        <script>
+            (function () {
+                const DOC_REQUIREMENTS = @json($docRequirements ?? []);
+                const SAVED_DOCS = @json($saved['documents'] ?? []);
+                const UPLOAD_TYPES = ['transferee', 'shifter', 'returnee'];
+
+                const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+                }[c]));
+
+                function reqMatches(r) {
+                    const root = parseInt(document.getElementById('rootLevel')?.value || '0', 10);
+                    if (r.education_node_id && root && r.education_node_id !== root) return false;
+                    const prog = parseInt(document.getElementById('programSelect')?.value || '0', 10);
+                    if (r.program_id && prog && r.program_id !== prog) return false;
+                    const yr = parseInt(document.getElementById('yearLevelSelect')?.value || '0', 10);
+                    if (r.year_level && yr && r.year_level !== yr) return false;
+                    return true;
+                }
+
+                function refreshDocRequirements() {
+                    const section = document.getElementById('docRequirementsSection');
+                    const wrap = document.getElementById('docRequirementInputs');
+                    if (!section || !wrap) return;
+                    const type = document.getElementById('studentTypeSelect')?.value || '';
+                    const docs = [];
+                    if (UPLOAD_TYPES.includes(type)) {
+                        DOC_REQUIREMENTS.filter((r) => r.student_type === type && reqMatches(r)).forEach((r) => {
+                            (r.documents || []).forEach((d) => {
+                                if (!docs.some((x) => x.key === d.key)) docs.push(d);
+                            });
+                        });
+                    }
+                    if (!docs.length) {
+                        section.classList.add('hidden');
+                        wrap.innerHTML = '';
+                        return;
+                    }
+                    section.classList.remove('hidden');
+                    wrap.innerHTML = docs.map((d) => {
+                        const saved = SAVED_DOCS[d.key];
+                        return '<div class="flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-lg p-3">'
+                            + '<div class="flex-1" style="min-width:180px">'
+                            + '<div class="text-sm font-semibold text-slate-700">' + esc(d.label) + ' <span class="text-red-500">*</span></div>'
+                            + (saved ? '<div class="text-xs text-emerald-600">Already uploaded — choose a file only to replace it.</div>' : '')
+                            + '</div>'
+                            + '<input type="file" name="requirement_docs[' + esc(d.key) + ']" accept=".pdf,.jpg,.jpeg,.png,.webp"'
+                            + (saved ? '' : ' required') + ' class="text-sm">'
+                            + '</div>';
+                    }).join('');
+                }
+
+                ['studentTypeSelect', 'rootLevel', 'programSelect', 'yearLevelSelect'].forEach((id) => {
+                    document.getElementById(id)?.addEventListener('change', refreshDocRequirements);
+                });
+                document.addEventListener('DOMContentLoaded', refreshDocRequirements);
+            })();
+        </script>
 
         {{-- ============== SUBJECTS (below Student Type) ============== --}}
         <div id="subjectsSection" class="pt-2">

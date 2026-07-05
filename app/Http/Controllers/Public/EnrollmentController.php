@@ -496,6 +496,25 @@ class EnrollmentController extends Controller
             }
         }
 
+        // Registrar-required documents for the upload student types
+        // (transferee / shifter / returnee). The pathway JS filters these
+        // client-side by the selected type / level / program / year.
+        $docRequirements = \App\Models\DocumentRequirement::query()
+            ->where('school_id', (int) $term->school_id)
+            ->where('is_active', true)
+            ->whereIn('student_type', \App\Models\DocumentRequirement::UPLOAD_TYPES)
+            ->get()
+            ->map(fn ($r) => [
+                'student_type'      => $r->student_type,
+                'education_node_id' => $r->education_node_id ? (int) $r->education_node_id : null,
+                'program_id'        => $r->program_id ? (int) $r->program_id : null,
+                'year_level'        => $r->year_level ? (int) $r->year_level : null,
+                'documents'         => collect((array) $r->documents)->filter()->map(fn ($d) => [
+                    'label' => $d,
+                    'key'   => \Illuminate\Support\Str::slug($d, '_'),
+                ])->values()->all(),
+            ])->values();
+
         return view('acad_enrolment.shared.pathway', [
             'term'        => $term,
             'student'     => $student,
@@ -504,6 +523,7 @@ class EnrollmentController extends Controller
             'saved'       => $saved,
             'savedChain'  => $savedChain,
             'lockedRootId' => $lockedRootId,
+            'docRequirements' => $docRequirements,
         ]);
     }
 
@@ -660,6 +680,47 @@ class EnrollmentController extends Controller
 
         $data['is_foreigner'] = $request->boolean('is_foreigner');
 
+        // Registrar-required document uploads (transferee / shifter / returnee).
+        // Uploads persist in the pathway draft; already-uploaded documents are
+        // not required again when the student revisits the step.
+        $documents = $this->priorPathwayDocuments($term);
+        $studentTypeForDocs = $isAsync ? null : ($data['student_type'] ?? null);
+        if ($studentTypeForDocs && in_array($studentTypeForDocs, \App\Models\DocumentRequirement::UPLOAD_TYPES, true)) {
+            $required = $this->requiredDocumentsFor($term, $studentTypeForDocs, $data);
+
+            $docRules    = [];
+            $docMessages = [];
+            foreach ($required as $doc) {
+                $field = 'requirement_docs.'.$doc['key'];
+                $docRules[$field] = [
+                    isset($documents[$doc['key']]) ? 'nullable' : 'required',
+                    'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120',
+                ];
+                $docMessages["{$field}.required"] = 'Please upload the required document: '.$doc['label'].'.';
+                $docMessages["{$field}.mimes"]    = $doc['label'].' must be a PDF or an image (JPG/PNG/WEBP).';
+                $docMessages["{$field}.max"]      = $doc['label'].' must not exceed 5 MB.';
+            }
+            if ($docRules) {
+                $request->validate($docRules, $docMessages);
+            }
+
+            foreach ($required as $doc) {
+                $file = $request->file('requirement_docs.'.$doc['key']);
+                if ($file) {
+                    $documents[$doc['key']] = [
+                        'label' => $doc['label'],
+                        'path'  => $file->store('enrollment-documents/'.(int) $term->school_id, 'public'),
+                    ];
+                }
+            }
+
+            // Drop uploads that no longer apply (type/level/program changed).
+            $documents = array_intersect_key($documents, array_flip(array_column($required, 'key')));
+        } else {
+            $documents = [];
+        }
+        $data['documents'] = $documents;
+
         if ($isAsync) {
             // Async self-paced learners are treated as a special intake — no
             // student-type designation needed (they don't follow a cohort).
@@ -697,6 +758,57 @@ class EnrollmentController extends Controller
 
         return redirect()->route('public.apply.academic', $term->id)
             ->with('status', 'Pathway saved.');
+    }
+
+    /** Previously uploaded pathway documents (draft survives session expiry). */
+    private function priorPathwayDocuments(Term $term): array
+    {
+        $prior = session("apply.pathway.{$term->id}", []);
+        if (empty($prior)) {
+            $student = Student::where('user_id', auth()->id())->first();
+            $draft   = $student
+                ? EnrollmentDraft::where('student_id', $student->id)->where('term_id', $term->id)->first()
+                : null;
+            $prior = (array) ($draft?->getAttribute('data')['pathway'] ?? []);
+        }
+
+        return (array) ($prior['documents'] ?? []);
+    }
+
+    /**
+     * Registrar-required documents matching this school / student type /
+     * level / program / year. Returns [['label' => …, 'key' => …], …].
+     */
+    private function requiredDocumentsFor(Term $term, string $studentType, array $data): array
+    {
+        $nodeRoot = EducationLevels::nodeRootMap();
+        $rootId   = (int) ($nodeRoot[$data['education_node_id'] ?? null] ?? 0);
+
+        return \App\Models\DocumentRequirement::query()
+            ->where('school_id', (int) $term->school_id)
+            ->where('is_active', true)
+            ->where('student_type', $studentType)
+            ->get()
+            ->filter(function ($r) use ($rootId, $data) {
+                if ($r->education_node_id && $rootId && (int) $r->education_node_id !== $rootId) {
+                    return false;
+                }
+                if ($r->program_id && ! empty($data['program_id']) && (int) $r->program_id !== (int) $data['program_id']) {
+                    return false;
+                }
+                if ($r->year_level && ! empty($data['year_level']) && (int) $r->year_level !== (int) $data['year_level']) {
+                    return false;
+                }
+
+                return true;
+            })
+            ->flatMap(fn ($r) => collect((array) $r->documents)->filter()->map(fn ($d) => [
+                'label' => $d,
+                'key'   => \Illuminate\Support\Str::slug($d, '_'),
+            ]))
+            ->unique('key')
+            ->values()
+            ->all();
     }
 
     /* =================================================================
@@ -1287,6 +1399,22 @@ class EnrollmentController extends Controller
                 ]);
             }
 
+            // Registrar-required document uploads collected on the pathway
+            // step (transferee / shifter / returnee) become pending records
+            // for the registrar to verify.
+            foreach ((array) ($pathway['documents'] ?? []) as $doc) {
+                if (is_array($doc) && ! empty($doc['path'])) {
+                    \App\Models\EnrollmentDocument::create([
+                        'school_id'     => $student->school_id,
+                        'enrollment_id' => $enrollment->id,
+                        'document_type' => $doc['label'] ?? 'Document',
+                        'file_path'     => $doc['path'],
+                        'status'        => 'pending',
+                        'uploaded_at'   => now(),
+                    ]);
+                }
+            }
+
             return $enrollment;
         });
 
@@ -1305,6 +1433,25 @@ class EnrollmentController extends Controller
                 'enrollment_id' => $enrollment->id,
                 'error'         => $e->getMessage(),
             ]);
+        }
+
+        // Regular (continuing) students need no registrar document checks —
+        // bill immediately: generate the scheduled invoices and email the
+        // ones already due (per school auto-send opt-in). Idempotent
+        // (InvoiceService guard + invoices.emailed_at) and never blocks the
+        // enrollment on failure.
+        if (($pathway['student_type'] ?? null) === 'regular') {
+            try {
+                app(\App\Services\Finance\InvoiceService::class)
+                    ->generateForEnrollment($enrollment->fresh('student'), actorId: (int) auth()->id());
+                app(\App\Services\Finance\FinanceMailService::class)
+                    ->sendDueInvoicesForEnrollment($enrollment);
+            } catch (\Throwable $e) {
+                Log::error('Auto-invoice on submission failed', [
+                    'enrollment_id' => $enrollment->id,
+                    'error'         => $e->getMessage(),
+                ]);
+            }
         }
 
         return redirect()->route('public.apply.confirmation', [
