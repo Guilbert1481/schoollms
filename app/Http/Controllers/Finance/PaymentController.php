@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PaymentSubmission;
 use App\Models\User;
@@ -31,28 +32,128 @@ class PaymentController extends Controller
 			->orderBy('first_name')
 			->get(['id', 'first_name', 'middle_name', 'last_name', 'email']);
 
-		$payments = Payment::query()
-			->with('student:id,first_name,middle_name,last_name,email')
-			->where('school_id', $schoolId)
-			->whereNull('training_enrollment_id')
-			->latest('id')
-			->limit(20)
-			->get();
+		// ---- Education-level tabs + dropdown filters (Student Ledgers pattern,
+		// via the reusable x-table.level-tabs / x-table.filter-toolbar components).
+		$levels = DB::table('education_nodes')
+			->whereNull('parent_id')
+			->where('is_offered', 1)
+			->where('is_active', 1)
+			->orderBy('order_index')
+			->get(['id', 'name']);
 
-		// Which optional columns to show is a per-school display rule driven by
-		// the Education Structure Tree: Level only matters when >1 level is
-		// offered; Program only matters when a non-Basic-Ed level is offered.
+		$levelParam    = $request->query('level');
+		$showAll       = $levelParam === null || $levelParam === '' || strtolower((string) $levelParam) === 'all';
+		$activeLevelId = $showAll ? 0 : (int) $levelParam;
+
+		$activeLevel        = $levels->firstWhere('id', $activeLevelId);
+		$singleLevel        = $levels->count() === 1 ? $levels->first() : null;
+		$effectiveLevel     = $showAll ? $singleLevel : $activeLevel;
+		$activeLevelIsBasic = (bool) ($effectiveLevel && EducationLevels::isBasic($effectiveLevel->name));
+
+		// Education_node ids that roll up to the active level (for SQL filters).
+		$nodeToRoot   = EducationLevels::nodeRootMap();
+		$levelNodeIds = $activeLevelId
+			? array_keys(array_filter($nodeToRoot, fn ($root) => (int) $root === $activeLevelId))
+			: [];
+
+		$statusFilter   = $request->query('status') ?: '';
+		$statusOptions  = [
+			Invoice::STATUS_PAID    => 'Paid',
+			Invoice::STATUS_PARTIAL => 'Partial',
+			Invoice::STATUS_UNPAID  => 'Unpaid',
+		];
+		if ($statusFilter !== '' && ! array_key_exists($statusFilter, $statusOptions)) {
+			$statusFilter = '';
+		}
+
+		$academicYearId = $request->integer('academic_year_id') ?: null;
+		$yearLevel      = $request->query('year_level');
+		$yearLevel      = ($yearLevel === null || $yearLevel === '') ? null : (string) $yearLevel;
+		$programId      = $request->integer('program_id') ?: null;
+		$sectionId      = $request->integer('section_id') ?: null;
+
+		$filters = [
+			'levelNodeIds'   => $levelNodeIds,
+			'status'         => $statusFilter,
+			'academicYearId' => $academicYearId,
+			'yearLevel'      => $yearLevel,
+			'programId'      => $programId,
+			'sectionId'      => $sectionId,
+		];
+
+		// ---- Filter dropdown options (mirrors the ledger/invoices toolbars).
+		$academicYears = DB::table('academic_years')->where('school_id', $schoolId)
+			->orderByDesc('start_date')->pluck('name', 'id')->all();
+
+		if ($activeLevelIsBasic) {
+			$yearLevelOptions = EducationLevels::basicGradeOptions();
+		} elseif ($activeLevelId > 0) {
+			$yearLevelOptions = EducationLevels::yearLevelOptions($activeLevelId);
+		} else {
+			$yearLevelOptions = [];
+			for ($g = 1; $g <= 12; $g++) {
+				$yearLevelOptions[(string) $g] = 'Grade '.$g;
+			}
+		}
+
+		// Program filter — higher-ed levels only; Section filter — Basic Ed only.
+		$showProgramFilter = ! $showAll && ! $activeLevelIsBasic && $activeLevelId > 0;
+		$programOptions = [];
+		if ($showProgramFilter) {
+			$programOptions = DB::table('programs')
+				->where('school_id', $schoolId)
+				->orderBy('code')->orderBy('name')
+				->get(['id', 'code', 'name', 'education_node_id'])
+				->filter(fn ($p) => (int) ($nodeToRoot[$p->education_node_id ?? null] ?? 0) === $activeLevelId)
+				->mapWithKeys(fn ($p) => [(int) $p->id => $p->code ?: $p->name])
+				->all();
+		}
+
+		$sectionOptions = [];
+		if ($activeLevelIsBasic) {
+			$sectionOptions = DB::table('sections')
+				->where('school_id', $schoolId)
+				->where('is_active', 1)
+				->orderBy('name')
+				->pluck('name', 'id')
+				->all();
+		}
+
+		// Which optional columns the verification table shows is a per-school
+		// display rule driven by the Education Structure Tree.
 		$roots       = EducationLevels::offeredRoots();
 		$showLevel   = $roots->count() > 1;
 		$showProgram = $roots->contains(fn ($r) => ! EducationLevels::isBasic($r->name));
 
+		$activeTab = in_array($request->query('tab'), ['payments', 'verification'], true)
+			? $request->query('tab')
+			: 'payments';
+
 		return view('finance.payment', [
-			'students'     => $students,
-			'payments'     => $payments,
-			'paymentTypes' => Payment::TYPES,
-			'pendingRows'  => $this->pendingSubmissionRows($schoolId),
-			'showLevel'    => $showLevel,
-			'showProgram'  => $showProgram,
+			'students'          => $students,
+			'payments'          => $this->recentPaymentRows($schoolId, $filters),
+			'paymentTypes'      => Payment::TYPES,
+			'pendingRows'       => $this->pendingSubmissionRows($schoolId, $filters),
+			'showLevel'         => $showLevel,
+			'showProgram'       => $showProgram,
+
+			// Level tabs + filter toolbar state (reusable components).
+			'levels'             => $levels,
+			'activeLevelId'      => $activeLevelId,
+			'showAll'            => $showAll,
+			'activeLevelIsBasic' => $activeLevelIsBasic,
+			'statusOptions'      => $statusOptions,
+			'statusFilter'       => $statusFilter,
+			'academicYears'      => $academicYears,
+			'academicYearId'     => $academicYearId,
+			'yearLevelOptions'   => $yearLevelOptions,
+			'yearLevel'          => $yearLevel,
+			'programOptions'     => $programOptions,
+			'programId'          => $programId,
+			'showProgramFilter'  => $showProgramFilter,
+			'sectionOptions'     => $sectionOptions,
+			'sectionId'          => $sectionId,
+			'activeTab'          => $activeTab,
 		]);
 	}
 
@@ -169,6 +270,63 @@ class PaymentController extends Controller
 	}
 
 	/**
+	 * Apply the shared level/AY/year/program/section (+ optional invoice status)
+	 * filters to a query joined as: invoices `i` + student_enrollments `se`.
+	 * Rows without the joined data drop out only when a specific filter is set —
+	 * same semantics as the other finance toolbars.
+	 */
+	private function applyEnrollmentFilters($query, array $filters, bool $withStatus)
+	{
+		return $query
+			->when($filters['levelNodeIds'], fn ($q, $ids) => $q->whereIn('se.education_node_id', $ids))
+			->when($filters['academicYearId'], fn ($q, $v) => $q->where('i.academic_year_id', $v))
+			->when($filters['yearLevel'] !== null, fn ($q) => $q->where('se.year_level', (int) $filters['yearLevel']))
+			->when($filters['programId'], fn ($q, $v) => $q->where('se.program_id', $v))
+			->when($filters['sectionId'], fn ($q, $v) => $q->where('se.section_id', $v))
+			->when($withStatus && $filters['status'] !== '', fn ($q) => $q->where('i.status', $filters['status']));
+	}
+
+	/**
+	 * Recent (verified) payments for the Payments tab, with the invoice number
+	 * they settled. Plain join to match the finance modules' query style.
+	 *
+	 * @return \Illuminate\Support\Collection
+	 */
+	private function recentPaymentRows(int $schoolId, array $filters): \Illuminate\Support\Collection
+	{
+		$raw = DB::table('payments as p')
+			->leftJoin('users as u', 'u.id', '=', 'p.student_id')
+			->leftJoin('invoices as i', 'i.id', '=', 'p.invoice_id')
+			->leftJoin('student_enrollments as se', 'se.id', '=', 'i.student_enrollment_id')
+			->where('p.school_id', $schoolId)
+			->whereNull('p.training_enrollment_id')
+			->tap(fn ($q) => $this->applyEnrollmentFilters($q, $filters, withStatus: true))
+			->orderByDesc('p.id')
+			->limit(100)
+			->get([
+				'p.id', 'p.amount', 'p.reference_number', 'p.payment_method', 'p.payment_type',
+				'p.paid_at', 'p.created_at',
+				'u.first_name', 'u.middle_name', 'u.last_name',
+				'i.invoice_number',
+			]);
+
+		return $raw->map(function ($r) {
+			$name = trim(($r->first_name ?? '').' '.($r->middle_name ? $r->middle_name.' ' : '').($r->last_name ?? ''));
+			$date = $r->paid_at ?: $r->created_at;
+
+			return (object) [
+				'date'             => $date ? Carbon::parse($date) : null,
+				'student_name'     => $name !== '' ? $name : 'N/A',
+				'invoice_number'   => $r->invoice_number ?: '—',
+				'payment_type'     => (string) $r->payment_type,
+				'payment_method'   => (string) $r->payment_method,
+				'reference_number' => $r->reference_number,
+				'amount'           => (float) $r->amount,
+			];
+		});
+	}
+
+	/**
 	 * Build the display rows for the pending proof-of-payment review queue,
 	 * resolving each payer's Level / Program / grade from their linked enrolment.
 	 * Uses a plain join (rather than relation access) to match the finance
@@ -176,7 +334,7 @@ class PaymentController extends Controller
 	 *
 	 * @return \Illuminate\Support\Collection
 	 */
-	private function pendingSubmissionRows(int $schoolId): \Illuminate\Support\Collection
+	private function pendingSubmissionRows(int $schoolId, array $filters): \Illuminate\Support\Collection
 	{
 		$raw = DB::table('payment_submissions as ps')
 			->leftJoin('users as u', 'u.id', '=', 'ps.student_id')
@@ -185,6 +343,7 @@ class PaymentController extends Controller
 			->leftJoin('programs as p', 'p.id', '=', 'se.program_id')
 			->where('ps.school_id', $schoolId)
 			->where('ps.status', PaymentSubmission::STATUS_PENDING)
+			->tap(fn ($q) => $this->applyEnrollmentFilters($q, $filters, withStatus: false))
 			->orderBy('ps.submitted_at') // oldest first — review in the order received
 			->orderBy('ps.id')
 			->get([
