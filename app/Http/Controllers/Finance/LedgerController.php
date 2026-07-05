@@ -34,6 +34,16 @@ class LedgerController extends Controller
     /** Currency symbol resolved from FinanceSetting (₱ for PHP). */
     private string $currency = '₱';
 
+    /**
+     * Compact column labels for student_enrollments.payment_option
+     * (canonical titles live in PaymentScheduleService::OPTION_TITLES).
+     */
+    private const PLAN_LABELS = [
+        'cash'        => 'Cash',
+        'downpayment' => 'DP + Installment',
+        'installment' => 'Full Installment',
+    ];
+
     public function __construct(private readonly LedgerService $ledger)
     {
     }
@@ -401,6 +411,61 @@ class LedgerController extends Controller
         ]);
     }
 
+    /** Discounts & scholarships partial (HTML) for the per-row Discounts modal. */
+    public function discounts(User $student)
+    {
+        $schoolId = (int) auth()->user()->school_id;
+        abort_unless((int) $student->school_id === $schoolId && $student->role === 'student', 404);
+        $this->currency = $this->currencySymbol($schoolId);
+
+        // Latest enrollment (the same row the ledger table shows) + its plan.
+        $enrollment = DB::table('students as st')
+            ->join('student_enrollments as se', 'se.id', '=', DB::raw(
+                '(select max(id) from student_enrollments where student_id = st.id)'
+            ))
+            ->leftJoin('payment_plans as pp', 'pp.id', '=', 'se.payment_plan_id')
+            ->where('st.school_id', $schoolId)
+            ->where('st.user_id', (int) $student->id)
+            ->first([
+                'se.payment_option',
+                'se.scholarship_label',
+                'se.scholarship_amount',
+                'se.scholarship_percent',
+                'se.scholarship_apply_to',
+                'pp.name as plan_name',
+                'pp.cash_discount_type',
+                'pp.cash_discount_value',
+            ]);
+
+        // Typed fee discounts on invoice line items (finance_discount_types).
+        $itemDiscounts = DB::table('invoice_items as ii')
+            ->join('invoices as i', 'i.id', '=', 'ii.invoice_id')
+            ->leftJoin('finance_discount_types as fdt', 'fdt.id', '=', 'ii.finance_discount_type_id')
+            ->where('i.school_id', $schoolId)
+            ->where('i.student_id', (int) $student->id)
+            ->where(function ($w) {
+                $w->where('ii.discount_amount', '>', 0)
+                  ->orWhereNotNull('ii.finance_discount_type_id');
+            })
+            ->orderBy('i.id')->orderBy('ii.id')
+            ->get(['i.invoice_number', 'ii.description', 'ii.discount_amount', 'fdt.name as discount_name']);
+
+        // Realized invoice-header discounts (scholarship / cash, netted at generation).
+        $invoiceDiscounts = DB::table('invoices')
+            ->where('school_id', $schoolId)
+            ->where('student_id', (int) $student->id)
+            ->where('discount_amount', '>', 0.005)
+            ->orderBy('id')
+            ->get(['invoice_number', 'discount_amount', 'notes']);
+
+        return view('finance.ledger._discounts', [
+            'enrollment'       => $enrollment,
+            'itemDiscounts'    => $itemDiscounts,
+            'invoiceDiscounts' => $invoiceDiscounts,
+            'currency'         => $this->currency,
+        ]);
+    }
+
     /** Record a payment for a student: creates a Payment + a ledger credit. */
     public function recordPayment(Request $request)
     {
@@ -680,35 +745,41 @@ class LedgerController extends Controller
             ->values();
 
         if ($isBasic) {
-            $headers = ['Student Name', 'Student ID', 'Grade & Section', 'Total Balance', 'Status', 'Last Payment'];
+            $headers = ['Student Name', 'Student ID', 'Grade & Section', 'Plan', 'Discounts', 'Total Balance', 'Status', 'Last Payment'];
             $rowsOut = $items->map(fn ($i) => [
                 $i->display->full_name,
                 $i->display->student_id,
                 $i->display->grade_section,
+                $i->plan_label,
+                implode(', ', $i->discount_labels) ?: '—',
                 $this->currency.number_format($i->balance, 2),
                 PaymentStatuses::label($i->payment_status_key),
                 $i->display->last_payment,
             ])->all();
             $title = $effective->name ?? 'Student Ledgers';
         } elseif ($showAll) {
-            $headers = ['Student Name', 'Student ID', 'Level', 'Year/Grade', 'Total Balance', 'Status', 'Last Payment'];
+            $headers = ['Student Name', 'Student ID', 'Level', 'Year/Grade', 'Plan', 'Discounts', 'Total Balance', 'Status', 'Last Payment'];
             $rowsOut = $items->map(fn ($i) => [
                 $i->display->full_name,
                 $i->display->student_id,
                 $i->display->level,
                 $i->display->year_term,
+                $i->plan_label,
+                implode(', ', $i->discount_labels) ?: '—',
                 $this->currency.number_format($i->balance, 2),
                 PaymentStatuses::label($i->payment_status_key),
                 $i->display->last_payment,
             ])->all();
             $title = 'All Levels';
         } else {
-            $headers = ['Student Name', 'Student ID', 'Program', 'Year Level & Term', 'Total Balance', 'Status', 'Last Payment'];
+            $headers = ['Student Name', 'Student ID', 'Program', 'Year Level & Term', 'Plan', 'Discounts', 'Total Balance', 'Status', 'Last Payment'];
             $rowsOut = $items->map(fn ($i) => [
                 $i->display->full_name,
                 $i->display->student_id,
                 $i->display->program,
                 $i->display->year_term,
+                $i->plan_label,
+                implode(', ', $i->discount_labels) ?: '—',
                 $this->currency.number_format($i->balance, 2),
                 PaymentStatuses::label($i->payment_status_key),
                 $i->display->last_payment,
@@ -737,6 +808,7 @@ class LedgerController extends Controller
             ->leftJoin('terms as t', 't.id', '=', 'se.term_id')
             ->leftJoin('academic_years as ay', 'ay.id', '=', 'se.academic_year_id')
             ->leftJoin('sections as sec', 'sec.id', '=', 'se.section_id')
+            ->leftJoin('payment_plans as pp', 'pp.id', '=', 'se.payment_plan_id')
             ->where('st.school_id', $schoolId)
             ->where(function ($w) use ($ledgerEnrollDb, $ledgerStudentDb) {
                 $w->whereIn('se.status', $ledgerEnrollDb)
@@ -762,6 +834,9 @@ class LedgerController extends Controller
                 'p.education_node_id as program_node_id',
                 't.name as term_name',
                 'ay.name as academic_year_name',
+                'se.payment_option',
+                'se.scholarship_label',
+                'pp.cash_discount_value',
             ]);
     }
 
@@ -799,6 +874,17 @@ class LedgerController extends Controller
             ? $gradeLabel
             : ($termClean !== '' ? $gradeLabel.' · '.$termClean : $gradeLabel);
 
+        // Payment plan chosen at enrollment + the discounts it implies.
+        $planLabel = self::PLAN_LABELS[$r->payment_option ?? ''] ?? '—';
+
+        $discountLabels = [];
+        if (! empty($r->scholarship_label)) {
+            $discountLabels[] = (string) $r->scholarship_label;
+        }
+        if (($r->payment_option ?? null) === 'cash' && (float) ($r->cash_discount_value ?? 0) > 0) {
+            $discountLabels[] = 'Cash Discount';
+        }
+
         return (object) [
             'root'               => $rootLevelId,
             'year_level'         => $r->year_level,
@@ -808,6 +894,8 @@ class LedgerController extends Controller
             'section_id'         => $r->section_id,
             'payment_status_key' => $fin['status_key'],
             'balance'            => (float) $fin['balance'],
+            'plan_label'         => $planLabel,
+            'discount_labels'    => $discountLabels,
             'display'            => (object) [
                 'id'             => $uid,
                 'full_name'      => $fullName,
@@ -816,6 +904,8 @@ class LedgerController extends Controller
                 'level'          => ($rootLevelId && isset($rootNameById[$rootLevelId])) ? $rootNameById[$rootLevelId] : '—',
                 'grade_section'  => $gradeSection,
                 'year_term'      => $yearTerm,
+                'payment_plan'   => $planLabel,
+                'discounts'      => $this->discountsCell($uid, $discountLabels),
                 'total_balance'  => $this->balanceCell((float) $fin['balance']),
                 'payment_status' => PaymentStatuses::pill($fin['status_key']),
                 'last_payment'   => $fin['last_payment'],
@@ -939,6 +1029,8 @@ class LedgerController extends Controller
                 ['key' => 'student_id',     'label' => 'Student ID',    'width' => '130px'],
                 ['key' => 'level',          'label' => 'Level',         'width' => '170px'],
                 ['key' => 'year_term',      'label' => 'Year/Grade',    'width' => '150px'],
+                ['key' => 'payment_plan',   'label' => 'Plan',          'width' => '150px'],
+                ['key' => 'discounts',      'label' => 'Discounts',     'width' => '160px', 'raw' => true],
                 ['key' => 'total_balance',  'label' => 'Total Balance', 'width' => '150px', 'raw' => true],
                 ['key' => 'payment_status', 'label' => 'Status',        'width' => '120px', 'raw' => true],
                 ['key' => 'last_payment',   'label' => 'Last Payment',  'width' => '190px'],
@@ -950,6 +1042,8 @@ class LedgerController extends Controller
                 ['key' => 'full_name',      'label' => 'Student Name',    'width' => '200px'],
                 ['key' => 'student_id',     'label' => 'Student ID',      'width' => '130px'],
                 ['key' => 'grade_section',  'label' => 'Grade & Section', 'width' => '170px'],
+                ['key' => 'payment_plan',   'label' => 'Plan',            'width' => '150px'],
+                ['key' => 'discounts',      'label' => 'Discounts',       'width' => '160px', 'raw' => true],
                 ['key' => 'total_balance',  'label' => 'Total Balance',   'width' => '150px', 'raw' => true],
                 ['key' => 'payment_status', 'label' => 'Status',          'width' => '120px', 'raw' => true],
                 ['key' => 'last_payment',   'label' => 'Last Payment',    'width' => '190px'],
@@ -961,10 +1055,29 @@ class LedgerController extends Controller
             ['key' => 'student_id',     'label' => 'Student ID',         'width' => '130px'],
             ['key' => 'program',        'label' => 'Program',            'width' => '150px'],
             ['key' => 'year_term',      'label' => 'Year Level & Term',  'width' => '180px'],
+            ['key' => 'payment_plan',   'label' => 'Plan',               'width' => '150px'],
+            ['key' => 'discounts',      'label' => 'Discounts',          'width' => '160px', 'raw' => true],
             ['key' => 'total_balance',  'label' => 'Total Balance',      'width' => '150px', 'raw' => true],
             ['key' => 'payment_status', 'label' => 'Status',             'width' => '120px', 'raw' => true],
             ['key' => 'last_payment',   'label' => 'Last Payment',       'width' => '190px'],
         ];
+    }
+
+    /** Discounts cell — first discount as a button opening the discounts modal. */
+    protected function discountsCell(int $uid, array $labels): string
+    {
+        if (! $uid || empty($labels)) {
+            return '<span class="text-slate-400">—</span>';
+        }
+
+        $extra = count($labels) - 1;
+        $badge = $extra > 0
+            ? ' <span class="ml-1 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-600">+'.$extra.'</span>'
+            : '';
+
+        return '<button type="button" onclick="openStudentDiscounts('.$uid.')"'
+            .' class="text-left font-medium text-indigo-600 hover:underline">'
+            .e($labels[0]).$badge.'</button>';
     }
 
     /** Total Balance cell — coloured amount (rose = owes, emerald = settled). */

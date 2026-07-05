@@ -26,6 +26,7 @@ Route::middleware(['web', 'auth', 'role:finance_manager,admin,superadmin'])
         Route::post('/ledger/import-entries', [LedgerController::class, 'importEntries'])->name('ledger.import-entries');
         Route::get('/ledger/{student}/drawer', [LedgerController::class, 'drawer'])->name('ledger.drawer');
         Route::get('/ledger/{student}/entries', [LedgerController::class, 'entries'])->name('ledger.entries');
+        Route::get('/ledger/{student}/discounts', [LedgerController::class, 'discounts'])->name('ledger.discounts');
         Route::get('/ledger/{student}/export', [LedgerController::class, 'studentExport'])->name('ledger.student-export');
         Route::post('/ledger/{student}/adjust', [LedgerController::class, 'adjust'])->name('ledger.adjust');
 
@@ -54,5 +55,7 @@ Route::middleware(['web', 'auth', 'role:finance_manager,admin,superadmin'])
             Route::get('/soa-template', [FinanceSettingController::class, 'soaTemplate'])->name('soa-template');
             Route::get('/preferences', [FinanceSettingController::class, 'preferences'])->name('preferences');
             Route::put('/preferences', [FinanceSettingController::class, 'updatePreferences'])->name('preferences.update');
+            Route::get('/email', [FinanceSettingController::class, 'email'])->name('email');
+            Route::put('/email', [FinanceSettingController::class, 'updateEmail'])->name('email.update');
         });
     });

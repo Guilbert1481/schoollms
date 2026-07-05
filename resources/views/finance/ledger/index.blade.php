@@ -39,24 +39,11 @@
         </x-kpi-row.kpi-shell>
     </div>
 
-    {{-- Education-level tabs (hidden when only one level is offered) --}}
-    @if ($showTabs)
-        @php
-            $ledgerTabs = [[
-                'label'  => 'All Levels',
-                'url'    => route('finance.ledger.index', ['level' => 'all']),
-                'active' => $showAll,
-            ]];
-            foreach ($levels as $lvl) {
-                $ledgerTabs[] = [
-                    'label'  => $lvl->name,
-                    'url'    => route('finance.ledger.index', ['level' => $lvl->id]),
-                    'active' => ! $showAll && $activeLevelId === $lvl->id,
-                ];
-            }
-        @endphp
-        <x-tabs.count-tabs :tabs="$ledgerTabs" />
-    @endif
+    {{-- Education-level tabs (reusable; hidden when only one level is offered) --}}
+    <x-table.level-tabs route="finance.ledger.index"
+                        :levels="$levels"
+                        :activeLevelId="$activeLevelId"
+                        :showAll="$showAll" />
 
     {{-- Master list --}}
     <x-table.table
@@ -152,6 +139,12 @@
 
 <x-modal.form id="viewLedgerModal" title="Student Ledger" widthClass="w-full max-w-4xl" :hideFooter="true">
     <div id="viewLedgerBody">
+        <div class="py-8 text-center text-sm text-slate-400">Loading…</div>
+    </div>
+</x-modal.form>
+
+<x-modal.form id="studentDiscountsModal" title="Discounts & Scholarships" widthClass="w-full max-w-xl" :hideFooter="true">
+    <div id="studentDiscountsBody">
         <div class="py-8 text-center text-sm text-slate-400">Loading…</div>
     </div>
 </x-modal.form>
@@ -299,6 +292,15 @@
             .then((r) => r.text())
             .then((html) => { body.innerHTML = html; })
             .catch(() => { body.innerHTML = '<div class="py-8 text-center text-sm text-slate-400">Couldn\'t load the ledger.</div>'; });
+    }
+    function openStudentDiscounts(id) {
+        const body = document.getElementById('studentDiscountsBody');
+        body.innerHTML = '<div class="py-8 text-center text-sm text-slate-400">Loading…</div>';
+        openModal('studentDiscountsModal');
+        fetch(LEDGER_BASE + '/' + id + '/discounts', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then((r) => r.text())
+            .then((html) => { body.innerHTML = html; })
+            .catch(() => { body.innerHTML = '<div class="py-8 text-center text-sm text-slate-400">Couldn\'t load the discounts.</div>'; });
     }
     function drawerGenerateSoa(id)   { document.getElementById('soaStudentId').value = id;      openModal('generateSoaModal'); }
     function drawerRecordPayment(id) { document.getElementById('payStudentId').value = id;      openModal('recordPaymentModal'); }
