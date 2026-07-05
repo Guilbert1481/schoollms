@@ -857,6 +857,29 @@ CREATE TABLE `departments` (
   CONSTRAINT `departments_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `document_requirements`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `document_requirements` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `school_id` bigint(20) unsigned NOT NULL,
+  `student_type` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `education_node_id` bigint(20) unsigned DEFAULT NULL,
+  `program_id` bigint(20) unsigned DEFAULT NULL,
+  `year_level` tinyint(3) unsigned DEFAULT NULL,
+  `documents` json NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `document_requirements_education_node_id_foreign` (`education_node_id`),
+  KEY `document_requirements_program_id_foreign` (`program_id`),
+  KEY `document_requirements_school_id_student_type_index` (`school_id`,`student_type`),
+  CONSTRAINT `document_requirements_education_node_id_foreign` FOREIGN KEY (`education_node_id`) REFERENCES `education_nodes` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `document_requirements_program_id_foreign` FOREIGN KEY (`program_id`) REFERENCES `programs` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `document_requirements_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `document_signatories`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -1233,6 +1256,19 @@ CREATE TABLE `finance_settings` (
   `currency` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PHP',
   `soa_footer_note` text COLLATE utf8mb4_unicode_ci,
   `last_soa_run_at` timestamp NULL DEFAULT NULL,
+  `smtp_host` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `smtp_port` int(10) unsigned DEFAULT NULL,
+  `smtp_username` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `smtp_password` text COLLATE utf8mb4_unicode_ci,
+  `smtp_encryption` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `mail_from_address` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `mail_from_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `imap_host` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `imap_port` int(10) unsigned DEFAULT NULL,
+  `imap_username` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `imap_password` text COLLATE utf8mb4_unicode_ci,
+  `imap_encryption` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `auto_send_invoices` tinyint(1) NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -1393,6 +1429,7 @@ CREATE TABLE `invoices` (
   `billing_date` date DEFAULT NULL,
   `issued_by` bigint(20) unsigned DEFAULT NULL,
   `notes` text COLLATE utf8mb4_unicode_ci,
+  `emailed_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -2386,6 +2423,7 @@ CREATE TABLE `statement_of_accounts` (
   `line_items` json DEFAULT NULL,
   `generated_by` bigint(20) unsigned DEFAULT NULL,
   `generated_at` timestamp NULL DEFAULT NULL,
+  `emailed_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -3874,3 +3912,7 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (356,'2026_07_03_10
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (357,'2026_07_03_100100_add_billing_date_to_invoices_table',77);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (358,'2026_07_04_100000_create_platform_settings_table',78);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (359,'2026_07_04_120000_create_payment_submissions_table',79);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (360,'2026_07_05_100000_create_document_requirements_table',80);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (361,'2026_07_05_100100_add_email_settings_to_finance_settings_table',80);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (362,'2026_07_05_100200_add_emailed_at_to_invoices_table',80);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (363,'2026_07_05_100300_add_emailed_at_to_statement_of_accounts_table',80);
