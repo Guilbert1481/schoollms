@@ -15,3 +15,8 @@ Schedule::command('program-subjects:sync-activation')->dailyAt('00:05');
 // Auto-generate Statements of Account. Runs daily; the command itself reads
 // each school's finance settings and only generates on that school's cadence.
 Schedule::command('finance:generate-soas')->dailyAt('01:00');
+
+// Email due invoices (and the SOA with every 3rd one) to students + guardians.
+// Per-school opt-in via finance_settings.auto_send_invoices; idempotent
+// (invoices.emailed_at), so a re-run never double-sends.
+Schedule::command('finance:send-due-invoices')->dailyAt('07:00');
