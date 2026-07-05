@@ -24,6 +24,19 @@ class FinanceSetting extends Model
         'currency',
         'soa_footer_note',
         'last_soa_run_at',
+        'smtp_host',
+        'smtp_port',
+        'smtp_username',
+        'smtp_password',
+        'smtp_encryption',
+        'mail_from_address',
+        'mail_from_name',
+        'imap_host',
+        'imap_port',
+        'imap_username',
+        'imap_password',
+        'imap_encryption',
+        'auto_send_invoices',
     ];
 
     protected $casts = [
@@ -32,6 +45,11 @@ class FinanceSetting extends Model
         'auto_invoice_on_billing' => 'boolean',
         'invoice_due_days'        => 'integer',
         'last_soa_run_at'         => 'datetime',
+        'smtp_port'               => 'integer',
+        'imap_port'               => 'integer',
+        'smtp_password'           => 'encrypted',
+        'imap_password'           => 'encrypted',
+        'auto_send_invoices'      => 'boolean',
     ];
 
     public function school()
@@ -61,5 +79,11 @@ class FinanceSetting extends Model
     public function frequencyLabel(): string
     {
         return self::FREQUENCIES[$this->soa_frequency] ?? ucfirst((string) $this->soa_frequency);
+    }
+
+    /** Finance SMTP is fully configured (auto-send can use its own account). */
+    public function hasFinanceSmtp(): bool
+    {
+        return filled($this->smtp_host) && filled($this->smtp_username);
     }
 }

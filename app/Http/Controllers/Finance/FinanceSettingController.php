@@ -45,6 +45,53 @@ class FinanceSettingController extends Controller
         return back()->with('success', 'Finance preferences saved.');
     }
 
+    /** Email — finance SMTP/IMAP configuration + invoice/SOA auto-send switch. */
+    public function email()
+    {
+        $schoolId = (int) auth()->user()->school_id;
+        $setting  = FinanceSetting::forSchool($schoolId);
+
+        return view('finance.settings.email', [
+            'setting'    => $setting,
+            'schoolName' => DB::table('schools')->where('id', $schoolId)->value('school_name') ?: '—',
+        ]);
+    }
+
+    public function updateEmail(Request $request)
+    {
+        $schoolId = (int) auth()->user()->school_id;
+        $setting  = FinanceSetting::forSchool($schoolId);
+
+        $data = $request->validate([
+            'smtp_host'          => ['nullable', 'string', 'max:255'],
+            'smtp_port'          => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'smtp_username'      => ['nullable', 'string', 'max:255'],
+            'smtp_password'      => ['nullable', 'string', 'max:500'],
+            'smtp_encryption'    => ['nullable', 'in:tls,ssl'],
+            'mail_from_address'  => ['nullable', 'email', 'max:255'],
+            'mail_from_name'     => ['nullable', 'string', 'max:255'],
+            'imap_host'          => ['nullable', 'string', 'max:255'],
+            'imap_port'          => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'imap_username'      => ['nullable', 'string', 'max:255'],
+            'imap_password'      => ['nullable', 'string', 'max:500'],
+            'imap_encryption'    => ['nullable', 'in:tls,ssl'],
+            'auto_send_invoices' => ['nullable', 'boolean'],
+        ]);
+
+        // Blank password fields mean "keep the stored one" — never wipe on save.
+        foreach (['smtp_password', 'imap_password'] as $secret) {
+            if (($data[$secret] ?? '') === '' || $data[$secret] === null) {
+                unset($data[$secret]);
+            }
+        }
+
+        $data['auto_send_invoices'] = (bool) ($data['auto_send_invoices'] ?? false);
+
+        $setting->update($data);
+
+        return back()->with('success', 'Finance email settings saved.');
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Settings sub-pages (scaffolded — to be fleshed out per requirements)

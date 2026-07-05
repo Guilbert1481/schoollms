@@ -724,6 +724,14 @@ return [
                 ],
 
                 [
+                    'label' => 'Documents',
+                    'route' => 'registrar.settings.documents.index',
+                    'active' => 'registrar.settings.documents.*',
+                    'icon'  => 'file-check',
+                    'roles' => ['registrar'],
+                ],
+
+                [
                     'label' => 'Profile Settings',
                     'route' => 'settings.profile',
 
@@ -815,6 +823,13 @@ return [
                     'route'  => 'finance.settings.preferences',
                     'active' => 'finance.settings.preferences*',
                     'icon'   => 'sliders',
+                    'roles'  => ['finance_manager'],
+                ],
+                [
+                    'label'  => 'Email',
+                    'route'  => 'finance.settings.email',
+                    'active' => 'finance.settings.email*',
+                    'icon'   => 'mail',
                     'roles'  => ['finance_manager'],
                 ],
             ], // closes children
