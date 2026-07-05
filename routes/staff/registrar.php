@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Staff\Registrar\EnrollmentValidationController;
+use App\Http\Controllers\Staff\Registrar\Settings\DocumentRequirementController;
 use App\Http\Controllers\Staff\Registrar\Settings\StudentIdSettingController;
 use App\Http\Controllers\Staff\Registrar\StudentLedgerController;
 use App\Http\Controllers\Staff\Registrar\SubjectCreditController;
@@ -65,4 +66,14 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
             ->name('settings.student-id.edit');
         Route::put('settings/student-id', [StudentIdSettingController::class, 'update'])
             ->name('settings.student-id.update');
+
+        // 6. Settings → Documents (enrollment document requirements per student type).
+        Route::get('settings/documents', [DocumentRequirementController::class, 'index'])
+            ->name('settings.documents.index');
+        Route::post('settings/documents', [DocumentRequirementController::class, 'store'])
+            ->name('settings.documents.store');
+        Route::put('settings/documents/{requirement}', [DocumentRequirementController::class, 'update'])
+            ->name('settings.documents.update');
+        Route::delete('settings/documents/{requirement}', [DocumentRequirementController::class, 'destroy'])
+            ->name('settings.documents.destroy');
     });
