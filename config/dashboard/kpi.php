@@ -92,12 +92,14 @@ return [
 
         'student' => [
             'summary_cards' => [
-                'outstanding_student',
-                'attendance_student',
+                'active_subjects_student',
+                'pending_assignments_student',
+                'progress_student',
                 'GWA_student',
                 'task_student',
                 'subject_at_risk',
-                
+                'outstanding_student',
+                'units_student',
             ],
         ],
     ],
@@ -137,9 +139,10 @@ return [
         ],
 
         'outstanding_student' => [
-            'title' => 'Outstanding Balance',
-            'icon'  => 'alert-circle',
-            'color' => 'red',
+            'title'  => 'Outstanding Balance',
+            'icon'   => 'wallet',
+            'color'  => 'amber',
+            'accent' => 'amber',
         ],
 
         'outstanding_total' => [
@@ -166,22 +169,55 @@ return [
             'color' => 'orange',
         ],
 
+        // ---- Student dashboard cards (values via StudentDashboardService) ----
+
+        'active_subjects_student' => [
+            'title'  => 'Active Subjects',
+            'icon'   => 'book-open',
+            'color'  => 'indigo',
+            'accent' => 'indigo',
+        ],
+
+        'pending_assignments_student' => [
+            'title'  => 'Pending Assignments',
+            'icon'   => 'clipboard-list',
+            'color'  => 'amber',
+            'accent' => 'amber',
+        ],
+
+        'progress_student' => [
+            'title'  => 'Overall Progress',
+            'icon'   => 'gauge',
+            'color'  => 'emerald',
+            'accent' => 'emerald',
+        ],
+
         'GWA_student' => [
-            'title' => 'GWA',
-            'icon'  => 'file-text',
-            'color' => 'orange',
+            'title'  => 'Current GWA',
+            'icon'   => 'trending-up',
+            'color'  => 'sky',
+            'accent' => 'sky',
         ],
 
         'task_student' => [
-            'title' => 'Task Completion',
-            'icon'  => 'file-text',
-            'color' => 'orange',
+            'title'  => 'Completed Tasks',
+            'icon'   => 'check-circle',
+            'color'  => 'emerald',
+            'accent' => 'emerald',
         ],
 
         'subject_at_risk' => [
-            'title' => 'Subject At Risk',
-            'icon'  => 'file-text',
-            'color' => 'orange',
+            'title'  => 'Subjects at Risk',
+            'icon'   => 'alert-triangle',
+            'color'  => 'rose',
+            'accent' => 'rose',
+        ],
+
+        'units_student' => [
+            'title'  => 'Enrolled Units',
+            'icon'   => 'graduation-cap',
+            'color'  => 'violet',
+            'accent' => 'violet',
         ],
 
         'drop_out_students' => [

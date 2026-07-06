@@ -19,6 +19,13 @@ class DashboardController extends Controller
         $user = auth()->user();
         $role = strtolower($user->role);
 
+        // The student dashboard needs widget data beyond the registries
+        // (schedule, deadlines, charts, calendar) — its own controller
+        // assembles the full payload, so send students there.
+        if ($role === 'student') {
+            return redirect()->route('student.dashboard');
+        }
+
         /*
         |--------------------------------------------------------------------------
         | 1️⃣ LOAD DASHBOARD DATA VIA REGISTRIES

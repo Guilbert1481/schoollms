@@ -13,6 +13,9 @@ use Carbon\Carbon;
 
 class KPIRegistry
 {
+    /** Student card values come from one shared, memoised computation. */
+    private ?array $studentSummary = null;
+
     public function getCards($user, $role): array
     {
         $roleCards = config("dashboard.kpi.roles.$role.summary_cards", []);
@@ -29,14 +32,39 @@ class KPIRegistry
             $card = $definitions[$cardKey];
             $card['value'] = $this->resolveValue($cardKey, $user);
 
+            $subtitle = $this->resolveSubtitle($cardKey, $user);
+            if ($subtitle !== null) {
+                $card['subtitle'] = $subtitle;
+            }
+
             $output[] = $card;
         }
 
         return $output;
     }
 
+    private function studentSummary($user): array
+    {
+        return $this->studentSummary
+            ??= app(StudentDashboardService::class)->summary($user);
+    }
+
+    private function resolveSubtitle(string $key, $user): ?string
+    {
+        if (str_ends_with($key, '_student') || $key === 'subject_at_risk') {
+            return $this->studentSummary($user)[$key]['subtitle'] ?? null;
+        }
+
+        return null;
+    }
+
     private function resolveValue(string $key, $user)
     {
+        // Student cards resolve through StudentDashboardService.
+        if (str_ends_with($key, '_student') || $key === 'subject_at_risk') {
+            return $this->studentSummary($user)[$key]['value'] ?? 0;
+        }
+
         return match ($key) {
 
             // -----------------------

@@ -17,7 +17,9 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Shared per-request so KPIRegistry and the student dashboard
+        // controller reuse one memoised computation.
+        $this->app->singleton(\App\Services\Dashboard\StudentDashboardService::class);
     }
 
     public function boot(): void
