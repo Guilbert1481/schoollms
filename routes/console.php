@@ -12,6 +12,9 @@ Artisan::command('inspire', function () {
 Schedule::command('chat:purge-attachments')->hourly();
 Schedule::command('program-subjects:sync-activation')->dailyAt('00:05');
 
+// Flip pending deadline completions to overdue once their due datetime passes.
+Schedule::command('deadlines:update-overdue')->everyFifteenMinutes();
+
 // Auto-generate Statements of Account. Runs daily; the command itself reads
 // each school's finance settings and only generates on that school's cadence.
 Schedule::command('finance:generate-soas')->dailyAt('01:00');

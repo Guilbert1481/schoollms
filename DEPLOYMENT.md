@@ -60,6 +60,31 @@ sudo ./deploy.sh --fresh
 
 Then configure Nginx (or Apache) to point its document root to **`/var/www/schoollms/public`**.
 
+### 1.3 Scheduler (required for automated jobs)
+
+The scheduled jobs registered in `routes/console.php` (chat-attachment purge,
+program-subject sync, SOA generation at 01:00, invoice auto-send at 07:00,
+overdue-deadline flagging) only fire on hosts where `php artisan schedule:run`
+is invoked every minute. Without this, none of them run.
+
+**VPS (cron):**
+
+```bash
+crontab -e
+# add this line:
+* * * * * cd /var/www/schoollms && php artisan schedule:run >> /dev/null 2>&1
+```
+
+**Local (Windows + Laragon)** — create a Task Scheduler job that runs every
+minute (adjust the PHP path to your Laragon version):
+
+```powershell
+schtasks /Create /SC MINUTE /MO 1 /TN "SchoolLMS Scheduler" `
+  /TR "C:\laragon\bin\php\php-8.2.x\php.exe C:\laragon\www\schoollms\artisan schedule:run"
+```
+
+Verify what is registered with `php artisan schedule:list`.
+
 ---
 
 ## 2. Export local → GitHub (push your changes)
