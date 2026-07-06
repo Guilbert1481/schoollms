@@ -547,12 +547,6 @@ parameters:
 			path: app/Http/Controllers/Finance/LedgerController.php
 
 		-
-			message: '#^Relation ''student'' is not found in App\\Models\\Payment model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Http/Controllers/Finance/PaymentController.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\StatementOfAccount\:\:\$school\.$#'
 			identifier: property.notFound
 			count: 1
