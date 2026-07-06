@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\TrainingEnrollment;
 use App\Models\User;
+use App\Services\Enrollment\EnrollmentActivationService;
 use App\Services\Finance\LedgerService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -13,8 +14,10 @@ use Illuminate\Support\Str;
 
 class PaymentService
 {
-    public function __construct(private readonly LedgerService $ledger)
-    {
+    public function __construct(
+        private readonly LedgerService $ledger,
+        private readonly EnrollmentActivationService $enrollments,
+    ) {
     }
 
     public function recordGeneralPayment(
@@ -50,6 +53,9 @@ class PaymentService
 
             if ($invoice) {
                 $invoice->recomputeTotals()->save();
+                // Settling the first-due invoice may officially / provisionally
+                // enroll the student, per the gate's document verdict.
+                $this->enrollments->syncAfterPayment($invoice, (int) $actor->id);
             }
 
             return $payment;
@@ -87,6 +93,10 @@ class PaymentService
 
             $this->ledger->postPaymentCredit($payment, $invoice, (int) $actor->id);
             $invoice->recomputeTotals()->save();
+
+            // Settling the first-due invoice may officially / provisionally
+            // enroll the student, per the gate's document verdict.
+            $this->enrollments->syncAfterPayment($invoice, (int) $actor->id);
 
             return $payment;
         });
