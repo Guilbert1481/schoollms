@@ -431,6 +431,12 @@ return [
                     'icon'  => 'receipt',
                 ],
                 [
+                    'label' => 'Enrollment Queue',
+                    'route' => 'finance.enrollment-queue.index',
+                    'active' => 'finance.enrollment-queue.*',
+                    'icon'  => 'user-check',
+                ],
+                [
                     'label' => 'Payments',
                     'route' => 'finance.payments.index',
                     'active' => 'finance.payments.*',

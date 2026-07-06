@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Finance\BillingController;
+use App\Http\Controllers\Finance\EnrollmentQueueController;
 use App\Http\Controllers\Finance\TuitionSetupController;
 use Illuminate\Support\Facades\Route;
 
@@ -10,6 +11,15 @@ Route::middleware(['web', 'auth'])
 	->group(function () {
 		Route::get('/billing', [BillingController::class, 'index'])
 			->name('billing.index');
+
+		// Enrollment decision queue: officially / provisionally enroll or
+		// reject gate-approved students (with or without payment).
+		Route::middleware('role:finance_manager,admin,superadmin')->group(function () {
+			Route::get('/enrollment-queue', [EnrollmentQueueController::class, 'index'])
+				->name('enrollment-queue.index');
+			Route::put('/enrollment-queue/{enrollment}/decision', [EnrollmentQueueController::class, 'decide'])
+				->name('enrollment-queue.decide');
+		});
 
 		Route::middleware('role:finance_manager,admin,superadmin')
 			->prefix('tuition-setup')
