@@ -223,9 +223,35 @@ class EnrollmentValidationController extends Controller
     }
 
     /**
+     * The provisionally-cleared applicant has now submitted the missing
+     * documents. Upgrades the gate verdict to "assessed"; a student who
+     * already met the payment condition is promoted from Provisionally
+     * Enrolled to officially Enrolled.
+     */
+    public function completeDocuments(
+        Request $request,
+        StudentEnrollment $enrollment,
+        \App\Services\Enrollment\EnrollmentActivationService $activation
+    ) {
+        $request->validate(['remarks' => 'nullable|string|max:1000']);
+
+        if ($enrollment->billing_cleared_as !== 'provisional') {
+            return back()->with('info', 'This enrollment has no pending document conditions.');
+        }
+
+        $activation->completeDocuments($enrollment, (int) auth()->id(), $request->input('remarks'));
+
+        return back()->with('success', $enrollment->fresh()->status === StudentEnrollment::STATUS_ENROLLED
+            ? 'Documents complied — student is now officially enrolled.'
+            : 'Documents marked complied.');
+    }
+
+    /**
      * Hand the enrollment off to the Finance Manager by marking it as
-     * "sent_billing". Once a payment is recorded, the FinanceBillingQueue
-     * controller transitions the status to enrolled / provisionally_enrolled.
+     * "sent_billing". Once a payment settles the first-due invoice,
+     * EnrollmentActivationService transitions the status to enrolled /
+     * provisionally_enrolled (finance can also decide manually from its
+     * Enrollment Queue).
      *
      * The current $enrollment->status (assessed|provisional) is preserved in
      * the remarks audit trail so we can recover the correct final state.

@@ -32,6 +32,24 @@
         @endif
     </div>
 
+    @if($enrollment->billing_cleared_as === 'provisional')
+        <form method="POST" action="{{ route('registrar.enrollments.documents-complied', $enrollment) }}"
+              class="rounded-2xl border border-sky-200 bg-sky-50 p-4 mb-4">
+            @csrf
+            <h2 class="font-bold mb-2 text-sky-700">Documents Complied</h2>
+            <p class="text-[11px] text-slate-600 mb-2">
+                This applicant was cleared <b>provisionally</b> (documents pending). Mark the
+                requirements as complied to lift the condition — if their downpayment is already
+                settled, they are promoted to <b>officially Enrolled</b> automatically.
+            </p>
+            <textarea name="remarks" rows="2" placeholder="Optional note (e.g. which documents were submitted)"
+                      class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
+            <button class="mt-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-bold">
+                Mark Documents Complied
+            </button>
+        </form>
+    @endif
+
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <form method="POST" action="{{ route('registrar.enrollments.validate', $enrollment) }}"
               class="rounded-2xl border bg-white p-4">

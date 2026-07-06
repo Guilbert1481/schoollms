@@ -24,6 +24,8 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
             ->name('enrollments.provisional');
         Route::post('enrollments/{enrollment}/reject', [EnrollmentValidationController::class, 'reject'])
             ->name('enrollments.reject');
+        Route::post('enrollments/{enrollment}/documents-complied', [EnrollmentValidationController::class, 'completeDocuments'])
+            ->name('enrollments.documents-complied');
 
         // 2. Evaluate Subject Credits (transferees / irregulars)
         Route::get('subject-credits', [SubjectCreditController::class, 'index'])
