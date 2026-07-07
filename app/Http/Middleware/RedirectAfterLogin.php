@@ -28,6 +28,10 @@ class RedirectAfterLogin
             if ($user->role === 'guidance_counselor') {
                 return redirect()->route('guidance_counselor.dashboard');
             }
+
+            if ($user->role === 'parent') {
+                return redirect()->route('parent.dashboard');
+            }
         }
 
         return $next($request);

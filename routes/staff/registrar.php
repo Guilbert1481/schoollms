@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Staff\Registrar\EnrollmentValidationController;
 use App\Http\Controllers\Staff\Registrar\Settings\DocumentRequirementController;
+use App\Http\Controllers\Staff\Registrar\Settings\ParentPortalSettingController;
 use App\Http\Controllers\Staff\Registrar\Settings\StudentIdSettingController;
 use App\Http\Controllers\Staff\Registrar\StudentLedgerController;
 use App\Http\Controllers\Staff\Registrar\SubjectCreditController;
@@ -69,7 +70,19 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
         Route::put('settings/student-id', [StudentIdSettingController::class, 'update'])
             ->name('settings.student-id.update');
 
-        // 6. Settings → Documents (enrollment document requirements per student type).
+        // 6. Settings → Parent Portal (auto-provisioning toggle + access links + issues).
+        Route::get('settings/parent-portal', [ParentPortalSettingController::class, 'index'])
+            ->name('settings.parent-portal.index');
+        Route::put('settings/parent-portal', [ParentPortalSettingController::class, 'update'])
+            ->name('settings.parent-portal.update');
+        Route::post('settings/parent-portal/links/{link}/toggle', [ParentPortalSettingController::class, 'toggleLink'])
+            ->name('settings.parent-portal.links.toggle');
+        Route::post('settings/parent-portal/links/{link}/reissue', [ParentPortalSettingController::class, 'reissueLink'])
+            ->name('settings.parent-portal.links.reissue');
+        Route::post('settings/parent-portal/issues/{issue}/resolve', [ParentPortalSettingController::class, 'resolveIssue'])
+            ->name('settings.parent-portal.issues.resolve');
+
+        // 7. Settings → Documents (enrollment document requirements per student type).
         Route::get('settings/documents', [DocumentRequirementController::class, 'index'])
             ->name('settings.documents.index');
         Route::post('settings/documents', [DocumentRequirementController::class, 'store'])

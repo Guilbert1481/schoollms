@@ -26,6 +26,12 @@ class DashboardController extends Controller
             return redirect()->route('student.dashboard');
         }
 
+        // Parent-portal users have their own shell (child switcher + per-child
+        // pages) and no school_id, so none of the registry KPIs apply.
+        if ($role === 'parent') {
+            return redirect()->route('parent.dashboard');
+        }
+
         /*
         |--------------------------------------------------------------------------
         | 1️⃣ LOAD DASHBOARD DATA VIA REGISTRIES

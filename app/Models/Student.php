@@ -85,6 +85,14 @@ class Student extends Model
         return $this->hasMany(Guardian::class);
     }
 
+    /** Parent-portal users granted access to this student (co-parents supported). */
+    public function parentUsers()
+    {
+        return $this->belongsToMany(User::class, 'parent_student', 'student_id', 'parent_user_id')
+            ->withPivot(['relationship', 'is_primary', 'access_status'])
+            ->withTimestamps();
+    }
+
     public function academicBackgrounds()
     {
         return $this->hasMany(StudentAcademicBackground::class);

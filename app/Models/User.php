@@ -54,6 +54,11 @@ class User extends Authenticatable
             'password' => 'hashed',
             'status' => 'boolean',
             'dashboard_identity' => 'array', // important for JSON theme
+            // Parent-portal provisioning fields. Deliberately NOT fillable:
+            // they are set explicitly by the provisioning service, never from
+            // request input.
+            'password_change_required' => 'boolean',
+            'credentials_sent_at' => 'datetime',
         ];
     }
 
@@ -132,6 +137,16 @@ class User extends Authenticatable
         return $this->role === 'student';
     }
 
+    /**
+     * Parent-portal account (auto-provisioned from a guardian email).
+     * Parents are cross-school: school_id stays NULL and every access
+     * decision goes through the parent_student links instead.
+     */
+    public function isParent(): bool
+    {
+        return $this->role === 'parent';
+    }
+
     public function isDean(): bool
     {
         return $this->role === 'dean';
@@ -193,6 +208,26 @@ class User extends Authenticatable
     public function student()
     {
         return $this->hasOne(\App\Models\Student::class, 'user_id');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | PARENT PORTAL RELATIONSHIPS (users with role = 'parent')
+    |--------------------------------------------------------------------------
+    */
+
+    /** Students this parent-portal user is linked to (their children). */
+    public function children()
+    {
+        return $this->belongsToMany(\App\Models\Student::class, 'parent_student', 'parent_user_id', 'student_id')
+            ->withPivot(['relationship', 'is_primary', 'access_status'])
+            ->withTimestamps();
+    }
+
+    /** The raw access-grant rows (for the registrar panel / auditing). */
+    public function parentLinks()
+    {
+        return $this->hasMany(\App\Models\ParentStudentLink::class, 'parent_user_id');
     }
 
     /*

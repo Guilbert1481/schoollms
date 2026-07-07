@@ -281,5 +281,15 @@ class EnrollmentValidationController extends Controller
         } catch (\Throwable $e) {
             report($e);
         }
+
+        // Auto-provision the parent portal account from the guardian email
+        // (per-school registrar toggle; idempotent). Same rule as above: a
+        // provisioning hiccup must never block the registrar's approval flow.
+        try {
+            app(\App\Services\ParentPortal\ParentProvisioningService::class)
+                ->provisionForEnrollment($enrollment, (int) auth()->id());
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

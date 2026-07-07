@@ -53,6 +53,17 @@ class ProfileController extends Controller
             unset($data['profile_photo']);
         }
 
+        // SECURITY: a parent-portal account's email is its provisioning-linked
+        // identity — the parent_student auto-provisioner trusts that a
+        // role=parent account only ever holds a guardian email a school
+        // actually recorded (see ParentProvisioningService). Letting a parent
+        // self-edit their email would break that trust anchor and allow
+        // silently inheriting another family's child at the next gate clear.
+        // Parents change their email through the school (registrar), not here.
+        if ($user->isParent()) {
+            unset($data['email']);
+        }
+
         $user->fill($data)->save();
 
         return back()->with('status', 'Profile updated successfully.');
@@ -75,6 +86,9 @@ class ProfileController extends Controller
         }
 
         $user->password = $request->password;
+        // The user has now chosen their own password — release the one-time-
+        // password gate (set when an account is auto-provisioned/re-issued).
+        $user->password_change_required = false;
         $user->save();
 
         return back()->with('status', 'Password changed successfully.');

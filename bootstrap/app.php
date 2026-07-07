@@ -109,6 +109,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
             /*
             |--------------------------------------------------------------------------
+            | PARENT PORTAL MODULE
+            |--------------------------------------------------------------------------
+            */
+            __DIR__.'/../routes/parent/portal.php',
+
+            /*
+            |--------------------------------------------------------------------------
             | STUDENT MODULES
             |--------------------------------------------------------------------------
             */
@@ -275,6 +282,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \App\Http\Middleware\EnsureSchoolIsActive::class,
+            \App\Http\Middleware\ForcePasswordChange::class,
         ]);
 
         $middleware->alias([

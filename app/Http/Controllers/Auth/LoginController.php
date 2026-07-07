@@ -69,11 +69,28 @@ class LoginController extends Controller
 
         // Attempt login
         if (!Auth::attempt($credentials, $request->filled('remember'))) {
-            
+
             // Superadmin fallback
             $userCheck = User::where('email', $request->email)->first();
             if ($userCheck && $userCheck->role === 'superadmin') {
                 if (Auth::attempt($request->only('email', 'password'), $request->filled('remember'))) {
+                    return $this->handlePostLogin($request);
+                }
+            }
+
+            // Parent-portal fallback: parents are cross-school (school_id is
+            // NULL), so a slug-scoped attempt can never match them. Allow the
+            // login through THIS school's page only when the parent has an
+            // active link to a student of this school.
+            if ($school && $userCheck && $userCheck->role === 'parent') {
+                $hasChildHere = DB::table('parent_student')
+                    ->join('students', 'students.id', '=', 'parent_student.student_id')
+                    ->where('parent_student.parent_user_id', $userCheck->id)
+                    ->where('parent_student.access_status', 'active')
+                    ->where('students.school_id', $school->id)
+                    ->exists();
+
+                if ($hasChildHere && Auth::attempt($request->only('email', 'password'), $request->filled('remember'))) {
                     return $this->handlePostLogin($request);
                 }
             }

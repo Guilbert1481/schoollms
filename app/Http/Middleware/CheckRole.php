@@ -31,7 +31,11 @@ class CheckRole
             abort(403, 'You do not have the correct permissions to access this page.');
         }
 
-        if ($userRole !== 'superadmin' && ! $user->school_id) {
+        // Superadmins and parent-portal users are the two school-less account
+        // kinds: parents are cross-school (children may attend different
+        // schools), so their scoping runs through parent_student links —
+        // enforced per child in the parent controllers — not users.school_id.
+        if (! in_array($userRole, ['superadmin', 'parent'], true) && ! $user->school_id) {
             abort(403, 'No school assigned.');
         }
 

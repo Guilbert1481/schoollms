@@ -110,13 +110,19 @@ return [
         ],
 
         'student' => [
-            'schedules_student', 
-            'academics_student', 
+            'schedules_student',
+            'academics_student',
             'applications_student',
-            'finance_student', 
+            'finance_student',
             'services_student',
             'communication',
             'tools',
+            'settings',
+            'logout',
+        ],
+
+        'parent' => [
+            'parent_children',
             'settings',
             'logout',
         ],
@@ -534,6 +540,19 @@ return [
             'roles'  => ['registrar'],
         ],
 
+        /*
+        |--------------------------------------------------------------------------
+        | PARENT PORTAL
+        |--------------------------------------------------------------------------
+        */
+        'parent_children' => [
+            'icon'   => 'users',
+            'label'  => 'My Children',
+            'route'  => 'parent.dashboard',
+            'active' => 'parent.*',
+            'roles'  => ['parent'],
+        ],
+
         'registrar_student_registry' => [
             'icon'   => 'id-card',
             'label'  => 'Student Registry',
@@ -738,11 +757,19 @@ return [
                 ],
 
                 [
+                    'label' => 'Parent Portal',
+                    'route' => 'registrar.settings.parent-portal.index',
+                    'active' => 'registrar.settings.parent-portal.*',
+                    'icon'  => 'users',
+                    'roles' => ['registrar'],
+                ],
+
+                [
                     'label' => 'Profile Settings',
                     'route' => 'settings.profile',
 
                     'icon'  => 'user',
-                    'roles' => ['admin','dean','principal','admission_manager','teacher','student','registrar','program_head','trainer','trainee','course_architect','guidance_counselor','superadmin'],
+                    'roles' => ['admin','dean','principal','admission_manager','teacher','student','registrar','program_head','trainer','trainee','course_architect','guidance_counselor','superadmin','parent'],
                 ],
 
                 [
