@@ -48,14 +48,19 @@ Route::middleware(['web', 'auth', 'role:finance_manager,admin,superadmin'])
         // Finance settings — grouped sub-pages under the Settings sidebar parent.
         Route::prefix('settings')->name('settings.')->group(function () {
             Route::get('/transaction-types', [FinanceSettingController::class, 'transactionTypes'])->name('transaction-types');
-            Route::get('/payment-methods', [FinanceSettingController::class, 'paymentMethods'])->name('payment-methods');
-            Route::get('/penalty-rules', [FinanceSettingController::class, 'penaltyRules'])->name('penalty-rules');
-            Route::get('/receipt-numbering', [FinanceSettingController::class, 'receiptNumbering'])->name('receipt-numbering');
-            Route::get('/invoice-numbering', [FinanceSettingController::class, 'invoiceNumbering'])->name('invoice-numbering');
-            Route::get('/soa-template', [FinanceSettingController::class, 'soaTemplate'])->name('soa-template');
+
+            // These sub-pages moved into Finance Preferences as tabs —
+            // old bookmarks land on the matching tab.
+            foreach (['payment-methods', 'penalty-rules', 'receipt-numbering', 'invoice-numbering', 'soa-template'] as $tab) {
+                Route::get('/'.$tab, fn () => redirect()->route('finance.settings.preferences', ['tab' => $tab]))
+                    ->name($tab);
+            }
+
             Route::get('/preferences', [FinanceSettingController::class, 'preferences'])->name('preferences');
             Route::put('/preferences', [FinanceSettingController::class, 'updatePreferences'])->name('preferences.update');
             Route::get('/email', [FinanceSettingController::class, 'email'])->name('email');
             Route::put('/email', [FinanceSettingController::class, 'updateEmail'])->name('email.update');
+            Route::post('/email/test-smtp', [FinanceSettingController::class, 'testSmtp'])->name('email.test-smtp');
+            Route::post('/email/test-imap', [FinanceSettingController::class, 'testImap'])->name('email.test-imap');
         });
     });

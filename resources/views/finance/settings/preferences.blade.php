@@ -22,10 +22,18 @@
         $yesNo = fn ($v) => $v ? 'Yes' : 'No';
     @endphp
 
-    <div x-data="{ tab: 'preferences' }">
+    @php
+        $tabs = ['preferences' => 'Preferences'];
+        foreach ($sections as $slug => $section) {
+            $tabs[$slug] = $section['label'];
+        }
+        $tabs['info'] = 'Info';
+    @endphp
+
+    <div x-data="{ tab: '{{ $activeTab }}' }">
         {{-- Tabs --}}
-        <nav class="flex gap-6 border-b border-slate-200 text-sm">
-            @foreach(['preferences' => 'Preferences', 'info' => 'Info'] as $key => $label)
+        <nav class="flex flex-wrap gap-x-6 gap-y-1 border-b border-slate-200 text-sm">
+            @foreach($tabs as $key => $label)
                 <button type="button" @click="tab = '{{ $key }}'"
                         :class="tab === '{{ $key }}' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
                         class="-mb-px border-b-2 px-1 py-3 font-semibold">{{ $label }}</button>
@@ -88,6 +96,39 @@
                 </div>
             </form>
         </div>
+
+        {{-- ===== Moved settings sections (former standalone pages) ===== --}}
+        @foreach($sections as $slug => $section)
+            <div x-show="tab === '{{ $slug }}'" x-cloak class="pt-5">
+                <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div class="mb-4 flex items-center gap-3">
+                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                            <i data-lucide="{{ $section['icon'] }}" class="h-5 w-5"></i>
+                        </span>
+                        <div>
+                            <h2 class="text-sm font-bold text-slate-800">{{ $section['label'] }}</h2>
+                            <p class="text-xs text-slate-500">{{ $section['description'] }}</p>
+                        </div>
+                    </div>
+
+                    @if(!empty($section['items']))
+                        <h3 class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">Currently in use</h3>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach($section['items'] as $item)
+                                <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-slate-700">{{ $item }}</span>
+                            @endforeach
+                        </div>
+                        <p class="mt-4 text-xs text-slate-400">These are the values currently used by the system. A management UI for this section is coming soon.</p>
+                    @else
+                        <div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 py-12 text-center">
+                            <i data-lucide="{{ $section['icon'] }}" class="mb-3 h-8 w-8 text-slate-300"></i>
+                            <p class="text-sm font-semibold text-slate-500">{{ $section['label'] }}</p>
+                            <p class="mt-1 text-xs text-slate-400">This section is coming soon.</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @endforeach
 
         {{-- ===== Info tab (read-only summary) ===== --}}
         <div x-show="tab === 'info'" x-cloak class="pt-5">
