@@ -44,3 +44,6 @@ download_test.bin
 /storage/framework/views/*
 /storage/framework/testing/*
 !**/.gitkeep
+
+# Session continuity log — personal conversation record, kept local (never committed)
+session_history_log.md
