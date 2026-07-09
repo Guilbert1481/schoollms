@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <title>@yield('title', 'Academic Dashboard')</title>
 
-    <!-- Tailwind CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind (compiled via Vite) -->
+    @vite(['resources/css/app.css'])
 
     <!-- Lucide -->
     <script src="https://unpkg.com/lucide@latest"></script>

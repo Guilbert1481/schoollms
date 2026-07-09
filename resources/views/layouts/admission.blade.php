@@ -9,8 +9,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $tenant->name ?? 'Admissions System' }}</title>
 
-    {{-- Tailwind --}}
-    <script src="https://cdn.tailwindcss.com"></script>
+    {{-- Tailwind (compiled via Vite) --}}
+    @vite(['resources/css/app.css'])
 
     {{-- Alpine --}}
     <script src="//unpkg.com/alpinejs" defer></script>
@@ -21,18 +21,9 @@
     {{-- Lucide Icons --}}
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: "{{ $tenant->primary_color ?? '#6366f1' }}"
-                    }
-                }
-            }
-        }
-    </script>
+    {{-- Dark mode now follows the app-wide `media` strategy (root tailwind.config),
+         consistent with every other compiled page; the tenant `primary` color was
+         defined here but never used, so no root-config change is needed. --}}
 </head>
 
 <body class="bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-900 dark:to-slate-800 transition-all duration-300">

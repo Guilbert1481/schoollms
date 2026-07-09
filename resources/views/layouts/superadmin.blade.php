@@ -11,7 +11,7 @@
     
     <link href="{{ mix('css/app.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/superadmin/layout.css') }}">
-    <script src="https://cdn.tailwindcss.com"></script>
+    @vite(['resources/css/app.css'])
     
     <style>
         [x-cloak] { display: none !important; }
