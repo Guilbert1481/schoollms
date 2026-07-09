@@ -497,8 +497,8 @@ class EnrollmentController extends Controller
         }
 
         // Registrar-required documents for the upload student types
-        // (transferee / shifter / returnee). The pathway JS filters these
-        // client-side by the selected type / level / program / year.
+        // (new / transferee / shifter / returnee — see DocumentRequirement::UPLOAD_TYPES).
+        // The pathway JS filters these client-side by the selected type / level / program / year.
         $docRequirements = \App\Models\DocumentRequirement::query()
             ->where('school_id', (int) $term->school_id)
             ->where('is_active', true)
@@ -509,6 +509,8 @@ class EnrollmentController extends Controller
                 'education_node_id' => $r->education_node_id ? (int) $r->education_node_id : null,
                 'program_id'        => $r->program_id ? (int) $r->program_id : null,
                 'year_level'        => $r->year_level ? (int) $r->year_level : null,
+                'for_foreigner'     => (bool) $r->for_foreigner,
+                'nationality'       => $r->nationality,
                 'documents'         => collect((array) $r->documents)->filter()->map(fn ($d) => [
                     'label' => $d,
                     'key'   => \Illuminate\Support\Str::slug($d, '_'),
@@ -524,6 +526,7 @@ class EnrollmentController extends Controller
             'savedChain'  => $savedChain,
             'lockedRootId' => $lockedRootId,
             'docRequirements' => $docRequirements,
+            'applicantNationality' => $student->nationality,
         ]);
     }
 
@@ -680,13 +683,19 @@ class EnrollmentController extends Controller
 
         $data['is_foreigner'] = $request->boolean('is_foreigner');
 
-        // Registrar-required document uploads (transferee / shifter / returnee).
-        // Uploads persist in the pathway draft; already-uploaded documents are
-        // not required again when the student revisits the step.
+        // Registrar-required document uploads (new / transferee / shifter / returnee
+        // — see DocumentRequirement::UPLOAD_TYPES). Uploads persist in the pathway
+        // draft; already-uploaded documents are not required again on revisit.
         $documents = $this->priorPathwayDocuments($term);
         $studentTypeForDocs = $isAsync ? null : ($data['student_type'] ?? null);
         if ($studentTypeForDocs && in_array($studentTypeForDocs, \App\Models\DocumentRequirement::UPLOAD_TYPES, true)) {
-            $required = $this->requiredDocumentsFor($term, $studentTypeForDocs, $data);
+            $required = $this->requiredDocumentsFor(
+                $term,
+                $studentTypeForDocs,
+                $data,
+                (bool) ($data['is_foreigner'] ?? false),
+                auth()->user()->student?->nationality
+            );
 
             $docRules    = [];
             $docMessages = [];
@@ -779,17 +788,19 @@ class EnrollmentController extends Controller
      * Registrar-required documents matching this school / student type /
      * level / program / year. Returns [['label' => …, 'key' => …], …].
      */
-    private function requiredDocumentsFor(Term $term, string $studentType, array $data): array
+    private function requiredDocumentsFor(Term $term, string $studentType, array $data, bool $isForeigner = false, ?string $nationality = null): array
     {
         $nodeRoot = EducationLevels::nodeRootMap();
-        $rootId   = (int) ($nodeRoot[$data['education_node_id'] ?? null] ?? 0);
+        $nodeId   = $data['education_node_id'] ?? null;
+        $rootId   = (int) ($nodeId ? ($nodeRoot[$nodeId] ?? 0) : 0);
+        $appNat   = trim(mb_strtolower((string) $nationality));
 
         return \App\Models\DocumentRequirement::query()
             ->where('school_id', (int) $term->school_id)
             ->where('is_active', true)
             ->where('student_type', $studentType)
             ->get()
-            ->filter(function ($r) use ($rootId, $data) {
+            ->filter(function ($r) use ($rootId, $data, $isForeigner, $appNat) {
                 if ($r->education_node_id && $rootId && (int) $r->education_node_id !== $rootId) {
                     return false;
                 }
@@ -798,6 +809,18 @@ class EnrollmentController extends Controller
                 }
                 if ($r->year_level && ! empty($data['year_level']) && (int) $r->year_level !== (int) $data['year_level']) {
                     return false;
+                }
+                // Foreigner scoping: a foreigner-only requirement applies only when
+                // the applicant ticked "Foreigner"; if it names a nationality, the
+                // applicant's Personal-Info nationality must match (case-insensitive).
+                if ($r->for_foreigner) {
+                    if (! $isForeigner) {
+                        return false;
+                    }
+                    $reqNat = trim(mb_strtolower((string) $r->nationality));
+                    if ($reqNat !== '' && $reqNat !== $appNat) {
+                        return false;
+                    }
                 }
 
                 return true;

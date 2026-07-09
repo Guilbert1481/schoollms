@@ -71,6 +71,7 @@ class DocumentRequirementController extends Controller
                     : 'Any',
                 'documents'    => $this->documentsCell($docs),
                 'year_grade'   => $year,
+                'nationality'  => $this->nationalityCell($r),
                 'actions'      => $this->actionsCell($r),
             ];
         })->values();
@@ -84,9 +85,10 @@ class DocumentRequirementController extends Controller
         if (! $activeLevelIsBasic) {
             $columns[] = ['key' => 'program', 'label' => 'Program', 'width' => '140px'];
         }
-        $columns[] = ['key' => 'year_grade', 'label' => 'Year/Grade', 'width' => '110px'];
-        $columns[] = ['key' => 'documents',  'label' => 'Documents',  'width' => '320px', 'raw' => true];
-        $columns[] = ['key' => 'actions',    'label' => 'Actions',    'width' => '140px', 'raw' => true];
+        $columns[] = ['key' => 'year_grade',  'label' => 'Year/Grade',  'width' => '110px'];
+        $columns[] = ['key' => 'nationality', 'label' => 'Nationality', 'width' => '120px', 'raw' => true];
+        $columns[] = ['key' => 'documents',   'label' => 'Documents',   'width' => '320px', 'raw' => true];
+        $columns[] = ['key' => 'actions',     'label' => 'Actions',     'width' => '140px', 'raw' => true];
 
         // Options for the Add/Edit modal.
         $programsByRoot = [];
@@ -109,22 +111,36 @@ class DocumentRequirementController extends Controller
                 ->values()->all();
         }
 
+        // Nationality suggestions for the modal datalist — the real values
+        // applicants have entered in Personal Info (students.nationality).
+        $nationalityOptions = DB::table('students')
+            ->where('school_id', $schoolId)
+            ->whereNotNull('nationality')
+            ->where('nationality', '<>', '')
+            ->distinct()
+            ->orderBy('nationality')
+            ->pluck('nationality')
+            ->all();
+
         return view('registrar.settings.documents', [
-            'levels'            => $levels,
-            'activeLevelId'     => $activeLevelId,
-            'showAll'           => $showAll,
-            'rows'              => $rows,
-            'columns'           => $columns,
-            'studentTypes'      => DocumentRequirement::STUDENT_TYPES,
-            'programsByRoot'    => $programsByRoot,
-            'yearOptionsByRoot' => $yearOptionsByRoot,
-            'basicRootIds'      => $basicRootIds,
-            'requirementsJson'  => $requirements->map(fn ($r) => [
+            'levels'             => $levels,
+            'activeLevelId'      => $activeLevelId,
+            'showAll'            => $showAll,
+            'rows'               => $rows,
+            'columns'            => $columns,
+            'studentTypes'       => DocumentRequirement::STUDENT_TYPES,
+            'programsByRoot'     => $programsByRoot,
+            'yearOptionsByRoot'  => $yearOptionsByRoot,
+            'basicRootIds'       => $basicRootIds,
+            'nationalityOptions' => $nationalityOptions,
+            'requirementsJson'   => $requirements->map(fn ($r) => [
                 'id'                => $r->id,
                 'student_type'      => $r->student_type,
                 'education_node_id' => $r->education_node_id,
                 'program_id'        => $r->program_id,
                 'year_level'        => $r->year_level,
+                'for_foreigner'     => (bool) $r->for_foreigner,
+                'nationality'       => $r->nationality,
                 'documents'         => array_values(array_filter((array) $r->documents)),
             ])->values(),
         ]);
@@ -165,14 +181,34 @@ class DocumentRequirementController extends Controller
             'education_node_id' => ['nullable', 'integer', 'exists:education_nodes,id'],
             'program_id'        => ['nullable', 'integer', 'exists:programs,id'],
             'year_level'        => ['nullable', 'integer', 'min:1', 'max:12'],
+            'for_foreigner'     => ['nullable', 'boolean'],
+            'nationality'       => ['nullable', 'string', 'max:100'],
             'documents'         => ['required', 'array', 'min:1'],
             'documents.*'       => ['required', 'string', 'max:150'],
         ]);
+
+        // Nationality only matters for foreigner requirements; a blank nationality
+        // on a foreigner requirement means "any foreign applicant".
+        $data['for_foreigner'] = $request->boolean('for_foreigner');
+        $data['nationality']   = $data['for_foreigner']
+            ? (trim((string) ($data['nationality'] ?? '')) ?: null)
+            : null;
 
         $data['documents'] = array_values(array_unique(array_filter(array_map('trim', $data['documents']))));
         abort_if(empty($data['documents']), 422, 'At least one document is required.');
 
         return $data;
+    }
+
+    private function nationalityCell(DocumentRequirement $r): string
+    {
+        if (! $r->for_foreigner) {
+            return '<span style="color:#94a3b8">Local</span>';
+        }
+
+        $label = $r->nationality ?: 'Any foreign';
+
+        return '<span style="display:inline-block;border-radius:9999px;background:#fef3c7;color:#b45309;padding:2px 8px;font-size:12px;font-weight:500">'.e($label).'</span>';
     }
 
     private function documentsCell(array $docs): string

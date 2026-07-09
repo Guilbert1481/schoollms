@@ -120,21 +120,32 @@
             </div>
         </div>
 
-        {{-- Registrar-required documents (transferee / shifter / returnee) --}}
+        {{-- Registrar-required documents (new / transferee / shifter / returnee) --}}
+        <style>
+            /* 3-per-row upload grid — build-independent (no Tailwind purge dependency). */
+            .doc-req-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+            @media (min-width: 640px)  { .doc-req-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+            @media (min-width: 1024px) { .doc-req-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        </style>
         <div id="docRequirementsSection" class="hidden">
             <label class="block text-sm font-bold mb-1">Required Documents <span class="text-red-500">*</span></label>
             <p class="text-xs text-slate-500 mb-2">
                 The registrar requires these documents for your student type.
                 Accepted: PDF, JPG, PNG, WEBP — max 5&nbsp;MB each.
             </p>
-            <div id="docRequirementInputs" class="space-y-2"></div>
+            <div id="docRequirementInputs" class="doc-req-grid"></div>
         </div>
 
         <script>
             (function () {
                 const DOC_REQUIREMENTS = @json($docRequirements ?? []);
                 const SAVED_DOCS = @json($saved['documents'] ?? []);
-                const UPLOAD_TYPES = ['transferee', 'shifter', 'returnee'];
+                // Single source of truth — mirrors DocumentRequirement::UPLOAD_TYPES
+                // so the server query and this client gate can never drift apart.
+                const UPLOAD_TYPES = @json(\App\Models\DocumentRequirement::UPLOAD_TYPES);
+                // Applicant's Personal-Info nationality — used to match foreigner
+                // requirements scoped to a specific nationality.
+                const APPLICANT_NATIONALITY = String(@json($applicantNationality ?? '') || '').trim().toLowerCase();
 
                 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
                     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -150,18 +161,31 @@
                     return true;
                 }
 
+                // Foreigner requirements appear only when "Foreigner" is ticked; a
+                // nationality-specific one appears only when it matches the applicant's
+                // nationality (blank = any foreigner). Non-foreigner rows always apply.
+                function foreignerMatches(r, isForeigner) {
+                    if (!r.for_foreigner) return true;
+                    if (!isForeigner) return false;
+                    const reqNat = String(r.nationality || '').trim().toLowerCase();
+                    return reqNat === '' || reqNat === APPLICANT_NATIONALITY;
+                }
+
                 function refreshDocRequirements() {
                     const section = document.getElementById('docRequirementsSection');
                     const wrap = document.getElementById('docRequirementInputs');
                     if (!section || !wrap) return;
                     const type = document.getElementById('studentTypeSelect')?.value || '';
+                    const isForeigner = document.getElementById('isForeigner')?.checked || false;
                     const docs = [];
                     if (UPLOAD_TYPES.includes(type)) {
-                        DOC_REQUIREMENTS.filter((r) => r.student_type === type && reqMatches(r)).forEach((r) => {
-                            (r.documents || []).forEach((d) => {
-                                if (!docs.some((x) => x.key === d.key)) docs.push(d);
+                        DOC_REQUIREMENTS
+                            .filter((r) => r.student_type === type && reqMatches(r) && foreignerMatches(r, isForeigner))
+                            .forEach((r) => {
+                                (r.documents || []).forEach((d) => {
+                                    if (!docs.some((x) => x.key === d.key)) docs.push(d);
+                                });
                             });
-                        });
                     }
                     if (!docs.length) {
                         section.classList.add('hidden');
@@ -171,18 +195,16 @@
                     section.classList.remove('hidden');
                     wrap.innerHTML = docs.map((d) => {
                         const saved = SAVED_DOCS[d.key];
-                        return '<div class="flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-lg p-3">'
-                            + '<div class="flex-1" style="min-width:180px">'
-                            + '<div class="text-sm font-semibold text-slate-700">' + esc(d.label) + ' <span class="text-red-500">*</span></div>'
-                            + (saved ? '<div class="text-xs text-emerald-600">Already uploaded — choose a file only to replace it.</div>' : '')
-                            + '</div>'
+                        return '<div class="bg-white border border-slate-200 rounded-lg p-3">'
+                            + '<div class="text-sm font-semibold text-slate-700 mb-1">' + esc(d.label) + ' <span class="text-red-500">*</span></div>'
+                            + (saved ? '<div class="text-xs text-emerald-600 mb-1">Already uploaded — choose a file only to replace it.</div>' : '')
                             + '<input type="file" name="requirement_docs[' + esc(d.key) + ']" accept=".pdf,.jpg,.jpeg,.png,.webp"'
-                            + (saved ? '' : ' required') + ' class="text-sm">'
+                            + (saved ? '' : ' required') + ' class="text-sm w-full">'
                             + '</div>';
                     }).join('');
                 }
 
-                ['studentTypeSelect', 'rootLevel', 'programSelect', 'yearLevelSelect'].forEach((id) => {
+                ['studentTypeSelect', 'rootLevel', 'programSelect', 'yearLevelSelect', 'isForeigner'].forEach((id) => {
                     document.getElementById(id)?.addEventListener('change', refreshDocRequirements);
                 });
                 document.addEventListener('DOMContentLoaded', refreshDocRequirements);

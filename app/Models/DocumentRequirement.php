@@ -25,7 +25,7 @@ class DocumentRequirement extends Model
     ];
 
     /** Student types whose enrollment form shows the upload block. */
-    public const UPLOAD_TYPES = ['transferee', 'shifter', 'returnee'];
+    public const UPLOAD_TYPES = ['new', 'transferee', 'shifter', 'returnee'];
 
     protected $fillable = [
         'school_id',
@@ -35,12 +35,15 @@ class DocumentRequirement extends Model
         'year_level',
         'documents',
         'is_active',
+        'for_foreigner',
+        'nationality',
     ];
 
     protected $casts = [
-        'documents'  => 'array',
-        'is_active'  => 'boolean',
-        'year_level' => 'integer',
+        'documents'     => 'array',
+        'is_active'     => 'boolean',
+        'year_level'    => 'integer',
+        'for_foreigner' => 'boolean',
     ];
 
     public function educationNode()

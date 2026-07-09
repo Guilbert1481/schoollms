@@ -1,13 +1,22 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    /* Self-contained on/off switch — build-independent (no Tailwind peer utilities). */
+    .fr-switch { position: relative; display: inline-block; width: 38px; height: 22px; flex: 0 0 auto; }
+    .fr-switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+    .fr-switch .fr-track { position: absolute; inset: 0; background: #cbd5e1; border-radius: 9999px; transition: background .2s; }
+    .fr-switch .fr-track::before { content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; background: #fff; border-radius: 9999px; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
+    .fr-switch input:checked + .fr-track { background: #4f46e5; }
+    .fr-switch input:checked + .fr-track::before { transform: translateX(16px); }
+</style>
 <div class="w-full space-y-5">
 
     <div>
         <h1 class="text-2xl font-bold text-slate-800">Document Requirements</h1>
         <p class="text-sm text-slate-500">
             Documents each student type must upload with their enrollment application.
-            Transferees, returnees and shifters see these as required uploads on the enrollment form.
+            New students, transferees, returnees and shifters see these as required uploads on the enrollment form.
         </p>
     </div>
 
@@ -85,6 +94,34 @@
             </select>
         </div>
 
+        {{-- Foreigner scoping: toggle on = only for foreign applicants; optional
+             nationality narrows it to one nationality (blank = any foreigner). --}}
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+                <label class="mb-1 block text-sm font-semibold text-slate-700">Foreigner requirement</label>
+                <label class="inline-flex cursor-pointer select-none items-center gap-2">
+                    <span class="fr-switch">
+                        <input type="checkbox" name="for_foreigner" id="reqForeigner" value="1" onchange="reqToggleForeigner()">
+                        <span class="fr-track"></span>
+                    </span>
+                    <span class="text-sm text-slate-600">Only for foreign applicants</span>
+                </label>
+            </div>
+            <div id="reqNationalityWrap" class="hidden">
+                <label class="mb-1 block text-sm font-semibold text-slate-700">
+                    Nationality <span class="font-normal text-slate-400">(optional)</span>
+                </label>
+                <input type="text" name="nationality" id="reqNationality" list="reqNationalityOptions" maxlength="100"
+                       class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                       placeholder="Any foreign — or e.g. Indian">
+                <datalist id="reqNationalityOptions">
+                    @foreach($nationalityOptions as $nat)
+                        <option value="{{ $nat }}"></option>
+                    @endforeach
+                </datalist>
+            </div>
+        </div>
+
         <div>
             <label class="mb-1 block text-sm font-semibold text-slate-700">Documents <span class="text-rose-500">*</span></label>
             <div id="reqDocsList" class="space-y-2"></div>
@@ -152,6 +189,12 @@
         year.value = selectedYear || '';
     }
 
+    function reqToggleForeigner() {
+        const on = document.getElementById('reqForeigner').checked;
+        document.getElementById('reqNationalityWrap').classList.toggle('hidden', !on);
+        if (!on) document.getElementById('reqNationality').value = '';
+    }
+
     function reqAddDocRow(value) {
         const list = document.getElementById('reqDocsList');
         const row = document.createElement('div');
@@ -173,6 +216,7 @@
         document.getElementById('reqDocsList').innerHTML = '';
         reqAddDocRow('');
         reqSyncLevelFields();
+        reqToggleForeigner();
         openModal('documentRequirementModal');
     }
 
@@ -185,6 +229,9 @@
         document.getElementById('reqStudentType').value = r.student_type;
         document.getElementById('reqLevel').value = r.education_node_id || '';
         reqSyncLevelFields(r.program_id ? String(r.program_id) : '', r.year_level ? String(r.year_level) : '');
+        document.getElementById('reqForeigner').checked = !!r.for_foreigner;
+        document.getElementById('reqNationality').value = r.nationality || '';
+        reqToggleForeigner();
         const list = document.getElementById('reqDocsList');
         list.innerHTML = '';
         (r.documents.length ? r.documents : ['']).forEach((d) => reqAddDocRow(d));
