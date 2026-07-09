@@ -33,6 +33,10 @@
 - One concern per PR; small diffs. Reference the roadmap finding ID (e.g. "H4").
 - PR description states: what changed, why, how it was verified, rollback plan.
 - Required before merge: Pint clean, `php artisan test` green, no `dd()`/scratch files.
+- **Platform enforcement (Q7):** branch protection on `main` (no direct pushes —
+  the platform enforces what convention already requires), a PR template carrying
+  the house checklist (tests? tenant-scoped? Pint? finding ID?), and a
+  `CHANGELOG.md` maintained per release.
 
 ## 5. Design reviews
 
@@ -94,6 +98,8 @@ database** — never sqlite, and never the dev/prod database.
     then `composer test` against that database.
   - **code-style** — `vendor/bin/pint --test` (currently non-blocking).
   - **static-analysis** — Larastan (currently non-blocking until a baseline lands).
+  - **dependency-audit** *(planned — Roadmap Phase 7 S1/S2)*: `composer audit` +
+    `npm audit` (start non-blocking, promote to required), plus Dependabot on the repo.
 
 ## 9. Release process
 
@@ -113,3 +119,18 @@ database** — never sqlite, and never the dev/prod database.
 - On a suspected breach: rotate `APP_KEY`/session secret, invalidate sessions,
   consult the audit log (Roadmap Phase 3/4) for actor + timeline, patch on a
   hotfix branch, write a postmortem ADR.
+- The full procedure lives in the **one-page IR plan** (Roadmap Phase 8 P1),
+  written *before* it's needed: who is called, mass force-logout, rotation runbook
+  (⚠ coordinated with the Phase 6 D2 encrypted casts), school notification steps.
+- Breach handling must satisfy **RA 10173**: 72-hour notification to the NPC and
+  affected data subjects (P3). The Phase 3–4 logs are what make "what leaked, when,
+  to whom" answerable inside that window.
+- Staff offboarding is part of incident *prevention*: deactivation **kills active
+  sessions**, and roles get a periodic least-privilege review (P2).
+
+## 11. Onboarding standard *(quality item Q6)*
+
+- The professional test: a new developer (or a rebuilt machine) goes from
+  `git clone` to a working, **demo-school-seeded** app in **≤15 minutes** following
+  only the README — documented setup steps + seeders, powered by the Q2 factories.
+  If a step lives only in someone's head or a chat log, it isn't done.

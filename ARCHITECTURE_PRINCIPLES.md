@@ -32,9 +32,11 @@ This is a **multi-school SaaS**. Tenant isolation is architecture, not an aftert
 - **Every model with a `school_id` column MUST use the `BelongsToSchool` trait**
   (`app/Models/Traits/BelongsToSchool.php`). The trait adds a global scope that
   filters by the authenticated user's `school_id` and auto-assigns it on create.
-- Today only 15 of ~131 models use it. The unscoped finance models (`Invoice`,
-  `Payment`, `PaymentPlan`, `LedgerEntry`, `Scholarship`, `PenaltyRule`) are a
-  standing risk — see `MODERNIZATION_ROADMAP.md` Phase 1.
+- *(Updated 2026-07-09)* Roadmap Phase 1 (H4, done 2026-06-30) scoped the finance
+  models (`Invoice`, `Payment`, `PaymentPlan`, `LedgerEntry`, `Scholarship`,
+  `PenaltyRule`, `Test`, `Subject`, `EnrollmentDocument`) — and M4 fixed the
+  superadmin bypass that had silently disabled the global scope entirely.
+  Remaining `school_id` models are scoped opportunistically as they're touched.
 - **Object-level checks are still required** for route-model-bound records:
   `abort_unless($model->school_id === auth()->user()->school_id, 404)`
   (canonical pattern: `InvoiceController::authorizeSchool`,
@@ -50,7 +52,12 @@ This is a **multi-school SaaS**. Tenant isolation is architecture, not an aftert
   `SECURITY_PRINCIPLES.md` / `ACCESS_CONTROL.md`.
 - **Fine gate:** **Policies** (`app/Policies`) decide *which records* a user may
   act on. We have only 1 today (`ChatPolicy`). Finance, student records, grades,
-  and enrollment need policies.
+  and enrollment need policies — this is Roadmap **Phase 2.5** (A1/A2), because
+  **ownership is not tenancy**: the tenant scope alone lets two users of the same
+  school read each other's records.
+- **Prefer a single authorization chokepoint per surface** over scattered
+  `abort_unless` lines — canonical example: the parent portal's `ResolvesChildren`
+  concern (one method every child-scoped route funnels through).
 - The generic master-data CRUD (`BaseCrudController`) is the model to emulate:
   table allowlist + tenant scope + column allowlist.
 
@@ -92,3 +99,12 @@ This is a **multi-school SaaS**. Tenant isolation is architecture, not an aftert
 - A real API gets its own `routes/api.php`, Sanctum auth, **API Resources**
   (transformers) — never raw `response()->json($model)`. Today there are 164 raw
   model JSON returns and 0 Resources; new JSON endpoints must use Resources.
+
+## 9. Observability *(added 2026-07-09 — quality items Q5/Q8)*
+
+- **Structured logging with tenant context:** every application log line carries
+  `school_id` + `user_id` so "our invoices look wrong" is answerable in minutes,
+  not by grepping blind (Q8; pairs with the Phase 3–4 audit work).
+- **Dev strict mode:** `Model::shouldBeStrict()` in non-production
+  (`AppServiceProvider`) so lazy-loading N+1s and silently-discarded attributes
+  throw loudly during development instead of shipping quietly (Q5).

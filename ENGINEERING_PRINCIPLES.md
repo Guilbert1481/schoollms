@@ -31,6 +31,9 @@ That's it.
 - **Every write action validates input.** Prefer **Form Requests**
   (`app/Http/Requests`) over inline `$request->validate()` once a rule set is
   reused or non-trivial.
+- **Touch-rule (Q3, adopted 2026-07-09):** every **new or edited** endpoint ships
+  with a dedicated Form Request. No big-bang rewrite of the ~97 existing
+  inline-validate controllers — they convert as they're touched.
 - Never trust `request()->all()` into `fill()`/`create()`/`update()`. Models must
   declare `$fillable` (we do — keep it that way); the generic CRUD additionally
   enforces a column allowlist (`BaseCrudController::$protectedColumns`).
@@ -67,6 +70,10 @@ That's it.
 - New bug fix → a regression test that fails before the fix and passes after.
 - We are starting from ~zero real tests. The standard going forward: **no new
   finance/grade/auth logic merges without a test.**
+- **Factories are the foundation (Q2):** every core model (`School`, `User`,
+  `Student`, `Invoice`, `Payment`, `StudentEnrollment`, …) gets a model factory so
+  writing a new test takes minutes, not hours. A test that needs a model without a
+  factory adds the factory first.
 - Verification during development uses rolled-back smoke tests
   (`DB::beginTransaction()/rollBack()`) so we never mutate live data.
 
@@ -90,6 +97,15 @@ That's it.
 
 1. No copy-paste of a controller/view to make a variant — extract the shared part.
 2. No new global helper for a one-off — put it where it belongs.
-3. No magic numbers/strings — use config or class constants (e.g. `Payment::TYPES`).
+3. No magic numbers/strings — use config, class constants (e.g. `Payment::TYPES`),
+   or better, **backed PHP enums** for domain statuses (enrollment status,
+   `billing_cleared_as`, upload/student types, payment states). One source of truth
+   ends server↔client list drift — the `UPLOAD_TYPES` bug (server allow-list and a
+   hardcoded JS copy drifted apart) is the exact failure this prevents. Touch-rule
+   like Q3: adopt on new/edited status fields (Q4).
 4. No `dd()`/`dump()`/`ray()`/`console.log` left in committed code.
 5. No "I'll add the test later." Later is now.
+6. **No half-finished migrations (Q1).** When replacing a system (CSS pipeline,
+   build tool, layout, component), finish the migration or revert it — two systems
+   doing one job (Tailwind CDN + compiled, Mix + Vite, dormant React files) is the
+   loudest vibe-coder tell in a codebase. Dead code is deleted, not left "just in case".

@@ -21,8 +21,9 @@ discovered mid-work is *added to the roadmap*, not silently fixed in an unrelate
 (cross-referenced from the architecture/engineering/security principles):
 
 - **God-controllers** doing raw `DB::` calls → decompose into `app/Services`.
-- **Tenant coverage:** only ~15/131 models use `BelongsToSchool`; the unscoped finance models
-  (`Invoice`, `Payment`, `PaymentPlan`, `LedgerEntry`, `Scholarship`, `PenaltyRule`) are priority-1 risk.
+- **Tenant coverage:** ~~unscoped finance models~~ *resolved 2026-06-30 (roadmap H4 — `Invoice`, `Payment`,
+  `PaymentPlan`, `LedgerEntry`, `Scholarship`, `PenaltyRule` + 3 more now use `BelongsToSchool`)*; remaining
+  models to be scoped opportunistically as they're touched.
 - **Missing seams:** Policies (1 today), Jobs/Events/Listeners (0 — enrollment PDF/email run
   synchronously), API Resources (0; ~164 raw model-JSON returns).
 - **Front-end:** the ~11k-line `public/js/app.js`; duplicated per-track Blade review steps; `{!! !!}` XSS offenders.
@@ -59,7 +60,45 @@ discovered mid-work is *added to the roadmap*, not silently fixed in an unrelate
 
 ---
 
+## 7. Engineering-quality backlog (Q1–Q8)
+
+> Added 2026-07-09 from the operator's goal review: beyond *secure* (the roadmap's security phases),
+> the codebase must read as **senior-architect work, not vibe-coded**. These are quality items, not
+> vulnerabilities — **security Phases 2/2.5 keep priority**; Q items interleave per the notes below.
+> Baseline measured 2026-07-09: 12 test files · 2 factories · 1 FormRequest vs 97 controllers with
+> inline `validate()` · 0 PHP enums · no dev strict-mode guards · 476 Blade views · 366 migrations.
+> Already senior-grade (keep it that way): `decimal(12,2)` money, FKs in newer migrations, governance
+> docs + ADRs, CI vs real MySQL, Larastan + Pint, verification evidence on every closed roadmap item.
+
+- [ ] **Q1** Finish half-done migrations, delete dead code *(loudest "vibe-coder" tell; cheapest fix)* —
+  complete the Tailwind CDN→Vite migration (10/16 pages remain), move the superadmin layout off Laravel
+  Mix, delete dormant `resources/js/app.jsx` + `components/TeacherDashboard.jsx` and the orphaned
+  `layouts/academics`, remove tracked junk (ties to roadmap L2), trim the over-broad Tailwind safelist
+  (880 KB compiled CSS).
+- [ ] **Q2** Test foundation *(the big rock)* — factories for every core model (`School`, `Student`/`User`,
+  `Invoice`, `Payment`, `StudentEnrollment`, …) so a new test takes minutes, then feature tests over the
+  existing money/grade paths. Standing rule: every bug fix ships with its regression test.
+- [ ] **Q3** FormRequests as a touch-rule — every **new or edited** endpoint gets a dedicated FormRequest
+  (no big-bang rewrite of the 97 inline-validate controllers).
+- [ ] **Q4** Backed PHP enums for domain statuses — enrollment status, `billing_cleared_as`, upload/student
+  types, payment states. One source of truth ends server↔client list drift (the `UPLOAD_TYPES` bug class).
+  Adopt as a touch-rule like Q3.
+- [ ] **Q5** Dev strict mode *(one-liner)* — `Model::shouldBeStrict()` (lazy-loading, silently-discarded
+  attributes) in `AppServiceProvider` for non-production; every hidden N+1 becomes a loud dev exception.
+- [ ] **Q6** Reproducible onboarding — README setup that takes a new machine from `git clone` to a working,
+  demo-school-seeded app in ≤15 minutes (setup steps + seeders; builds on Q2's factories).
+- [ ] **Q7** Release discipline on GitHub — branch protection on `main`, a PR template with the house
+  checklist (tests / tenant scoping / Pint / finding ID), `CHANGELOG.md`.
+- [ ] **Q8** Structured logging with tenant context — `school_id` + `user_id` on every log line
+  (pairs with roadmap Phases 3–4 audit work).
+
+**Sequencing:** Q1 + Q5 are cheap and interleave with security phases anytime; Q2 + Q6 form their own
+workstream (and de-risk everything after them); Q3 / Q4 / Q8 are incremental house rules, enforced in
+review from now on rather than executed as one project.
+
+---
+
 *Living document. The authoritative plan is [`MODERNIZATION_ROADMAP.md`](./MODERNIZATION_ROADMAP.md);
 this file governs the discipline by which it is executed.*
 
-**Amendment history:** v1.0 (2026-07-03) — initial ratification; policy layer over the existing roadmap/progress docs (which are retained unchanged).
+**Amendment history:** v1.0 (2026-07-03) — initial ratification; policy layer over the existing roadmap/progress docs (which are retained unchanged). v1.1 (2026-07-09) — §7 engineering-quality backlog (Q1–Q8) added; §2 tenant-coverage headline updated to reflect roadmap H4 completion.

@@ -66,12 +66,32 @@ Encode the rules before changing code. Pure markdown.
 
 ## Phase 2 — File Upload & XSS Hardening
 
-- [ ] **C2** Move `id_documents` off the public disk (`EnrollmentController.php:190-191`) → private `local` disk + gated download route (`abort_unless` same-school owner/staff).
-- [ ] **H3** Server-side `mimes` validation + image re-encode on `FormController` branding uploads, `ChatController.php:258`, `EnrollmentController` photo/ID. Re-encoding strips embedded scripts (kills SVG/HTML XSS).
+- [ ] **C2** Move `id_documents` off the public disk (`Public/EnrollmentController.php:191`) → private `local` disk + gated download route (`abort_unless` same-school owner/staff).
+- [ ] **H3** Server-side `mimes` validation + image re-encode on `FormController` branding uploads, `Communication/ChatController.php:294`, `EnrollmentController` photo/ID. Re-encoding strips embedded scripts (kills SVG/HTML XSS).
 - [ ] **H5** Fix unescaped Blade: `components/table/table-body.blade.php:24` → `{{ }}` (or per-column allow-HTML flag); `admin/quotes/index.blade.php:71` → `@json()`.
 
 **Safety:** valid PNG/JPG/PDF keep working; only disallowed types rejected; re-encode is visually identical.
 **Verify:** normal logo uploads; `evil.svg` rejected/neutralized; ID-doc URL 403s without auth; `<script>` in a name renders escaped.
+
+---
+
+## Phase 2.5 — Intra-School Authorization (user-to-user isolation)
+
+> Added 2026-07-09 from the operator's goal review. `BelongsToSchool` stops School A reading School B,
+> but does **nothing** between two users of the same school. C1 was one instance of this bug class fixed
+> individually; this phase sweeps the whole class. Exploitable with any student login → same priority tier as Phase 2.
+
+- [ ] **A1** Laravel Policies on user-owned models — `Invoice`, `Payment`, `StatementOfAccount`,
+  grades/test results, `StudentEnrollment`, `EnrollmentDocument`, `ChatThread`/`ChatMessage`. One auditable
+  ownership rule per model instead of scattered `abort_unless` lines. Generalize the parent portal's
+  `ResolvesChildren` chokepoint pattern.
+- [ ] **A2** Route sweep — audit every route that takes a user-owned ID (`/invoices/{id}`,
+  `/grades/{student}`, …) and confirm it passes through a Policy/ownership check, not just the tenant scope.
+- [ ] **A3** Raw-query & mass-assignment sweep — audit all `DB::raw`/`whereRaw` for injection and
+  `$fillable` on sensitive models (extends the parent-portal `password_change_required` fix).
+
+**Safety:** policies are additive; legitimate owner/staff access keeps working.
+**Verify:** Student A requesting Student B's invoice/grade (same school) → 403/404; owner and authorized staff unaffected.
 
 ---
 
@@ -101,15 +121,65 @@ Encode the rules before changing code. Pure markdown.
 - [ ] **M2** Enforce 2FA (`pragmarx/google2fa` already installed) in `LoginController::handlePostLogin`.
 
 **Safety:** CSP starts in report-only so inline scripts/styles aren't broken; headers append-only.
-**Verify:** site renders with headers; 2FA challenge appears post-login.
+**Verify:** site renders with headers; 2FA challenge appears post-login. M2 note: 2FA **mandatory** for
+staff roles (admin/finance/registrar), optional for students.
+
+---
+
+## Phase 6 — Data Protection  *(added 2026-07-09 — "assume breach" layer)*
+
+- [ ] **D1** Backups: automated, **encrypted, off-site, restore-tested**. Nothing exists today. The single
+  most important addition in Phases 6–8 — ransomware/disk failure is a bigger practical risk than any attacker,
+  and data loss is irreversible.
+- [ ] **D2** Encryption at rest for crown jewels: Laravel `encrypted` casts on government-ID numbers (and
+  similarly sensitive columns); encrypted storage for uploaded ID files (builds on C2). ⚠ Plan together with
+  the P1 key-rotation procedure — `APP_KEY` rotation re-encrypts these.
+- [ ] **D3** PII retention/deletion policy — how long ID docs and PII of rejected/never-enrolled applicants
+  are kept; delete on schedule (minors' data — also an RA 10173 concern, see P3).
+- [ ] **D4** Staff session hardening — shorter lifetime / idle timeout for admin/finance/registrar (currently
+  480 min, `config/session.php:35`); `expire_on_close` for shared school computers.
+
+**Safety:** casts are per-column and reversible; backups/retention are additive jobs.
+**Verify:** DB dump shows ciphertext for ID columns; a backup restore is actually performed on a scratch DB; expired staff session forces re-login.
+
+---
+
+## Phase 7 — Supply Chain & Monitoring  *(added 2026-07-09)*
+
+- [ ] **S1** `composer audit` + `npm audit` steps in `.github/workflows/ci.yml` (CI currently tests only —
+  known CVEs in dependencies are the most common real-world entry point).
+- [ ] **S2** Enable Dependabot (or Renovate) on the GitHub repo.
+- [ ] **S3** Production error monitoring (Sentry/Flare-class) — probing attempts surface as exceptions first.
+- [ ] **S4** Ship/back up audit logs off the app database so a DB-level attacker can't erase their trail
+  (builds on Phase 3 H2 / Phase 4).
+
+**Safety:** all additive/observability-only; CI audit can start non-blocking then be promoted to required.
+**Verify:** CI fails on a known-vulnerable package pin; test exception appears in the monitor; audit rows exist off-box.
+
+---
+
+## Phase 8 — Process & Compliance  *(added 2026-07-09 — people layer)*
+
+- [ ] **P1** One-page incident-response plan: who is called, mass force-logout procedure, key/credential
+  rotation runbook (coordinate with D2), school notification steps.
+- [ ] **P2** Offboarding/account lifecycle: staff deactivation procedure that also **kills active sessions**;
+  periodic least-privilege role review (readable via the Phase 3 audit log).
+- [ ] **P3** RA 10173 (PH Data Privacy Act) items: designated DPO, privacy notice + consent (enrollment
+  consent already started), **72-hour NPC + data-subject breach notification** readiness (depends on
+  Phases 3–4 logs to know what leaked).
+- [ ] **P4** External penetration test — the graduation exam, after Phases 2–6 are done and before
+  multi-school SaaS is marketed as production-grade.
+
+**Safety:** process/documentation only; no runtime changes except session-kill on deactivation.
+**Verify:** tabletop walkthrough of the IR plan; deactivated staff user's open session is dead on next request.
 
 ---
 
 ## Deferred / Low (cleanup, schedule opportunistically)
 
-- [ ] **L1** Login error-message enumeration (`LoginController.php:64,82`) — unify messages.
-- [ ] **L2** Remove tracked junk (`download_test.bin`, `deploy.sh` review); clear working-tree scratch files.
-- [ ] **L3** Chat attachment public-disk copy (`ChatController.php:471,500` serve gated, but public copy bypasses it).
+- [ ] **L1** Login error-message enumeration (`LoginController.php:63,99,123,139`) — unify messages.
+- [ ] **L2** Remove tracked junk (`download_test.bin`, `deploy.sh` review); clear working-tree scratch files. *(Both still tracked as of 2026-07-09.)*
+- [ ] **L3** Chat attachment public-disk copy (`Communication/ChatController.php:471,500` serve gated, but the public-disk copy at `:294` bypasses it).
 - [ ] **L4** When an API is added: `routes/api.php` + API Resources for the 164 raw-model JSON returns.
 
 ---
@@ -128,10 +198,30 @@ Encode the rules before changing code. Pure markdown.
 | C2 | ID docs on public disk | 2 |
 | H3 | Unrestricted upload MIME | 2 |
 | H5 | Unescaped Blade output | 2 |
+| A1 | No Policies on user-owned models (intra-school IDOR class) | 2.5 |
+| A2 | Routes trust user-owned IDs (ownership unchecked) | 2.5 |
+| A3 | Raw-query / mass-assignment sweep | 2.5 |
 | H2 | No finance/grade audit log | 3 |
 | M3 | No CSP/headers, secure cookie | 5 |
-| M2 | 2FA installed but unused | 5 |
+| M2 | 2FA installed but unused (staff-mandatory) | 5 |
+| D1 | No backups | 6 |
+| D2 | No encryption at rest for gov IDs | 6 |
+| D3 | No PII retention policy | 6 |
+| D4 | 8h staff sessions | 6 |
+| S1 | No dependency audit in CI | 7 |
+| S2 | No Dependabot | 7 |
+| S3 | No error monitoring | 7 |
+| S4 | Audit logs erasable with the DB | 7 |
+| P1 | No incident-response plan | 8 |
+| P2 | No offboarding/session-kill procedure | 8 |
+| P3 | RA 10173 readiness (DPO, 72h breach notice) | 8 |
+| P4 | No external pen test | 8 |
 | L1–L4 | Low / cleanup | Deferred |
 
-> **Milestone:** after **Phase 2**, Sophentis is safe for a single-school production pilot.
+> **Milestone:** after **Phases 2 + 2.5**, Sophentis is safe for a single-school production pilot.
 > After **Phase 4**, it is credible for multi-school SaaS (pending a real test suite).
+> After **Phases 6–8**, it is a complete security *program* (prevention + detection + recovery + process),
+> validated by the P4 pen test.
+>
+> **Priority within the 2026-07-09 additions:** D1 backups → D2 encrypted casts → S1 CI audit steps; the rest
+> follow phase order.
