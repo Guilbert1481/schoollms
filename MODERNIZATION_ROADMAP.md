@@ -64,14 +64,17 @@ Encode the rules before changing code. Pure markdown.
 
 ---
 
-## Phase 2 — File Upload & XSS Hardening
+## Phase 2 — File Upload & XSS Hardening  ✅ *(completed & verified 2026-07-09)*
 
-- [ ] **C2** Move `id_documents` off the public disk (`Public/EnrollmentController.php:191`) → private `local` disk + gated download route (`abort_unless` same-school owner/staff).
-- [ ] **H3** Server-side `mimes` validation + image re-encode on `FormController` branding uploads, `Communication/ChatController.php:294`, `EnrollmentController` photo/ID. Re-encoding strips embedded scripts (kills SVG/HTML XSS).
-- [ ] **H5** Fix unescaped Blade: `components/table/table-body.blade.php:24` → `{{ }}` (or per-column allow-HTML flag); `admin/quotes/index.blade.php:71` → `@json()`.
+- [x] **C2** Government IDs + enrollment documents moved off the public disk to the private `local` disk; gated serving via `Documents\SecureDocumentController` + `routes/documents.php` (owner / same-school staff / superadmin, else 404). Idempotent `documents:relocate-private` command moved existing files (1 relocated, public copy removed). **Verified:** old public `/storage/id_documents/...` URL now 403/404; 7 feature tests (owner+staff allowed, peer student & cross-school registrar 404, guest redirected, public disk clean). *Completed 2026-07-09.*
+- [x] **H3** New `App\Services\Uploads\SecureUpload` — server-side `mimes` allow-list + image decode/re-encode (strips embedded scripts/polyglots; SVG/HTML rejected; random filenames). Wired into `EnrollmentController` (photo/ID/docs), `Communication\ChatController` (attachment allow-list + image re-encode), `FormController` (branding). **Verified:** 5 tests incl. appended-`<script>` payload stripped on re-encode, SVG + HTML-as-image rejected, PDF allowed. *Completed 2026-07-09.*
+- [x] **H5** `admin/quotes/index.blade.php` `{!! toJson() !!}` → `@json()`; `components/table/table-body.blade.php` raw-column security contract documented (producers verified to `e()` user data). *Completed 2026-07-09.*
 
 **Safety:** valid PNG/JPG/PDF keep working; only disallowed types rejected; re-encode is visually identical.
-**Verify:** normal logo uploads; `evil.svg` rejected/neutralized; ID-doc URL 403s without auth; `<script>` in a name renders escaped.
+**Verify:** ✅ full suite green (59 passed); `evil.svg`/HTML rejected; re-encode strips payload; ID-doc URL no longer public; quote data embedded via `@json()`.
+
+> **Milestone reached:** with Phase 2 done, Sophentis clears the single-school production-pilot security bar
+> (pending Phase 2.5 intra-school authorization for the multi-user case).
 
 ---
 

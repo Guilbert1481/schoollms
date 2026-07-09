@@ -4,7 +4,7 @@
 > live in **[MODERNIZATION_ROADMAP.md](MODERNIZATION_ROADMAP.md)**. This file is the
 > quick "where we are / what's next" handoff.
 >
-> **Last updated:** 2026-07-09
+> **Last updated:** 2026-07-09 (Phase 2 shipped)
 
 ## Status overview
 
@@ -13,8 +13,8 @@
 | **G** | Governance documents | ✅ DONE |
 | **0** | Emergency (login throttle, prod-debug guard) | ✅ DONE |
 | **1** | Access control & tenant isolation | ✅ DONE |
-| **2** | File upload & XSS hardening | ⏳ NOT STARTED ← **resume here** |
-| **2.5** | Intra-school authorization (user↔user isolation) | ⏳ NOT STARTED *(added 2026-07-09)* |
+| **2** | File upload & XSS hardening | ✅ DONE *(2026-07-09)* |
+| **2.5** | Intra-school authorization (user↔user isolation) | ⏳ NOT STARTED ← **resume here** *(added 2026-07-09)* |
 | **3** | Finance auditability | ⏳ NOT STARTED |
 | **4** | Logging & monitoring | ⏳ NOT STARTED |
 | **5** | Production hardening | ⏳ NOT STARTED |
@@ -56,19 +56,16 @@
 
 ## ⏳ NOT COMPLETED (do later)
 
-### Phase 2 — File upload & XSS hardening  ← **START HERE NEXT**
-*(All three findings re-verified still present in the code on 2026-07-09.)*
-- **C2** — move `id_documents` off the **public** disk (`Public/EnrollmentController.php:191`) to a private
-  disk + a gated download route (same-school owner/staff check). Government IDs are currently
-  publicly reachable by URL.
-- **H3** — add server-side `mimes` validation + image re-encode to uploaders that lack it:
-  `FormController` (branding logos/header/footer/background), `Communication/ChatController.php:294`
-  (attachments), `Public/EnrollmentController.php` photo/ID (~185-191). Kills SVG/HTML stored-XSS.
-- **H5** — fix unescaped Blade: `resources/views/components/table/table-body.blade.php:24`
-  (`{!! data_get(...) !!}` → `{{ }}`), `resources/views/admin/quotes/index.blade.php:71`
-  (`{!! $quoteRows->toJson() !!}` → `@json()`).
-- ⚠️ Behavior change: H3 will reject non-image uploads; C2 changes ID-doc serving to a route
-  (any hard-coded `/storage/id_documents/...` links must use the new route).
+### Phase 2 — File upload & XSS hardening  ✅ DONE (2026-07-09)
+- **C2** — government IDs + enrollment docs now on the **private** disk; gated via
+  `Documents\SecureDocumentController` + `routes/documents.php`; `documents:relocate-private` moved
+  existing files. 7 feature tests. Commit `181412b`.
+- **H3** — `App\Services\Uploads\SecureUpload` (mimes allow-list + image re-encode; SVG/HTML rejected)
+  wired into EnrollmentController, ChatController, FormController. 5 tests incl. payload-strip proof. Commit `2514564`.
+- **H5** — `admin/quotes/index.blade.php` → `@json()`; table-body raw-column contract documented. Commit `2514564`.
+- ⚠️ Behavior change now LIVE: non-image/PDF uploads rejected; ID-doc serving is via `documents.*` routes
+  (any hard-coded `/storage/id_documents/...` links must use the new route). Blade views that linked ID docs
+  by public URL should be updated to `route('documents.student-id', $student)` if any surface them.
 
 ### Phase 2.5 — Intra-school authorization *(added 2026-07-09 — operator goal: user↔user isolation)*
 - **A1** — Laravel Policies on user-owned models (Invoice, Payment, SOA, grades, StudentEnrollment,
@@ -108,10 +105,13 @@
 
 ## 🔖 Resume instructions
 
-1. Ensure **MySQL is running** (Laragon) — needed for the DB smoke tests on each item.
-2. Next action: **Phase 2 → C2** (move ID docs to a private disk + gated download route).
-3. Workflow per item: additive edit → `php -l` + `php artisan route:list` → rolled-back smoke test →
-   for security fixes, re-run the exploit to confirm it's blocked → mark `[x]` in the roadmap.
+1. Ensure **MySQL is running** (Laragon) — needed for the DB smoke tests + `php artisan test`.
+   On Windows/Laragon, put the MySQL `bin/` on `PATH` first or `schema:dump`/`RefreshDatabase` fail
+   with "'mysql' is not recognized".
+2. Next action: **Phase 2.5 → A1** (Policies on user-owned models — intra-school ownership sweep).
+   Phase 2 (C2/H3/H5) shipped 2026-07-09 (commits `181412b`, `2514564`).
+3. Workflow per item: additive edit → `php -l` + `php artisan route:list` → feature test / rolled-back
+   smoke test → for security fixes, re-run the exploit to confirm it's blocked → mark `[x]` in the roadmap.
 
 ## ⚠️ Environment / state notes
 - **Phase G/0/1 work is committed and pushed** (2026-07-09 check): governance docs in `db0c13a`, the
@@ -122,6 +122,10 @@
 - Since Phase 1 shipped, unrelated feature work landed on the same branch (parent portal Phase 1,
   enrollment activation/queue, finance settings, foreigner doc requirements, Tailwind CDN→Vite
   migration waves 1–3). None of it touched the Phase 2–5 findings — re-verified 2026-07-09.
+- **Phase 2 shipped 2026-07-09** (commits `181412b` C2, `2514564` H3/H5) plus the governance expansion
+  `7607a50` (Phases 2.5/6-8, Q1–Q8, standing risks). New: `App\Services\Uploads\SecureUpload`,
+  `Documents\SecureDocumentController`, `routes/documents.php`, `documents:relocate-private` command,
+  2 feature-test files (12 tests). Uploads now reject SVG/HTML and re-encode images; gov IDs are private.
 - **Mail = `log`** in dev: password-reset links go to `storage/logs/laravel.log`, not real email.
   Configure SMTP for production.
 - **Reverb** (websockets, `:8080`) must be running (`php artisan reverb:start`) or the browser console
