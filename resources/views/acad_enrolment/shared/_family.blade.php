@@ -120,16 +120,30 @@
     const addBtn    = document.getElementById('add-parent');
     if (!container || !addBtn) return;
 
+    // Re-sequence every card to its position: heading number, data-parent-row,
+    // and the parents[n] field names all follow the card index. Called after any
+    // add or remove so indices never collide (a removed middle row previously
+    // left a gap that made the next "add" reuse an existing index) and the
+    // "Parent / Guardian #N" labels stay in order.
+    function renumber() {
+        container.querySelectorAll('[data-parent-row]').forEach((row, i) => {
+            row.dataset.parentRow = i;
+            const heading = row.querySelector('h4 span');
+            if (heading) heading.textContent = `Parent / Guardian #${i + 1}`;
+            row.querySelectorAll('input, select').forEach(el => {
+                if (el.name) el.name = el.name.replace(/parents\[\d+\]/, `parents[${i}]`);
+            });
+        });
+    }
+
     addBtn.addEventListener('click', () => {
         const rows = container.querySelectorAll('[data-parent-row]');
-        const i    = rows.length;
         const tpl  = rows[0].cloneNode(true);
-        tpl.querySelectorAll('input, select').forEach(el => {
-            el.name  = el.name.replace(/parents\[\d+\]/, `parents[${i}]`);
-            el.value = '';
-        });
-        tpl.dataset.parentRow = i;
+        tpl.querySelectorAll('input, select').forEach(el => { el.value = ''; });
+        // A freshly added guardian starts blank and is never the primary contact.
+        tpl.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
         container.appendChild(tpl);
+        renumber();
     });
 
     container.addEventListener('click', (e) => {
@@ -137,6 +151,7 @@
         const rows = container.querySelectorAll('[data-parent-row]');
         if (rows.length <= 1) return;
         e.target.closest('[data-parent-row]').remove();
+        renumber();
     });
 })();
 </script>
