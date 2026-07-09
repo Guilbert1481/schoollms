@@ -68,7 +68,7 @@
 @endphp
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const data = {!! $quoteRows->toJson() !!};
+        const data = @json($quoteRows);
         document.querySelectorAll('#quotesTable tbody tr').forEach(function (tr, idx) {
             const editBtn = tr.querySelector('button[onclick*="openEditQuote"]');
             if (!editBtn) return;

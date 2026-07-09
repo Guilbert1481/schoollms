@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Communication;
 
 use App\Http\Controllers\Controller;
-use App\Models\ChatThread;
 use App\Models\ChatMessage;
+use App\Models\ChatThread;
 use App\Models\User;
 use App\Notifications\FlaggedChatNotification;
 use App\Notifications\NewChatMessageNotification;
+use App\Services\Reusable\AssignableService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Services\Reusable\AssignableService;
 
 class ChatController extends Controller
 {
@@ -19,16 +19,20 @@ class ChatController extends Controller
      */
     protected function displayName(?User $user): string
     {
-        if (!$user) return 'Unknown';
+        if (! $user) {
+            return 'Unknown';
+        }
 
         $profile = $user->relationLoaded('profile') ? $user->profile : $user->profile()->first();
         if ($profile) {
             $parts = array_filter([$profile->first_name, $profile->middle_name, $profile->last_name]);
             $name = trim(implode(' ', $parts));
-            if ($name !== '') return $name;
+            if ($name !== '') {
+                return $name;
+            }
         }
 
-        return $user->name ?: $user->email ?: 'User #' . $user->id;
+        return $user->name ?: $user->email ?: 'User #'.$user->id;
     }
 
     public function index()
@@ -87,8 +91,8 @@ class ChatController extends Controller
             ->with('profile')
             ->whereHas('profile', function ($query) use ($q) {
                 $query->where('first_name', 'like', "%{$q}%")
-                      ->orWhere('middle_name', 'like', "%{$q}%")
-                      ->orWhere('last_name', 'like', "%{$q}%");
+                    ->orWhere('middle_name', 'like', "%{$q}%")
+                    ->orWhere('last_name', 'like', "%{$q}%");
             })
             ->limit(15)
             ->get()
@@ -99,8 +103,8 @@ class ChatController extends Controller
                     : $user->name;
 
                 return [
-                    'id'    => $user->id,
-                    'name'  => $fullName ?: $user->name,
+                    'id' => $user->id,
+                    'name' => $fullName ?: $user->name,
                     'email' => $user->email,
                 ];
             });
@@ -119,29 +123,29 @@ class ChatController extends Controller
 
         // Look for an existing private thread containing both users.
         $thread = ChatThread::where('type', 'private')
-            ->whereHas('participants', fn($q) => $q->where('users.id', $meId))
-            ->whereHas('participants', fn($q) => $q->where('users.id', $user->id))
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $meId))
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $user->id))
             ->first();
 
-        if (!$thread) {
+        if (! $thread) {
             $thread = ChatThread::create([
-                'title'      => null,
-                'type'       => 'private',
-                'school_id'  => auth()->user()->school_id,
+                'title' => null,
+                'type' => 'private',
+                'school_id' => auth()->user()->school_id,
                 'created_by' => $meId,
-                'status'     => 'active',
+                'status' => 'active',
             ]);
             $thread->participants()->attach([$meId, $user->id]);
         }
 
         return response()->json([
             'thread' => [
-                'id'           => $thread->id,
-                'title'        => $this->displayName($user),
-                'type'         => 'private',
-                'updated_at'   => optional($thread->updated_at)->diffForHumans() ?? 'just now',
+                'id' => $thread->id,
+                'title' => $this->displayName($user),
+                'type' => 'private',
+                'updated_at' => optional($thread->updated_at)->diffForHumans() ?? 'just now',
                 'unread_count' => 0,
-                'initial'      => strtoupper(substr($this->displayName($user) ?: '?', 0, 1)),
+                'initial' => strtoupper(substr($this->displayName($user) ?: '?', 0, 1)),
             ],
         ]);
     }
@@ -159,12 +163,15 @@ class ChatController extends Controller
         $thread->load(['participants.profile', 'messages.user.profile']);
 
         $avatarFor = function ($user) {
-            if (!$user) return 'https://ui-avatars.com/api/?name=?&background=e0e7ff&color=4f46e5';
+            if (! $user) {
+                return 'https://ui-avatars.com/api/?name=?&background=e0e7ff&color=4f46e5';
+            }
             if ($user->profile_photo) {
-                return asset('storage/' . $user->profile_photo);
+                return asset('storage/'.$user->profile_photo);
             }
             $name = $this->displayName($user);
-            return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=e0e7ff&color=4f46e5';
+
+            return 'https://ui-avatars.com/api/?name='.urlencode($name).'&background=e0e7ff&color=4f46e5';
         };
 
         $messages = $thread->messages
@@ -173,28 +180,31 @@ class ChatController extends Controller
             ->map(function ($m) use ($meId, $thread, $avatarFor) {
                 $seenBy = $thread->participants
                     ->filter(function ($p) use ($m, $meId) {
-                        if ($p->id === $meId || $p->id === $m->user_id) return false;
+                        if ($p->id === $meId || $p->id === $m->user_id) {
+                            return false;
+                        }
                         $lastRead = $p->pivot->last_read_at ?? null;
+
                         return $lastRead && $lastRead >= $m->created_at;
                     })
                     ->map(function ($p) use ($avatarFor) {
                         return [
-                            'id'     => $p->id,
-                            'name'   => $this->displayName($p),
+                            'id' => $p->id,
+                            'name' => $this->displayName($p),
                             'avatar' => $avatarFor($p),
                         ];
                     })
                     ->values();
 
                 return array_merge([
-                    'id'         => $m->id,
-                    'user_id'    => $m->user_id,
-                    'user_name'  => $this->displayName($m->user),
-                    'user_avatar'=> $avatarFor($m->user),
-                    'message'    => $m->message,
-                    'is_mine'    => $m->user_id === $meId,
+                    'id' => $m->id,
+                    'user_id' => $m->user_id,
+                    'user_name' => $this->displayName($m->user),
+                    'user_avatar' => $avatarFor($m->user),
+                    'message' => $m->message,
+                    'is_mine' => $m->user_id === $meId,
                     'created_at' => optional($m->created_at)->format('M d, Y h:i A'),
-                    'seen_by'    => $seenBy,
+                    'seen_by' => $seenBy,
                 ], $this->attachmentPayload($m));
             });
 
@@ -212,16 +222,14 @@ class ChatController extends Controller
 
         return response()->json([
             'thread' => [
-                'id'    => $thread->id,
+                'id' => $thread->id,
                 'title' => $thread->title
                     ?? ($thread->type === 'private' && $otherUser ? $this->displayName($otherUser) : 'Group Conversation'),
-                'type'  => $thread->type,
+                'type' => $thread->type,
             ],
             'messages' => $messages,
         ]);
     }
-
-
 
     public function show(ChatThread $thread)
     {
@@ -240,14 +248,11 @@ class ChatController extends Controller
         // Update pivot last_read_at
         $thread->participants()
             ->updateExistingPivot(auth()->id(), [
-                'last_read_at' => now()
+                'last_read_at' => now(),
             ]);
 
         return view('communication.chat.show', compact('thread', 'messages'));
     }
-
-
-
 
     public function storeMessage(Request $request, ChatThread $thread)
     {
@@ -255,12 +260,18 @@ class ChatController extends Controller
 
         $request->validate([
             'message' => 'nullable|string',
-            'attachment' => 'nullable|file|max:20480', // 20 MB
+            // Server-side type allow-list (H3): images + common documents only.
+            // SVG/HTML/JS and executables are rejected — they render as active
+            // content when opened inline and are a stored-XSS vector.
+            'attachment' => [
+                'nullable', 'file', 'max:20480', // 20 MB
+                'mimes:jpg,jpeg,png,webp,gif,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv',
+            ],
         ]);
 
         $messageText = (string) $request->input('message', '');
 
-        if (trim($messageText) === '' && !$request->hasFile('attachment')) {
+        if (trim($messageText) === '' && ! $request->hasFile('attachment')) {
             return response()->json(['message' => 'Message or attachment required.'], 422);
         }
 
@@ -291,7 +302,17 @@ class ChatController extends Controller
 
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
-            $path = $file->store('chat-attachments', 'public');
+            $ext = strtolower($file->getClientOriginalExtension());
+
+            // Re-encode images to strip embedded payloads (H3); other allowed
+            // document types are stored as-is with a random path.
+            if (in_array($ext, \App\Services\Uploads\SecureUpload::IMAGE_MIMES, true)) {
+                $path = app(\App\Services\Uploads\SecureUpload::class)
+                    ->storeImage($file, 'chat-attachments', 'public');
+            } else {
+                $path = $file->store('chat-attachments', 'public');
+            }
+
             $attachmentData = [
                 'attachment_path' => $path,
                 'attachment_name' => $file->getClientOriginalName(),
@@ -303,10 +324,10 @@ class ChatController extends Controller
         // 💬 Save Message
         $message = ChatMessage::create(array_merge([
             'chat_thread_id' => $thread->id,
-            'user_id'        => auth()->id(),
-            'message'        => $messageText,
-            'is_flagged'     => $isFlagged,
-            'flag_level'     => $flagLevel,
+            'user_id' => auth()->id(),
+            'message' => $messageText,
+            'is_flagged' => $isFlagged,
+            'flag_level' => $flagLevel,
         ], $attachmentData));
 
         // 🚨 Notify Based on Severity Level
@@ -332,19 +353,19 @@ class ChatController extends Controller
             $me = auth()->user();
             $displayName = $this->displayName($me);
             $avatar = $me->profile_photo
-                ? asset('storage/' . $me->profile_photo)
-                : 'https://ui-avatars.com/api/?name=' . urlencode($displayName) . '&background=e0e7ff&color=4f46e5';
+                ? asset('storage/'.$me->profile_photo)
+                : 'https://ui-avatars.com/api/?name='.urlencode($displayName).'&background=e0e7ff&color=4f46e5';
 
             return response()->json([
                 'message' => array_merge([
-                    'id'          => $message->id,
-                    'user_id'     => $message->user_id,
-                    'user_name'   => $displayName,
+                    'id' => $message->id,
+                    'user_id' => $message->user_id,
+                    'user_name' => $displayName,
                     'user_avatar' => $avatar,
-                    'message'     => $message->message,
-                    'is_mine'     => true,
-                    'created_at'  => optional($message->created_at)->format('M d, Y h:i A'),
-                    'seen_by'     => [],
+                    'message' => $message->message,
+                    'is_mine' => true,
+                    'created_at' => optional($message->created_at)->format('M d, Y h:i A'),
+                    'seen_by' => [],
                 ], $this->attachmentPayload($message)),
             ]);
         }
@@ -357,29 +378,29 @@ class ChatController extends Controller
      */
     protected function attachmentPayload(ChatMessage $m): array
     {
-        if (!$m->attachment_name) {
+        if (! $m->attachment_name) {
             return ['attachment' => null];
         }
 
         $expiresAt = $m->created_at ? $m->created_at->copy()->addDay() : null;
-        $expired   = !$m->attachment_path || ($expiresAt && now()->greaterThan($expiresAt));
+        $expired = ! $m->attachment_path || ($expiresAt && now()->greaterThan($expiresAt));
 
         $ext = strtolower(pathinfo($m->attachment_name, PATHINFO_EXTENSION));
-        $imageExts = ['jpg','jpeg','png','gif','webp','bmp','svg','avif','heic','heif'];
-        $videoExts = ['mp4','mov','webm','ogg','avi','mkv','m4v','3gp'];
-        $officeExts = ['doc','docx','odt','rtf','xls','xlsx','ods','csv','ppt','pptx','odp'];
+        $imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif', 'heic', 'heif'];
+        $videoExts = ['mp4', 'mov', 'webm', 'ogg', 'avi', 'mkv', 'm4v', '3gp'];
+        $officeExts = ['doc', 'docx', 'odt', 'rtf', 'xls', 'xlsx', 'ods', 'csv', 'ppt', 'pptx', 'odp'];
 
         $isImage = ($m->attachment_mime && str_starts_with($m->attachment_mime, 'image/'))
                    || in_array($ext, $imageExts, true);
         $isVideo = ($m->attachment_mime && str_starts_with($m->attachment_mime, 'video/'))
                    || in_array($ext, $videoExts, true);
-        $isPdf   = $ext === 'pdf' || $m->attachment_mime === 'application/pdf';
+        $isPdf = $ext === 'pdf' || $m->attachment_mime === 'application/pdf';
         $isOffice = in_array($ext, $officeExts, true);
 
         $previewUrl = null;
-        if (!$expired) {
+        if (! $expired) {
             if ($isPdf) {
-                $previewUrl = asset('storage/' . $m->attachment_path);
+                $previewUrl = asset('storage/'.$m->attachment_path);
             } elseif ($isOffice && $this->libreofficeAvailable()) {
                 $previewUrl = route('communication.chat.attachment.preview', $m->id);
             }
@@ -387,18 +408,18 @@ class ChatController extends Controller
 
         return [
             'attachment' => [
-                'name'         => $m->attachment_name,
-                'mime'         => $m->attachment_mime,
-                'size'         => $m->attachment_size,
-                'is_image'     => $isImage,
-                'is_video'     => $isVideo,
-                'is_pdf'       => $isPdf,
-                'is_office'    => $isOffice,
-                'expired'      => $expired,
-                'expires_at'   => $expiresAt ? $expiresAt->format('M d, Y h:i A') : null,
-                'url'          => $expired ? null : asset('storage/' . $m->attachment_path),
-                'preview_url'  => $previewUrl,
-                'download'     => $expired ? null : route('communication.chat.attachment.download', $m->id),
+                'name' => $m->attachment_name,
+                'mime' => $m->attachment_mime,
+                'size' => $m->attachment_size,
+                'is_image' => $isImage,
+                'is_video' => $isVideo,
+                'is_pdf' => $isPdf,
+                'is_office' => $isOffice,
+                'expired' => $expired,
+                'expires_at' => $expiresAt ? $expiresAt->format('M d, Y h:i A') : null,
+                'url' => $expired ? null : asset('storage/'.$m->attachment_path),
+                'preview_url' => $previewUrl,
+                'download' => $expired ? null : route('communication.chat.attachment.download', $m->id),
             ],
         ];
     }
@@ -409,6 +430,7 @@ class ChatController extends Controller
     protected function libreofficeAvailable(): bool
     {
         $path = config('chat.libreoffice_path');
+
         return $path && is_file($path);
     }
 
@@ -420,21 +442,21 @@ class ChatController extends Controller
     public function attachmentPreview(ChatMessage $message)
     {
         $this->authorizeThread($message->thread);
-        abort_if(!$message->attachment_path, 410, 'Attachment no longer available.');
+        abort_if(! $message->attachment_path, 410, 'Attachment no longer available.');
         abort_unless($this->libreofficeAvailable(), 501, 'Preview converter not configured.');
 
         $disk = \Illuminate\Support\Facades\Storage::disk('public');
         abort_unless($disk->exists($message->attachment_path), 410);
 
-        $source   = $disk->path($message->attachment_path);
-        $cacheRel = 'chat-attachments/previews/' . $message->id . '.pdf';
+        $source = $disk->path($message->attachment_path);
+        $cacheRel = 'chat-attachments/previews/'.$message->id.'.pdf';
         $cacheAbs = $disk->path($cacheRel);
 
-        if (!is_file($cacheAbs)) {
+        if (! is_file($cacheAbs)) {
             @mkdir(dirname($cacheAbs), 0775, true);
 
             $soffice = config('chat.libreoffice_path');
-            $outDir  = dirname($cacheAbs);
+            $outDir = dirname($cacheAbs);
 
             // Run LibreOffice in a private user profile so it doesn't conflict
             // with a running Office instance.
@@ -449,18 +471,20 @@ class ChatController extends Controller
                 $source
             );
 
-            $descriptors = [1 => ['pipe','w'], 2 => ['pipe','w']];
+            $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
             $proc = proc_open($cmd, $descriptors, $pipes);
             if (is_resource($proc)) {
-                $stdout = stream_get_contents($pipes[1]); fclose($pipes[1]);
-                $stderr = stream_get_contents($pipes[2]); fclose($pipes[2]);
-                $exit   = proc_close($proc);
-                \Log::debug('chat.preview.convert', compact('exit','stdout','stderr'));
+                $stdout = stream_get_contents($pipes[1]);
+                fclose($pipes[1]);
+                $stderr = stream_get_contents($pipes[2]);
+                fclose($pipes[2]);
+                $exit = proc_close($proc);
+                \Log::debug('chat.preview.convert', compact('exit', 'stdout', 'stderr'));
             }
 
             // LibreOffice names the output after the source filename stem.
             $stem = pathinfo($source, PATHINFO_FILENAME);
-            $produced = $outDir . DIRECTORY_SEPARATOR . $stem . '.pdf';
+            $produced = $outDir.DIRECTORY_SEPARATOR.$stem.'.pdf';
             if (is_file($produced) && $produced !== $cacheAbs) {
                 @rename($produced, $cacheAbs);
             }
@@ -469,8 +493,8 @@ class ChatController extends Controller
         }
 
         return response()->file($cacheAbs, [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="' . pathinfo($message->attachment_name, PATHINFO_FILENAME) . '.pdf"',
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.pathinfo($message->attachment_name, PATHINFO_FILENAME).'.pdf"',
         ]);
     }
 
@@ -480,12 +504,12 @@ class ChatController extends Controller
     public function attachment(ChatMessage $message)
     {
         $this->authorizeThread($message->thread);
-        abort_if(!$message->attachment_path, 410, 'Attachment no longer available.');
+        abort_if(! $message->attachment_path, 410, 'Attachment no longer available.');
         $disk = \Illuminate\Support\Facades\Storage::disk('public');
         abort_unless($disk->exists($message->attachment_path), 410);
 
         $mime = $message->attachment_mime;
-        if (!$mime || $mime === 'application/octet-stream') {
+        if (! $mime || $mime === 'application/octet-stream') {
             $ext = strtolower(pathinfo($message->attachment_name, PATHINFO_EXTENSION));
             $map = [
                 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
@@ -508,7 +532,7 @@ class ChatController extends Controller
     public function downloadAttachment(ChatMessage $message)
     {
         $this->authorizeThread($message->thread);
-        abort_if(!$message->attachment_path, 410, 'Attachment no longer available.');
+        abort_if(! $message->attachment_path, 410, 'Attachment no longer available.');
         $disk = \Illuminate\Support\Facades\Storage::disk('public');
         abort_unless($disk->exists($message->attachment_path), 410);
 
@@ -516,19 +540,23 @@ class ChatController extends Controller
         $filename = $message->attachment_name ?? basename($absolute);
 
         // Flush any accidental PHP output buffers so the binary stream is clean.
-        while (ob_get_level() > 0) { ob_end_clean(); }
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
 
         return response()->streamDownload(function () use ($absolute) {
             $handle = fopen($absolute, 'rb');
-            if ($handle === false) return;
-            while (!feof($handle)) {
+            if ($handle === false) {
+                return;
+            }
+            while (! feof($handle)) {
                 echo fread($handle, 8192);
             }
             fclose($handle);
         }, $filename, [
-            'Content-Type'        => $message->attachment_mime ?: 'application/octet-stream',
-            'Content-Length'      => (string) filesize($absolute),
-            'Cache-Control'       => 'private, max-age=0, no-transform',
+            'Content-Type' => $message->attachment_mime ?: 'application/octet-stream',
+            'Content-Length' => (string) filesize($absolute),
+            'Cache-Control' => 'private, max-age=0, no-transform',
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }
@@ -538,23 +566,23 @@ class ChatController extends Controller
         $schoolId = auth()->user()->school_id;
 
         $groups = $assignableService->getGroups($schoolId)->toArray();
-		
-		$users = User::where('id', '!=', auth()->id())->get();
 
-        return view('communication.chat.create', compact('groups','users'));
+        $users = User::where('id', '!=', auth()->id())->get();
+
+        return view('communication.chat.create', compact('groups', 'users'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'title'       => 'nullable|string|max:255',
+            'title' => 'nullable|string|max:255',
             'assignments' => 'required|array|min:1',
         ]);
 
         // Extract only user assignments
         $participants = collect($request->assignments)
-            ->filter(fn($item) => str_starts_with($item, 'user:'))
-            ->map(fn($item) => (int) str_replace('user:', '', $item))
+            ->filter(fn ($item) => str_starts_with($item, 'user:'))
+            ->map(fn ($item) => (int) str_replace('user:', '', $item))
             ->values()
             ->all();
 
@@ -563,11 +591,11 @@ class ChatController extends Controller
         }
 
         $thread = ChatThread::create([
-            'title'      => $request->title,
-            'type'       => count($participants) > 1 ? 'group' : 'private',
-            'school_id'  => Auth::user()->school_id,
+            'title' => $request->title,
+            'type' => count($participants) > 1 ? 'group' : 'private',
+            'school_id' => Auth::user()->school_id,
             'created_by' => Auth::id(),
-            'status'     => 'active',
+            'status' => 'active',
         ]);
 
         $thread->participants()->attach($participants);
@@ -575,10 +603,6 @@ class ChatController extends Controller
 
         return redirect()->route('communication.chat.show', $thread);
     }
-
-
-
-
 
     protected function authorizeThread(ChatThread $thread)
     {
@@ -611,7 +635,7 @@ class ChatController extends Controller
         abort_unless($message->user_id === auth()->id(), 403);
 
         $message->update([
-            'deleted_by_user' => true
+            'deleted_by_user' => true,
         ]);
 
         $message->delete(); // soft delete
@@ -650,18 +674,18 @@ class ChatController extends Controller
 
         $members = $thread->participants->map(function ($p) use ($thread) {
             return [
-                'id'         => $p->id,
-                'name'       => $this->displayName($p),
-                'email'      => $p->email,
+                'id' => $p->id,
+                'name' => $this->displayName($p),
+                'email' => $p->email,
                 'is_creator' => $p->id === $thread->created_by,
             ];
         })->values();
 
         return response()->json([
             'thread' => [
-                'id'         => $thread->id,
-                'title'      => $thread->title,
-                'type'       => $thread->type,
+                'id' => $thread->id,
+                'title' => $thread->title,
+                'type' => $thread->type,
                 'created_by' => $thread->created_by,
                 'is_creator' => $thread->created_by === $meId,
             ],
@@ -678,7 +702,7 @@ class ChatController extends Controller
         abort_unless($thread->type === 'group', 422, 'Can only add members to group chats.');
 
         $request->validate([
-            'user_ids'   => 'required|array|min:1',
+            'user_ids' => 'required|array|min:1',
             'user_ids.*' => 'integer|exists:users,id',
         ]);
 
@@ -712,11 +736,9 @@ class ChatController extends Controller
         abort_unless($thread->created_by === auth()->id(), 403);
 
         $thread->update([
-            'status' => 'pending_deletion'
+            'status' => 'pending_deletion',
         ]);
 
         return back();
     }
-
-    
 }

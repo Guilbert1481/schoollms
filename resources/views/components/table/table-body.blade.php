@@ -21,6 +21,9 @@
             data-table="{{ $tableKey }}"
             data-column="{{ $col['key'] }}">
             @if(! empty($col['raw']))
+                {{-- SECURITY: raw columns render server-built HTML unescaped.
+                     The producing controller MUST e() any user-supplied data
+                     interpolated into this value (see SECURITY_PRINCIPLES §5). --}}
                 {!! data_get($row, $col['key']) !!}
             @else
                 {{ data_get($row, $col['key'].'_label') ?? data_get($row, $col['key']) }}

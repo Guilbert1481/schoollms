@@ -2,27 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\FormService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use App\Services\FormService;
 
 class FormController extends Controller
 {
     public function save(Request $request, $formKey)
     {
         $fieldsConfig = FormService::fields();
-        $formConfig   = FormService::form($formKey);
+        $formConfig = FormService::form($formKey);
 
-        if (!$formConfig) {
+        if (! $formConfig) {
             return back()->with('error', 'Form config not found.');
         }
 
         $schoolId = auth()->user()->school_id;
 
-        $pivotData     = [];
-        $multipleData  = [];
+        $pivotData = [];
+        $multipleData = [];
 
         /*
         |------------------------------------------------------------------
@@ -36,22 +36,27 @@ class FormController extends Controller
                     $fieldKey = $item['field'];
                     $fieldConfig = $fieldsConfig[$fieldKey] ?? null;
 
-                    if (!$fieldConfig) continue;
+                    if (! $fieldConfig) {
+                        continue;
+                    }
 
                     // Locked fields are read-only — skip saves even if submitted
-                    if (!empty($fieldConfig['locked'])) continue;
+                    if (! empty($fieldConfig['locked'])) {
+                        continue;
+                    }
 
                     /*
                     |------------------------------------------------------------------
                     | PIVOT TABLE
                     |------------------------------------------------------------------
                     */
-                    if (!empty($fieldConfig['model']) &&
+                    if (! empty($fieldConfig['model']) &&
                         is_string($fieldConfig['model']) &&
                         Str::startsWith($fieldConfig['model'], 'pivot:')) {
 
                         $pivotTable = str_replace('pivot:', '', $fieldConfig['model']);
                         $pivotData[$pivotTable] = $request->$fieldKey ?? [];
+
                         continue;
                     }
 
@@ -60,9 +65,10 @@ class FormController extends Controller
                     | MULTIPLE RECORDS (ex: Banks)
                     |------------------------------------------------------------------
                     */
-                    if (!empty($fieldConfig['multiple'])) {
+                    if (! empty($fieldConfig['multiple'])) {
                         $model = $fieldConfig['model'] ?? null;
                         $multipleData[$model][$fieldKey] = $request->$fieldKey;
+
                         continue;
                     }
 
@@ -71,15 +77,17 @@ class FormController extends Controller
                     | SAVE TO MODELS
                     |------------------------------------------------------------------
                     */
-                    if (!empty($fieldConfig['save_to'])) {
+                    if (! empty($fieldConfig['save_to'])) {
 
                         foreach ($fieldConfig['save_to'] as $saveConfig) {
 
                             $modelClass = $saveConfig['model'] ?? null;
-                            $column     = $saveConfig['column'] ?? null;
-                            $where      = $saveConfig['where'] ?? [];
+                            $column = $saveConfig['column'] ?? null;
+                            $where = $saveConfig['where'] ?? [];
 
-                            if (!$modelClass || !$column) continue;
+                            if (! $modelClass || ! $column) {
+                                continue;
+                            }
 
                             // Replace special values
                             foreach ($where as $key => $value) {
@@ -107,38 +115,36 @@ class FormController extends Controller
 
                                 $file = $request->file($fieldKey);
 
-                                $extension = $file->getClientOriginalExtension();
-                                $filename = $fieldKey . '_' . $schoolId . '_' . time() . '.' . $extension;
-
                                 $path = $uploadConfig['path'] ?? $fieldKey;
 
                                 // Replace {school_id}
                                 $path = str_replace('{school_id}', $schoolId, $path);
 
                                 // Remove the previously stored file so we don't orphan it.
-                                if (!empty($model->$column)) {
+                                if (! empty($model->$column)) {
                                     Storage::disk($disk)->delete($model->$column);
                                 }
 
-                                // Store file
-                                $filePath = $file->storeAs($path, $filename, $disk);
+                                // Validate + re-encode (H3): branding assets are
+                                // images (re-encoded to strip payloads) or PDFs.
+                                // SecureUpload rejects SVG/HTML/executables and
+                                // assigns a random, client-name-independent path.
+                                $filePath = app(\App\Services\Uploads\SecureUpload::class)
+                                    ->storeImageOrDocument($file, $path, $disk);
 
                                 // Save FILE PATH to database
                                 $model->$column = $filePath;
-                            }
-                            elseif (($fieldConfig['type'] ?? null) === 'file'
-                                    && $request->boolean('remove_' . $fieldKey)) {
+                            } elseif (($fieldConfig['type'] ?? null) === 'file'
+                                    && $request->boolean('remove_'.$fieldKey)) {
                                 // Explicit delete from the UI (× button): drop the file
                                 // and clear the column.
-                                if (!empty($model->$column)) {
+                                if (! empty($model->$column)) {
                                     Storage::disk($disk)->delete($model->$column);
                                 }
                                 $model->$column = null;
-                            }
-                            elseif (($fieldConfig['type'] ?? null) === 'file') {
+                            } elseif (($fieldConfig['type'] ?? null) === 'file') {
                                 // No new file and no removal — keep existing value.
-                            }
-                            else {
+                            } else {
                                 $model->$column = $request->$fieldKey;
                             }
 
@@ -156,7 +162,9 @@ class FormController extends Controller
         */
         foreach ($multipleData as $modelClass => $fields) {
 
-            if (!$modelClass) continue;
+            if (! $modelClass) {
+                continue;
+            }
 
             $data = $fields;
             $data['school_id'] = $schoolId;
@@ -179,7 +187,7 @@ class FormController extends Controller
                 foreach ($values as $value) {
                     DB::table($pivotTable)->insert([
                         'school_id' => $schoolId,
-                        'modality_id' => $value
+                        'modality_id' => $value,
                     ]);
                 }
             }
