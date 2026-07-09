@@ -16,6 +16,9 @@ tenancy, the auth model, module boundaries, schema strategy — gets an ADR here
 | [0001](0001-multi-tenancy-via-belongs-to-school.md) | Multi-tenancy via `BelongsToSchool` global scope + explicit checks | Accepted |
 | [0002](0002-roles-as-string-with-checkrole.md) | Roles as a canonical string + `CheckRole` middleware | Accepted |
 | [0003](0003-service-layer-and-thin-controllers.md) | Business logic in services; controllers are a thin HTTP boundary | Accepted |
+| [0004](0004-claude-operational-guidelines.md) | Ratify `CLAUDE_OPERATIONAL_GUIDELINES.md` into the governance set | Accepted |
+| [0005](0005-frontend-stack-react-tailwind-vite.md) | Standardize the frontend on React + Tailwind + Vite (islands, not a big-bang SPA) | Accepted |
 
 > ADRs 0001–0003 are **retroactive** — they record decisions already embodied in the code so the "why"
 > is legible. Written 2026-07-03 as part of Tier 1 hardening (see [`CODEBASE_AUDIT.md`](../../CODEBASE_AUDIT.md)).
+> ADR-0005 (2026-07-09) is **forward-looking** — it sets the target frontend stack for new UI.

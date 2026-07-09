@@ -85,6 +85,10 @@ This is a **multi-school SaaS**. Tenant isolation is architecture, not an aftert
 - **Blade ↔ logic:** views never decide business rules.
 - **JS ↔ server:** front-end talks to the server through well-defined endpoints,
   not by embedding server state in giant inline scripts.
+- **Frontend stack (target):** new UI standardizes on **React + Tailwind + Vite** —
+  React **islands** mounted into Blade (not a big-bang SPA), compiled Tailwind as
+  the only styling system, islands consuming API-Resource JSON (§8). See
+  [ADR-0005](docs/adr/0005-frontend-stack-react-tailwind-vite.md).
 
 ## 7. Configuration & environment
 
