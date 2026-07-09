@@ -187,8 +187,10 @@ class EnrollmentController extends Controller
         }
 
         if ($request->hasFile('id_file') && blank($student->photo_id)) {
+            // Government IDs live on the PRIVATE disk, served only via the
+            // gated documents.student-id route (Roadmap C2).
             $student->photo_id = $request->file('id_file')
-                ->store('id_documents', 'public');
+                ->store('id_documents', 'local');
         }
 
         // Only populate columns that are currently empty — never overwrite
@@ -718,7 +720,8 @@ class EnrollmentController extends Controller
                 if ($file) {
                     $documents[$doc['key']] = [
                         'label' => $doc['label'],
-                        'path'  => $file->store('enrollment-documents/'.(int) $term->school_id, 'public'),
+                        // Private disk; served via documents.enrollment (C2).
+                        'path'  => $file->store('enrollment-documents/'.(int) $term->school_id, 'local'),
                     ];
                 }
             }

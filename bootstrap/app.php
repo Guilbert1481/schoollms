@@ -213,6 +213,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/communication.php',
             __DIR__.'/../routes/superpriority.php',
             __DIR__.'/../routes/profile/photo.php',
+            __DIR__.'/../routes/documents.php',
             __DIR__.'/../routes/reusable/cascading-dropdown.php',
 
             __DIR__.'/../routes/forms.php',
