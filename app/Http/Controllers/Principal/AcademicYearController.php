@@ -48,10 +48,20 @@ class AcademicYearController extends Controller
             ->get()
             ->groupBy('academic_year_id');
 
+        // Admin-created (higher_ed) academic years — the Principal's Create-AY
+        // modal fetches these so the basic-ed year LABEL stays consistent with
+        // whatever the admin "opened" on Master Data > AY & Terms. Newest first.
+        $adminAcademicYears = AcademicYear::query()
+            ->where('school_id', $schoolId)
+            ->where('education_level', 'higher_ed')
+            ->orderByDesc('start_date')
+            ->get();
+
         return view('principal.ay-terms.index', [
             'academicYears'         => $academicYears,
             'termsByAcademicYearId' => $termsByAcademicYearId,
             'specialTerms'          => self::SPECIAL_TERMS,
+            'adminAcademicYears'    => $adminAcademicYears,
         ]);
     }
 

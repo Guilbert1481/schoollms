@@ -184,8 +184,22 @@
           class="space-y-4">
         @csrf
         <div>
-            <label class="block text-sm font-bold mb-1">Name</label>
-            <input type="text" name="name" class="w-full rounded-lg border p-2" placeholder="2026-2027">
+            <label class="block text-sm font-bold mb-1">Academic Year</label>
+            @if(($adminAcademicYears ?? collect())->isNotEmpty())
+                <select name="name" required class="w-full rounded-lg border p-2">
+                    @foreach($adminAcademicYears as $i => $adminAy)
+                        <option value="{{ $adminAy->name }}" @selected($i === 0)>{{ $adminAy->name }}</option>
+                    @endforeach
+                </select>
+                <p class="text-xs text-slate-500 mt-1">
+                    Fetched from the admin's academic years so the year label stays consistent. Set the basic-ed dates below.
+                </p>
+            @else
+                <input type="text" name="name" required class="w-full rounded-lg border p-2" placeholder="2026-2027">
+                <p class="text-xs text-amber-600 mt-1">
+                    No admin-created academic year yet — type it here, or ask the admin to open the year first.
+                </p>
+            @endif
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
