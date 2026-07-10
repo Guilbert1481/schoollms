@@ -97,8 +97,6 @@ class PrincipalDashboardService
             'teacher_compliance' => $this->teacherCompliance($schoolId),
             'financial_health'   => $this->financialHealth($schoolId),
             'attention_students' => $this->attentionStudents($schoolId),
-            'staffing'           => $this->staffing($schoolId),
-            'pending_approvals'  => $this->pendingApprovals($schoolId),
             'alerts'             => $this->alerts($schoolId),
             'schedule_today'     => $this->scheduleToday($schoolId),
             'deadlines'          => $this->deadlines($schoolId),
@@ -268,7 +266,7 @@ class PrincipalDashboardService
      |------------------------------------------------------------*/
 
     /** Students with failing grades — worst grade first, one row per student. */
-    private function attentionStudents(int $schoolId, int $limit = 5): array
+    private function attentionStudents(int $schoolId, int $limit = 25): array
     {
         return $this->atRiskRows($schoolId)
             ->unique('student_id')
@@ -281,50 +279,6 @@ class PrincipalDashboardService
                 'last'     => Carbon::parse($r->updated_at)->format('M j, Y'),
             ])
             ->values()
-            ->all();
-    }
-
-    /** Active teaching staff (attendance/evaluation not tracked → "—"). */
-    private function staffing(int $schoolId, int $limit = 5): array
-    {
-        return DB::table('teachers as t')
-            ->join('profiles as p', 'p.id', '=', 't.profile_id')
-            ->where('p.school_id', $schoolId)
-            ->where('t.employment_status', 'Active')
-            ->orderBy('p.last_name')
-            ->limit($limit)
-            ->selectRaw('CONCAT(p.first_name, " ", p.last_name) as name,
-                         COALESCE(NULLIF(t.rank, ""), t.employment_type, "—") as dept')
-            ->get()
-            ->map(fn ($r) => [
-                'teacher'    => $r->name,
-                'department' => $r->dept,
-                'attendance' => null,   // not tracked
-                'submission' => null,   // per-teacher linkage not tracked
-                'evaluation' => null,   // not tracked
-            ])
-            ->all();
-    }
-
-    /** Pending payment-proof submissions awaiting finance verification. */
-    private function pendingApprovals(int $schoolId, int $limit = 5): array
-    {
-        return DB::table('payment_submissions as ps')
-            ->leftJoin('users as u', 'u.id', '=', 'ps.student_id')
-            ->where('ps.school_id', $schoolId)
-            ->where('ps.status', 'pending')
-            ->orderByDesc('ps.submitted_at')
-            ->limit($limit)
-            ->selectRaw('ps.amount, ps.payment_method, ps.submitted_at,
-                         CONCAT(COALESCE(u.first_name, ""), " ", COALESCE(u.last_name, "")) as payer')
-            ->get()
-            ->map(fn ($r) => [
-                'request'    => trim('Payment — '.trim($r->payer ?: 'Student')),
-                'department' => ucfirst((string) $r->payment_method) ?: 'Finance',
-                'amount'     => '₱'.number_format((float) $r->amount, 0),
-                'status'     => Carbon::parse($r->submitted_at)->gt(now()->subDays(2)) ? 'New' : 'Pending',
-                'date'       => Carbon::parse($r->submitted_at)->format('M j, Y'),
-            ])
             ->all();
     }
 

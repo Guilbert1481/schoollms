@@ -13,8 +13,30 @@
 @section('content')
 
 <style>
-    /* Scoped layout mechanics (real CSS — immune to Tailwind purge).       */
-    /* Right rail: fill the grid row; 3 list cards share the extra height.  */
+    /* Scoped layout mechanics (real CSS — immune to Tailwind purge).
+       BOTH panels sit in one grid row (equal heights) and BOTH have a
+       flexible absorber: the rail's three list cards on the right, the
+       full-width Students table on the left. Whichever panel is naturally
+       taller, the other stretches its absorber — bottoms always align.   */
+
+    /* Left panel: flex column; the last section (Students table) absorbs. */
+    .pd-left { display: flex; flex-direction: column; gap: 1.5rem; }
+    .pd-grow { display: flex; flex-direction: column; }
+    .pd-grow-body { display: flex; flex-direction: column; min-height: 0; }
+    .pd-grow-body > div { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+    .pd-grow-body .overflow-x-auto { overflow-y: auto; min-height: 0; }
+    .pd-grow-body thead th { position: sticky; top: 0; background: #fff; z-index: 5; }
+    @media (max-width: 1279.98px) {
+        .pd-grow-body .overflow-x-auto { max-height: 15.5rem; }
+    }
+    @media (min-width: 1280px) {
+        .pd-left { height: 100%; }
+        .pd-grow { flex: 1 1 0%; min-height: 18rem; }
+        .pd-grow-body { flex: 1 1 0%; }
+        .pd-grow-body .overflow-x-auto { flex: 1 1 auto; }
+    }
+
+    /* Right rail: fill the grid row; 3 list cards share the extra height. */
     .pd-rail { display: flex; flex-direction: column; gap: 1.5rem; }
     .pd-rail-card { display: flex; flex-direction: column; overflow: hidden; }
     .pd-rail-list { overflow-y: auto; min-height: 0; }
@@ -23,13 +45,10 @@
     }
     @media (min-width: 1280px) {
         .pd-rail { height: 100%; }
-        .pd-rail-card { flex: 1 1 0%; min-height: 11rem; }
+        .pd-rail-card { flex: 1 1 0%; min-height: 10rem; }
         .pd-rail-card.pd-rail-fixed { flex: 0 0 auto; min-height: 0; }
         .pd-rail-list { flex: 1 1 0%; }
     }
-    /* Bottom tables: ~5 visible rows, scroll for the rest, sticky headers. */
-    .pd-tables .overflow-x-auto { max-height: 15.5rem; overflow-y: auto; }
-    .pd-tables thead th { position: sticky; top: 0; background: #fff; z-index: 5; }
 </style>
 
 @php
@@ -45,11 +64,11 @@
 
     // ------- Students Requiring Immediate Attention -------
     $attnCols = [
-        ['key' => 'student', 'label' => 'Student',       'width' => '150px'],
-        ['key' => 'grade',   'label' => 'Grade/Section', 'width' => '110px'],
-        ['key' => 'concern', 'label' => 'Concern',       'width' => '150px'],
-        ['key' => 'risk',    'label' => 'Risk Level',    'width' => '100px', 'raw' => true],
-        ['key' => 'last',    'label' => 'Last Action',   'width' => '110px'],
+        ['key' => 'student', 'label' => 'Student',       'width' => '220px'],
+        ['key' => 'grade',   'label' => 'Grade/Section', 'width' => '140px'],
+        ['key' => 'concern', 'label' => 'Concern',       'width' => '260px'],
+        ['key' => 'risk',    'label' => 'Risk Level',    'width' => '120px', 'raw' => true],
+        ['key' => 'last',    'label' => 'Last Action',   'width' => '140px'],
     ];
     $attnRows = collect($dash['attention_students'])->map(fn ($r, $i) => [
         'id'      => $i + 1,
@@ -60,46 +79,6 @@
             ? $pill('High', 'bg-red-100 text-red-700')
             : $pill('Moderate', 'bg-amber-100 text-amber-700'),
         'last'    => $r['last'],
-    ])->values()->all();
-
-    // ------- Teacher & Staffing Overview -------
-    $staffCols = [
-        ['key' => 'teacher',    'label' => 'Teacher',           'width' => '150px'],
-        ['key' => 'department', 'label' => 'Department',        'width' => '120px'],
-        ['key' => 'attendance', 'label' => 'Attendance',        'width' => '100px', 'raw' => true],
-        ['key' => 'submission', 'label' => 'Submission Status', 'width' => '130px', 'raw' => true],
-        ['key' => 'evaluation', 'label' => 'Evaluation',        'width' => '110px', 'raw' => true],
-    ];
-    $staffRows = collect($dash['staffing'])->map(fn ($r, $i) => [
-        'id'         => $i + 1,
-        'teacher'    => $r['teacher'],
-        'department' => $r['department'],
-        'attendance' => $r['attendance'] !== null ? e($r['attendance'].'%') : $dash404,
-        'submission' => $r['submission'] !== null
-            ? $pill($r['submission'], 'bg-emerald-100 text-emerald-700')
-            : $dash404,
-        'evaluation' => $r['evaluation'] !== null
-            ? $pill($r['evaluation'], 'bg-emerald-100 text-emerald-700')
-            : $dash404,
-    ])->values()->all();
-
-    // ------- Pending Financial Approvals -------
-    $finCols = [
-        ['key' => 'request',    'label' => 'Request',    'width' => '160px'],
-        ['key' => 'department', 'label' => 'Department', 'width' => '110px'],
-        ['key' => 'amount',     'label' => 'Amount',     'width' => '100px'],
-        ['key' => 'status',     'label' => 'Status',     'width' => '90px', 'raw' => true],
-        ['key' => 'date',       'label' => 'Date',       'width' => '110px'],
-    ];
-    $finRows = collect($dash['pending_approvals'])->map(fn ($r, $i) => [
-        'id'         => $i + 1,
-        'request'    => $r['request'],
-        'department' => $r['department'],
-        'amount'     => $r['amount'],
-        'status'     => $r['status'] === 'New'
-            ? $pill('New', 'bg-blue-100 text-blue-700')
-            : $pill('Pending', 'bg-amber-100 text-amber-700'),
-        'date'       => $r['date'],
     ])->values()->all();
 
     // Right-rail alert tones (literal classes).
@@ -132,7 +111,7 @@
     <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
 
         {{-- ============================ LEFT PANEL ============================ --}}
-        <div class="xl:col-span-3 space-y-6">
+        <div class="pd-left xl:col-span-3">
 
             {{-- Filter bar (display filters; School Year options are real basic-ed AYs) --}}
             <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm p-4">
@@ -272,13 +251,13 @@
                 </div>
             </div>
 
-            {{-- Tables row (~5 visible rows each; lists scroll, headers stick) --}}
-            <div class="pd-tables grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                    <div class="flex items-center justify-between mb-2 px-1">
-                        <h3 class="{{ $cardTitle }}">Students Requiring Immediate Attention</h3>
-                        <a href="#" class="{{ $viewLink }}">View All</a>
-                    </div>
+            {{-- Students table (full width; absorbs leftover height, list scrolls, headers stick) --}}
+            <div class="pd-grow">
+                <div class="flex items-center justify-between mb-2 px-1">
+                    <h3 class="{{ $cardTitle }}">Students Requiring Immediate Attention</h3>
+                    <a href="#" class="{{ $viewLink }}">View All</a>
+                </div>
+                <div class="pd-grow-body">
                     <x-table.table
                         tableKey="pdAttn"
                         :columns="$attnCols"
@@ -286,34 +265,6 @@
                         :hideActions="true"
                         :hideToolbar="true"
                         emptyMessage="No students flagged — no failing grades posted." />
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-2 px-1">
-                        <h3 class="{{ $cardTitle }}">Teacher &amp; Staffing Overview</h3>
-                        <a href="#" class="{{ $viewLink }}">View All</a>
-                    </div>
-                    <x-table.table
-                        tableKey="pdStaff"
-                        :columns="$staffCols"
-                        :data="$staffRows"
-                        :hideActions="true"
-                        :hideToolbar="true"
-                        emptyMessage="No active teaching staff records." />
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-2 px-1">
-                        <h3 class="{{ $cardTitle }}">Pending Financial Approvals</h3>
-                        <a href="#" class="{{ $viewLink }}">View All</a>
-                    </div>
-                    <x-table.table
-                        tableKey="pdFin"
-                        :columns="$finCols"
-                        :data="$finRows"
-                        :hideActions="true"
-                        :hideToolbar="true"
-                        emptyMessage="No pending payment submissions." />
                 </div>
             </div>
 
