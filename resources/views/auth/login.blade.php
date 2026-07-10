@@ -104,7 +104,7 @@
                         <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
                             Security Key
                         </label>
-                        <a href="{{ route('password.request') }}" class="text-[10px] font-black text-indigo-500 uppercase hover:text-indigo-600 transition-colors">
+                        <a href="{{ route('password.request', (isset($school) && $school) ? ['school' => $school->slug] : []) }}" class="text-[10px] font-black text-indigo-500 uppercase hover:text-indigo-600 transition-colors">
                             Recover?
                         </a>
                     </div>

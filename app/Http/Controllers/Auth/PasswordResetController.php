@@ -17,10 +17,25 @@ use Illuminate\Support\Str;
  */
 class PasswordResetController extends Controller
 {
-    /** Step 1 — show the "enter your email" form. */
-    public function showLinkRequest()
+    /**
+     * Step 1 — show the "enter your email" form.
+     *
+     * Brands the page for the originating context: a school login passes
+     * ?school=slug so that school's name shows; the global superadmin login
+     * passes nothing so the platform name ("Sophentis") shows. A dedicated
+     * `brand` variable is used because the global View::composer('*') in
+     * AppServiceProvider would otherwise overwrite any `school_name` set here.
+     */
+    public function showLinkRequest(Request $request)
     {
-        return view('auth.forgot-password');
+        $school = $request->query('school')
+            ? \App\Models\School::where('slug', $request->query('school'))->first()
+            : null;
+
+        return view('auth.forgot-password', [
+            'brand'      => $school?->school_name ?: 'Sophentis',
+            'schoolSlug' => $school?->slug,
+        ]);
     }
 
     /** Step 2 — email the reset link (rate-limited at the route). */
@@ -28,10 +43,15 @@ class PasswordResetController extends Controller
     {
         $request->validate(['email' => ['required', 'email']]);
 
-        $status = Password::sendResetLink($request->only('email'));
+        Password::sendResetLink($request->only('email'));
 
         // Always report the generic "sent" message to avoid email enumeration.
-        return back()->with('status', __(Password::RESET_LINK_SENT));
+        // Preserve the originating school context so the confirmation stays branded.
+        $slug = $request->input('school');
+
+        return redirect()
+            ->route('password.request', $slug ? ['school' => $slug] : [])
+            ->with('status', __(Password::RESET_LINK_SENT));
     }
 
     /** Step 3 — show the "choose a new password" form for a valid token link. */

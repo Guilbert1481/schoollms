@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Password | {{ $school_name ?? 'Sophentis' }}</title>
+    <title>Reset Password | {{ $brand ?? 'Sophentis' }}</title>
     @vite(['resources/css/app.css'])
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -21,7 +21,7 @@
             <i data-lucide="shield-check" class="w-12 h-12 mb-6 opacity-90"></i>
             <h1 class="text-3xl font-serif-premium mb-3 leading-tight">Account Recovery</h1>
             <p class="text-xs font-bold text-indigo-100 uppercase tracking-widest opacity-80">
-                {{ $school_name ?? 'Sophentis Platform' }}
+                {{ $brand ?? 'Sophentis' }}
             </p>
         </div>
 
@@ -50,6 +50,7 @@
 
             <form method="POST" action="{{ route('password.email') }}" class="space-y-5">
                 @csrf
+                <input type="hidden" name="school" value="{{ $schoolSlug ?? '' }}">
                 <div>
                     <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
                         Identity (Email)
@@ -74,7 +75,7 @@
             </form>
 
             <div class="mt-8 text-center">
-                <a href="{{ route('login') }}"
+                <a href="{{ (isset($schoolSlug) && $schoolSlug) ? route('school.login', $schoolSlug) : route('login') }}"
                     class="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-indigo-600 transition-colors inline-flex items-center gap-1">
                     <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Login
                 </a>
