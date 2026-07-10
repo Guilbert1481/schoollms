@@ -91,6 +91,10 @@ return [
             'basic_ed_curriculum',
             'students',
             'faculty',
+            'principal_discipline',
+            'principal_staff',
+            'principal_facilities',
+            'principal_reports',
             'approvals',
             'communication',
             'tools',
@@ -1056,6 +1060,29 @@ return [
             'icon'  => 'graduation-cap',
             'label' => 'Curriculum',
             'route' => 'principal.curricula-panel.subjects',
+        ],
+
+        // Placeholder nav items (pages not built yet) — route '#' so the sidebar
+        // never breaks. Point each at a real route once its page exists.
+        'principal_discipline' => [
+            'icon'  => 'shield-alert',
+            'label' => 'Discipline',
+            'route' => '#',
+        ],
+        'principal_staff' => [
+            'icon'  => 'users',
+            'label' => 'Staff',
+            'route' => '#',
+        ],
+        'principal_facilities' => [
+            'icon'  => 'building-2',
+            'label' => 'Facilities',
+            'route' => '#',
+        ],
+        'principal_reports' => [
+            'icon'  => 'bar-chart-3',
+            'label' => 'Reports',
+            'route' => '#',
         ],
 
         'curriculum' => [
