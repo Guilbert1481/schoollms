@@ -5,6 +5,8 @@
     'icon'     => 'activity',
     'accent'   => null,   // optional per-card colour key (violet|sky|amber|rose|…)
     'subtitle' => null,   // optional small caption under the value
+    'delta'    => null,   // optional trend caption, e.g. "2.6% vs last quarter"
+    'deltaUp'  => null,   // true = green up-arrow, false = red down-arrow, null = neutral gray
 ])
 
 @php
@@ -74,6 +76,14 @@
             </div>
             @if($subtitle)
                 <p class="mt-1 text-xs font-semibold text-gray-400">{{ $subtitle }}</p>
+            @endif
+            @if($delta)
+                @php
+                    // Inline hex (purge-safe): emerald-600 up, red-600 down, gray-400 neutral.
+                    $deltaColor = $deltaUp === true ? '#059669' : ($deltaUp === false ? '#dc2626' : '#9ca3af');
+                    $deltaArrow = $deltaUp === true ? '↑' : ($deltaUp === false ? '↓' : '');
+                @endphp
+                <p class="mt-1 text-xs font-bold" style="color: {{ $deltaColor }};">{{ $deltaArrow }} {{ $delta }}</p>
             @endif
         </div>
 
