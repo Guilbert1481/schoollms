@@ -32,6 +32,13 @@ class DashboardController extends Controller
             return redirect()->route('parent.dashboard');
         }
 
+        // The principal executive dashboard needs widget data beyond the
+        // registries (trend charts, tables, right rail) — its own controller
+        // assembles the full payload via PrincipalDashboardService.
+        if ($role === 'principal') {
+            return redirect()->route('principal.dashboard');
+        }
+
         /*
         |--------------------------------------------------------------------------
         | 1️⃣ LOAD DASHBOARD DATA VIA REGISTRIES
