@@ -57,11 +57,57 @@ class AcademicYearController extends Controller
             ->orderByDesc('start_date')
             ->get();
 
+        // Reusable-table view model. AYs are rows; special sessions live in a
+        // per-AY drawer (openSessionsModal). Status/actions are raw cells; every
+        // onclick handler takes ONLY the AY id and looks the rest up from the
+        // JSON blobs below — so no fragile string args in server-built HTML.
+        $columns = [
+            ['key' => 'ay',      'label' => 'Academic Year', 'width' => '220px', 'raw' => true],
+            ['key' => 'start',   'label' => 'Start',         'width' => '120px'],
+            ['key' => 'end',     'label' => 'End',           'width' => '120px'],
+            ['key' => 'status',  'label' => 'Status',        'width' => '110px', 'raw' => true],
+            ['key' => 'actions', 'label' => 'Actions',       'width' => '340px', 'raw' => true],
+        ];
+
+        $rows = $academicYears->map(function (AcademicYear $ay) use ($termsByAcademicYearId) {
+            $sessionCount = ($termsByAcademicYearId[$ay->id] ?? collect())->count();
+
+            return [
+                'id'      => $ay->id,
+                'ay'      => '<div class="font-black text-slate-800">'.e($ay->name).'</div>'
+                            .'<div class="text-xs font-medium text-slate-500">Academic Year</div>',
+                'start'   => Carbon::parse($ay->start_date)->format('Y-m-d'),
+                'end'     => Carbon::parse($ay->end_date)->format('Y-m-d'),
+                'status'  => $this->statusBadgeHtml($ay->computed_status),
+                'actions' => $this->ayActionsHtml($ay, $sessionCount),
+            ];
+        })->values();
+
+        $aysJson = $academicYears->mapWithKeys(fn (AcademicYear $ay) => [$ay->id => [
+            'name'  => $ay->name,
+            'start' => Carbon::parse($ay->start_date)->format('Y-m-d'),
+            'end'   => Carbon::parse($ay->end_date)->format('Y-m-d'),
+        ]]);
+
+        $sessionsJson = $termsByAcademicYearId->map(fn ($sessions) => $sessions->map(fn (Term $t) => [
+            'id'     => $t->id,
+            'name'   => $t->name,
+            'term'   => $t->term,
+            'title'  => $t->title,
+            'start'  => Carbon::parse($t->start_date)->format('Y-m-d'),
+            'end'    => Carbon::parse($t->end_date)->format('Y-m-d'),
+            'status' => $t->computed_status,
+        ])->values());
+
         return view('principal.ay-terms.index', [
             'academicYears'         => $academicYears,
             'termsByAcademicYearId' => $termsByAcademicYearId,
             'specialTerms'          => self::SPECIAL_TERMS,
             'adminAcademicYears'    => $adminAcademicYears,
+            'columns'               => $columns,
+            'rows'                  => $rows,
+            'aysJson'               => $aysJson,
+            'sessionsJson'          => $sessionsJson,
         ]);
     }
 
@@ -267,6 +313,48 @@ class AcademicYearController extends Controller
         $this->notifyAdmission($schoolId, $term);
 
         return back()->with('success', 'Special session created.');
+    }
+
+    /* ============================================================
+     | Reusable-table cell renderers (raw HTML; ids only in onclick)
+     |============================================================*/
+
+    private function statusBadgeHtml(string $status): string
+    {
+        return match ($status) {
+            'active'   => '<span class="inline-flex rounded-full bg-emerald-100 text-emerald-800 px-2 py-1 text-xs font-extrabold">Active</span>',
+            'upcoming' => '<span class="inline-flex rounded-full bg-amber-100 text-amber-800 px-2 py-1 text-xs font-extrabold">Upcoming</span>',
+            default    => '<span class="inline-flex rounded-full bg-slate-200 text-slate-800 px-2 py-1 text-xs font-extrabold">Closed</span>',
+        };
+    }
+
+    private function ayActionsHtml(AcademicYear $ay, int $sessionCount): string
+    {
+        $id  = (int) $ay->id;
+        $btn = 'px-3 py-1.5 rounded-lg text-xs font-extrabold border';
+
+        $html = '<div class="flex items-center gap-2 flex-wrap">';
+
+        if ($ay->is_active) {
+            $html .= '<form method="POST" action="'.route('principal.ay-terms.academic_year.deactivate', $id).'" class="inline">'
+                .csrf_field()
+                .'<button class="'.$btn.' border-amber-200 bg-amber-50 text-amber-800">Deactivate</button></form>';
+        } elseif ($ay->can_activate) {
+            $html .= '<form method="POST" action="'.route('principal.ay-terms.academic_year.activate', $id).'" class="inline">'
+                .csrf_field()
+                .'<button class="'.$btn.' border-emerald-200 bg-emerald-50 text-emerald-800">Activate</button></form>';
+        }
+
+        $html .= '<button type="button" onclick="openSessionsModal('.$id.')" class="'.$btn.' border-slate-200 text-slate-700">Sessions ('.$sessionCount.')</button>';
+        $html .= '<button type="button" onclick="openCreateSessionModal('.$id.')" class="'.$btn.' border-slate-200 text-slate-700">+ Special Session</button>';
+        $html .= '<button type="button" onclick="openEditAYModal('.$id.')" class="'.$btn.' border-indigo-200 bg-indigo-50 text-indigo-800">Edit</button>';
+        $html .= '<form method="POST" action="'.route('principal.ay-terms.academic_year.destroy', $id).'" class="inline" data-confirm="Delete this academic year? Its sessions will be removed too.">'
+            .csrf_field().method_field('DELETE')
+            .'<button class="'.$btn.' border-red-200 bg-red-50 text-red-800">Delete</button></form>';
+
+        $html .= '</div>';
+
+        return $html;
     }
 
     /**
