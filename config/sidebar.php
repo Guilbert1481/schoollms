@@ -1049,21 +1049,13 @@ return [
 
     
 
+        // Direct link to the tabbed curriculum page (Subjects Masterlist /
+        // Grade Level Subjects / AY & Sessions live as tabs inside it), so no
+        // sub-items are needed in the sidebar.
         'basic_ed_curriculum' => [
             'icon'  => 'graduation-cap',
-            'label' => 'Basic Ed Curriculum',
-            'children' => [
-                [
-                    'label' => 'Subjects Masterlist',
-                    'route' => 'principal.curricula-panel.subjects',
-                    'icon'  => 'book-open',
-                ],
-                [
-                    'label' => 'Grade Level Subjects',
-                    'route' => 'principal.curricula-panel.grade-levels',
-                    'icon'  => 'layers',
-                ],
-            ],
+            'label' => 'Curriculum',
+            'route' => 'principal.curricula-panel.subjects',
         ],
 
         'curriculum' => [
