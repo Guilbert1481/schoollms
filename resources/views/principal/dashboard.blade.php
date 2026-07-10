@@ -1,5 +1,10 @@
 {{-- Principal — executive dashboard (basic education oversight).
      Data: App\Services\Dashboard\PrincipalDashboardService ($cards + $dash).
+     Layout: row 1 = 8 compact KPIs full-width; below, LEFT panel (filters →
+     charts → tables) and RIGHT rail (alerts / schedule / deadlines / quick
+     actions) sit in ONE grid row, so both columns get equal height; the rail's
+     three list cards flex-stretch with internally scrollable lists and the
+     tables cap at ~5 visible rows (scrollable) — bottoms stay aligned.
      Widgets without a data source yet (attendance, expenses, evaluations)
      render explicit "not tracked yet" states — never fabricated numbers. --}}
 
@@ -7,9 +12,30 @@
 
 @section('content')
 
+<style>
+    /* Scoped layout mechanics (real CSS — immune to Tailwind purge).       */
+    /* Right rail: fill the grid row; 3 list cards share the extra height.  */
+    .pd-rail { display: flex; flex-direction: column; gap: 1.5rem; }
+    .pd-rail-card { display: flex; flex-direction: column; overflow: hidden; }
+    .pd-rail-list { overflow-y: auto; min-height: 0; }
+    @media (max-width: 1279.98px) {
+        .pd-rail-list { max-height: 14rem; }
+    }
+    @media (min-width: 1280px) {
+        .pd-rail { height: 100%; }
+        .pd-rail-card { flex: 1 1 0%; min-height: 11rem; }
+        .pd-rail-card.pd-rail-fixed { flex: 0 0 auto; min-height: 0; }
+        .pd-rail-list { flex: 1 1 0%; }
+    }
+    /* Bottom tables: ~5 visible rows, scroll for the rest, sticky headers. */
+    .pd-tables .overflow-x-auto { max-height: 15.5rem; overflow-y: auto; }
+    .pd-tables thead th { position: sticky; top: 0; background: #fff; z-index: 5; }
+</style>
+
 @php
     // Literal class strings only (JIT/purge-safe convention, see student dashboard).
     $cardBox   = 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm p-6';
+    $railBox   = 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm p-5';
     $cardTitle = 'text-sm font-extrabold text-slate-800';
     $viewLink  = 'text-xs font-bold text-blue-600 hover:text-blue-700';
 
@@ -84,10 +110,28 @@
     ];
 @endphp
 
-<div class="w-full">
+<div class="w-full space-y-6">
+
+    {{-- ======================= ROW 1 — 8 KPIs (full width) ======================= --}}
+    <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+        @foreach ($cards as $card)
+            <x-kpi-row.kpi-shell
+                size="compact"
+                :title="$card['title']"
+                :icon="$card['icon']"
+                :accent="$card['accent'] ?? null"
+                :subtitle="$card['subtitle'] ?? null"
+                :delta="$card['delta'] ?? null"
+                :delta-up="$card['delta_up'] ?? null">
+                {{ $card['value'] }}
+            </x-kpi-row.kpi-shell>
+        @endforeach
+    </div>
+
+    {{-- ================== PANELS (one grid row → equal heights) ================== --}}
     <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
 
-        {{-- ============================ MAIN COLUMN ============================ --}}
+        {{-- ============================ LEFT PANEL ============================ --}}
         <div class="xl:col-span-3 space-y-6">
 
             {{-- Filter bar (display filters; School Year options are real basic-ed AYs) --}}
@@ -133,21 +177,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-
-            {{-- KPI strip --}}
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                @foreach ($cards as $card)
-                    <x-kpi-row.kpi-shell
-                        :title="$card['title']"
-                        :icon="$card['icon']"
-                        :accent="$card['accent'] ?? null"
-                        :subtitle="$card['subtitle'] ?? null"
-                        :delta="$card['delta'] ?? null"
-                        :delta-up="$card['delta_up'] ?? null">
-                        {{ $card['value'] }}
-                    </x-kpi-row.kpi-shell>
-                @endforeach
             </div>
 
             {{-- Charts row 1 --}}
@@ -243,8 +272,8 @@
                 </div>
             </div>
 
-            {{-- Tables row --}}
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {{-- Tables row (~5 visible rows each; lists scroll, headers stick) --}}
+            <div class="pd-tables grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                     <div class="flex items-center justify-between mb-2 px-1">
                         <h3 class="{{ $cardTitle }}">Students Requiring Immediate Attention</h3>
@@ -291,94 +320,100 @@
         </div>
 
         {{-- ============================ RIGHT RAIL ============================ --}}
-        <div class="space-y-6">
+        <div class="pd-rail">
 
-            {{-- Critical Alerts --}}
-            <div class="{{ $cardBox }}">
-                <div class="flex items-center justify-between mb-4">
+            {{-- Critical Alerts (stretches; list scrolls) --}}
+            <div class="pd-rail-card {{ $railBox }}">
+                <div class="flex items-center justify-between mb-3 shrink-0">
                     <h3 class="{{ $cardTitle }} flex items-center gap-2">
                         <i data-lucide="shield-alert" class="w-4 h-4" style="color:#dc2626;"></i>
                         Critical Alerts
                     </h3>
                     <a href="#" class="{{ $viewLink }}">View All</a>
                 </div>
-                @forelse ($dash['alerts'] as $alert)
-                    <div class="flex items-start gap-3 py-2">
-                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {{ $alertTone[$alert['tone']] ?? 'bg-slate-100 text-slate-600' }}">
-                            <i data-lucide="{{ $alert['icon'] }}" class="w-4 h-4"></i>
-                        </span>
-                        <p class="text-xs font-semibold text-slate-600 leading-snug pt-1.5">{{ $alert['text'] }}</p>
-                    </div>
-                @empty
-                    <p class="text-xs font-semibold text-slate-400 py-4 text-center">All clear — no critical alerts.</p>
-                @endforelse
+                <div class="pd-rail-list">
+                    @forelse ($dash['alerts'] as $alert)
+                        <div class="flex items-start gap-3 py-2">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {{ $alertTone[$alert['tone']] ?? 'bg-slate-100 text-slate-600' }}">
+                                <i data-lucide="{{ $alert['icon'] }}" class="w-4 h-4"></i>
+                            </span>
+                            <p class="text-xs font-semibold text-slate-600 leading-snug pt-1.5">{{ $alert['text'] }}</p>
+                        </div>
+                    @empty
+                        <p class="text-xs font-semibold text-slate-400 py-4 text-center">All clear — no critical alerts.</p>
+                    @endforelse
+                </div>
             </div>
 
-            {{-- Today's Schedule --}}
-            <div class="{{ $cardBox }}">
-                <div class="flex items-center justify-between mb-4">
+            {{-- Today's Schedule (stretches; list scrolls) --}}
+            <div class="pd-rail-card {{ $railBox }}">
+                <div class="flex items-center justify-between mb-3 shrink-0">
                     <h3 class="{{ $cardTitle }} flex items-center gap-2">
                         <i data-lucide="calendar-clock" class="w-4 h-4" style="color:#4f46e5;"></i>
                         Today's Schedule
                     </h3>
                     <a href="#" class="{{ $viewLink }}">View All</a>
                 </div>
-                @forelse ($dash['schedule_today'] as $item)
-                    <div class="flex items-center gap-3 py-2">
-                        <span class="inline-flex shrink-0 rounded-md bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600">{{ $item['time'] }}</span>
-                        <p class="text-xs font-semibold text-slate-600 truncate">{{ $item['title'] }}</p>
-                    </div>
-                @empty
-                    <p class="text-xs font-semibold text-slate-400 py-4 text-center">No sessions or events scheduled today.</p>
-                @endforelse
+                <div class="pd-rail-list">
+                    @forelse ($dash['schedule_today'] as $item)
+                        <div class="flex items-center gap-3 py-2">
+                            <span class="inline-flex shrink-0 rounded-md bg-indigo-50 px-2 py-1 text-[11px] font-bold text-indigo-600">{{ $item['time'] }}</span>
+                            <p class="text-xs font-semibold text-slate-600 truncate">{{ $item['title'] }}</p>
+                        </div>
+                    @empty
+                        <p class="text-xs font-semibold text-slate-400 py-4 text-center">No sessions or events scheduled today.</p>
+                    @endforelse
+                </div>
             </div>
 
-            {{-- Upcoming Deadlines --}}
-            <div class="{{ $cardBox }}">
-                <div class="flex items-center justify-between mb-4">
+            {{-- Upcoming Deadlines (stretches; list scrolls) --}}
+            <div class="pd-rail-card {{ $railBox }}">
+                <div class="flex items-center justify-between mb-3 shrink-0">
                     <h3 class="{{ $cardTitle }} flex items-center gap-2">
                         <i data-lucide="alarm-clock" class="w-4 h-4" style="color:#d97706;"></i>
                         Upcoming Deadlines
                     </h3>
                     <a href="#" class="{{ $viewLink }}">View All</a>
                 </div>
-                @forelse ($dash['deadlines'] as $d)
-                    <div class="flex items-center gap-3 py-2">
-                        <div class="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-red-50">
-                            <span class="text-[10px] font-black text-red-500 leading-none">{{ $d['month'] }}</span>
-                            <span class="text-sm font-black text-red-600 leading-tight">{{ $d['day'] }}</span>
+                <div class="pd-rail-list">
+                    @forelse ($dash['deadlines'] as $d)
+                        <div class="flex items-center gap-3 py-2">
+                            <div class="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-red-50">
+                                <span class="text-[10px] font-black text-red-500 leading-none">{{ $d['month'] }}</span>
+                                <span class="text-sm font-black text-red-600 leading-tight">{{ $d['day'] }}</span>
+                            </div>
+                            <p class="text-xs font-semibold text-slate-600 leading-snug">{{ $d['title'] }}</p>
                         </div>
-                        <p class="text-xs font-semibold text-slate-600 leading-snug">{{ $d['title'] }}</p>
-                    </div>
-                @empty
-                    <p class="text-xs font-semibold text-slate-400 py-4 text-center">No upcoming deadlines.</p>
-                @endforelse
+                    @empty
+                        <p class="text-xs font-semibold text-slate-400 py-4 text-center">No upcoming deadlines.</p>
+                    @endforelse
+                </div>
             </div>
 
-            {{-- Quick Actions --}}
-            <div class="{{ $cardBox }}">
-                <h3 class="{{ $cardTitle }} flex items-center gap-2 mb-4">
+            {{-- Quick Actions (fixed height — anchors the aligned bottom) --}}
+            <div class="pd-rail-card pd-rail-fixed {{ $railBox }}">
+                <h3 class="{{ $cardTitle }} flex items-center gap-2 mb-3">
                     <i data-lucide="zap" class="w-4 h-4" style="color:#7c3aed;"></i>
                     Quick Actions
                 </h3>
                 <div class="space-y-2">
                     <a href="{{ route('communication.chat.index') }}"
-                       class="flex items-center gap-2 w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
+                       class="flex items-center gap-2 w-full rounded-xl px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-90"
                        style="background-color:#2563eb;">
                         <i data-lucide="megaphone" class="w-4 h-4"></i> Send Announcement
                     </a>
                     <a href="#"
-                       class="flex items-center gap-2 w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
+                       class="flex items-center gap-2 w-full rounded-xl px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-90"
                        style="background-color:#059669;">
                         <i data-lucide="clipboard-check" class="w-4 h-4"></i> Review Attendance
                     </a>
                     <a href="#"
-                       class="flex items-center gap-2 w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
+                       class="flex items-center gap-2 w-full rounded-xl px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-90"
                        style="background-color:#7c3aed;">
                         <i data-lucide="users-2" class="w-4 h-4"></i> Review Teachers
                     </a>
                     <a href="#"
-                       class="flex items-center gap-2 w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
+                       class="flex items-center gap-2 w-full rounded-xl px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-90"
                        style="background-color:#d97706;">
                         <i data-lucide="bar-chart-3" class="w-4 h-4"></i> View Finance Report
                     </a>

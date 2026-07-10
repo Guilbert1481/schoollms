@@ -7,6 +7,7 @@
     'subtitle' => null,   // optional small caption under the value
     'delta'    => null,   // optional trend caption, e.g. "2.6% vs last quarter"
     'deltaUp'  => null,   // true = green up-arrow, false = red down-arrow, null = neutral gray
+    'size'     => 'default', // 'compact' shrinks paddings/fonts so 8 cards fit one row
 ])
 
 @php
@@ -59,23 +60,37 @@
     $iconStyle = ($accent && isset($palette[$accent]))
         ? 'background-color:'.$palette[$accent]['bg'].';color:'.$palette[$accent]['fg'].';'
         : null;
+
+    // Size variants (literal class strings — JIT/purge-safe).
+    $compact = $size === 'compact';
+    $padCls   = $compact ? 'p-3'  : 'p-6';
+    $titleCls = $compact ? 'text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-tight'
+                         : 'text-xs font-bold text-gray-400 uppercase tracking-widest';
+    $valueCls = $compact ? 'text-lg font-black mt-1 text-gray-900 dark:text-gray'
+                         : 'text-3xl font-black mt-2 text-gray-900 dark:text-gray';
+    $subCls   = $compact ? 'mt-0.5 text-[10px] font-semibold text-gray-400 leading-tight'
+                         : 'mt-1 text-xs font-semibold text-gray-400';
+    $deltaCls = $compact ? 'mt-0.5 text-[10px] font-bold leading-tight'
+                         : 'mt-1 text-xs font-bold';
+    $iconPad  = $compact ? 'p-1.5 rounded-lg' : 'p-3 rounded-xl';
+    $iconSize = $compact ? 'w-4 h-4' : 'w-6 h-6';
 @endphp
 
 
-<div class="{{ $cardClasses }} {{ $borderClasses }} {{ $tintClasses }} p-6 rounded-2xl transition hover:shadow-lg">
+<div class="{{ $cardClasses }} {{ $borderClasses }} {{ $tintClasses }} {{ $padCls }} rounded-2xl transition hover:shadow-lg">
 
 
     <div class="flex justify-between items-start">
 
-        <div>
-            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">
+        <div class="min-w-0">
+            <p class="{{ $titleCls }}">
                 {{ $title }}
             </p>
-            <div class="text-3xl font-black mt-2 text-gray-900 dark:text-gray">
+            <div class="{{ $valueCls }}">
                 {{ $slot }}
             </div>
             @if($subtitle)
-                <p class="mt-1 text-xs font-semibold text-gray-400">{{ $subtitle }}</p>
+                <p class="{{ $subCls }}">{{ $subtitle }}</p>
             @endif
             @if($delta)
                 @php
@@ -83,17 +98,17 @@
                     $deltaColor = $deltaUp === true ? '#059669' : ($deltaUp === false ? '#dc2626' : '#9ca3af');
                     $deltaArrow = $deltaUp === true ? '↑' : ($deltaUp === false ? '↓' : '');
                 @endphp
-                <p class="mt-1 text-xs font-bold" style="color: {{ $deltaColor }};">{{ $deltaArrow }} {{ $delta }}</p>
+                <p class="{{ $deltaCls }}" style="color: {{ $deltaColor }};">{{ $deltaArrow }} {{ $delta }}</p>
             @endif
         </div>
 
         @if($iconStyle)
-            <div class="p-3 rounded-xl" style="{{ $iconStyle }}">
-                <i data-lucide="{{ $icon }}" class="w-6 h-6"></i>
+            <div class="{{ $iconPad }} shrink-0" style="{{ $iconStyle }}">
+                <i data-lucide="{{ $icon }}" class="{{ $iconSize }}"></i>
             </div>
         @else
-            <div class="p-3 rounded-xl bg-{{ $accentColor }}-100 text-{{ $accentColor }}-600 dark:bg-{{ $accentColor }}-900/30 dark:text-{{ $accentColor }}-400">
-                <i data-lucide="{{ $icon }}" class="w-6 h-6"></i>
+            <div class="{{ $iconPad }} shrink-0 bg-{{ $accentColor }}-100 text-{{ $accentColor }}-600 dark:bg-{{ $accentColor }}-900/30 dark:text-{{ $accentColor }}-400">
+                <i data-lucide="{{ $icon }}" class="{{ $iconSize }}"></i>
             </div>
         @endif
 
