@@ -21,8 +21,12 @@
 @endphp
 
 @if($embed)
-<div class="min-h-screen w-full p-4 md:p-6">
-    @include($partial, ['game' => $game])
+{{-- Distraction-free stage: the game sits vertically centered in the viewport
+     and is width-capped (readable inputs) instead of stretching edge to edge. --}}
+<div class="min-h-screen w-full flex items-center justify-center p-4 md:p-6">
+    <div class="w-full max-w-3xl">
+        @include($partial, ['game' => $game])
+    </div>
 </div>
 @else
 <div class="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">
