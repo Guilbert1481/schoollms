@@ -1,4 +1,12 @@
-@extends('layouts.app')
+@php
+    $embed = $embed ?? false;
+@endphp
+
+{{-- Embedded (?embed=1): bare fullscreen layout — no sidebar/header — for the
+     catalog's distraction-free game overlay. Direct visits keep the app chrome. --}}
+@extends($embed ? 'layouts.game' : 'layouts.app')
+
+@section('title', $game['title'])
 
 @section('content')
 @php
@@ -12,6 +20,11 @@
     }
 @endphp
 
+@if($embed)
+<div class="min-h-screen w-full p-4 md:p-6">
+    @include($partial, ['game' => $game])
+</div>
+@else
 <div class="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">
 
     {{-- Header --}}
@@ -61,6 +74,7 @@
         @include($partial, ['game' => $game])
     </section>
 </div>
+@endif
 
 @push('scripts')
     <script src="{{ asset('js/tools/games/play.js') }}" defer></script>

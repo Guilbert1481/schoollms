@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tools\Games;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 
 /**
  * Gamified Quiz catalog controller.
@@ -46,7 +47,7 @@ class GamesController extends Controller
         ]);
     }
 
-    public function play(string $slug)
+    public function play(Request $request, string $slug)
     {
         $game = collect(self::GAMES)->firstWhere('slug', $slug);
         abort_if($game === null, 404);
@@ -54,6 +55,9 @@ class GamesController extends Controller
         return view('tools.games.play', [
             'game'  => $game,
             'games' => self::GAMES,
+            // ?embed=1 renders on the bare fullscreen layout (no sidebar/header)
+            // for the catalog's distraction-free game overlay.
+            'embed' => $request->boolean('embed'),
         ]);
     }
 }
