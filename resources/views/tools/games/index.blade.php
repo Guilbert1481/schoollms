@@ -1,31 +1,38 @@
 @extends('layouts.app')
 
-{{--
-    Tailwind safelist (gradients are composed in PHP so the JIT cannot
-    discover them via content scanning). Keep this comment block in sync
-    with App\Http\Controllers\Tools\Games\GamesController::GAMES.
-    from-amber-700 via-orange-800 to-red-900
-    from-cyan-700 via-sky-800 to-blue-900
-    from-emerald-700 via-teal-800 to-cyan-900
-    from-slate-700 via-zinc-700 to-stone-800
-    from-fuchsia-700 via-purple-800 to-indigo-900
-    from-blue-700 via-sky-800 to-indigo-900
-    from-lime-700 via-emerald-800 to-teal-900
-    from-violet-700 via-purple-800 to-fuchsia-900
-    from-rose-700 via-pink-800 to-fuchsia-900
-    from-pink-700 via-rose-800 to-red-900
-    from-stone-700 via-zinc-800 to-slate-900
-    from-orange-700 via-amber-800 to-yellow-900
-    from-indigo-700 via-blue-800 to-sky-900
-    from-teal-700 via-cyan-800 to-sky-900
-    from-emerald-700 via-green-800 to-lime-900
-    from-purple-700 via-violet-800 to-indigo-900
-    from-red-700 via-rose-800 to-pink-900
-    from-green-700 via-emerald-800 to-teal-900
---}}
-
 @section('content')
-<div class="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">
+@php
+    // Pastel tile palette (inline hex — purge-safe): [tile background, icon color].
+    $tilePalette = [
+        ['#fdf3d8', '#a16207'], // amber
+        ['#fbdde2', '#be123c'], // rose
+        ['#d3f4e0', '#059669'], // green
+        ['#d5f0f2', '#0f766e'], // teal
+        ['#fce7d8', '#9a3412'], // orange
+        ['#e3f9d3', '#4d7c0f'], // lime
+        ['#f7d9f7', '#a21caf'], // fuchsia
+        ['#dbe7fb', '#1d4ed8'], // blue
+        ['#d7ecfb', '#0369a1'], // sky
+        ['#e5ddfb', '#6d28d9'], // violet
+    ];
+
+    // Tile view-model handed to the detail modal via Alpine (@js).
+    $gameTiles = collect($games)->values()->map(function ($g, $i) use ($tilePalette) {
+        [$bg, $fg] = $tilePalette[$i % count($tilePalette)];
+
+        return [
+            'slug'        => $g['slug'],
+            'title'       => $g['title'],
+            'description' => $g['description'],
+            'icon'        => $g['icon'],
+            'url'         => route('tools.games.play', $g['slug']),
+            'bg'          => $bg,
+            'fg'          => $fg,
+        ];
+    })->all();
+@endphp
+
+<div x-data="{ detail: null }" class="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">
 
     {{-- Header --}}
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -52,35 +59,61 @@
         <span id="gamesCount" class="text-xs text-slate-500"></span>
     </div>
 
-    {{-- Catalog --}}
-    <div id="gamesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
-        @foreach($games as $game)
-            <article
-                data-name="{{ \Illuminate\Support\Str::lower($game['title']) }}"
-                class="game-card rounded-2xl border border-slate-200 bg-white p-3 shadow-sm hover:shadow-lg transition-all">
-                <div class="relative mb-3 overflow-hidden rounded-xl bg-gradient-to-br {{ $game['color'] }} p-3 h-28">
-                    <div class="absolute -top-6 -right-6 h-24 w-24 rounded-full bg-white/20 blur-xl"></div>
-                    <div class="absolute -bottom-8 -left-6 h-24 w-24 rounded-full bg-black/20 blur-xl"></div>
+    {{-- Catalog: icon tiles + labels only (6 per row on desktop); details open in the modal.
+         .game-card + data-name are kept so js/tools/games/index.js search keeps working. --}}
+    <div id="gamesGrid" class="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-x-4 gap-y-8">
+        @foreach($gameTiles as $game)
+            {{-- NOTE: the handler attribute MUST be double-quoted — @js() emits
+                 JSON.parse('…') whose single quotes would terminate a
+                 single-quoted attribute and leak the rest as page text. --}}
+            <button type="button"
+                    data-name="{{ \Illuminate\Support\Str::lower($game['title']) }}"
+                    x-on:click="detail = @js($game); $nextTick(() => window.lucide && lucide.createIcons())"
+                    class="game-card group flex flex-col items-center focus:outline-none">
+                <span class="flex h-20 w-20 items-center justify-center rounded-[1.5rem] shadow-sm transition duration-150 group-hover:scale-105 group-hover:shadow-md"
+                      style="background-color: {{ $game['bg'] }};">
+                    <i data-lucide="{{ $game['icon'] }}" class="h-8 w-8" style="color: {{ $game['fg'] }};"></i>
+                </span>
+                <span class="mt-3 text-sm font-semibold text-slate-700 text-center leading-tight">
+                    {{ $game['title'] }}
+                </span>
+            </button>
+        @endforeach
+    </div>
 
-                    <div class="relative flex h-full items-end">
-                        <div class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-2 py-1 text-white backdrop-blur-sm">
-                            <i data-lucide="{{ $game['icon'] }}" class="w-4 h-4"></i>
-                            <span class="text-xs font-medium">{{ $game['title'] }}</span>
-                        </div>
-                    </div>
+    {{-- Game detail modal (description + actions) --}}
+    <div x-show="detail !== null" x-cloak x-transition.opacity
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+         x-on:click.self="detail = null"
+         x-on:keydown.escape.window="detail = null">
+        <template x-if="detail">
+            <div class="w-full max-w-sm rounded-2xl bg-white shadow-xl border border-slate-200 p-6">
+                <div class="flex items-start justify-between">
+                    <span class="flex h-14 w-14 items-center justify-center rounded-2xl"
+                          :style="`background-color: ${detail.bg}`">
+                        <i :data-lucide="detail.icon" class="h-7 w-7" :style="`color: ${detail.fg}`"></i>
+                    </span>
+                    <button type="button" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100" x-on:click="detail = null">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
                 </div>
 
-                <div class="px-1 pb-1">
-                    <h2 class="text-base font-semibold text-slate-800">{{ $game['title'] }}</h2>
-                    <p class="mt-2 text-sm text-slate-600 min-h-[60px]">{{ $game['description'] }}</p>
+                <h3 class="mt-4 text-lg font-bold text-slate-800" x-text="detail.title"></h3>
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed" x-text="detail.description"></p>
 
-                    <a href="{{ route('tools.games.play', $game['slug']) }}"
-                       class="mt-4 block w-full rounded-lg border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-center text-sm font-medium text-fuchsia-700 hover:bg-fuchsia-100">
+                <div class="mt-5 flex items-center justify-end gap-2">
+                    <button type="button"
+                            class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                            x-on:click="detail = null">
+                        Close
+                    </button>
+                    <a :href="detail.url"
+                       class="rounded-lg border border-fuchsia-200 bg-fuchsia-50 px-4 py-2 text-sm font-medium text-fuchsia-700 hover:bg-fuchsia-100">
                         Open Game
                     </a>
                 </div>
-            </article>
-        @endforeach
+            </div>
+        </template>
     </div>
 </div>
 
