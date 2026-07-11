@@ -240,8 +240,11 @@
     {{-- Icon grid: tiles + labels only (6 per row on desktop); details live in the click-to-open modal --}}
     <div class="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-x-4 gap-y-8">
         @foreach($toolTiles as $tool)
+            {{-- NOTE: the handler attribute MUST be double-quoted — @js() emits
+                 JSON.parse('…') whose single quotes would terminate a
+                 single-quoted attribute and leak the rest as page text. --}}
             <button type="button"
-                    x-on:click='detail = @js($tool); $nextTick(() => window.lucide && lucide.createIcons())'
+                    x-on:click="detail = @js($tool); $nextTick(() => window.lucide && lucide.createIcons())"
                     class="group flex flex-col items-center focus:outline-none">
                 <span class="flex h-20 w-20 items-center justify-center rounded-[1.5rem] shadow-sm transition duration-150 group-hover:scale-105 group-hover:shadow-md"
                       style="background-color: {{ $tool['bg'] }};">
