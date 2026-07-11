@@ -185,32 +185,39 @@
     $pdfConverterAvailable = $pdfConverterAvailable ?? false;
     $pdfConverterEngine = $pdfConverterEngine ?? null;
 
-    $toolVisuals = [
-        'image_to_pdf' => 'from-rose-500 via-orange-500 to-amber-400',
-        'pdf_to_image' => 'from-sky-500 via-blue-600 to-indigo-700',
-        'image_resize' => 'from-fuchsia-500 via-pink-500 to-rose-500',
-        'image_compressor' => 'from-cyan-500 via-teal-500 to-emerald-500',
-        'video_to_mp3' => 'from-violet-500 via-purple-600 to-indigo-700',
-        'video_compressor' => 'from-amber-500 via-orange-500 to-red-500',
-        'pdf_to_word' => 'from-blue-500 via-sky-600 to-cyan-700',
-        'edit_pdf' => 'from-slate-700 via-blue-700 to-indigo-800',
-        'certificate_creator' => 'from-emerald-500 via-teal-600 to-cyan-700',
-        'text_to_speech' => 'from-emerald-500 via-teal-600 to-cyan-700',
-        'audio_recorder' => 'from-pink-500 via-rose-500 to-red-600',
-        'video_recorder' => 'from-slate-600 via-slate-700 to-zinc-800',
-        'camera' => 'from-lime-500 via-emerald-600 to-teal-700',
-        'pdf_merger' => 'from-indigo-500 via-blue-600 to-sky-700',
-        'file_converter' => 'from-purple-500 via-fuchsia-600 to-pink-700',
-        'scientific_calculator' => 'from-cyan-500 via-blue-600 to-indigo-700',
-        'budget_tool' => 'from-emerald-500 via-green-600 to-teal-700',
-        'video_conference' => 'from-rose-500 via-red-600 to-orange-600',
-        'sophentis_drive' => 'from-indigo-500 via-violet-600 to-purple-700',
-        'scheduler' => 'from-amber-500 via-orange-600 to-red-600',
-        'gamified_quiz' => 'from-fuchsia-500 via-purple-600 to-indigo-700',
+    // Pastel tile palette (inline hex — purge-safe): [tile background, icon color].
+    $tilePalette = [
+        ['#fdf3d8', '#a16207'], // amber
+        ['#fbdde2', '#be123c'], // rose
+        ['#d3f4e0', '#059669'], // green
+        ['#d5f0f2', '#0f766e'], // teal
+        ['#fce7d8', '#9a3412'], // orange
+        ['#e3f9d3', '#4d7c0f'], // lime
+        ['#f7d9f7', '#a21caf'], // fuchsia
+        ['#dbe7fb', '#1d4ed8'], // blue
+        ['#d7ecfb', '#0369a1'], // sky
+        ['#e5ddfb', '#6d28d9'], // violet
     ];
+
+    // Tile view-model handed to the detail modal via Alpine (@js).
+    $toolTiles = collect($toolCards)->values()->map(function ($t, $i) use ($tilePalette) {
+        [$bg, $fg] = $tilePalette[$i % count($tilePalette)];
+
+        return [
+            'key'         => $t['key'],
+            'title'       => $t['title'],
+            'description' => $t['description'],
+            'icon'        => $t['icon'],
+            'status'      => $t['status'],
+            'enabled'     => $t['enabled'],
+            'url'         => isset($t['route']) ? route($t['route']) : null,
+            'bg'          => $bg,
+            'fg'          => $fg,
+        ];
+    })->all();
 @endphp
 
-<div x-data="{ pdfToImageModal: {{ $errors->has('pdf_file') ? 'true' : 'false' }} }" class="p-4 md:p-6">
+<div x-data="{ pdfToImageModal: {{ $errors->has('pdf_file') ? 'true' : 'false' }}, detail: null }" class="p-4 md:p-6">
     <div class="mb-6">
         <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Tools Hub</h1>
         <p class="text-sm md:text-base text-slate-600 mt-1">
@@ -230,53 +237,85 @@
         </div>
     @endif
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-5">
-        @foreach($toolCards as $tool)
-            <article
-                @if($tool['key'] === 'pdf_to_image' && $tool['enabled'])
-                    x-on:click="pdfToImageModal = true"
-                @endif
-                class="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm hover:shadow-md transition-shadow {{ $tool['key'] === 'pdf_to_image' && $tool['enabled'] ? 'cursor-pointer ring-1 ring-emerald-200' : '' }}">
-                <div class="relative mb-3 overflow-hidden rounded-xl bg-gradient-to-br {{ $toolVisuals[$tool['key']] ?? 'from-slate-500 to-slate-700' }} p-3 h-28">
-                    <div class="absolute -top-6 -right-6 h-24 w-24 rounded-full bg-white/20 blur-xl"></div>
-                    <div class="absolute -bottom-8 -left-6 h-24 w-24 rounded-full bg-black/20 blur-xl"></div>
+    {{-- Icon grid: tiles + labels only (6 per row on desktop); details live in the click-to-open modal --}}
+    <div class="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-x-4 gap-y-8">
+        @foreach($toolTiles as $tool)
+            <button type="button"
+                    x-on:click='detail = @js($tool); $nextTick(() => window.lucide && lucide.createIcons())'
+                    class="group flex flex-col items-center focus:outline-none">
+                <span class="flex h-20 w-20 items-center justify-center rounded-[1.5rem] shadow-sm transition duration-150 group-hover:scale-105 group-hover:shadow-md"
+                      style="background-color: {{ $tool['bg'] }};">
+                    <i data-lucide="{{ $tool['icon'] }}" class="h-8 w-8" style="color: {{ $tool['fg'] }};"></i>
+                </span>
+                <span class="mt-3 text-sm font-semibold text-slate-700 text-center leading-tight">
+                    {{ $tool['title'] }}
+                </span>
+            </button>
+        @endforeach
+    </div>
 
-                    <div class="relative flex h-full items-end justify-between">
-                        <div class="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/20 px-2 py-1 text-white backdrop-blur-sm">
-                            <i data-lucide="{{ $tool['icon'] }}" class="w-4 h-4"></i>
-                            <span class="text-xs font-medium">{{ $tool['title'] }}</span>
-                        </div>
-
-                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold {{ $tool['enabled'] ? 'border border-emerald-200/70 bg-emerald-100 text-emerald-700' : 'border border-amber-200/70 bg-amber-100 text-amber-700' }}">
-                            {{ $tool['status'] }}
-                        </span>
-                    </div>
+    {{-- Tool detail modal (description + status + actions) --}}
+    <div x-show="detail !== null" x-cloak x-transition.opacity
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+         x-on:click.self="detail = null"
+         x-on:keydown.escape.window="detail = null">
+        <template x-if="detail">
+            <div class="w-full max-w-sm rounded-2xl bg-white shadow-xl border border-slate-200 p-6">
+                <div class="flex items-start justify-between">
+                    <span class="flex h-14 w-14 items-center justify-center rounded-2xl"
+                          :style="`background-color: ${detail.bg}`">
+                        <i :data-lucide="detail.icon" class="h-7 w-7" :style="`color: ${detail.fg}`"></i>
+                    </span>
+                    <button type="button" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100" x-on:click="detail = null">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
                 </div>
 
-                <div class="px-1 pb-1">
-                    <h2 class="text-base font-semibold text-slate-800">{{ $tool['title'] }}</h2>
-                    <p class="mt-2 text-sm text-slate-600 min-h-[60px]">{{ $tool['description'] }}</p>
+                <div class="mt-4 flex items-center gap-2">
+                    <h3 class="text-lg font-bold text-slate-800" x-text="detail.title"></h3>
+                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                          :class="detail.enabled
+                              ? 'border border-emerald-200 bg-emerald-100 text-emerald-700'
+                              : 'border border-amber-200 bg-amber-100 text-amber-700'"
+                          x-text="detail.status"></span>
+                </div>
 
-                    @if($tool['enabled'])
-                        @if(isset($tool['route']))
-                            <a href="{{ route($tool['route']) }}" class="mt-4 block w-full rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-sm font-medium text-emerald-700">
-                                Open Tool
-                            </a>
-                        @else
-                            <button type="button" x-on:click.stop="pdfToImageModal = true" class="mt-4 w-full rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-                                Open Tool
-                            </button>
-                        @endif
-                    @else
+                <p class="mt-2 text-sm text-slate-600 leading-relaxed" x-text="detail.description"></p>
+
+                <div class="mt-5 flex items-center justify-end gap-2">
+                    <button type="button"
+                            class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                            x-on:click="detail = null">
+                        Close
+                    </button>
+
+                    {{-- Live tool with its own page --}}
+                    <template x-if="detail.enabled && detail.url">
+                        <a :href="detail.url"
+                           class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100">
+                            Open Tool
+                        </a>
+                    </template>
+
+                    {{-- Live tool that runs in a modal (PDF to Image) --}}
+                    <template x-if="detail.enabled && !detail.url">
                         <button type="button"
-                            class="mt-4 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 cursor-not-allowed opacity-80"
-                            disabled>
+                                class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100"
+                                x-on:click="detail = null; pdfToImageModal = true">
+                            Open Tool
+                        </button>
+                    </template>
+
+                    {{-- Planned --}}
+                    <template x-if="!detail.enabled">
+                        <button type="button" disabled
+                                class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-500 cursor-not-allowed opacity-80">
                             Coming Soon
                         </button>
-                    @endif
+                    </template>
                 </div>
-            </article>
-        @endforeach
+            </div>
+        </template>
     </div>
 
     <div x-show="pdfToImageModal" x-cloak x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" x-on:click.self="pdfToImageModal = false" x-on:keydown.escape.window="pdfToImageModal = false">
