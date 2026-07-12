@@ -32,7 +32,9 @@
     })->all();
 @endphp
 
-<div x-data="{ detail: null, playing: null }" class="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">
+<div x-data="{ detail: null, playing: null }"
+     x-init="window.addEventListener('message', e => { if (e.data && e.data.type === 'schoollms:game-exit') playing = null })"
+     class="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">
 
     {{-- Header --}}
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -119,20 +121,14 @@
 
     {{-- Fullscreen game overlay: covers the whole screen (sidebar/header hidden
          behind it); the game loads distraction-free via ?embed=1 in an iframe.
-         The X unloads the game and returns to this catalog. --}}
+         Exit lives in the game's ☰ menu, which postMessages 'schoollms:game-exit'
+         back here (see x-init on the page root) to unload the game. --}}
     <template x-if="playing">
         <div class="fixed inset-0 z-[100] bg-slate-900">
             <iframe :src="playing.url + '?embed=1'"
                     :title="playing.title"
                     class="absolute inset-0 h-full w-full border-0 bg-white"
                     allowfullscreen></iframe>
-            <button type="button"
-                    x-on:click="playing = null"
-                    title="Exit game"
-                    aria-label="Exit game"
-                    class="absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-slate-900/80 text-white shadow-lg ring-1 ring-white/20 transition hover:bg-slate-900">
-                <i data-lucide="x" class="h-5 w-5"></i>
-            </button>
         </div>
     </template>
 </div>

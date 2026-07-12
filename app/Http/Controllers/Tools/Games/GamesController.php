@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Tools\Games;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Gamified Quiz catalog controller.
@@ -52,12 +53,272 @@ class GamesController extends Controller
         $game = collect(self::GAMES)->firstWhere('slug', $slug);
         abort_if($game === null, 404);
 
+        $user     = auth()->user();
+        $schoolId = (int) ($user?->school_id ?? 0);
+
         return view('tools.games.play', [
             'game'  => $game,
             'games' => self::GAMES,
             // ?embed=1 renders on the bare fullscreen layout (no sidebar/header)
             // for the catalog's distraction-free game overlay.
             'embed' => $request->boolean('embed'),
+            'ctx'   => $this->gameContext($user, $schoolId),
         ]);
+    }
+
+    /**
+     * Everything the in-game hamburger needs: the cascading content bank,
+     * year-level vocabulary (UI says "year/grade level" — ADR-0006), the
+     * user's auto-captured level, the teacher's quiz-mode settings, or the
+     * student's quiz-mode lock.
+     */
+    private function gameContext($user, int $schoolId): array
+    {
+        $isTeacher = strtolower((string) ($user->role ?? '')) === 'teacher';
+
+        $bank = [
+            'subjects' => DB::table('subjects')->where('school_id', $schoolId)->where('is_active', 1)
+                ->orderBy('name')->get(['id', 'name'])->all(),
+            'topics' => DB::table('topics')->where('school_id', $schoolId)->where('is_active', 1)
+                ->orderBy('sequence')->get(['id', 'subject_id', 'name'])->all(),
+            'lessons' => DB::table('lessons')->where('school_id', $schoolId)->where('is_active', 1)
+                ->orderBy('sequence')->get(['id', 'subject_id', 'topic_id', 'name'])->all(),
+            'competencies' => DB::table('competencies')->where('school_id', $schoolId)->where('is_active', 1)
+                ->orderBy('sequence')->get(['id', 'subject_id', 'topic_id', 'lesson_id', 'name'])->all(),
+        ];
+
+        $levels = DB::table('academic_levels')->where('school_id', $schoolId)
+            ->whereIn('type', ['basic', 'higher'])
+            ->orderBy('type')->orderBy('sequence_order')
+            ->get(['id', 'name', 'type'])->all();
+
+        // ---- Auto-capture the user's year level (ADR-0006 bridge) ----
+        $autoLevelId = null;
+        $segment     = null; // 'basic' | 'higher' — drives 3 vs 4 grading terms
+
+        if ($isTeacher) {
+            // Teacher: the year levels of the sections they teach.
+            $yearLevels = DB::table('classes as c')
+                ->join('sections as s', 's.id', '=', 'c.section_id')
+                ->where('c.school_id', $schoolId)
+                ->where(fn ($q) => $q->where('c.teacher_id', $user->id)
+                    ->orWhereIn('c.id', fn ($sub) => $sub->select('class_id')->from('class_teacher')->where('teacher_id', $user->id)))
+                ->distinct()->pluck('s.year_level')->filter()->values();
+
+            if ($yearLevels->count() === 1) {
+                $autoLevelId = $this->levelIdFor($schoolId, null, (int) $yearLevels[0]);
+            }
+            // Segment: teachers may straddle both; default to higher (4 terms).
+            $segment = 'higher';
+        } else {
+            // Student: latest enrollment carries education_level + year_level.
+            $student = DB::table('students')->where('user_id', $user->id)->first();
+            $enr = $student ? DB::table('student_enrollments')
+                ->where('student_id', $student->id)
+                ->orderByDesc('id')->first() : null;
+
+            if ($enr) {
+                $autoLevelId = $this->levelIdFor($schoolId, $enr->education_level, (int) $enr->year_level);
+                $segment = in_array($enr->education_level, ['kinder', 'elementary', 'junior_high', 'senior_high'], true)
+                    ? 'basic' : 'higher';
+            }
+        }
+
+        // ---- Quiz mode ----
+        $quiz = $isTeacher
+            ? DB::table('game_quiz_settings')->where('teacher_id', $user->id)->first()
+            : null;
+
+        $lock = null;
+        if (! $isTeacher) {
+            $lock = $this->resolveStudentLock($user, $schoolId);
+        }
+
+        return [
+            'role'        => $isTeacher ? 'teacher' : 'student',
+            'bank'        => $bank,
+            'levels'      => $levels,
+            'autoLevelId' => $autoLevelId,
+            'termCount'   => $segment === 'basic' ? 3 : 4,
+            'quiz'        => $quiz,
+            'lock'        => $lock,
+        ];
+    }
+
+    /** education_level + year_level -> academic_levels row id (ADR-0006). */
+    private function levelIdFor(int $schoolId, ?string $educationLevel, int $yearLevel): ?int
+    {
+        if ($yearLevel < 1 && $educationLevel !== 'kinder') {
+            return null;
+        }
+
+        $isBasic = $educationLevel === null
+            || in_array($educationLevel, ['kinder', 'elementary', 'junior_high', 'senior_high'], true);
+
+        $name = $educationLevel === 'kinder'
+            ? 'Kinder'
+            : ($isBasic ? 'Grade '.$yearLevel : 'Year '.$yearLevel);
+
+        return DB::table('academic_levels')
+            ->where('school_id', $schoolId)
+            ->where('type', $isBasic ? 'basic' : 'higher')
+            ->where('name', $name)
+            ->value('id');
+    }
+
+    /**
+     * If any teacher of the student's classes has Quiz Mode ON, the most
+     * recently updated setting wins and locks the student's game scope.
+     */
+    private function resolveStudentLock($user, int $schoolId): ?array
+    {
+        $student = DB::table('students')->where('user_id', $user->id)->first();
+        if (! $student) {
+            return null;
+        }
+
+        $teacherIds = DB::table('class_student as cs')
+            ->join('classes as c', 'c.id', '=', 'cs.class_model_id')
+            ->where('cs.student_id', $student->id)
+            ->where('c.school_id', $schoolId)
+            ->pluck('c.teacher_id')
+            ->merge(
+                DB::table('class_student as cs')
+                    ->join('class_teacher as ct', 'ct.class_id', '=', 'cs.class_model_id')
+                    ->where('cs.student_id', $student->id)
+                    ->pluck('ct.teacher_id')
+            )
+            ->filter()->unique()->values();
+
+        if ($teacherIds->isEmpty()) {
+            return null;
+        }
+
+        $setting = DB::table('game_quiz_settings')
+            ->whereIn('teacher_id', $teacherIds)
+            ->where('is_on', 1)
+            ->orderByDesc('updated_at')
+            ->first();
+
+        if (! $setting) {
+            return null;
+        }
+
+        $teacher = DB::table('users')->where('id', $setting->teacher_id)->first();
+
+        return [
+            'teacher_name'      => trim(($teacher->first_name ?? '').' '.($teacher->last_name ?? '')) ?: 'Your teacher',
+            'term'              => $setting->term,
+            'academic_level_id' => $setting->academic_level_id,
+            'subject_id'        => $setting->subject_id,
+            'topic_id'          => $setting->topic_id,
+            'lesson_id'         => $setting->lesson_id,
+            'competency_id'     => $setting->competency_id,
+        ];
+    }
+
+    /** Teacher-only: save Quiz Mode toggle + content selection. */
+    public function saveQuizMode(Request $request)
+    {
+        $user = auth()->user();
+        abort_unless(strtolower((string) $user->role) === 'teacher', 403);
+
+        $data = $request->validate([
+            'is_on'             => ['required', 'boolean'],
+            'term'              => ['nullable', 'integer', 'min:1', 'max:4'],
+            'academic_level_id' => ['nullable', 'integer', 'exists:academic_levels,id'],
+            'subject_id'        => ['nullable', 'integer', 'exists:subjects,id'],
+            'topic_id'          => ['nullable', 'integer', 'exists:topics,id'],
+            'lesson_id'         => ['nullable', 'integer', 'exists:lessons,id'],
+            'competency_id'     => ['nullable', 'integer', 'exists:competencies,id'],
+        ]);
+
+        DB::table('game_quiz_settings')->updateOrInsert(
+            ['teacher_id' => $user->id],
+            $data + [
+                'school_id'  => (int) $user->school_id,
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Question supply for the games (JSON).
+     *
+     * Serves random question-bank items of one type, school-scoped, with the
+     * answers included — games grade CLIENT-SIDE, so this endpoint is for
+     * practice play against the question bank, not for graded exams.
+     */
+    public function questions(Request $request)
+    {
+        $schoolId = auth()->user()?->school_id;
+        abort_unless($schoolId, 404);
+
+        $type = (string) $request->query('type');
+        abort_unless(in_array($type, ['mcq', 'identification'], true), 422);
+
+        // The MCQ builder historically wrote both spellings.
+        $types = $type === 'mcq' ? ['mcq', 'multiple_choice'] : ['identification'];
+
+        $limit = min(max((int) $request->query('limit', 15), 1), 30);
+
+        // Scope filters from the hamburger: subject > topic > lesson >
+        // competency (each narrower), plus the auto-captured year level.
+        // Note: the grading TERM is display/lock context only — questions are
+        // not term-tagged (see ADR-0006 discussion), so it is not filtered here.
+        $rows = DB::table('questions')
+            ->where('school_id', $schoolId)
+            ->whereIn('question_type', $types)
+            ->when($request->filled('subject_id'), fn ($q) => $q->where('subject_id', (int) $request->query('subject_id')))
+            ->when($request->filled('topic_id'), fn ($q) => $q->where('topic_id', (int) $request->query('topic_id')))
+            ->when($request->filled('lesson_id'), fn ($q) => $q->where('lesson_id', (int) $request->query('lesson_id')))
+            ->when($request->filled('competency_id'), fn ($q) => $q->where('competency_id', (int) $request->query('competency_id')))
+            ->when($request->filled('academic_level_id'), fn ($q) => $q->where('academic_level_id', (int) $request->query('academic_level_id')))
+            ->inRandomOrder()
+            ->limit($limit * 2)   // headroom: malformed rows are filtered below
+            ->get(['id', 'question_text', 'explanation', 'difficulty']);
+
+        $choicesByQuestion = DB::table('choices')
+            ->whereIn('question_id', $rows->pluck('id'))
+            ->get(['question_id', 'choice_text', 'is_correct'])
+            ->groupBy('question_id');
+
+        $questions = $rows->map(function ($row) use ($type, $choicesByQuestion) {
+            $choices = ($choicesByQuestion[$row->id] ?? collect())->values();
+
+            if ($type === 'identification') {
+                $answer = trim((string) optional($choices->firstWhere('is_correct', 1))->choice_text);
+                if ($answer === '') {
+                    return null; // malformed: no stored answer
+                }
+
+                return [
+                    'id'          => $row->id,
+                    'question'    => $row->question_text,
+                    'answer'      => $answer,
+                    'explanation' => $row->explanation,
+                ];
+            }
+
+            // MCQ: need >= 2 options and exactly one correct.
+            if ($choices->count() < 2 || (int) $choices->where('is_correct', 1)->count() !== 1) {
+                return null;
+            }
+
+            $shuffled = $choices->shuffle()->values();
+
+            return [
+                'id'          => $row->id,
+                'question'    => $row->question_text,
+                'choices'     => $shuffled->pluck('choice_text')->all(),
+                'answer'      => $shuffled->search(fn ($c) => (int) $c->is_correct === 1),
+                'explanation' => $row->explanation,
+            ];
+        })->filter()->take($limit)->values();
+
+        return response()->json(['questions' => $questions]);
     }
 }
