@@ -190,6 +190,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/principal/dashboard.php',
             __DIR__.'/../routes/principal/curricula_panel.php',
             __DIR__.'/../routes/principal/ay_terms.php',
+            __DIR__.'/../routes/principal/settings.php',
 
 
             /*

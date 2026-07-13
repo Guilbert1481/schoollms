@@ -769,6 +769,14 @@ return [
                 ],
 
                 [
+                    'label' => 'Grades',
+                    'route' => 'principal.settings.grades',
+                    'active' => 'principal.settings.grades',
+                    'icon'  => 'graduation-cap',
+                    'roles' => ['principal'],
+                ],
+
+                [
                     'label' => 'Profile Settings',
                     'route' => 'settings.profile',
 

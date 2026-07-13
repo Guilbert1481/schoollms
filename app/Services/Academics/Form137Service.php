@@ -2,9 +2,9 @@
 
 namespace App\Services\Academics;
 
+use App\Models\GradeSetting;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  */
 class Form137Service
 {
-    /** DepEd passing mark. TODO: read from the Principal's Grades settings once that page exists. */
+    /** Fallback passing mark when a school has no Grade settings row yet. */
     public const PASSING_GRADE = 75.0;
 
     /** Enrollment statuses that count as an attended grade level. */
@@ -56,7 +56,11 @@ class Form137Service
      */
     public function build(Student $student): array
     {
-        $threshold = self::PASSING_GRADE;
+        // Passing threshold + promotion rule come from the Principal's Grades
+        // settings (Settings → Grades); default to 75 / average.
+        $setting   = GradeSetting::forSchool((int) $student->school_id);
+        $threshold = (float) $setting->passing_threshold;
+        $rule      = $setting->promotion_rule;
 
         $enrollments = StudentEnrollment::with('academicYear:id,name')
             ->where('student_id', $student->id)
@@ -123,15 +127,20 @@ class Form137Service
 
             $graded = $rows->filter(fn ($r) => $r['_num'] !== null);
             $ga     = $graded->isNotEmpty() ? round($graded->avg('_num'), 2) : null;
+            $failed = $graded->contains(fn ($r) => $r['_num'] < $threshold);
 
-            // Standing tracks the General Average. Individual failed learning
-            // areas still show a "Failed" remark; whether a failed area forces
-            // remediation/retention is a school policy the Principal's Grades
-            // settings will govern (decision #3) — not hardcoded here.
+            // Standing follows the Principal's promotion rule (Settings → Grades):
+            //   'average'        → Promoted when GA meets the threshold
+            //   'all_areas_pass' → also requires no failed learning area
+            $meetsAvg  = $ga !== null && $ga >= $threshold;
+            $promoted  = $rule === GradeSetting::RULE_ALL_AREAS_PASS
+                ? ($meetsAvg && ! $failed)
+                : $meetsAvg;
+
             [$sectionRemark, $remarkTone] = match (true) {
-                $graded->isEmpty()   => ['In Progress', 'slate'],
-                $ga >= $threshold    => ['Promoted', 'emerald'],
-                default              => ['Retained', 'rose'],
+                $graded->isEmpty() => ['In Progress', 'slate'],
+                $promoted          => ['Promoted', 'emerald'],
+                default            => ['Retained', 'rose'],
             };
 
             $sections->push([
