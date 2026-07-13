@@ -31,7 +31,7 @@
 
 @php $ctx = $ctx ?? ['role' => 'student', 'bank' => ['subjects'=>[],'topics'=>[],'lessons'=>[],'competencies'=>[]], 'levels' => [], 'autoLevelId' => null, 'termCount' => 4, 'quiz' => null, 'lock' => null]; @endphp
 
-{{-- ================= ☰ In-game menu (Exit / Term / Year Level / Questions / Quiz Mode) ================= --}}
+{{-- ================= ☰ In-game menu (Exit / Year Level / Questions / Quiz Mode) ================= --}}
 <div id="gmMenuRoot">
     <button type="button" id="gmBurger" aria-label="Game menu" title="Game menu"
             class="fixed right-3 top-3 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-slate-900/80 text-white shadow-lg ring-1 ring-white/20 hover:bg-slate-900">
@@ -40,11 +40,6 @@
 
     <div id="gmPanel" class="hidden fixed right-3 top-16 z-40 w-72 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl space-y-3">
         <div id="gmLockBanner" class="hidden rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800"></div>
-
-        <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Term</label>
-            <select id="gmTerm" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"></select>
-        </div>
 
         <div id="gmLevelWrap" class="hidden">
             <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Year Level</label>
@@ -129,7 +124,6 @@
 
     // ---------------- Global scope the games read at fetch time ----------------
     window.GameScope = {
-        term:              lock?.term ?? quiz?.term ?? 1,
         academic_level_id: lock?.academic_level_id ?? quiz?.academic_level_id ?? CTX.autoLevelId ?? null,
         subject_id:        lock?.subject_id ?? quiz?.subject_id ?? null,
         topic_id:          lock?.topic_id ?? quiz?.topic_id ?? null,
@@ -146,7 +140,6 @@
         const com  = (CTX.bank.competencies || []).find(x => x.id === s.competency_id);
         const lvl  = (CTX.levels || []).find(x => x.id === s.academic_level_id);
         const parts = [];
-        parts.push(ordinal(s.term) + ' Term');
         if (lvl)  parts.push(lvl.name);
         parts.push(subj ? subj.name : 'All subjects');
         if (top)  parts.push(top.name);
@@ -154,8 +147,6 @@
         if (com)  parts.push(com.name);
         return parts.join(' · ');
     };
-
-    function ordinal(n) { return ({1: '1st', 2: '2nd', 3: '3rd', 4: '4th'})[n] || n + 'th'; }
 
     function changed() {
         document.dispatchEvent(new CustomEvent('gamescope:changed'));
@@ -174,18 +165,6 @@
         } else {
             window.location.href = CATALOG;
         }
-    });
-
-    // ---------------- Term ----------------
-    const termSel = el('gmTerm');
-    for (let t = 1; t <= (CTX.termCount || 4); t++) {
-        termSel.insertAdjacentHTML('beforeend', '<option value="' + t + '">' + ordinal(t) + ' Term</option>');
-    }
-    termSel.value = String(window.GameScope.term);
-    termSel.addEventListener('change', () => {
-        window.GameScope.term = parseInt(termSel.value, 10);
-        changed();
-        saveQuizIfTeacher();
     });
 
     // ---------------- Year Level (teachers only; students auto-captured) ----------------
@@ -220,7 +199,6 @@
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
             body: JSON.stringify({
                 is_on: el('gmQuizToggle').checked,
-                term: s.term,
                 academic_level_id: s.academic_level_id,
                 subject_id: s.subject_id,
                 topic_id: s.topic_id,
@@ -235,7 +213,6 @@
         el('gmLockBanner').textContent = 'Quiz Mode is ON — content set by ' + lock.teacher_name + '.';
         el('gmLockBanner').classList.remove('hidden');
         el('gmQuestionsBtn').classList.add('hidden');
-        termSel.disabled = true;
     }
 
     // ---------------- Questions modal (cascading selects) ----------------
