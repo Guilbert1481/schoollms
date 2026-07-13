@@ -34,7 +34,9 @@ class LoginController extends Controller
             }
         }
 
-        $school = $slug ? School::where('slug', $slug)->first() : null;
+        // Path slug (legacy "/{slug}/login") wins; otherwise use the school
+        // resolved from the request host so "<slug>.<domain>/login" is branded.
+        $school = $slug ? School::where('slug', $slug)->first() : current_school();
 
         $schoolProfile = $school
             ? \App\Models\SchoolProfile::where('school_id', $school->id)->first()
@@ -53,7 +55,9 @@ class LoginController extends Controller
             'password' => 'required',
         ]);
 
-        // Identify school if slug exists
+        // Identify the school: an explicit path slug wins, otherwise scope the
+        // attempt to the school resolved from the request host so a login on
+        // "<slug>.<domain>" can only match that school's users.
         $school = null;
         if ($slug) {
             $school = School::where('slug', $slug)->first();
@@ -63,7 +67,11 @@ class LoginController extends Controller
                     'email' => 'Invalid institution link.'
                 ]);
             }
+        } else {
+            $school = current_school();
+        }
 
+        if ($school) {
             $credentials['school_id'] = $school->id;
         }
 

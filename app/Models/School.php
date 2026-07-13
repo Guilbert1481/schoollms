@@ -67,6 +67,45 @@ class School extends Model
     }
 
     /**
+     * Hosts (subdomains / custom domains) that resolve to this school.
+     */
+    public function domains()
+    {
+        return $this->hasMany(SchoolDomain::class);
+    }
+
+    /**
+     * The canonical host for this school, used to build absolute URLs and to
+     * bounce a user back to their own tenant. Prefers an explicit primary
+     * domain row, then any domain row, then the legacy `domain` column, and
+     * finally the "<slug>.<base-domain>" convention.
+     */
+    public function primaryHost(): ?string
+    {
+        // 1. An explicit canonical host (e.g. the school's own custom domain).
+        $host = $this->domains()->where('is_primary', true)->value('host')
+            ?? $this->domains()->orderBy('id')->value('host');
+
+        if ($host) {
+            return $host;
+        }
+
+        // 2. The base-domain subdomain built from the slug — always a host we
+        //    serve, so it is the safe default target for redirects.
+        $base = config('tenancy.primary_base_domain');
+        if ($base && $this->slug) {
+            return $this->slug . '.' . $base;
+        }
+
+        // 3. Legacy single custom-domain column (last resort).
+        if (! empty($this->domain)) {
+            return $this->domain;
+        }
+
+        return null;
+    }
+
+    /**
      * The modules that belong to the school (Many-to-Many).
      */
     public function modules()

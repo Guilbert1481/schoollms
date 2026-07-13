@@ -282,12 +282,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
 
         $middleware->web(append: [
+            // Resolve the school from the request host FIRST, so branding and
+            // the host-level tenant guard are in place before anything renders.
+            \App\Http\Middleware\ResolveSchoolFromHost::class,
             \App\Http\Middleware\EnsureSchoolIsActive::class,
             \App\Http\Middleware\ForcePasswordChange::class,
         ]);
 
         $middleware->alias([
 
+            'school.resolve'   => \App\Http\Middleware\ResolveSchoolFromHost::class,
             'role'             => \App\Http\Middleware\CheckRole::class,
             '2fa'              => \App\Http\Middleware\TwoFactorMiddleware::class,
             'subscription'     => \App\Http\Middleware\CheckSubscription::class,

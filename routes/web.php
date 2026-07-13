@@ -15,6 +15,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\PDFController;
 use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\Tenancy\TlsCheckController;
 
 
 /*
@@ -26,6 +27,12 @@ use App\Http\Controllers\GlobalSearchController;
 Route::get('/', function () {
     return view('welcome');
 });
+
+// On-demand TLS "ask" endpoint for the reverse proxy (Caddy). Answers 200 only
+// for hosts we actually serve, so certs aren't minted for arbitrary domains.
+Route::get('/tenancy/tls-check', [TlsCheckController::class, 'check'])
+    ->name('tenancy.tls-check')
+    ->middleware('throttle:120,1');
 
 // Main Login (for superadmins/platform)
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');

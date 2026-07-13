@@ -20,6 +20,10 @@ class AppServiceProvider extends ServiceProvider
         // Shared per-request so KPIRegistry and the student dashboard
         // controller reuse one memoised computation.
         $this->app->singleton(\App\Services\Dashboard\StudentDashboardService::class);
+
+        // Holds the school resolved from the request host (set by
+        // ResolveSchoolFromHost). Singleton so every reader sees the same value.
+        $this->app->singleton(\App\Support\Tenancy\CurrentSchool::class);
     }
 
     public function boot(): void
@@ -39,6 +43,20 @@ class AppServiceProvider extends ServiceProvider
         |--------------------------------------------------------------------------
         */
         View::composer('*', function ($view) {
+            // Prefer the school resolved from the request host so every page
+            // (including the pre-auth login page) brands to the right tenant.
+            // On the platform/central host, fall back to the previous behaviour.
+            $current = app(\App\Support\Tenancy\CurrentSchool::class)->get();
+
+            if ($current) {
+                $view->with([
+                    'school_name' => $current->school_name,
+                    'school_logo' => null,
+                ]);
+
+                return;
+            }
+
             $school = DB::table('schools')->first();
 
             $view->with([
