@@ -39,8 +39,11 @@
         </p>
     </div>
 
-    {{-- KPI row (reusable kpi-shell, registry-driven; compact so 8 fit one row) --}}
-    <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
+    {{-- KPI row (reusable kpi-shell, registry-driven; compact so they fit one row).
+         Desktop columns = actual card count so the strip always spans the full
+         width with no empty column on the right (basic-ed hides one KPI). --}}
+    @php $kpiCount = max(1, count($cards)); @endphp
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 kpi-strip">
         @foreach ($cards as $card)
             <x-kpi-row.kpi-shell
                 :title="$card['title']"
@@ -52,6 +55,11 @@
             </x-kpi-row.kpi-shell>
         @endforeach
     </div>
+    <style>
+        @media (min-width: 1280px) {
+            .kpi-strip { grid-template-columns: repeat({{ $kpiCount }}, minmax(0, 1fr)); }
+        }
+    </style>
 
     {{-- Row 2: grade trend · today's schedule · deadlines · announcements --}}
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
