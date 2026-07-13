@@ -23,6 +23,12 @@
 
     $hoverClass = $hoverClass ?? 'hover:bg-slate-100';
     $textClass = $textClass ?? 'text-slate-600';
+
+    // Basic-ed students see "Form 137" instead of "Transcript" (ADR-0006 /
+    // Form 137 decisions). Memoised per request inside the service.
+    $isBasicEdStudent = ($role === 'student' && $user)
+        ? app(\App\Services\Dashboard\StudentDashboardService::class)->isBasicEd($user)
+        : false;
 @endphp
 
 <nav x-data="{ open: '{{ $activeSection }}' }" class="px-4 py-6 space-y-2 text-sm">
@@ -111,7 +117,9 @@
                                             ? $textClass . ' font-semibold'
                                             : $textClass . ' ' . $hoverClass }}">
                                         <i data-lucide="{{ $child['icon'] ?? 'circle' }}" class="w-4 h-4"></i>
-                                        {{ $child['label'] }}
+                                        {{ ($isBasicEdStudent && ($child['route'] ?? '') === 'student.transcript.index')
+                                            ? 'Form 137'
+                                            : $child['label'] }}
                                     </a>
                                 @endif
 

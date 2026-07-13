@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\StudentEnrollmentSubject;
 use App\Models\TranscriptEditRequest;
+use App\Services\Academics\Form137Service;
 use App\Support\Spreadsheet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -258,6 +259,22 @@ class TranscriptOfRecordController extends Controller
      */
     public function show(Student $student)
     {
+        // Basic-ed learners render Form 137 (grade-level record) instead of the
+        // higher-ed Year/Semester transcript — enforce the level separation.
+        $form137 = app(Form137Service::class);
+        if ($form137->isBasicEd($student)) {
+            $data = $form137->build($student);
+
+            return view('transcript.form137', [
+                'student'   => $student,
+                'sections'  => $data['sections'],
+                'summary'   => $data['summary'],
+                'backUrl'   => route('registrar.transcripts.index'),
+                'backLabel' => 'Back to Records',
+                'editable'  => true,   // registrar can edit grades + mark transfers
+            ]);
+        }
+
         $columns = config('tables.transcript.columns', []);
 
         $blank = [
@@ -534,7 +551,15 @@ class TranscriptOfRecordController extends Controller
             'new_status'            => ['required', 'string', 'in:credit,passed,failed,enrolled'],
             'reason'                => ['nullable', 'string', 'max:1000'],
             'latest_enrollment_id'  => ['nullable', 'integer', 'exists:student_enrollments,id'],
+            // Form 137: when a subject is credited/transferred, record the
+            // school it was transferred from (stored on the subject's remarks).
+            'transferred_from'      => ['nullable', 'string', 'max:255'],
         ]);
+
+        // Transfer source is only meaningful for credited subjects.
+        $remarks = $data['new_status'] === 'credit'
+            ? (($data['transferred_from'] ?? '') !== '' ? 'Transferred from '.$data['transferred_from'] : null)
+            : null;
 
         // Registrar may edit any student's transcript directly. The internal
         // grade-change approval workflow (teacher → program head → dean → registrar)
@@ -563,10 +588,14 @@ class TranscriptOfRecordController extends Controller
                 'subject_id'            => $data['subject_id'],
                 'status'                => $data['new_status'],
                 'grade'                 => $data['new_grade'] ?? null,
+                'final_grade'           => $data['new_grade'] ?? null,
+                'remarks'               => $remarks,
             ]);
         } else {
-            $row->status = $data['new_status'];
-            $row->grade  = $data['new_grade'] ?? $row->grade;
+            $row->status      = $data['new_status'];
+            $row->grade       = $data['new_grade'] ?? $row->grade;
+            $row->final_grade = $data['new_grade'] ?? $row->final_grade;
+            $row->remarks     = $remarks;
             $row->save();
         }
 

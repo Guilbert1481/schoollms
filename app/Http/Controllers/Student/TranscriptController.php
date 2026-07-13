@@ -7,6 +7,7 @@ use App\Models\Curriculum;
 use App\Models\CurriculumSubject;
 use App\Models\StudentEnrollment;
 use App\Models\StudentEnrollmentSubject;
+use App\Services\Academics\Form137Service;
 use Illuminate\Support\Facades\Auth;
 
 class TranscriptController extends Controller
@@ -41,6 +42,22 @@ class TranscriptController extends Controller
 
         if (! $student) {
             return view('student.transcript.index', $blank);
+        }
+
+        // Basic-ed learners get Form 137 (grade-level record), not the
+        // higher-ed Year/Semester transcript. Enforces the level separation.
+        $form137 = app(Form137Service::class);
+        if ($form137->isBasicEd($student)) {
+            $data = $form137->build($student);
+
+            return view('transcript.form137', [
+                'student'   => $student,
+                'sections'  => $data['sections'],
+                'summary'   => $data['summary'],
+                'backUrl'   => route('student.dashboard'),
+                'backLabel' => 'Back to Dashboard',
+                'editable'  => false,   // students view their record read-only
+            ]);
         }
 
         $latestEnrollment = StudentEnrollment::with('program:id,code,name')
