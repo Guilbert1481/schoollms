@@ -59,7 +59,7 @@ class StudentDashboardService
                 ],
                 'progress_student' => [
                     'value'    => $progress.'%',
-                    'subtitle' => 'Semester progress',
+                    'subtitle' => $this->isBasicEd($user) ? 'Term progress' : 'Semester progress',
                 ],
                 'GWA_student' => [
                     'value'    => $gwa !== null ? number_format($gwa, 2) : '—',
@@ -74,7 +74,10 @@ class StudentDashboardService
                     'subtitle' => $risk > 0 ? 'Needs attention' : 'All clear',
                 ],
                 'outstanding_student' => [
-                    'value'    => '₱'.number_format($billing['outstanding'], 2),
+                    // Only what's currently payable (billed + any unpaid past dues),
+                    // NOT the whole year's scheduled installments — showing the full
+                    // annual payable is an unnecessary emotional burden.
+                    'value'    => '₱'.number_format($billing['current_due'], 2),
                     'subtitle' => $billing['due_subtitle'],
                 ],
                 'units_student' => [
@@ -362,31 +365,42 @@ class StudentDashboardService
         ];
     }
 
-    /** @return array{paid: float, outstanding: float, overdue: float, due_subtitle: string, next_due: ?string} */
+    /** @return array{paid: float, outstanding: float, current_due: float, overdue: float, next_due: ?string, next_due_amount: ?float, due_subtitle: string} */
     private function billing(User $user): array
     {
         return $this->remember($user, 'billing', function () use ($user) {
             $rows = DB::table('invoices')
                 ->where('school_id', $user->school_id)
                 ->where('student_id', $user->id)
-                ->get(['paid_amount', 'balance', 'due_date']);
+                ->get(['paid_amount', 'balance', 'due_date', 'billing_date']);
+
+            $today = now()->startOfDay();
 
             $open    = $rows->filter(fn ($r) => (float) $r->balance > 0.005);
             $overdue = $open->filter(fn ($r) => $r->due_date && Carbon::parse($r->due_date)->isPast());
             $nextDue = $open->filter(fn ($r) => $r->due_date && ! Carbon::parse($r->due_date)->isPast())
                 ->sortBy('due_date')->first();
 
+            // "Currently payable" = invoices already billed (billing_date reached,
+            // or legacy null billing_date) that still carry a balance. Future
+            // scheduled installments are excluded from the student-facing figure.
+            $currentDue = (float) $open->filter(fn ($r) =>
+                ! $r->billing_date || Carbon::parse($r->billing_date)->startOfDay()->lte($today)
+            )->sum('balance');
+
             $outstanding = (float) $open->sum('balance');
 
             return [
-                'paid'         => (float) $rows->sum('paid_amount'),
-                'outstanding'  => $outstanding,
-                'overdue'      => (float) $overdue->sum('balance'),
-                'next_due'     => $nextDue ? Carbon::parse($nextDue->due_date)->format('M d') : null,
-                'due_subtitle' => match (true) {
+                'paid'            => (float) $rows->sum('paid_amount'),
+                'outstanding'     => $outstanding,           // full open balance (all installments)
+                'current_due'     => $currentDue,            // billed + unpaid past dues only
+                'overdue'         => (float) $overdue->sum('balance'),
+                'next_due'        => $nextDue ? Carbon::parse($nextDue->due_date)->format('M d') : null,
+                'next_due_amount' => $nextDue ? (float) $nextDue->balance : null,
+                'due_subtitle'    => match (true) {
                     $overdue->isNotEmpty()  => 'Overdue — please settle',
                     $nextDue !== null       => 'Due '.Carbon::parse($nextDue->due_date)->format('M d'),
-                    $outstanding > 0.005    => 'No due date set',
+                    $currentDue > 0.005     => 'No due date set',
                     default                 => 'All settled',
                 },
             ];
@@ -401,8 +415,19 @@ class StudentDashboardService
      */
     private function calendar(User $user): array
     {
-        $start = now()->startOfMonth();
-        $end   = now()->endOfMonth();
+        return $this->calendarFor($user, (int) now()->format('Y'), (int) now()->format('n'));
+    }
+
+    /**
+     * Events for a specific month (used by the dashboard + the month-navigation
+     * endpoint so students can browse back/forward through the school year).
+     *
+     * @return array{year:int, month:int, days:array<int, array<int, string>>}
+     */
+    public function calendarFor(User $user, int $year, int $month): array
+    {
+        $start = Carbon::create($year, $month, 1)->startOfMonth();
+        $end   = $start->copy()->endOfMonth();
         $days  = [];
 
         $push = function (string $date, string $type) use (&$days) {
@@ -442,6 +467,31 @@ class StudentDashboardService
         ];
     }
 
+    /**
+     * Is the student's active enrollment in basic education? Drives level-aware
+     * copy (Term vs Semester) and KPI visibility (units are higher-ed only).
+     */
+    public function isBasicEd(User $user): bool
+    {
+        return $this->remember($user, 'is_basic_ed', function () use ($user) {
+            $enrollment = $this->enrollment($user);
+            if (! $enrollment) {
+                return false;
+            }
+
+            $termLevel = DB::table('terms')->where('id', $enrollment->term_id)->value('education_level');
+            if ($termLevel) {
+                return strtolower((string) $termLevel) === 'basic_ed';
+            }
+
+            return in_array(
+                strtolower((string) $enrollment->education_level),
+                ['kinder', 'elementary', 'junior_high', 'senior_high', 'basic_ed', 'basic'],
+                true
+            );
+        });
+    }
+
     /** Rule-based Study Coach bullets, all derived from live data. */
     private function snapshot(User $user): array
     {
@@ -475,7 +525,8 @@ class StudentDashboardService
         if ($billing['overdue'] > 0.005) {
             $bullets[] = ['tone' => 'rose', 'text' => 'A balance of ₱'.number_format($billing['overdue'], 2).' is past due.'];
         } elseif ($billing['next_due']) {
-            $bullets[] = ['tone' => 'sky', 'text' => 'Next payment of ₱'.number_format($billing['outstanding'], 2).' is due '.$billing['next_due'].'.'];
+            $amount = $billing['next_due_amount'] ?? $billing['current_due'];
+            $bullets[] = ['tone' => 'sky', 'text' => 'Next payment of ₱'.number_format($amount, 2).' is due '.$billing['next_due'].'.'];
         }
 
         $classesToday = count($this->todaySchedule($user));

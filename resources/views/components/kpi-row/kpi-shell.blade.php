@@ -80,13 +80,13 @@
 <div class="{{ $cardClasses }} {{ $borderClasses }} {{ $tintClasses }} {{ $padCls }} rounded-2xl transition hover:shadow-lg">
 
 
-    <div class="flex justify-between items-start">
+    <div class="flex justify-between items-start gap-2">
 
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
             <p class="{{ $titleCls }}">
                 {{ $title }}
             </p>
-            <div class="{{ $valueCls }}">
+            <div class="{{ $valueCls }} kpi-value whitespace-nowrap overflow-hidden">
                 {{ $slot }}
             </div>
             @if($subtitle)
@@ -114,3 +114,27 @@
 
     </div>
 </div>
+
+@once
+@push('scripts')
+<script>
+/* Auto-fit KPI values: shrink the big number just enough to fit its card
+   width so long currency values never overflow or wrap onto the icon. */
+(function () {
+    function fitKpiValues() {
+        document.querySelectorAll('.kpi-value').forEach(function (el) {
+            el.style.fontSize = '';
+            if (el.scrollWidth > el.clientWidth + 1) {
+                var cs = parseFloat(getComputedStyle(el).fontSize) || 16;
+                var scaled = Math.max(11, Math.floor(cs * el.clientWidth / el.scrollWidth));
+                el.style.fontSize = scaled + 'px';
+            }
+        });
+    }
+    window.addEventListener('load', fitKpiValues);
+    window.addEventListener('resize', fitKpiValues);
+    if (document.readyState === 'complete') { fitKpiValues(); }
+})();
+</script>
+@endpush
+@endonce

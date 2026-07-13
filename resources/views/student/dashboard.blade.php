@@ -39,14 +39,15 @@
         </p>
     </div>
 
-    {{-- KPI row (reusable kpi-shell, registry-driven) --}}
+    {{-- KPI row (reusable kpi-shell, registry-driven; compact so 8 fit one row) --}}
     <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
         @foreach ($cards as $card)
             <x-kpi-row.kpi-shell
                 :title="$card['title']"
                 :icon="$card['icon']"
                 :accent="$card['accent'] ?? null"
-                :subtitle="$card['subtitle'] ?? null">
+                :subtitle="$card['subtitle'] ?? null"
+                size="compact">
                 {{ $card['value'] }}
             </x-kpi-row.kpi-shell>
         @endforeach
@@ -183,85 +184,7 @@
             @endif
         </div>
 
-        <div class="{{ $cardBox }}">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-sm font-bold text-gray-800 dark:text-white">Payment Summary</h2>
-                <a href="{{ route('student.finance.index') }}" class="text-xs font-semibold text-blue-600 hover:underline">My Finance</a>
-            </div>
-            <x-charts.donut-chart
-                :segments="[
-                    ['label' => 'Paid', 'value' => (int) round($dash['billing']['paid']), 'display' => '₱'.number_format($dash['billing']['paid'], 2), 'color' => 'emerald'],
-                    ['label' => 'Outstanding', 'value' => (int) round($dash['billing']['outstanding'] - $dash['billing']['overdue']), 'display' => '₱'.number_format($dash['billing']['outstanding'] - $dash['billing']['overdue'], 2), 'color' => 'sky'],
-                    ['label' => 'Overdue', 'value' => (int) round($dash['billing']['overdue']), 'display' => '₱'.number_format($dash['billing']['overdue'], 2), 'color' => 'rose'],
-                ]"
-                :center-value="'₱'.number_format($dash['billing']['outstanding'], 0)"
-                center-label="Balance"
-                empty="No billing activity yet." />
-        </div>
-    </div>
-
-    {{-- Row 4: subject progress · calendar · study coach --}}
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-
-        <div class="{{ $cardBox }}">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-sm font-bold text-gray-800 dark:text-white">Subject Progress</h2>
-                <a href="{{ route('student.subjects.index') }}" class="text-xs font-semibold text-blue-600 hover:underline">View all</a>
-            </div>
-            @if (empty($dash['subject_cards']))
-                <p class="text-sm text-gray-400">No enrolled subjects this term.</p>
-            @else
-                <div class="grid grid-cols-2 gap-4">
-                    @php $ring = ['indigo', 'emerald', 'violet', 'amber']; @endphp
-                    @foreach ($dash['subject_cards'] as $i => $s)
-                        <div class="border border-gray-100 dark:border-gray-700 rounded-xl p-4 flex flex-col items-center text-center gap-2">
-                            <p class="text-xs font-bold text-gray-700 dark:text-gray-200 truncate w-full">{{ $s['name'] }}</p>
-                            <x-charts.radial-progress :percent="$s['progress']" :color="$ring[$i % 4]" />
-                            <p class="text-[11px] text-gray-400">Average <span class="font-bold text-gray-600 dark:text-gray-300">{{ $s['grade'] }}</span></p>
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-        </div>
-
-        <div class="{{ $cardBox }}">
-            @php
-                $cal      = $dash['calendar'];
-                $firstDay = \Illuminate\Support\Carbon::create($cal['year'], $cal['month'], 1);
-                $offset   = $firstDay->dayOfWeek;             // 0 = Sunday
-                $numDays  = $firstDay->daysInMonth;
-                $today    = now()->format('Y-n') === $cal['year'].'-'.$cal['month'] ? (int) now()->format('j') : null;
-                $dotColor = ['class' => 'bg-blue-500', 'assignment' => 'bg-amber-500', 'exam' => 'bg-rose-500'];
-            @endphp
-            <h2 class="text-sm font-bold text-gray-800 dark:text-white mb-4">Calendar · {{ $firstDay->format('F Y') }}</h2>
-            <div class="grid grid-cols-7 text-center text-[11px] font-bold text-gray-400 mb-1">
-                @foreach (['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $dow)
-                    <span class="py-1">{{ $dow }}</span>
-                @endforeach
-            </div>
-            <div class="grid grid-cols-7 text-center text-sm gap-y-1">
-                @for ($i = 0; $i < $offset; $i++)
-                    <span></span>
-                @endfor
-                @for ($day = 1; $day <= $numDays; $day++)
-                    <div class="flex flex-col items-center py-0.5">
-                        <span class="w-7 h-7 flex items-center justify-center rounded-full text-gray-600 dark:text-gray-300
-                            {{ $day === $today ? 'bg-blue-600 text-white font-bold' : '' }}">{{ $day }}</span>
-                        <span class="flex gap-0.5 h-1.5 mt-0.5">
-                            @foreach ($cal['days'][$day] ?? [] as $type)
-                                <span class="w-1.5 h-1.5 rounded-full {{ $dotColor[$type] ?? 'bg-gray-300' }}"></span>
-                            @endforeach
-                        </span>
-                    </div>
-                @endfor
-            </div>
-            <div class="flex gap-4 mt-3 pt-3 border-t border-gray-50 dark:border-gray-700 text-[11px] text-gray-500">
-                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Class</span>
-                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Assignment</span>
-                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Exam</span>
-            </div>
-        </div>
-
+        {{-- Study Coach (moved here from the bottom row) --}}
         <div class="rounded-2xl border border-indigo-100 dark:border-indigo-900 shadow-sm p-6 bg-gradient-to-br from-indigo-50 via-sky-50 to-white dark:from-indigo-900/20 dark:via-sky-900/10 dark:to-gray-800">
             <div class="flex items-center gap-3 mb-4">
                 <span class="p-2.5 rounded-xl bg-indigo-600 text-white"><i data-lucide="bot" class="w-5 h-5"></i></span>
@@ -284,6 +207,122 @@
             </a>
         </div>
     </div>
+
+    {{-- Row 4: subject progress · calendar (50-50 full width) --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <div class="{{ $cardBox }}">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-bold text-gray-800 dark:text-white">Subject Progress</h2>
+                <a href="{{ route('student.subjects.index') }}" class="text-xs font-semibold text-blue-600 hover:underline">View all</a>
+            </div>
+            @if (empty($dash['subject_cards']))
+                <p class="text-sm text-gray-400">No enrolled subjects this term.</p>
+            @else
+                <div class="grid grid-cols-2 gap-4">
+                    @php $ring = ['indigo', 'emerald', 'violet', 'amber']; @endphp
+                    @foreach ($dash['subject_cards'] as $i => $s)
+                        <div class="border border-gray-100 dark:border-gray-700 rounded-xl p-4 flex flex-col items-center text-center gap-2">
+                            <p class="text-xs font-bold text-gray-700 dark:text-gray-200 truncate w-full">{{ $s['name'] }}</p>
+                            <x-charts.radial-progress :percent="$s['progress']" :color="$ring[$i % 4]" />
+                            <p class="text-[11px] text-gray-400">Average <span class="font-bold text-gray-600 dark:text-gray-300">{{ $s['grade'] }}</span></p>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
+        {{-- Calendar with month navigation (prev/next; browse the whole school year) --}}
+        <div class="{{ $cardBox }}" id="calCard" data-url="{{ route('student.dashboard.calendar') }}">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-bold text-gray-800 dark:text-white">Calendar · <span id="calLabel"></span></h2>
+                <div class="flex items-center gap-1">
+                    <button type="button" id="calPrev" aria-label="Previous month"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition">
+                        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                    </button>
+                    <button type="button" id="calToday" title="Jump to this month"
+                            class="px-2.5 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-600 text-[11px] font-bold text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition">
+                        Today
+                    </button>
+                    <button type="button" id="calNext" aria-label="Next month"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition">
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="grid grid-cols-7 text-center text-[11px] font-bold text-gray-400 mb-1">
+                @foreach (['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $dow)
+                    <span class="py-1">{{ $dow }}</span>
+                @endforeach
+            </div>
+            <div id="calGrid" class="grid grid-cols-7 text-center text-sm gap-y-1"></div>
+            <div class="flex gap-4 mt-3 pt-3 border-t border-gray-50 dark:border-gray-700 text-[11px] text-gray-500">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Class</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Assignment</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Exam</span>
+            </div>
+        </div>
+    </div>
+
+    @push('scripts')
+    <script>
+    (function () {
+        var card  = document.getElementById('calCard');
+        if (!card) return;
+        var url   = card.getAttribute('data-url');
+        var grid  = document.getElementById('calGrid');
+        var label = document.getElementById('calLabel');
+        var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        var dotColor = { 'class': 'bg-blue-500', 'assignment': 'bg-amber-500', 'exam': 'bg-rose-500' };
+        var todayY = {{ (int) now()->format('Y') }}, todayM = {{ (int) now()->format('n') }}, todayD = {{ (int) now()->format('j') }};
+        var cur = @json($dash['calendar']);
+        var loading = false;
+
+        function render(data) {
+            label.textContent = MONTHS[data.month - 1] + ' ' + data.year;
+            var offset  = new Date(data.year, data.month - 1, 1).getDay();  // 0 = Sun
+            var numDays = new Date(data.year, data.month, 0).getDate();
+            var days = data.days || {};
+            var html = '';
+            for (var i = 0; i < offset; i++) { html += '<span></span>'; }
+            for (var d = 1; d <= numDays; d++) {
+                var isToday = data.year === todayY && data.month === todayM && d === todayD;
+                var dots = (days[d] || []).map(function (t) {
+                    return '<span class="w-1.5 h-1.5 rounded-full ' + (dotColor[t] || 'bg-gray-300') + '"></span>';
+                }).join('');
+                html += '<div class="flex flex-col items-center py-0.5">'
+                      +   '<span class="w-7 h-7 flex items-center justify-center rounded-full text-gray-600 dark:text-gray-300'
+                      +     (isToday ? ' bg-blue-600 text-white font-bold' : '') + '">' + d + '</span>'
+                      +   '<span class="flex gap-0.5 h-1.5 mt-0.5">' + dots + '</span>'
+                      + '</div>';
+            }
+            grid.innerHTML = html;
+        }
+
+        function load(year, month) {
+            if (loading) return;
+            loading = true;
+            fetch(url + '?year=' + year + '&month=' + month, { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (data) { cur = data; render(cur); })
+                .catch(function () {})
+                .then(function () { loading = false; });
+        }
+
+        function shift(delta) {
+            var m = cur.month + delta, y = cur.year;
+            if (m < 1) { m = 12; y--; } else if (m > 12) { m = 1; y++; }
+            load(y, m);
+        }
+
+        document.getElementById('calPrev').addEventListener('click', function () { shift(-1); });
+        document.getElementById('calNext').addEventListener('click', function () { shift(1); });
+        document.getElementById('calToday').addEventListener('click', function () { load(todayY, todayM); });
+        render(cur);
+    })();
+    </script>
+    @endpush
 
     {{-- Quick actions (real pages only) --}}
     <div class="flex flex-wrap items-center gap-3">

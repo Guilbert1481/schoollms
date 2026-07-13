@@ -29,6 +29,13 @@ class KPIRegistry
                 continue;
             }
 
+            // Enrolled Units is a higher-ed concept; basic-ed has no units, so
+            // hide that KPI for basic-ed students (it would always read 0).
+            if ($cardKey === 'units_student'
+                && app(StudentDashboardService::class)->isBasicEd($user)) {
+                continue;
+            }
+
             $card = $definitions[$cardKey];
             $card['value'] = $this->resolveValue($cardKey, $user);
 
