@@ -94,30 +94,32 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="w-full text-sm record-resizable" style="table-layout: fixed;">
+                    {{-- One shared data-table key ("form137rec") across every grade-level
+                         section so a single drag resizes that column everywhere. --}}
                     <colgroup>
-                        <col style="width: 110px;">
-                        <col>
-                        <col style="width: 150px;">
-                        <col style="width: 110px;">
-                        <col style="width: 110px;">
-                        @if($editable)<col style="width: 90px;">@endif
+                        <col data-table="form137rec" data-col-key="code"    style="width: 110px;">
+                        <col data-table="form137rec" data-col-key="area">
+                        <col data-table="form137rec" data-col-key="teacher" style="width: 150px;">
+                        <col data-table="form137rec" data-col-key="grade"   style="width: 110px;">
+                        <col data-table="form137rec" data-col-key="remarks" style="width: 110px;">
+                        @if($editable)<col data-table="form137rec" data-col-key="action" style="width: 90px;">@endif
                     </colgroup>
                     <thead class="bg-white text-slate-600">
                         <tr class="border-b border-slate-100">
-                            <th class="px-5 py-2 text-left font-semibold">Code</th>
-                            <th class="px-5 py-2 text-left font-semibold">Learning Area</th>
-                            <th class="px-5 py-2 text-left font-semibold">Teacher</th>
-                            <th class="px-5 py-2 text-center font-semibold">Final Grade</th>
-                            <th class="px-5 py-2 text-center font-semibold">Remarks</th>
+                            <th class="px-5 py-2 text-left font-semibold relative" data-table="form137rec" data-column="code">Code<div class="col-resizer" data-table="form137rec" data-col-key="code" title="Drag to resize · double-click to fit"><span class="col-resizer-line"></span></div></th>
+                            <th class="px-5 py-2 text-left font-semibold relative" data-table="form137rec" data-column="area">Learning Area<div class="col-resizer" data-table="form137rec" data-col-key="area" title="Drag to resize · double-click to fit"><span class="col-resizer-line"></span></div></th>
+                            <th class="px-5 py-2 text-left font-semibold relative" data-table="form137rec" data-column="teacher">Teacher<div class="col-resizer" data-table="form137rec" data-col-key="teacher" title="Drag to resize · double-click to fit"><span class="col-resizer-line"></span></div></th>
+                            <th class="px-5 py-2 text-center font-semibold relative" data-table="form137rec" data-column="grade">Final Grade<div class="col-resizer" data-table="form137rec" data-col-key="grade" title="Drag to resize · double-click to fit"><span class="col-resizer-line"></span></div></th>
+                            <th class="px-5 py-2 text-center font-semibold relative" data-table="form137rec" data-column="remarks">Remarks<div class="col-resizer" data-table="form137rec" data-col-key="remarks" title="Drag to resize · double-click to fit"><span class="col-resizer-line"></span></div></th>
                             @if($editable)<th class="px-5 py-2 text-center font-semibold">Action</th>@endif
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($section['rows'] as $r)
                             <tr class="border-t border-slate-50">
-                                <td class="px-5 py-2 font-mono text-slate-500">{{ $r['code'] ?? '—' }}</td>
-                                <td class="px-5 py-2 text-slate-800">
+                                <td class="px-5 py-2 font-mono text-slate-500" data-table="form137rec" data-column="code">{{ $r['code'] ?? '—' }}</td>
+                                <td class="px-5 py-2 text-slate-800" data-table="form137rec" data-column="area">
                                     {{ $r['learning_area'] }}
                                     @if(!empty($r['transferred_from']))
                                         <div class="text-[11px] font-semibold text-sky-600 mt-0.5">
@@ -125,9 +127,9 @@
                                         </div>
                                     @endif
                                 </td>
-                                <td class="px-5 py-2 text-slate-500">{{ $r['teacher'] ?? '—' }}</td>
-                                <td class="px-5 py-2 text-center font-bold {{ $toneText[$r['tone']] }}">{{ $r['final_grade'] }}</td>
-                                <td class="px-5 py-2 text-center">
+                                <td class="px-5 py-2 text-slate-500" data-table="form137rec" data-column="teacher">{{ $r['teacher'] ?? '—' }}</td>
+                                <td class="px-5 py-2 text-center font-bold {{ $toneText[$r['tone']] }}" data-table="form137rec" data-column="grade">{{ $r['final_grade'] }}</td>
+                                <td class="px-5 py-2 text-center" data-table="form137rec" data-column="remarks">
                                     <span class="inline-block rounded-full px-2 py-0.5 text-[11px] font-bold {{ $toneBadge[$r['tone']] }}">
                                         {{ $r['remark'] }}
                                     </span>
@@ -278,6 +280,7 @@
 @endif
 
 @include('partials.hideable-teacher')
+@include('partials.resizable-record-cols')
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {

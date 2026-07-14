@@ -13,10 +13,15 @@
     const STORAGE_PREFIX = 'tblcolw:';
     const MIN_WIDTH = 48;
 
-    function colFor(tableKey, colKey) {
-        return document.querySelector(
+    // All <col>s that share this (table, column) identity. The reusable
+    // <x-table.table> always has a unique tableKey so this returns exactly one;
+    // hand-rolled record tables (Form 137, the TOR) reuse one tableKey across
+    // several stacked tables (one per grade level / semester) so a single drag
+    // keeps the same column in sync across every section.
+    function colsFor(tableKey, colKey) {
+        return Array.from(document.querySelectorAll(
             `col[data-table="${CSS.escape(tableKey)}"][data-col-key="${CSS.escape(colKey)}"]`
-        );
+        ));
     }
 
     function loadWidths(tableKey) {
@@ -79,16 +84,16 @@
         const handle = e.target.closest('.col-resizer');
         if (!handle) return;
 
-        const col = colFor(handle.dataset.table, handle.dataset.colKey);
-        if (!col) return;
+        const cols = colsFor(handle.dataset.table, handle.dataset.colKey);
+        if (!cols.length) return;
 
         e.preventDefault();
         active = {
-            col,
+            cols,
             tableKey: handle.dataset.table,
             colKey: handle.dataset.colKey,
             startX: e.clientX,
-            startW: col.getBoundingClientRect().width,
+            startW: cols[0].getBoundingClientRect().width,
         };
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
@@ -97,12 +102,12 @@
     document.addEventListener('mousemove', function (e) {
         if (!active) return;
         const next = Math.max(MIN_WIDTH, active.startW + (e.clientX - active.startX));
-        active.col.style.width = next + 'px';
+        active.cols.forEach((col) => { col.style.width = next + 'px'; });
     });
 
     document.addEventListener('mouseup', function () {
         if (!active) return;
-        saveWidth(active.tableKey, active.colKey, active.col.getBoundingClientRect().width);
+        saveWidth(active.tableKey, active.colKey, active.cols[0].getBoundingClientRect().width);
         active = null;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
@@ -116,13 +121,13 @@
 
         const tableKey = handle.dataset.table;
         const colKey   = handle.dataset.colKey;
-        const col = colFor(tableKey, colKey);
-        if (!col) return;
+        const cols = colsFor(tableKey, colKey);
+        if (!cols.length) return;
 
         const w = autoFitWidth(tableKey, colKey);
         if (!w) return;
 
-        col.style.width = w + 'px';
+        cols.forEach((col) => { col.style.width = w + 'px'; });
         saveWidth(tableKey, colKey, w);
     });
 

@@ -23,6 +23,11 @@
         padding-left: 4px !important;
         padding-right: 4px !important;
     }
+    /* Under table-layout:fixed the column width is driven by the <col>, not the
+       cell — so collapse that too (beats any inline resize width via !important). */
+    html.teacher-col-collapsed col.tcol-col {
+        width: 26px !important;
+    }
     html.teacher-col-collapsed .tcol-content { display: none; }
     html.teacher-col-collapsed th.tcol .tcol-caret { transform: rotate(180deg); }
 </style>
@@ -54,6 +59,12 @@
                 if ((ths[i].textContent || '').trim().toLowerCase().indexOf('teacher') === 0) { idx = i; break; }
             }
             if (idx < 0 || ths[idx].dataset.tcolReady) return;
+
+            // Matching <col> (same index — leading drag/#/row-number cols, if any,
+            // are present in both the header row and the colgroup) so fixed-layout
+            // tables collapse the whole column, not just the header cell.
+            var cg = table.querySelector('colgroup');
+            if (cg && cg.children[idx]) cg.children[idx].classList.add('tcol-col');
 
             // Header cell.
             tag(ths[idx]);

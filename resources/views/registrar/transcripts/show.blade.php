@@ -60,24 +60,26 @@
                         </h3>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm table-fixed">
+                        <table class="w-full text-sm table-fixed record-resizable">
+                            {{-- One shared data-table key ("torrec") across every year/semester
+                                 section so a single drag resizes that column everywhere. --}}
                             <colgroup>
-                                <col style="width: 150px;">
-                                <col>
-                                <col style="width: 150px;">
-                                <col style="width: 70px;">
-                                <col style="width: 100px;">
-                                <col style="width: 110px;">
-                                <col style="width: 120px;">
+                                <col data-table="torrec" data-col-key="code"   style="width: 150px;">
+                                <col data-table="torrec" data-col-key="title">
+                                <col data-table="torrec" data-col-key="teacher" style="width: 150px;">
+                                <col data-table="torrec" data-col-key="units"  style="width: 70px;">
+                                <col data-table="torrec" data-col-key="grade"  style="width: 100px;">
+                                <col data-table="torrec" data-col-key="status" style="width: 110px;">
+                                <col data-table="torrec" data-col-key="action" style="width: 120px;">
                             </colgroup>
                             <thead class="bg-slate-50 text-slate-600">
                                 <tr>
-                                    <th class="px-4 py-2 text-left font-semibold">Subject Code</th>
-                                    <th class="px-4 py-2 text-left font-semibold">Descriptive Title</th>
-                                    <th class="px-4 py-2 text-left font-semibold">Teacher</th>
-                                    <th class="px-4 py-2 text-center font-semibold">Units</th>
-                                    <th class="px-4 py-2 text-center font-semibold">Final Grade</th>
-                                    <th class="px-4 py-2 text-center font-semibold">Status</th>
+                                    <th class="px-4 py-2 text-left font-semibold relative" data-table="torrec" data-column="code">Subject Code<div class="col-resizer" data-table="torrec" data-col-key="code" title="Drag to resize · double-click to fit"><span class="col-resizer-line"></span></div></th>
+                                    <th class="px-4 py-2 text-left font-semibold relative" data-table="torrec" data-column="title">Descriptive Title<div class="col-resizer" data-table="torrec" data-col-key="title" title="Drag to resize · double-click to fit"><span class="col-resizer-line"></span></div></th>
+                                    <th class="px-4 py-2 text-left font-semibold relative" data-table="torrec" data-column="teacher">Teacher<div class="col-resizer" data-table="torrec" data-col-key="teacher" title="Drag to resize · double-click to fit"><span class="col-resizer-line"></span></div></th>
+                                    <th class="px-4 py-2 text-center font-semibold relative" data-table="torrec" data-column="units">Units<div class="col-resizer" data-table="torrec" data-col-key="units" title="Drag to resize · double-click to fit"><span class="col-resizer-line"></span></div></th>
+                                    <th class="px-4 py-2 text-center font-semibold relative" data-table="torrec" data-column="grade">Final Grade<div class="col-resizer" data-table="torrec" data-col-key="grade" title="Drag to resize · double-click to fit"><span class="col-resizer-line"></span></div></th>
+                                    <th class="px-4 py-2 text-center font-semibold relative" data-table="torrec" data-column="status">Status<div class="col-resizer" data-table="torrec" data-col-key="status" title="Drag to resize · double-click to fit"><span class="col-resizer-line"></span></div></th>
                                     <th class="px-4 py-2 text-center font-semibold">Action</th>
                                 </tr>
                             </thead>
@@ -85,10 +87,10 @@
                                 @forelse($semRows as $r)
                                     @php $pending = $pendingBySubject->get($r->subject_id); @endphp
                                     <tr class="border-t border-slate-100">
-                                        <td class="px-4 py-2 font-mono text-slate-700">{{ $r->subject_code }}</td>
-                                        <td class="px-4 py-2 text-slate-800">{{ $r->descriptive_title }}</td>
-                                        <td class="px-4 py-2 text-slate-500">{{ $r->teacher ?? '—' }}</td>
-                                        <td class="px-4 py-2 text-center text-slate-700">{{ $r->units }}</td>
+                                        <td class="px-4 py-2 font-mono text-slate-700" data-table="torrec" data-column="code">{{ $r->subject_code }}</td>
+                                        <td class="px-4 py-2 text-slate-800" data-table="torrec" data-column="title">{{ $r->descriptive_title }}</td>
+                                        <td class="px-4 py-2 text-slate-500" data-table="torrec" data-column="teacher">{{ $r->teacher ?? '—' }}</td>
+                                        <td class="px-4 py-2 text-center text-slate-700" data-table="torrec" data-column="units">{{ $r->units }}</td>
                                         <td class="px-4 py-2 text-center font-semibold
                                             @if($r->_is_credit) text-blue-600
                                             @elseif($r->status_label === 'Failed') text-red-600
@@ -242,4 +244,5 @@
 @include('partials.report-card')
 
 @include('partials.hideable-teacher')
+@include('partials.resizable-record-cols')
 @endsection
