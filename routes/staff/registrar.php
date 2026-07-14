@@ -49,6 +49,8 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
             ->name('transcripts.edit-requests.store');
         Route::post('transcripts/{student}/credit-edits', [TranscriptOfRecordController::class, 'applyCreditEdit'])
             ->name('transcripts.credit-edits.apply');
+        Route::post('transcripts/{student}/form137-grade', [TranscriptOfRecordController::class, 'saveForm137Grade'])
+            ->name('transcripts.form137-grade');
 
         // 4. Student Registry — detailed records of officially enrolled students
         Route::get('student-registry', [StudentLedgerController::class, 'index'])

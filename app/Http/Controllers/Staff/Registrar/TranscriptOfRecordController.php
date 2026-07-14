@@ -8,6 +8,7 @@ use App\Models\CurriculumSubject;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\StudentEnrollmentSubject;
+use App\Models\PermanentRecordGrade;
 use App\Models\TranscriptEditRequest;
 use App\Services\Academics\Form137Service;
 use App\Support\Spreadsheet;
@@ -625,6 +626,44 @@ class TranscriptOfRecordController extends Controller
         ]);
 
         return back()->with('success', 'Transcript updated successfully.');
+    }
+
+    /**
+     * Save a Form 137 (permanent-record) grade for one learning area at a
+     * grade level — including grade levels the learner never enrolled in here
+     * (a transferee's marks from another school), with the source school, the
+     * school year, and the teacher. Upserts permanent_record_grades.
+     */
+    public function saveForm137Grade(Request $request, Student $student)
+    {
+        $data = $request->validate([
+            'education_node_id' => ['required', 'integer', 'exists:education_nodes,id'],
+            'subject_id'        => ['required', 'integer', 'exists:subjects,id'],
+            'new_grade'         => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'new_status'        => ['required', 'string', 'in:passed,failed,credit,enrolled'],
+            'teacher_name'      => ['nullable', 'string', 'max:255'],
+            'transferred_from'  => ['nullable', 'string', 'max:255'],
+            'school_year'       => ['nullable', 'string', 'max:32'],
+        ]);
+
+        PermanentRecordGrade::updateOrCreate(
+            [
+                'student_id'        => $student->id,
+                'education_node_id' => $data['education_node_id'],
+                'subject_id'        => $data['subject_id'],
+            ],
+            [
+                'school_id'        => $student->school_id,
+                'final_grade'      => $data['new_grade'] ?? null,
+                'status'           => $data['new_status'],
+                'teacher_name'     => $data['teacher_name'] ?: null,
+                'transferred_from' => $data['new_status'] === 'credit' ? ($data['transferred_from'] ?: null) : null,
+                'school_year'      => $data['school_year'] ?: null,
+                'recorded_by'      => Auth::id(),
+            ]
+        );
+
+        return back()->with('success', 'Form 137 grade saved.');
     }
 
     protected function semesterLabel(int $sem, int $termsPerYear = 2): string

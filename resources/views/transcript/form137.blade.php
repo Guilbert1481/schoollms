@@ -137,12 +137,12 @@
                                         <button type="button"
                                                 onclick="openForm137Edit(this)"
                                                 data-subject-id="{{ $r['subject_id'] }}"
-                                                data-esid="{{ $r['enrollment_subject_id'] }}"
-                                                data-enrollment-id="{{ $r['enrollment_id'] }}"
+                                                data-node-id="{{ $r['education_node_id'] }}"
                                                 data-code="{{ e($r['code'] ?? '') }}"
                                                 data-name="{{ e($r['learning_area']) }}"
                                                 data-grade="{{ $r['grade_raw'] ?? '' }}"
                                                 data-status="{{ $r['status_raw'] }}"
+                                                data-teacher="{{ e($r['teacher_raw'] ?? '') }}"
                                                 data-from="{{ e(str_replace('Transferred from ', '', $r['transferred_from'] ?? '')) }}"
                                                 class="px-3 py-1 rounded text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600">
                                             Edit
@@ -175,11 +175,12 @@
 </div>
 
 @if($editable)
-    {{-- Registrar edit modal — enter/correct a learning area's final grade, or
-         mark it as Credit and record the school it was transferred from.
-         Reuses the registrar's direct transcript-edit endpoint. --}}
+    {{-- Registrar edit modal — record a learning area's final grade for this
+         grade level (writes the permanent record). Works for any grade level,
+         including a transferee's past grades from another school: mark Credit
+         and note the source school, the school year, and the teacher. --}}
     <div id="form137EditModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-        <form method="POST" action="{{ route('registrar.transcripts.credit-edits.apply', $student->id) }}"
+        <form method="POST" action="{{ route('registrar.transcripts.form137-grade', $student->id) }}"
               class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             @csrf
             <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -190,8 +191,7 @@
             </div>
             <div class="p-5 space-y-4 text-sm">
                 <input type="hidden" name="subject_id" id="f137_subject_id">
-                <input type="hidden" name="enrollment_subject_id" id="f137_esid">
-                <input type="hidden" name="latest_enrollment_id" id="f137_enrollment_id">
+                <input type="hidden" name="education_node_id" id="f137_node_id">
 
                 <div>
                     <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Learning Area</label>
@@ -209,11 +209,28 @@
                     </select>
                 </div>
 
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="f137_grade" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                            Final Grade <span class="text-slate-400 normal-case">(opt.)</span>
+                        </label>
+                        <input type="number" step="0.01" min="0" max="100" name="new_grade" id="f137_grade"
+                               class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label for="f137_sy" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                            School Year <span class="text-slate-400 normal-case">(opt.)</span>
+                        </label>
+                        <input type="text" name="school_year" id="f137_sy" placeholder="e.g. 2024-2025"
+                               class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
                 <div>
-                    <label for="f137_grade" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
-                        Final Grade <span class="text-slate-400 normal-case">(optional for Credit / Ongoing)</span>
+                    <label for="f137_teacher" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                        Teacher <span class="text-slate-400 normal-case">(optional)</span>
                     </label>
-                    <input type="number" step="0.01" min="0" max="100" name="new_grade" id="f137_grade"
+                    <input type="text" name="teacher_name" id="f137_teacher" placeholder="Adviser / subject teacher"
                            class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
 
@@ -221,14 +238,6 @@
                     <label for="f137_from" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Transferred From (School)</label>
                     <input type="text" name="transferred_from" id="f137_from" placeholder="e.g. San Isidro Elementary School"
                            class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                </div>
-
-                <div>
-                    <label for="f137_reason" class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
-                        Reason / Note <span class="text-slate-400 normal-case">(optional)</span>
-                    </label>
-                    <textarea name="reason" id="f137_reason" rows="2"
-                              class="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
                 </div>
             </div>
             <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
@@ -242,16 +251,16 @@
         function openForm137Edit(btn) {
             var d = btn.dataset;
             document.getElementById('f137_subject_id').value = d.subjectId;
-            document.getElementById('f137_esid').value = d.esid || '';
-            document.getElementById('f137_enrollment_id').value = d.enrollmentId || '';
+            document.getElementById('f137_node_id').value = d.nodeId || '';
             document.getElementById('f137_label').textContent = (d.code ? d.code + ' — ' : '') + d.name;
             document.getElementById('f137_grade').value = d.grade || '';
+            document.getElementById('f137_teacher').value = d.teacher || '';
+            document.getElementById('f137_sy').value = '';
             var s = (d.status || '').toLowerCase();
             document.getElementById('f137_status').value =
                 (s === 'credit' || s === 'credited' || s === 'transferred') ? 'credit'
                 : (s === 'passed' ? 'passed' : (s === 'failed' ? 'failed' : 'enrolled'));
             document.getElementById('f137_from').value = d.from || '';
-            document.getElementById('f137_reason').value = '';
             toggleF137Transfer();
             document.getElementById('form137EditModal').classList.remove('hidden');
         }
