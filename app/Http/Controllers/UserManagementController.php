@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use App\Models\Profile;
 use App\Models\Role;
+use App\Models\School;
+use App\Models\SchoolRole;
 use App\Models\Trainee;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class UserManagementController extends Controller
 {
@@ -24,7 +26,7 @@ class UserManagementController extends Controller
 
         if (! is_array($payload) || empty($payload)) {
             $payload = [[
-                'role_name'    => $request->input('role_name'),
+                'role_name' => $request->input('role_name'),
                 'is_head_role' => $request->input('is_head_role'),
                 'badge_color' => $request->input('badge_color'),
                 'badge_text_color' => $request->input('badge_text_color'),
@@ -34,15 +36,16 @@ class UserManagementController extends Controller
         $request->merge(['roles' => $payload]);
 
         $request->validate([
-            'roles'                 => 'required|array|min:1',
-            'roles.*.role_name'     => 'required|string|max:255|distinct',
-            'roles.*.is_head_role'  => 'required|in:0,1',
-            'roles.*.badge_color'   => 'nullable|string|max:80',
+            'roles' => 'required|array|min:1',
+            'roles.*.role_name' => 'required|string|max:255|distinct',
+            'roles.*.is_head_role' => 'required|in:0,1',
+            'roles.*.badge_color' => 'nullable|string|max:80',
             'roles.*.badge_text_color' => 'nullable|string|max:80',
         ]);
 
         $schoolId = auth()->user()->school_id;
-        $created  = 0;
+        $enabledKeys = $this->enabledRoleKeys();
+        $created = 0;
 
         foreach ($payload as $row) {
             $name = trim((string) $row['role_name']);
@@ -50,9 +53,20 @@ class UserManagementController extends Controller
                 continue;
             }
 
+            $normalized = $this->normalizeRoleName($name);
+
+            // Roles are governed by the school's subscription (set by the
+            // platform admin). Reject anything outside it — the Add Role button
+            // is already hidden in the UI; this backstops a crafted POST.
+            if (! in_array($normalized, $enabledKeys, true)) {
+                return back()->withErrors([
+                    'roles' => 'Roles are managed by the platform administrator and cannot be created here.',
+                ]);
+            }
+
             $role = \App\Models\Role::query()->firstOrNew([
                 'school_id' => $schoolId,
-                'name'      => $this->normalizeRoleName($name),
+                'name' => $normalized,
             ]);
 
             if (! $role->exists) {
@@ -68,9 +82,14 @@ class UserManagementController extends Controller
             ? 'Role created successfully.'
             : "{$created} role(s) created successfully.");
     }
+
     public function index()
     {
         $schoolId = auth()->user()->school_id;
+
+        // Only the roles this school is subscribed to (superadmin-controlled)
+        // are exposed on the Roles tab and in the create/edit-user dropdown.
+        $enabledKeys = $this->enabledRoleKeys();
 
         $users = DB::table('users as u')
             ->leftJoin('account_access as aa', function ($join) {
@@ -90,6 +109,7 @@ class UserManagementController extends Controller
         $roles = DB::table('roles')
             ->where('school_id', $schoolId)
             ->whereNotIn('name', ['system_owner'])
+            ->whereIn('name', $enabledKeys)
             ->orderBy('name')
             ->get();
 
@@ -246,12 +266,14 @@ class UserManagementController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'first_name'  => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
-            'last_name'   => 'required|string|max:255',
-            'email'       => 'required|email|unique:users,email',
-            'password'    => 'required|min:6',
-            'role'        => 'required|string',
+            'last_name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:6',
+            'role' => ['required', 'string', Rule::in($this->enabledRoleKeys())],
+        ], [
+            'role.in' => 'That role is not enabled for your school.',
         ]);
 
         DB::beginTransaction();
@@ -263,25 +285,25 @@ class UserManagementController extends Controller
             // 1. Create User
             $user = User::create([
                 'first_name' => $request->first_name,
-                'middle_name'=> $request->middle_name,
-                'last_name'  => $request->last_name,
-                'email'      => $request->email,
-                'password'   => bcrypt($request->password),
-                'role'       => $request->role,
-                'school_id'  => $schoolId,
+                'middle_name' => $request->middle_name,
+                'last_name' => $request->last_name,
+                'email' => $request->email,
+                'password' => bcrypt($request->password),
+                'role' => $request->role,
+                'school_id' => $schoolId,
             ]);
 
             // 2. Create Profile
             $profileId = DB::table('profiles')->insertGetId([
-                'user_id'      => $user->id,
-                'school_id'    => $schoolId,
+                'user_id' => $user->id,
+                'school_id' => $schoolId,
                 'profile_type' => 'employee',
-                'first_name'   => $request->first_name,
-                'middle_name'  => $request->middle_name,
-                'last_name'    => $request->last_name,
-                'status'       => 'active',
-                'created_at'   => now(),
-                'updated_at'   => now()
+                'first_name' => $request->first_name,
+                'middle_name' => $request->middle_name,
+                'last_name' => $request->last_name,
+                'status' => 'active',
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             // ✅ 3. CREATE TRAINEE (NEW - SAFE ADD)
@@ -298,12 +320,12 @@ class UserManagementController extends Controller
                 ->where('name', $request->role)
                 ->first();
 
-            if (!$role) {
+            if (! $role) {
                 $roleId = DB::table('roles')->insertGetId([
                     'school_id' => $schoolId,
                     'name' => $request->role,
                     'created_at' => now(),
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]);
             } else {
                 $roleId = $role->id;
@@ -311,17 +333,17 @@ class UserManagementController extends Controller
 
             // 5. Create Account Access
             DB::table('account_access')->insert([
-                'user_id'       => $user->id,
-                'role_id'       => $roleId,
-                'office_id'     => null,
-                'person_id'     => $profileId,
+                'user_id' => $user->id,
+                'role_id' => $roleId,
+                'office_id' => null,
+                'person_id' => $profileId,
                 'role_snapshot' => ucfirst($request->role),
-                'start_date'    => now(),
-                'assigned_by'   => auth()->id(),
-                'remarks'       => 'Initial account holder',
-                'is_active'     => 1,
-                'created_at'    => now(),
-                'updated_at'    => now()
+                'start_date' => now(),
+                'assigned_by' => auth()->id(),
+                'remarks' => 'Initial account holder',
+                'is_active' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             DB::commit();
@@ -330,7 +352,7 @@ class UserManagementController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            dd("Database Error: " . $e->getMessage());
+            dd('Database Error: '.$e->getMessage());
         }
     }
 
@@ -346,6 +368,7 @@ class UserManagementController extends Controller
 
         $roles = Role::where('school_id', $schoolId)
             ->whereNotIn('name', ['system_owner'])
+            ->whereIn('name', $this->enabledRoleKeys())
             ->get();
 
         return view('admin.settings.users.edit', compact('user', 'roles'));
@@ -357,11 +380,13 @@ class UserManagementController extends Controller
             'first_name' => 'required|string|max:255',
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'role' => 'required|string',
+            'email' => 'required|email|unique:users,email,'.$user->id,
+            'role' => ['required', 'string', Rule::in($this->enabledRoleKeys())],
             'phone' => 'nullable|string|max:20',
             'birthday' => 'nullable|date',
             'password' => 'nullable|min:6',
+        ], [
+            'role.in' => 'That role is not enabled for your school.',
         ]);
 
         if ($request->filled('password')) {
@@ -380,10 +405,10 @@ class UserManagementController extends Controller
             DB::table('profiles')
                 ->where('user_id', $user->id)
                 ->update([
-                    'first_name'  => $validated['first_name'],
+                    'first_name' => $validated['first_name'],
                     'middle_name' => $validated['middle_name'] ?? null,
-                    'last_name'   => $validated['last_name'],
-                    'updated_at'  => now(),
+                    'last_name' => $validated['last_name'],
+                    'updated_at' => now(),
                 ]);
 
             // Resolve (or create) the role row for this school.
@@ -393,8 +418,8 @@ class UserManagementController extends Controller
                 ->first();
 
             $roleId = $role->id ?? DB::table('roles')->insertGetId([
-                'school_id'  => $schoolId,
-                'name'       => $validated['role'],
+                'school_id' => $schoolId,
+                'name' => $validated['role'],
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -409,30 +434,31 @@ class UserManagementController extends Controller
                 DB::table('account_access')
                     ->where('id', $access->id)
                     ->update([
-                        'role_id'       => $roleId,
+                        'role_id' => $roleId,
                         'role_snapshot' => ucfirst(str_replace('_', ' ', $validated['role'])),
-                        'updated_at'    => now(),
+                        'updated_at' => now(),
                     ]);
             } else {
                 $profileId = DB::table('profiles')->where('user_id', $user->id)->value('id');
                 DB::table('account_access')->insert([
-                    'user_id'       => $user->id,
-                    'role_id'       => $roleId,
-                    'office_id'     => null,
-                    'person_id'     => $profileId,
+                    'user_id' => $user->id,
+                    'role_id' => $roleId,
+                    'office_id' => null,
+                    'person_id' => $profileId,
                     'role_snapshot' => ucfirst(str_replace('_', ' ', $validated['role'])),
-                    'start_date'    => now(),
-                    'assigned_by'   => auth()->id(),
-                    'remarks'       => 'Set via User Management edit',
-                    'is_active'     => 1,
-                    'created_at'    => now(),
-                    'updated_at'    => now(),
+                    'start_date' => now(),
+                    'assigned_by' => auth()->id(),
+                    'remarks' => 'Set via User Management edit',
+                    'is_active' => 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             }
 
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return back()->withErrors(['error' => $e->getMessage()]);
         }
 
@@ -463,6 +489,7 @@ class UserManagementController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return back()->with('error', $e->getMessage());
         }
     }
@@ -474,12 +501,27 @@ class UserManagementController extends Controller
         $user->password = bcrypt($temporaryPassword);
         $user->save();
 
-        return back()->with('success', 'Temporary password: ' . $temporaryPassword);
+        return back()->with('success', 'Temporary password: '.$temporaryPassword);
     }
 
     protected function normalizeRoleName(string $name): string
     {
         return str_replace('-', '_', Str::slug($name, '_'));
+    }
+
+    /**
+     * The role keys the current user's school is subscribed to. Legacy schools
+     * with no subscription rows fall back to the full catalog so nothing breaks.
+     *
+     * @return list<string>
+     */
+    protected function enabledRoleKeys(): array
+    {
+        $schoolId = auth()->user()?->school_id;
+
+        $school = $schoolId ? School::find($schoolId) : null;
+
+        return $school ? $school->enabledRoleKeys() : SchoolRole::catalogKeys();
     }
 
     protected function authorizeRoleSchool(Role $role): void

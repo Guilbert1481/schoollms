@@ -1328,6 +1328,21 @@ CREATE TABLE `grade_level_subjects` (
   CONSTRAINT `grade_level_subjects_subject_id_foreign` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `grade_settings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `grade_settings` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `school_id` bigint(20) unsigned NOT NULL,
+  `passing_threshold` decimal(5,2) NOT NULL DEFAULT '75.00',
+  `promotion_rule` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'average',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `grade_settings_school_id_unique` (`school_id`),
+  CONSTRAINT `grade_settings_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `grading_components`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -1412,6 +1427,30 @@ CREATE TABLE `guardians` (
   CONSTRAINT `guardians_student_id_foreign` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `incidental_fees`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `incidental_fees` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `school_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text COLLATE utf8mb4_unicode_ci,
+  `education_node_id` bigint(20) unsigned DEFAULT NULL,
+  `program_id` bigint(20) unsigned DEFAULT NULL,
+  `year_level` int(10) unsigned DEFAULT NULL,
+  `academic_year_id` bigint(20) unsigned DEFAULT NULL,
+  `amount` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `due_date` date DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `charged_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint(20) unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `incidental_fees_school_id_index` (`school_id`),
+  KEY `incidental_fees_education_node_id_index` (`education_node_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `invoice_items`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -1451,6 +1490,7 @@ CREATE TABLE `invoices` (
   `school_id` bigint(20) unsigned NOT NULL,
   `student_id` bigint(20) unsigned NOT NULL,
   `student_enrollment_id` bigint(20) unsigned DEFAULT NULL,
+  `incidental_fee_id` bigint(20) unsigned DEFAULT NULL,
   `academic_year_id` bigint(20) unsigned DEFAULT NULL,
   `term_id` bigint(20) unsigned DEFAULT NULL,
   `subtotal_amount` decimal(12,2) NOT NULL DEFAULT '0.00',
@@ -1473,6 +1513,7 @@ CREATE TABLE `invoices` (
   KEY `invoices_student_enrollment_id_foreign` (`student_enrollment_id`),
   KEY `invoices_school_student_index` (`school_id`,`student_id`),
   KEY `invoices_school_billing_date_index` (`school_id`,`billing_date`),
+  KEY `invoices_incidental_fee_id_index` (`incidental_fee_id`),
   CONSTRAINT `invoices_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE,
   CONSTRAINT `invoices_student_enrollment_id_foreign` FOREIGN KEY (`student_enrollment_id`) REFERENCES `student_enrollments` (`id`) ON DELETE SET NULL,
   CONSTRAINT `invoices_student_id_foreign` FOREIGN KEY (`student_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
@@ -1882,6 +1923,36 @@ CREATE TABLE `penalty_rules` (
   CONSTRAINT `penalty_rules_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `permanent_record_grades`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `permanent_record_grades` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `school_id` bigint(20) unsigned NOT NULL,
+  `student_id` bigint(20) unsigned NOT NULL,
+  `education_node_id` bigint(20) unsigned NOT NULL,
+  `subject_id` bigint(20) unsigned NOT NULL,
+  `final_grade` decimal(5,2) DEFAULT NULL,
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `teacher_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `transferred_from` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `school_year` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `recorded_by` bigint(20) unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `prg_student_node_subject_unique` (`student_id`,`education_node_id`,`subject_id`),
+  KEY `permanent_record_grades_school_id_foreign` (`school_id`),
+  KEY `permanent_record_grades_education_node_id_foreign` (`education_node_id`),
+  KEY `permanent_record_grades_subject_id_foreign` (`subject_id`),
+  KEY `permanent_record_grades_recorded_by_foreign` (`recorded_by`),
+  CONSTRAINT `permanent_record_grades_education_node_id_foreign` FOREIGN KEY (`education_node_id`) REFERENCES `education_nodes` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `permanent_record_grades_recorded_by_foreign` FOREIGN KEY (`recorded_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `permanent_record_grades_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `permanent_record_grades_student_id_foreign` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `permanent_record_grades_subject_id_foreign` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `platform_settings`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -2115,6 +2186,36 @@ CREATE TABLE `registrar_settings` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `registrar_settings_school_id_unique` (`school_id`),
   CONSTRAINT `registrar_settings_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `report_card_grades`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `report_card_grades` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `school_id` bigint(20) unsigned NOT NULL,
+  `student_id` bigint(20) unsigned NOT NULL,
+  `education_node_id` bigint(20) unsigned NOT NULL,
+  `subject_id` bigint(20) unsigned NOT NULL,
+  `academic_year_id` bigint(20) unsigned DEFAULT NULL,
+  `grading_period` tinyint(3) unsigned NOT NULL,
+  `final_grade` decimal(5,2) DEFAULT NULL,
+  `recorded_by` bigint(20) unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `rcg_unique_period` (`student_id`,`education_node_id`,`subject_id`,`academic_year_id`,`grading_period`),
+  KEY `report_card_grades_school_id_foreign` (`school_id`),
+  KEY `report_card_grades_education_node_id_foreign` (`education_node_id`),
+  KEY `report_card_grades_subject_id_foreign` (`subject_id`),
+  KEY `report_card_grades_academic_year_id_foreign` (`academic_year_id`),
+  KEY `report_card_grades_recorded_by_foreign` (`recorded_by`),
+  CONSTRAINT `report_card_grades_academic_year_id_foreign` FOREIGN KEY (`academic_year_id`) REFERENCES `academic_years` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `report_card_grades_education_node_id_foreign` FOREIGN KEY (`education_node_id`) REFERENCES `education_nodes` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `report_card_grades_recorded_by_foreign` FOREIGN KEY (`recorded_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `report_card_grades_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `report_card_grades_student_id_foreign` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `report_card_grades_subject_id_foreign` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `request_approvals`;
@@ -2384,6 +2485,21 @@ CREATE TABLE `school_profiles` (
   `country` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `zip_code` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `school_roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `school_roles` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `school_id` bigint(20) unsigned NOT NULL,
+  `role_key` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_enabled` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `school_roles_school_id_role_key_unique` (`school_id`,`role_key`),
+  CONSTRAINT `school_roles_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `schools`;
@@ -3431,7 +3547,7 @@ CREATE TABLE `transcript_edit_requests` (
   `subject_id` bigint(20) unsigned NOT NULL,
   `enrollment_subject_id` bigint(20) unsigned DEFAULT NULL,
   `old_grade` decimal(5,2) DEFAULT NULL,
-  `new_grade` decimal(5,2) NOT NULL,
+  `new_grade` decimal(5,2) DEFAULT NULL,
   `reason` text COLLATE utf8mb4_unicode_ci,
   `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `requested_by` bigint(20) unsigned NOT NULL,
@@ -4037,3 +4153,11 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (367,'2026_07_07_00
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (368,'2026_07_09_120000_add_foreigner_fields_to_document_requirements',82);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (369,'2026_07_13_100000_create_game_quiz_settings_table',83);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (371,'2026_07_13_120000_create_school_domains_table',84);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (372,'2026_07_14_010000_make_new_grade_nullable_on_transcript_edit_requests',85);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (373,'2026_07_14_020000_create_grade_settings_table',86);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (374,'2026_07_14_030000_create_permanent_record_grades_table',87);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (375,'2026_07_14_040000_create_report_card_grades_table',88);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (376,'2026_07_14_050000_create_incidental_fees_table',89);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (377,'2026_07_14_060000_add_incidental_fee_id_to_invoices_table',90);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (378,'2026_07_14_120000_create_school_roles_table',91);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (379,'2026_07_14_130000_backfill_catalog_roles_for_existing_schools',92);

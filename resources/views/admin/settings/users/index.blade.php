@@ -142,14 +142,14 @@
     </div>
 
     <div x-show="activeTab === 'roles'" x-cloak class="space-y-4">
+        {{-- Roles are subscribed per-school by the platform admin, so schools
+             cannot mint their own — the create ("Add Role") button is omitted. --}}
         <x-table.table
             tableKey="user_management_roles"
             :columns="$roleColumns"
             :data="$roleRows"
             :actions="$roleActions"
             deleteRoute="roles.destroy"
-            createModal="roleCreateModal"
-            createLabel="Add Role"
             perPage="10"
         />
     </div>

@@ -129,6 +129,11 @@
                     <label class="block text-sm mb-1">{{ $labels['password_confirmation'] }}</label>
                     <input type="password" name="password_confirmation" class="border p-2 w-full rounded" required minlength="8">
                 </div>
+
+                @include('superadmin.schools.partials.role-checklist', [
+                    'roleCatalog' => $roleCatalog,
+                    'checkedKeys' => $roleDefaults,
+                ])
             </div>
         </form>
     </x-modal.form>
@@ -202,6 +207,11 @@
                     <input type="checkbox" name="is_active" value="1" id="schoolEditActive" class="w-4 h-4">
                     <label for="schoolEditActive" class="text-sm">Active</label>
                 </div>
+
+                @include('superadmin.schools.partials.role-checklist', [
+                    'roleCatalog' => $roleCatalog,
+                    'checkedKeys' => [],
+                ])
             </div>
         </form>
     </x-modal.form>
@@ -264,6 +274,7 @@ function openSchoolModulesModal(schoolId) {
 }
 
 const schoolsData = @json($schools->keyBy('id'));
+const enabledRolesBySchool = @json($enabledRolesBySchool);
 
 function openSchoolEditModal(schoolId) {
     const s = schoolsData[schoolId];
@@ -282,6 +293,12 @@ function openSchoolEditModal(schoolId) {
     form.querySelector('[name="type"]').value        = (s.type || 'school').toLowerCase();
     form.querySelector('[name="plan_name"]').value   = s.plan_name ?? '';
     form.querySelector('[name="is_active"]').checked = !!s.is_active;
+
+    // Tick the roles this school is subscribed to (uncheck the rest).
+    const enabledRoles = enabledRolesBySchool[schoolId] ?? [];
+    form.querySelectorAll('.js-role-checkbox').forEach(function (cb) {
+        cb.checked = enabledRoles.includes(cb.value);
+    });
 
     openModal('schoolEditModal');
 }

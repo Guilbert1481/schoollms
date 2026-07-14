@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
 
 class School extends Model
 {
@@ -23,10 +23,10 @@ class School extends Model
         'plan_name',
         'pricing_id',
         'plan_expires_at',
-        'contact_person',   
-        'mobile_number',    
-        'email',            
-        'address',          
+        'contact_person',
+        'mobile_number',
+        'email',
+        'address',
     ];
 
     /**
@@ -39,26 +39,25 @@ class School extends Model
 
     public function isPlanExpired(): bool
     {
-        if (!$this->plan_expires_at) {
+        if (! $this->plan_expires_at) {
             return false;
         }
 
         return Carbon::now()->gt($this->plan_expires_at);
     }
 
-
     /**
- * Calculate remaining trial days.
- */
+     * Calculate remaining trial days.
+     */
     public function getTrialDaysLeftAttribute(): int
     {
-        if (!$this->plan_expires_at) {
+        if (! $this->plan_expires_at) {
             return 0;
         }
-        
+
         $days = now()->diffInDays($this->plan_expires_at, false);
-        
-        return $days > 0 ? (int)$days : 0;
+
+        return $days > 0 ? (int) $days : 0;
     }
 
     public function users()
@@ -94,7 +93,7 @@ class School extends Model
         //    serve, so it is the safe default target for redirects.
         $base = config('tenancy.primary_base_domain');
         if ($base && $this->slug) {
-            return $this->slug . '.' . $base;
+            return $this->slug.'.'.$base;
         }
 
         // 3. Legacy single custom-domain column (last resort).
@@ -111,9 +110,43 @@ class School extends Model
     public function modules()
     {
         return $this->belongsToMany(Module::class, 'school_modules')
-                    ->withPivot('expires_at', 'is_enabled')
-                    ->withTimestamps()
-                    ->distinct(); // <--- This forces the modal to show each module only once
+            ->withPivot('expires_at', 'is_enabled')
+            ->withTimestamps()
+            ->distinct(); // <--- This forces the modal to show each module only once
+    }
+
+    /**
+     * The per-school role subscriptions (which catalog roles this school may
+     * assign users to). See {@see SchoolRole} and config/roles.php.
+     */
+    public function roleSubscriptions()
+    {
+        return $this->hasMany(SchoolRole::class);
+    }
+
+    /**
+     * The enabled role keys for this school, intersected with the current
+     * catalog so a stale/removed key never leaks through. If the school has no
+     * subscription rows at all (legacy), fall back to the full catalog so the
+     * User Management page keeps working exactly as before.
+     *
+     * @return list<string>
+     */
+    public function enabledRoleKeys(): array
+    {
+        $rows = SchoolRole::query()
+            ->where('school_id', $this->getKey())
+            ->pluck('is_enabled', 'role_key');
+
+        if ($rows->isEmpty()) {
+            return SchoolRole::catalogKeys();
+        }
+
+        // Keep only rows whose toggle is on, then intersect with the current
+        // catalog so a stale/removed key never leaks through.
+        $enabled = $rows->filter()->keys()->all();
+
+        return array_values(array_intersect($enabled, SchoolRole::catalogKeys()));
     }
 
     public function colleges()
@@ -127,13 +160,12 @@ class School extends Model
     }
 
     public function banks()
-{
-    return $this->hasMany(Bank::class);
-}
+    {
+        return $this->hasMany(Bank::class);
+    }
 
     public function certificateEvents()
     {
         return $this->hasMany(CertificateEvent::class);
     }
-
 }
