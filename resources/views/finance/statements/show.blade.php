@@ -5,6 +5,18 @@
     $student = $statement->student;
     $studentName = $student ? trim($student->first_name.' '.$student->last_name) : '—';
     $items = $statement->line_items ?? [];
+
+    // Grade/Year level · Section · Academic Year (shared with the invoice).
+    $soaStudent = \App\Models\Student::where('user_id', $statement->student_id)->first();
+    $soaEnr = $statement->student_enrollment_id
+        ? \App\Models\StudentEnrollment::find($statement->student_enrollment_id)
+        : ($soaStudent ? \App\Models\StudentEnrollment::where('student_id', $soaStudent->id)->latest('id')->first() : null);
+    $soaCtx = $soaEnr?->financeContext();
+    $soaContextLabel = $soaCtx ? implode(' · ', array_filter([
+        $soaCtx['level'] ?? null,
+        ($soaCtx['section'] ?? null) ? 'Section '.$soaCtx['section'] : null,
+        ($soaCtx['academic_year'] ?? null) ? 'SY '.$soaCtx['academic_year'] : null,
+    ])) : '';
 @endphp
 
 @section('content')
@@ -17,6 +29,9 @@
             <div>
                 <h1 class="text-xl font-bold text-slate-800">Statement {{ $statement->soa_number }}</h1>
                 <p class="text-sm text-slate-500">{{ $studentName }}</p>
+                @if($soaContextLabel)
+                    <p class="text-xs font-semibold text-slate-500">{{ $soaContextLabel }}</p>
+                @endif
                 <p class="text-xs text-slate-400">Period: {{ $statement->period_label }}</p>
             </div>
             <div class="text-right text-sm text-slate-500">

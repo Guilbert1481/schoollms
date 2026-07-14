@@ -70,6 +70,9 @@
         : (is_numeric($yl) ? ($isBasic ? 'Grade ' : 'Year ').(int) $yl : (string) $yl);
 
     $programLabel = $program ? trim(($program->code ? $program->code.' — ' : '').$program->name) : '—';
+
+    $sectionName = $enr?->section_id ? DB::table('sections')->where('id', $enr->section_id)->value('name') : null;
+    $ayName      = $enr?->academic_year_id ? DB::table('academic_years')->where('id', $enr->academic_year_id)->value('name') : null;
 @endphp
 <!DOCTYPE html>
 <html>
@@ -142,6 +145,8 @@
                         <tr><td class="label">Program</td><td>{{ $programLabel }}</td></tr>
                     @endif
                     <tr><td class="label">Year/Grade</td><td>{{ $gradeYear }}</td></tr>
+                    <tr><td class="label">Section</td><td>{{ $sectionName ?: '—' }}</td></tr>
+                    <tr><td class="label">Academic Year</td><td>{{ $ayName ?: '—' }}</td></tr>
                     <tr><td class="label">Term</td><td>{{ $invoice->enrollment?->term?->name ?? '—' }}</td></tr>
                 </table>
             </td>

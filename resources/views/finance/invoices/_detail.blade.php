@@ -9,25 +9,14 @@
     $student = $invoice->student;
     $studentName = $student ? trim($student->first_name.' '.$student->last_name) : '—';
 
-    // Context line: for basic ed show the grade level + section (more useful
-    // than the enrollment term); for higher ed keep the programme + term.
-    $enr = $invoice->enrollment;
-    $isBasicInv = $enr && (
-        in_array(strtolower((string) $enr->education_level), ['kinder', 'elementary', 'junior_high', 'senior_high', 'basic', 'basic_ed'], true)
-        || (empty($enr->program_id) && ! empty($enr->education_node_id))
-    );
-    if ($isBasicInv && $enr) {
-        $gradeName = $enr->education_node_id
-            ? \Illuminate\Support\Facades\DB::table('education_nodes')->where('id', $enr->education_node_id)->value('name')
-            : null;
-        $gradeName = $gradeName ?: ($enr->year_level ? 'Grade '.$enr->year_level : 'Basic Ed');
-        $sectionName = $enr->section_id
-            ? \Illuminate\Support\Facades\DB::table('sections')->where('id', $enr->section_id)->value('name')
-            : null;
-        $invContextLabel = trim($gradeName.($sectionName ? ' · '.$sectionName : ''));
-    } else {
-        $invContextLabel = trim(($enr?->program?->code ?? '').' '.($enr?->term?->name ?? ''));
-    }
+    // Context: grade/year level · section · academic year (shared with the SOA).
+    $ctx = $invoice->enrollment?->financeContext();
+    $invContextParts = $ctx ? array_filter([
+        $ctx['level'] ?? null,
+        ($ctx['section'] ?? null) ? 'Section '.$ctx['section'] : null,
+        ($ctx['academic_year'] ?? null) ? 'SY '.$ctx['academic_year'] : null,
+    ]) : [];
+    $invContextLabel = implode(' · ', $invContextParts);
 @endphp
 
 <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

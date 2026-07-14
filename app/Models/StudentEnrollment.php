@@ -101,6 +101,33 @@ class StudentEnrollment extends Model
         return $this->belongsTo(Student::class);
     }
 
+    /**
+     * Grade/Year level, section, and academic year for finance documents
+     * (invoices, SOA). Basic ed reads as "Grade N", higher ed as "Year N".
+     *
+     * @return array{level: string, section: ?string, academic_year: ?string}
+     */
+    public function financeContext(): array
+    {
+        $isBasic = in_array(strtolower((string) $this->education_level), ['kinder', 'elementary', 'junior_high', 'senior_high', 'basic', 'basic_ed'], true)
+            || (empty($this->program_id) && ! empty($this->education_node_id));
+
+        if ($isBasic) {
+            $level = $this->education_node_id
+                ? \Illuminate\Support\Facades\DB::table('education_nodes')->where('id', $this->education_node_id)->value('name')
+                : null;
+            $level = $level ?: ($this->year_level ? 'Grade '.(int) $this->year_level : 'Basic Ed');
+        } else {
+            $level = $this->year_level ? 'Year '.(int) $this->year_level : ($this->program?->name ?? '—');
+        }
+
+        return [
+            'level'         => $level ?: '—',
+            'section'       => $this->section_id ? \Illuminate\Support\Facades\DB::table('sections')->where('id', $this->section_id)->value('name') : null,
+            'academic_year' => $this->academic_year_id ? \Illuminate\Support\Facades\DB::table('academic_years')->where('id', $this->academic_year_id)->value('name') : null,
+        ];
+    }
+
     public function academicYear()
     {
         return $this->belongsTo(AcademicYear::class);

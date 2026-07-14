@@ -7,6 +7,13 @@
     $schoolName = \App\Models\SchoolProfile::where('school_id', $statement->school_id)->value('school_name')
         ?: ($school->school_name ?? 'School');
     $items = $statement->line_items ?? [];
+
+    // Grade/Year level · Section · Academic Year for the account holder.
+    $soaStudent = \App\Models\Student::where('user_id', $statement->student_id)->first();
+    $soaEnr = $statement->student_enrollment_id
+        ? \App\Models\StudentEnrollment::find($statement->student_enrollment_id)
+        : ($soaStudent ? \App\Models\StudentEnrollment::where('student_id', $soaStudent->id)->latest('id')->first() : null);
+    $soaCtx = $soaEnr?->financeContext() ?? ['level' => null, 'section' => null, 'academic_year' => null];
     $note = \App\Models\FinanceSetting::where('school_id', $statement->school_id)->value('soa_footer_note');
 @endphp
 <!DOCTYPE html>
@@ -49,6 +56,9 @@
                 <table class="meta">
                     <tr><td class="label">Student</td><td><strong>{{ $studentName }}</strong></td></tr>
                     <tr><td class="label">Email</td><td>{{ $student->email ?? '—' }}</td></tr>
+                    <tr><td class="label">Level</td><td>{{ $soaCtx['level'] ?: '—' }}</td></tr>
+                    <tr><td class="label">Section</td><td>{{ $soaCtx['section'] ?: '—' }}</td></tr>
+                    <tr><td class="label">Academic Year</td><td>{{ $soaCtx['academic_year'] ?: '—' }}</td></tr>
                 </table>
             </td>
             <td style="width:45%;">
