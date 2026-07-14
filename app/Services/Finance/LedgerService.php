@@ -84,7 +84,13 @@ class LedgerService
             'invoice_id'            => $invoice->id,
             'academic_year_id'      => $invoice->academic_year_id,
             'term_id'               => $invoice->term_id,
-            'entry_date'            => optional($invoice->issue_date)->toDateString() ?? Carbon::now()->toDateString(),
+            // Date the charge to when the invoice is BILLED (its billing month),
+            // not the creation date — so installment invoices land in their own
+            // months on the ledger and the Statement of Account. Falls back to
+            // the issue date, then today.
+            'entry_date'            => optional($invoice->billing_date)->toDateString()
+                ?? optional($invoice->issue_date)->toDateString()
+                ?? Carbon::now()->toDateString(),
             'type'                  => LedgerEntry::TYPE_CHARGE,
             'description'           => 'Invoice '.$invoice->invoice_number,
             'reference'             => $invoice->invoice_number,

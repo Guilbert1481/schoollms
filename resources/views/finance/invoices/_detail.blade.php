@@ -8,6 +8,26 @@
     $cur = 'PHP';
     $student = $invoice->student;
     $studentName = $student ? trim($student->first_name.' '.$student->last_name) : '—';
+
+    // Context line: for basic ed show the grade level + section (more useful
+    // than the enrollment term); for higher ed keep the programme + term.
+    $enr = $invoice->enrollment;
+    $isBasicInv = $enr && (
+        in_array(strtolower((string) $enr->education_level), ['kinder', 'elementary', 'junior_high', 'senior_high', 'basic', 'basic_ed'], true)
+        || (empty($enr->program_id) && ! empty($enr->education_node_id))
+    );
+    if ($isBasicInv && $enr) {
+        $gradeName = $enr->education_node_id
+            ? \Illuminate\Support\Facades\DB::table('education_nodes')->where('id', $enr->education_node_id)->value('name')
+            : null;
+        $gradeName = $gradeName ?: ($enr->year_level ? 'Grade '.$enr->year_level : 'Basic Ed');
+        $sectionName = $enr->section_id
+            ? \Illuminate\Support\Facades\DB::table('sections')->where('id', $enr->section_id)->value('name')
+            : null;
+        $invContextLabel = trim($gradeName.($sectionName ? ' · '.$sectionName : ''));
+    } else {
+        $invContextLabel = trim(($enr?->program?->code ?? '').' '.($enr?->term?->name ?? ''));
+    }
 @endphp
 
 <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -15,10 +35,7 @@
         <div>
             <h1 class="text-xl font-bold text-slate-800">Invoice {{ $invoice->invoice_number }}</h1>
             <p class="text-sm text-slate-500">{{ $studentName }}</p>
-            <p class="text-xs text-slate-400">
-                {{ $invoice->enrollment?->program?->code ?? '' }}
-                {{ $invoice->enrollment?->term?->name ?? '' }}
-            </p>
+            <p class="text-xs text-slate-400">{{ $invContextLabel }}</p>
         </div>
         <div class="text-right text-sm text-slate-500">
             <div>Billed: {{ optional($invoice->billing_date)->format('M d, Y') ?? optional($invoice->issue_date)->format('M d, Y') ?? '—' }}</div>
