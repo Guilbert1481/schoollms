@@ -1143,7 +1143,8 @@ return [
                 ],
                 [
                     'label' => 'Grades',
-                    'route' => '#',
+                    'route' => 'student.report-card',
+                    'active' => 'student.report-card',
                     'icon'  => 'file-text',
                 ],
                 [

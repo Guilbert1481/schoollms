@@ -8,6 +8,7 @@ use App\Models\CurriculumSubject;
 use App\Models\StudentEnrollment;
 use App\Models\StudentEnrollmentSubject;
 use App\Services\Academics\Form137Service;
+use App\Services\Academics\ReportCardService;
 use Illuminate\Support\Facades\Auth;
 
 class TranscriptController extends Controller
@@ -38,6 +39,8 @@ class TranscriptController extends Controller
             'requiredUnits'  => 0,
             'percentDone'    => 0,
             'gwa'            => null,
+            'report'         => $student ? app(ReportCardService::class)->build($student) : null,
+            'rcEditable'     => false,
         ];
 
         if (! $student) {
@@ -51,12 +54,14 @@ class TranscriptController extends Controller
             $data = $form137->build($student);
 
             return view('transcript.form137', [
-                'student'   => $student,
-                'sections'  => $data['sections'],
-                'summary'   => $data['summary'],
-                'backUrl'   => route('student.dashboard'),
-                'backLabel' => 'Back to Dashboard',
-                'editable'  => false,   // students view their record read-only
+                'student'    => $student,
+                'sections'   => $data['sections'],
+                'summary'    => $data['summary'],
+                'backUrl'    => route('student.dashboard'),
+                'backLabel'  => 'Back to Dashboard',
+                'editable'   => false,   // students view their record read-only
+                'report'     => app(ReportCardService::class)->build($student),
+                'rcEditable' => false,
             ]);
         }
 
@@ -271,6 +276,8 @@ class TranscriptController extends Controller
             'gwa'           => $gwa,
             'termsPerYear'  => $termsPerYear,
             'hasSummerTerm' => $hasSummerTerm,
+            'report'        => app(ReportCardService::class)->build($student),
+            'rcEditable'    => false,
         ]);
     }
 

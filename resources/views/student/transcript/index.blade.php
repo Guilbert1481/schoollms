@@ -147,5 +147,8 @@
     });
 </script>
 
+{{-- Report Card (current term) below the transcript --}}
+@include('partials.report-card')
+
 @include('partials.hideable-teacher')
 @endsection

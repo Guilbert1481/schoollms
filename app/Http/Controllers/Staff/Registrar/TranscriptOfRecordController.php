@@ -9,8 +9,10 @@ use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\StudentEnrollmentSubject;
 use App\Models\PermanentRecordGrade;
+use App\Models\ReportCardGrade;
 use App\Models\TranscriptEditRequest;
 use App\Services\Academics\Form137Service;
+use App\Services\Academics\ReportCardService;
 use App\Support\Spreadsheet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -267,16 +269,21 @@ class TranscriptOfRecordController extends Controller
             $data = $form137->build($student);
 
             return view('transcript.form137', [
-                'student'   => $student,
-                'sections'  => $data['sections'],
-                'summary'   => $data['summary'],
-                'backUrl'   => route('registrar.transcripts.index'),
-                'backLabel' => 'Back to Records',
-                'editable'  => true,   // registrar can edit grades + mark transfers
+                'student'    => $student,
+                'sections'   => $data['sections'],
+                'summary'    => $data['summary'],
+                'backUrl'    => route('registrar.transcripts.index'),
+                'backLabel'  => 'Back to Records',
+                'editable'   => true,   // registrar can edit grades + mark transfers
+                'report'     => app(ReportCardService::class)->build($student),
+                'rcEditable' => true,
             ]);
         }
 
         $columns = config('tables.transcript.columns', []);
+
+        // Report card (current term) shown below the transcript.
+        $report = app(ReportCardService::class)->build($student);
 
         $blank = [
             'student'        => $student,
@@ -290,6 +297,8 @@ class TranscriptOfRecordController extends Controller
             'pendingByCs'    => collect(),
             'isTransfereeOrShifter' => false,
             'latestEnrollmentId'    => null,
+            'report'         => $report,
+            'rcEditable'     => false,   // higher-ed report card reads posted grades (read-only)
         ];
 
         $latestEnrollment = StudentEnrollment::with('program:id,code,name')
@@ -506,6 +515,8 @@ class TranscriptOfRecordController extends Controller
             'pendingBySubject' => $pendingBySubject,
             'isTransfereeOrShifter' => $isTransfereeOrShifter,
             'latestEnrollmentId'    => $latestEnrollment?->id,
+            'report'          => $report,
+            'rcEditable'      => false,
         ]);
     }
 
@@ -664,6 +675,42 @@ class TranscriptOfRecordController extends Controller
         );
 
         return back()->with('success', 'Form 137 grade saved.');
+    }
+
+    /** Save the current-year per-grading-period marks for one learning area. */
+    public function saveReportCardGrade(Request $request, Student $student)
+    {
+        $data = $request->validate([
+            'education_node_id' => ['required', 'integer', 'exists:education_nodes,id'],
+            'subject_id'        => ['required', 'integer', 'exists:subjects,id'],
+            'academic_year_id'  => ['nullable', 'integer', 'exists:academic_years,id'],
+            'grades'            => ['array'],
+            'grades.*'          => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        foreach ((array) ($data['grades'] ?? []) as $period => $grade) {
+            $period = (int) $period;
+            if ($period < 1 || $period > 4) {
+                continue;
+            }
+
+            ReportCardGrade::updateOrCreate(
+                [
+                    'student_id'        => $student->id,
+                    'education_node_id' => $data['education_node_id'],
+                    'subject_id'        => $data['subject_id'],
+                    'academic_year_id'  => $data['academic_year_id'] ?? null,
+                    'grading_period'    => $period,
+                ],
+                [
+                    'school_id'   => $student->school_id,
+                    'final_grade' => ($grade === '' || $grade === null) ? null : $grade,
+                    'recorded_by' => Auth::id(),
+                ]
+            );
+        }
+
+        return back()->with('success', 'Report card grades saved.');
     }
 
     protected function semesterLabel(int $sem, int $termsPerYear = 2): string

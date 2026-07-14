@@ -174,6 +174,9 @@
     @endforelse
 </div>
 
+{{-- Report Card (current school year) below the Form 137 --}}
+@include('partials.report-card')
+
 @if($editable)
     {{-- Registrar edit modal — record a learning area's final grade for this
          grade level (writes the permanent record). Works for any grade level,
