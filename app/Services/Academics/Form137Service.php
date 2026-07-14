@@ -75,53 +75,81 @@ class Form137Service
             $gradeLabel = $this->gradeLabel($enr);
             $syLabel    = $enr->academicYear?->name ? 'SY '.$enr->academicYear->name : '—';
 
-            $subjects = DB::table('student_enrollment_subjects as ses')
+            // Skeleton: every learning area assigned to this grade level (like the
+            // TOR shows the whole curriculum), so all subjects appear regardless
+            // of whether a grade has been recorded yet.
+            $skeleton = $enr->education_node_id
+                ? DB::table('grade_level_subjects as g')
+                    ->join('subjects as s', 's.id', '=', 'g.subject_id')
+                    ->where('g.education_node_id', $enr->education_node_id)
+                    ->where('g.is_active', 1)
+                    ->get(['s.id as subject_id', 's.name', 's.code'])
+                : collect();
+
+            // The learner's actual recorded subjects for this enrollment.
+            $taken = DB::table('student_enrollment_subjects as ses')
                 ->join('subjects as s', 's.id', '=', 'ses.subject_id')
                 ->where('ses.student_enrollment_id', $enr->id)
-                ->orderBy('s.name')
                 ->get([
-                    'ses.id as enrollment_subject_id',
-                    'ses.subject_id',
-                    's.name as learning_area',
-                    's.code as code',
-                    'ses.final_grade',
-                    'ses.grade',
-                    'ses.status',
-                    'ses.remarks',
-                ]);
+                    'ses.id as esid', 'ses.subject_id', 's.name', 's.code',
+                    'ses.final_grade', 'ses.grade', 'ses.status', 'ses.remarks', 'ses.class_id',
+                ])
+                ->keyBy('subject_id');
 
-            if ($subjects->isEmpty()) {
+            // Union: skeleton learning areas first, then any recorded subject not
+            // in the skeleton (e.g. credited transfers), keyed by subject id.
+            $subjectList = collect();
+            foreach ($skeleton as $sk) {
+                $subjectList->put($sk->subject_id, (object) ['subject_id' => $sk->subject_id, 'name' => $sk->name, 'code' => $sk->code]);
+            }
+            foreach ($taken as $sid => $t) {
+                if (! $subjectList->has($sid)) {
+                    $subjectList->put($sid, (object) ['subject_id' => $sid, 'name' => $t->name, 'code' => $t->code]);
+                }
+            }
+
+            if ($subjectList->isEmpty()) {
                 continue;
             }
 
-            $rows = $subjects->map(function ($r) use ($threshold, $enr) {
-                $final  = $r->final_grade ?? $r->grade;
-                $num    = is_numeric($final) ? (float) $final : null;
-                $status = strtolower((string) $r->status);
+            $teacherMap = $this->teacherMap($enr, $taken->pluck('class_id')->filter()->all());
+
+            $rows = $subjectList->sortBy('name')->map(function ($su) use ($threshold, $enr, $taken, $teacherMap) {
+                $t        = $taken->get($su->subject_id);
+                $final    = $t ? ($t->final_grade ?? $t->grade) : null;
+                $num      = is_numeric($final) ? (float) $final : null;
+                $status   = strtolower((string) ($t->status ?? ''));
                 $isCredit = in_array($status, ['credit', 'credited', 'transferred'], true);
 
                 [$remark, $tone] = match (true) {
-                    $isCredit                        => ['Credit', 'sky'],
+                    $isCredit                              => ['Credit', 'sky'],
+                    $t === null                            => ['Not Taken', 'slate'],
                     $num === null && $status === 'enrolled' => ['Ongoing', 'slate'],
-                    $num === null                    => ['—', 'slate'],
-                    $num >= $threshold               => ['Passed', 'emerald'],
-                    default                          => ['Failed', 'rose'],
+                    $num === null                          => ['—', 'slate'],
+                    $num >= $threshold                     => ['Passed', 'emerald'],
+                    default                                => ['Failed', 'rose'],
                 };
 
+                // Teacher (historical reference): prefer the exact class the
+                // learner took the subject in, else any class for this section.
+                $teacher = ($t && $t->class_id ? ($teacherMap['by_class'][$t->class_id] ?? null) : null)
+                    ?? ($teacherMap['by_subject'][$su->subject_id] ?? null);
+
                 return [
-                    'learning_area'         => $r->learning_area,
-                    'code'                  => $r->code,
+                    'learning_area'         => $su->name,
+                    'code'                  => $su->code,
+                    'teacher'               => $teacher ?: '—',
                     'final_grade'           => $isCredit ? 'Credit' : ($num !== null ? $this->fmt($num) : '—'),
                     'remark'                => $remark,
                     'tone'                  => $tone,
-                    '_num'                  => $isCredit ? null : $num,   // credited units are excluded from the average
+                    '_num'                  => $isCredit ? null : $num,   // credited subjects excluded from the average
                     // --- fields the registrar edit modal needs ---
-                    'subject_id'            => (int) $r->subject_id,
-                    'enrollment_subject_id' => (int) $r->enrollment_subject_id,
+                    'subject_id'            => (int) $su->subject_id,
+                    'enrollment_subject_id' => $t ? (int) $t->esid : 0,
                     'enrollment_id'         => (int) $enr->id,
-                    'status_raw'            => $status,
+                    'status_raw'            => $status ?: 'enrolled',
                     'grade_raw'             => $num,
-                    'transferred_from'      => $isCredit ? (string) ($r->remarks ?? '') : '',
+                    'transferred_from'      => $isCredit ? (string) ($t->remarks ?? '') : '',
                 ];
             })->values();
 
@@ -170,6 +198,41 @@ class Form137Service
                 'grade_levels'    => $sections->count(),
             ],
         ];
+    }
+
+    /**
+     * Teacher lookup for a grade level: the classes of the learner's section
+     * (and any class they actually took a subject in) → subject/class → name.
+     *
+     * @return array{by_class: array<int,string>, by_subject: array<int,string>}
+     */
+    private function teacherMap(StudentEnrollment $enr, array $takenClassIds): array
+    {
+        $rows = DB::table('classes as c')
+            ->leftJoin('users as u', 'u.id', '=', 'c.teacher_id')
+            ->where(function ($w) use ($enr, $takenClassIds) {
+                $has = false;
+                if ($enr->section_id) { $w->orWhere('c.section_id', $enr->section_id); $has = true; }
+                if (! empty($takenClassIds)) { $w->orWhereIn('c.id', $takenClassIds); $has = true; }
+                if (! $has) { $w->whereRaw('1 = 0'); }
+            })
+            ->get([
+                'c.id as class_id', 'c.subject_id',
+                DB::raw("TRIM(CONCAT(COALESCE(u.first_name,''),' ',COALESCE(u.last_name,''))) as tname"),
+            ]);
+
+        $byClass = [];
+        $bySubject = [];
+        foreach ($rows as $r) {
+            $name = trim((string) $r->tname);
+            if ($name === '') {
+                continue;
+            }
+            $byClass[(int) $r->class_id]   = $name;
+            $bySubject[(int) $r->subject_id] = $name;
+        }
+
+        return ['by_class' => $byClass, 'by_subject' => $bySubject];
     }
 
     /** "Grade 5" / "Kindergarten" from the enrollment's education node, else "Grade N". */

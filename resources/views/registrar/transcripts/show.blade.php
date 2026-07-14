@@ -62,17 +62,19 @@
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm table-fixed">
                             <colgroup>
-                                <col style="width: 160px;">
+                                <col style="width: 150px;">
                                 <col>
-                                <col style="width: 80px;">
+                                <col style="width: 150px;">
+                                <col style="width: 70px;">
+                                <col style="width: 100px;">
                                 <col style="width: 110px;">
                                 <col style="width: 120px;">
-                                <col style="width: 130px;">
                             </colgroup>
                             <thead class="bg-slate-50 text-slate-600">
                                 <tr>
                                     <th class="px-4 py-2 text-left font-semibold">Subject Code</th>
                                     <th class="px-4 py-2 text-left font-semibold">Descriptive Title</th>
+                                    <th class="px-4 py-2 text-left font-semibold">Teacher</th>
                                     <th class="px-4 py-2 text-center font-semibold">Units</th>
                                     <th class="px-4 py-2 text-center font-semibold">Final Grade</th>
                                     <th class="px-4 py-2 text-center font-semibold">Status</th>
@@ -85,6 +87,7 @@
                                     <tr class="border-t border-slate-100">
                                         <td class="px-4 py-2 font-mono text-slate-700">{{ $r->subject_code }}</td>
                                         <td class="px-4 py-2 text-slate-800">{{ $r->descriptive_title }}</td>
+                                        <td class="px-4 py-2 text-slate-500">{{ $r->teacher ?? '—' }}</td>
                                         <td class="px-4 py-2 text-center text-slate-700">{{ $r->units }}</td>
                                         <td class="px-4 py-2 text-center font-semibold
                                             @if($r->_is_credit) text-blue-600
@@ -119,7 +122,7 @@
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="6" class="px-4 py-3 text-center text-slate-400 italic text-xs">No subjects in this term.</td></tr>
+                                    <tr><td colspan="7" class="px-4 py-3 text-center text-slate-400 italic text-xs">No subjects in this term.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -234,4 +237,6 @@
         if (window.lucide?.createIcons) window.lucide.createIcons();
     });
 </script>
+
+@include('partials.hideable-teacher')
 @endsection

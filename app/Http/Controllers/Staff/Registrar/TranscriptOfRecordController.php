@@ -409,7 +409,16 @@ class TranscriptOfRecordController extends Controller
 
         $requiredUnits = (float) $curriculumRows->sum('units');
 
-        $rows = $curriculumRows->map(function ($cs) use ($taken, $termsPerYear) {
+        // Teacher (historical reference): who the student took each subject with,
+        // via the class recorded on their enrollment-subject row.
+        $teacherByClass = DB::table('classes as c')
+            ->leftJoin('users as u', 'u.id', '=', 'c.teacher_id')
+            ->whereIn('c.id', $taken->pluck('class_id')->filter()->unique()->values())
+            ->get()
+            ->mapWithKeys(fn ($c) => [(int) $c->id => trim(($c->first_name ?? '').' '.($c->last_name ?? ''))])
+            ->all();
+
+        $rows = $curriculumRows->map(function ($cs) use ($taken, $termsPerYear, $teacherByClass) {
             $subj    = $cs->subject;
             $units   = (float) ($cs->units ?? 0);
             $sem     = (int) $cs->semester;
@@ -419,6 +428,7 @@ class TranscriptOfRecordController extends Controller
             $record  = $taken->get($cs->subject_id);
             $grade   = $record?->grade;
             $status  = strtolower((string) ($record->status ?? ''));
+            $teacher = ($record && $record->class_id ? ($teacherByClass[(int) $record->class_id] ?? '') : '') ?: '—';
 
             $isCredit  = in_array($status, ['credit', 'credited', 'transferred']);
             $isFailed  = $status === 'failed' || (is_numeric($grade) && $this->isFailing((float) $grade));
@@ -434,6 +444,7 @@ class TranscriptOfRecordController extends Controller
                 'semester_label'        => $semWord,
                 'subject_code'          => $subj->code ?? '—',
                 'descriptive_title'     => $subj->name ?? '—',
+                'teacher'               => $teacher,
                 'final_grade'           => is_numeric($grade)
                     ? rtrim(rtrim(number_format((float) $grade, 2, '.', ''), '0'), '.')
                     : ($isCredit ? 'Credit' : '—'),

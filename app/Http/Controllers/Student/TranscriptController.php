@@ -153,9 +153,18 @@ class TranscriptController extends Controller
             ->sortByDesc('id')
             ->keyBy('subject_id');
 
+        // Teacher (historical reference) per subject, via the class the student
+        // took it in.
+        $teacherByClass = \Illuminate\Support\Facades\DB::table('classes as c')
+            ->leftJoin('users as u', 'u.id', '=', 'c.teacher_id')
+            ->whereIn('c.id', $taken->pluck('class_id')->filter()->unique()->values())
+            ->get()
+            ->mapWithKeys(fn ($c) => [(int) $c->id => trim(($c->first_name ?? '').' '.($c->last_name ?? ''))])
+            ->all();
+
         $requiredUnits = (float) $curriculumRows->sum('units');
 
-        $rows = $curriculumRows->map(function ($cs) use ($taken, $termsPerYear) {
+        $rows = $curriculumRows->map(function ($cs) use ($taken, $termsPerYear, $teacherByClass) {
             $subj    = $cs->subject;
             $units   = (float) ($cs->units ?? 0);
             $sem     = (int) $cs->semester;
@@ -165,6 +174,7 @@ class TranscriptController extends Controller
             $record  = $taken->get($cs->subject_id);
             $grade   = $record?->grade;
             $status  = strtolower((string) ($record->status ?? ''));
+            $teacher = ($record && $record->class_id ? ($teacherByClass[(int) $record->class_id] ?? '') : '') ?: '—';
 
             $isCredit  = in_array($status, ['credit', 'credited', 'transferred']);
             $isFailed  = $status === 'failed' || (is_numeric($grade) && self::isFailing((float) $grade));
@@ -204,6 +214,7 @@ class TranscriptController extends Controller
                 'term'              => $termHtml,
                 'subject_code'      => $subj->code ?? '—',
                 'descriptive_title' => $subj->name ?? '—',
+                'teacher'           => $teacher,
                 'final_grade'       => $gradeHtml,
                 'units'             => $units > 0 ? rtrim(rtrim(number_format($units, 2, '.', ''), '0'), '.') : '—',
                 'status'            => $statusHtml,

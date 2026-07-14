@@ -23,8 +23,9 @@ return [
 
     'columns' => [
         ['key' => 'term',              'label' => 'Term',              'raw' => true, 'width' => '110px'],
-        ['key' => 'subject_code',      'label' => 'Subject Code',                    'width' => '245px'],
+        ['key' => 'subject_code',      'label' => 'Subject Code',                    'width' => '200px'],
         ['key' => 'descriptive_title', 'label' => 'Descriptive Title',               'width' => 'auto'],
+        ['key' => 'teacher',           'label' => 'Teacher',                          'width' => '160px'],
         ['key' => 'final_grade',       'label' => 'Final Grade',       'raw' => true, 'width' => '110px'],
         ['key' => 'units',             'label' => 'Units',                            'width' => '110px'],
         ['key' => 'status',            'label' => 'Status',            'raw' => true, 'width' => '110px'],

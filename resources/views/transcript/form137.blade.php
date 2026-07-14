@@ -96,16 +96,18 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <colgroup>
-                        <col style="width: 120px;">
+                        <col style="width: 110px;">
                         <col>
-                        <col style="width: 120px;">
-                        <col style="width: 120px;">
+                        <col style="width: 150px;">
+                        <col style="width: 110px;">
+                        <col style="width: 110px;">
                         @if($editable)<col style="width: 90px;">@endif
                     </colgroup>
                     <thead class="bg-white text-slate-600">
                         <tr class="border-b border-slate-100">
                             <th class="px-5 py-2 text-left font-semibold">Code</th>
                             <th class="px-5 py-2 text-left font-semibold">Learning Area</th>
+                            <th class="px-5 py-2 text-left font-semibold">Teacher</th>
                             <th class="px-5 py-2 text-center font-semibold">Final Grade</th>
                             <th class="px-5 py-2 text-center font-semibold">Remarks</th>
                             @if($editable)<th class="px-5 py-2 text-center font-semibold">Action</th>@endif
@@ -123,6 +125,7 @@
                                         </div>
                                     @endif
                                 </td>
+                                <td class="px-5 py-2 text-slate-500">{{ $r['teacher'] ?? '—' }}</td>
                                 <td class="px-5 py-2 text-center font-bold {{ $toneText[$r['tone']] }}">{{ $r['final_grade'] }}</td>
                                 <td class="px-5 py-2 text-center">
                                     <span class="inline-block rounded-full px-2 py-0.5 text-[11px] font-bold {{ $toneBadge[$r['tone']] }}">
@@ -150,8 +153,12 @@
                         @endforeach
                     </tbody>
                     <tfoot>
+                        {{-- One cell per column (no colspan) so the hideable
+                             Teacher column stays aligned. --}}
                         <tr class="border-t border-slate-200 bg-slate-50">
-                            <td class="px-5 py-2.5 font-bold text-slate-700" colspan="2">General Average</td>
+                            <td class="px-5 py-2.5"></td>
+                            <td class="px-5 py-2.5 font-bold text-slate-700">General Average</td>
+                            <td class="px-5 py-2.5"></td>
                             <td class="px-5 py-2.5 text-center font-black text-slate-900">{{ $section['ga_display'] }}</td>
                             <td class="px-5 py-2.5"></td>
                             @if($editable)<td class="px-5 py-2.5"></td>@endif
@@ -257,6 +264,8 @@
         }
     </script>
 @endif
+
+@include('partials.hideable-teacher')
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {

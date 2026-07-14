@@ -146,4 +146,6 @@
         if (window.lucide?.createIcons) window.lucide.createIcons();
     });
 </script>
+
+@include('partials.hideable-teacher')
 @endsection
