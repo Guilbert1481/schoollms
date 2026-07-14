@@ -35,6 +35,13 @@ Route::middleware(['web', 'auth'])
 				Route::delete('/fees/{fee}', [TuitionSetupController::class, 'destroyFee'])
 					->name('fees.destroy');
 
+				Route::post('/incidental', [TuitionSetupController::class, 'storeIncidental'])
+					->name('incidental.store');
+				Route::put('/incidental/{incidental}', [TuitionSetupController::class, 'updateIncidental'])
+					->name('incidental.update');
+				Route::delete('/incidental/{incidental}', [TuitionSetupController::class, 'destroyIncidental'])
+					->name('incidental.destroy');
+
 				Route::post('/discounts', [TuitionSetupController::class, 'storeDiscount'])
 					->name('discounts.store');
 				Route::put('/discounts/{discount}', [TuitionSetupController::class, 'updateDiscount'])

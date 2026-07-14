@@ -7,6 +7,7 @@
         'tuition'       => ['store' => 'fees.store',          'base' => 'fees',          'modal' => 'feeModal'],
         'miscellaneous' => ['store' => 'fees.store',          'base' => 'fees',          'modal' => 'feeModal'],
         'other'         => ['store' => 'fees.store',          'base' => 'fees',          'modal' => 'feeModal'],
+        'incidental'    => ['store' => 'incidental.store',    'base' => 'incidental',    'modal' => 'incidentalModal'],
         'discounts'     => ['store' => 'discounts.store',     'base' => 'discounts',     'modal' => 'discountModal'],
         'scholarships'  => ['store' => 'scholarships.store',  'base' => 'scholarships',  'modal' => 'scholarshipModal'],
         'payment-plans' => ['store' => 'payment-plans.store', 'base' => 'payment-plans', 'modal' => 'paymentPlanModal'],
@@ -20,6 +21,7 @@
         'tuition'       => 'Set tuition rates per grade/year level and payment plan.',
         'miscellaneous' => 'Recurring miscellaneous fees assessed to students.',
         'other'         => 'Registration, laboratory, and other one-off fees.',
+        'incidental'    => 'One-off charges (play tickets, fair t-shirts, field trips). Saving one auto-bills the students it covers.',
         'discounts'     => 'Discounts applied to a student\'s assessment.',
         'scholarships'  => 'Scholarship grants and their coverage.',
         'payment-plans' => 'Payment schemes students can be billed under.',
@@ -223,6 +225,66 @@
                     <input type="number" step="0.01" min="0" name="amount" class="{{ $fieldCls }}" placeholder="0.00">
                 </div>
             </div>
+            <label class="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" name="is_active" value="1" checked class="rounded border-slate-300 text-indigo-600"> Active
+            </label>
+        </form>
+    </x-modal.form>
+@elseif($tab === 'incidental')
+    <x-modal.form id="incidentalModal" title="Incidental Fee" widthClass="w-full max-w-2xl">
+        <form id="tuitionSetupForm" method="POST" action="{{ $storeUrl }}" class="space-y-4">
+            @csrf
+            <input type="hidden" name="_method" value="POST">
+
+            <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <i data-lucide="info" class="mr-1 inline h-3.5 w-3.5"></i>
+                Saving generates a one-time invoice for every officially-enrolled student the scope covers. Leave a scope field blank to widen it (e.g. no Program = all).
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-slate-700">Item</label>
+                    <input type="text" name="name" class="{{ $fieldCls }}" placeholder="School Play Ticket">
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-slate-700">Amount</label>
+                    <input type="number" step="0.01" min="0" name="amount" class="{{ $fieldCls }}" placeholder="0.00">
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="mb-1 block text-sm font-semibold text-slate-700">Description <span class="font-normal text-slate-400">(optional)</span></label>
+                    <input type="text" name="description" class="{{ $fieldCls }}" placeholder="Ticket for the annual school play">
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-slate-700">Educational Level / Node</label>
+                    <select name="education_node_id" class="{{ $fieldCls }}">
+                        <option value="">All levels</option>
+                        @foreach($educationNodes as $node)<option value="{{ $node->id }}">{{ $node->label }}</option>@endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-slate-700">Program <span class="font-normal text-slate-400">(non-basic ed)</span></label>
+                    <select name="program_id" class="{{ $fieldCls }}">
+                        <option value="">All / not applicable</option>
+                        @foreach($programs as $p)<option value="{{ $p->id }}">{{ $p->code ? $p->code.' - ' : '' }}{{ $p->name }}</option>@endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-slate-700">Year Level <span class="font-normal text-slate-400">(optional)</span></label>
+                    <input type="number" name="year_level" min="1" max="20" class="{{ $fieldCls }}" placeholder="e.g. 5">
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-slate-700">Academic Year <span class="font-normal text-slate-400">(optional)</span></label>
+                    <select name="academic_year_id" class="{{ $fieldCls }}">
+                        <option value="">All</option>
+                        @foreach($academicYears as $ay)<option value="{{ $ay->id }}">{{ $ay->name }}</option>@endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-semibold text-slate-700">Due Date <span class="font-normal text-slate-400">(optional)</span></label>
+                    <input type="date" name="due_date" class="{{ $fieldCls }}">
+                </div>
+            </div>
+
             <label class="flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" name="is_active" value="1" checked class="rounded border-slate-300 text-indigo-600"> Active
             </label>

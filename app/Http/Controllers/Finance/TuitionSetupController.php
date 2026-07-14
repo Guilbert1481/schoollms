@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Finance;
 use App\Http\Controllers\Controller;
 use App\Models\FinanceDiscountType;
 use App\Models\FinanceFeeSetup;
+use App\Models\IncidentalFee;
 use App\Models\PaymentPlan;
 use App\Models\PenaltyRule;
 use App\Models\Scholarship;
+use App\Services\Finance\IncidentalBillingService;
 use App\Support\EducationLevels;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +24,7 @@ class TuitionSetupController extends Controller
         'tuition'       => ['label' => 'Tuition Matrix',      'icon' => 'layout-grid',        'add' => 'Add Tuition Rate'],
         'miscellaneous' => ['label' => 'Miscellaneous Fees',  'icon' => 'circle-dollar-sign', 'add' => 'Add Fee'],
         'other'         => ['label' => 'Other Fees',          'icon' => 'file-text',          'add' => 'Add Fee'],
+        'incidental'    => ['label' => 'Incidental Fees',     'icon' => 'ticket',             'add' => 'Add Incidental Fee'],
         'discounts'     => ['label' => 'Discounts',           'icon' => 'badge-percent',      'add' => 'Add Discount'],
         'scholarships'  => ['label' => 'Scholarships',        'icon' => 'graduation-cap',     'add' => 'Add Scholarship'],
         'payment-plans' => ['label' => 'Payment Plans',       'icon' => 'credit-card',        'add' => 'Add Payment Plan'],
@@ -148,6 +151,7 @@ class TuitionSetupController extends Controller
             'tuition'       => [$this->feeRows($schoolId, ['tuition'], $nodeToRoot, $rootNameById, $filters, true), $this->tuitionColumns()],
             'miscellaneous' => [$this->feeRows($schoolId, ['miscellaneous'], $nodeToRoot, $rootNameById, $filters, false), $this->feeColumns()],
             'other'         => [$this->feeRows($schoolId, ['other', 'registration', 'laboratory'], $nodeToRoot, $rootNameById, $filters, false), $this->feeColumns()],
+            'incidental'    => [$this->incidentalRows($schoolId, $nodeToRoot, $rootNameById), $this->incidentalColumns()],
             'discounts'     => [$this->discountRows($schoolId), $this->discountColumns()],
             'scholarships'  => [$this->scholarshipRows($schoolId), $this->scholarshipColumns()],
             'payment-plans' => [$this->paymentPlanRows($schoolId), $this->paymentPlanColumns()],
@@ -282,6 +286,59 @@ class TuitionSetupController extends Controller
         ];
     }
 
+    /** Incidental (one-off) fee rows. */
+    protected function incidentalRows(int $schoolId, array $nodeToRoot, array $rootNameById)
+    {
+        return IncidentalFee::query()
+            ->with(['program:id,code,name', 'educationNode:id,name,parent_id'])
+            ->where('school_id', $schoolId)
+            ->orderByDesc('is_active')->orderByDesc('id')
+            ->get()
+            ->map(function (IncidentalFee $fee) use ($nodeToRoot, $rootNameById) {
+                $rootId   = $nodeToRoot[$fee->education_node_id ?? null] ?? null;
+                $rootName = $rootId ? ($rootNameById[$rootId] ?? 'All levels') : 'All levels';
+                $isBasic  = str_contains(strtolower((string) $rootName), 'basic');
+
+                // The node itself (e.g. "Grade 5") is more specific than the root.
+                $levelName = $fee->educationNode?->name ?: $rootName;
+
+                $yearLevel = $fee->year_level
+                    ? ($isBasic ? 'Grade ' : 'Year ').(int) $fee->year_level
+                    : '—';
+
+                // Program is a non-basic-ed concept — blank it out for basic ed.
+                $program = ($isBasic || ! $fee->program)
+                    ? '—'
+                    : trim(($fee->program->code ? $fee->program->code.' ' : '').$fee->program->name);
+
+                return (object) [
+                    'id'              => $fee->id,
+                    'name'            => $fee->name,
+                    'description'     => $fee->description ?: '—',
+                    'education_level' => $this->levelCell($levelName),
+                    'year_level'      => $yearLevel,
+                    'program'         => $program,
+                    'amount'          => $this->peso($fee->amount),
+                    'due_date'        => $fee->due_date ? \Carbon\Carbon::parse($fee->due_date)->format('M d, Y') : '—',
+                    'status'          => $this->statusPill((bool) $fee->is_active),
+                ];
+            })->values();
+    }
+
+    protected function incidentalColumns(): array
+    {
+        return [
+            ['key' => 'name',            'label' => 'Item',            'width' => '180px'],
+            ['key' => 'description',     'label' => 'Description',     'width' => '220px'],
+            ['key' => 'education_level', 'label' => 'Educational Level', 'width' => '180px', 'raw' => true],
+            ['key' => 'year_level',      'label' => 'Year Level',      'width' => '120px'],
+            ['key' => 'program',         'label' => 'Program',         'width' => '160px'],
+            ['key' => 'amount',          'label' => 'Amount',          'width' => '130px'],
+            ['key' => 'due_date',        'label' => 'Due Date',        'width' => '130px'],
+            ['key' => 'status',          'label' => 'Status',          'width' => '110px', 'raw' => true],
+        ];
+    }
+
     protected function discountColumns(): array
     {
         return [
@@ -333,6 +390,7 @@ class TuitionSetupController extends Controller
     {
         $modal = match ($tab) {
             'tuition', 'miscellaneous', 'other' => 'feeModal',
+            'incidental'    => 'incidentalModal',
             'discounts'     => 'discountModal',
             'scholarships'  => 'scholarshipModal',
             'payment-plans' => 'paymentPlanModal',
@@ -351,6 +409,9 @@ class TuitionSetupController extends Controller
         return match ($tab) {
             'tuition', 'miscellaneous', 'other' => FinanceFeeSetup::where('school_id', $schoolId)
                 ->get(['id', 'academic_year_id', 'term_id', 'education_node_id', 'program_id', 'payment_plan_id', 'year_level', 'fee_type', 'code', 'name', 'billing_basis', 'amount', 'is_active', 'notes'])
+                ->keyBy('id'),
+            'incidental' => IncidentalFee::where('school_id', $schoolId)
+                ->get(['id', 'name', 'description', 'education_node_id', 'program_id', 'year_level', 'academic_year_id', 'amount', 'due_date', 'is_active'])
                 ->keyBy('id'),
             'discounts' => FinanceDiscountType::where('school_id', $schoolId)
                 ->get(['id', 'code', 'name', 'discount_kind', 'value', 'applies_to', 'requires_approval', 'is_active', 'notes'])->keyBy('id'),
@@ -412,6 +473,68 @@ class TuitionSetupController extends Controller
         ]);
 
         $data['code']      = Str::upper(trim($data['code']));
+        $data['is_active'] = (bool) ($data['is_active'] ?? false);
+        $data['amount']    = round((float) $data['amount'], 2);
+
+        return $data;
+    }
+
+    /* ===================================================================
+     | Incidental Fee CRUD — saving fans out a one-time invoice.
+     * =================================================================== */
+
+    public function storeIncidental(Request $request, IncidentalBillingService $billing)
+    {
+        $schoolId = (int) $request->user()->school_id;
+        $data = $this->validatedIncidentalData($request, $schoolId);
+        $data['school_id']  = $schoolId;
+        $data['created_by'] = $request->user()->id;
+
+        $fee = IncidentalFee::create($data);
+
+        $count = $billing->charge($fee, $request->user()->id);
+
+        return back()->with('success', "Incidental fee saved. {$count} student invoice(s) generated.");
+    }
+
+    public function updateIncidental(Request $request, IncidentalFee $incidental, IncidentalBillingService $billing)
+    {
+        $this->authorizeSchool((int) $incidental->school_id);
+        $incidental->update($this->validatedIncidentalData($request, (int) $incidental->school_id));
+
+        // Re-run the fan-out: the duplicate guard means only students newly in
+        // scope get billed; already-charged students are untouched.
+        $count = $billing->charge($incidental, $request->user()->id);
+
+        return back()->with('success', $count > 0
+            ? "Incidental fee updated. {$count} additional invoice(s) generated."
+            : 'Incidental fee updated.');
+    }
+
+    public function destroyIncidental(IncidentalFee $incidental)
+    {
+        $this->authorizeSchool((int) $incidental->school_id);
+        // Invoices already fanned out stay put (students still owe them); only the
+        // fee template is removed so it can't fan out again.
+        $incidental->delete();
+
+        return back()->with('success', 'Incidental fee deleted. Existing invoices are unaffected.');
+    }
+
+    protected function validatedIncidentalData(Request $request, int $schoolId): array
+    {
+        $data = $request->validate([
+            'name'             => ['required', 'string', 'max:191'],
+            'description'      => ['nullable', 'string', 'max:2000'],
+            'education_node_id' => ['nullable', 'integer', Rule::exists('education_nodes', 'id')],
+            'program_id'       => ['nullable', 'integer', Rule::exists('programs', 'id')->where('school_id', $schoolId)],
+            'year_level'       => ['nullable', 'integer', 'min:1', 'max:20'],
+            'academic_year_id' => ['nullable', 'integer', Rule::exists('academic_years', 'id')->where('school_id', $schoolId)],
+            'amount'           => ['required', 'numeric', 'min:0', 'max:999999999.99'],
+            'due_date'         => ['nullable', 'date'],
+            'is_active'        => ['nullable', 'boolean'],
+        ]);
+
         $data['is_active'] = (bool) ($data['is_active'] ?? false);
         $data['amount']    = round((float) $data['amount'], 2);
 

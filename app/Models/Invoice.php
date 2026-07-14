@@ -18,6 +18,7 @@ class Invoice extends Model
         'school_id',
         'student_id',
         'student_enrollment_id',
+        'incidental_fee_id',
         'academic_year_id',
         'term_id',
         'subtotal_amount',
