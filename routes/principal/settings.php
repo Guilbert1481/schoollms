@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Principal\GradeSettingsController;
+use App\Http\Controllers\Settings\AttendanceSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web', 'auth', 'role:principal'])
@@ -10,4 +11,10 @@ Route::middleware(['web', 'auth', 'role:principal'])
         // Settings → Grades (passing threshold + promotion rule for Form 137).
         Route::get('/grades', [GradeSettingsController::class, 'index'])->name('grades');
         Route::post('/grades', [GradeSettingsController::class, 'update'])->name('grades.update');
+
+        // Settings → Attendance (per basic-ed level). Band fixed to basic here.
+        Route::get('/attendance', [AttendanceSettingsController::class, 'index'])
+            ->defaults('band', 'basic')->name('attendance');
+        Route::post('/attendance', [AttendanceSettingsController::class, 'update'])
+            ->defaults('band', 'basic')->name('attendance.update');
     });

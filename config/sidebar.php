@@ -777,6 +777,22 @@ return [
                 ],
 
                 [
+                    'label' => 'Attendance',
+                    'route' => 'principal.settings.attendance',
+                    'active' => 'principal.settings.attendance',
+                    'icon'  => 'calendar-check',
+                    'roles' => ['principal'],
+                ],
+
+                [
+                    'label' => 'Attendance',
+                    'route' => 'dean.settings.attendance',
+                    'active' => 'dean.settings.attendance',
+                    'icon'  => 'calendar-check',
+                    'roles' => ['dean'],
+                ],
+
+                [
                     'label' => 'Profile Settings',
                     'route' => 'settings.profile',
 

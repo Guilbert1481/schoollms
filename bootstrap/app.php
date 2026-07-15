@@ -169,6 +169,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/dean/curricula.php',
             __DIR__.'/../routes/dean/curricula_panel.php',
             __DIR__.'/../routes/dean/academic_policies.php',
+            __DIR__.'/../routes/dean/settings.php',
 
             /*
             |--------------------------------------------------------------------------
