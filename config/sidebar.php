@@ -785,10 +785,26 @@ return [
                 ],
 
                 [
+                    'label' => 'Grading Scheme',
+                    'route' => 'principal.settings.grading',
+                    'active' => 'principal.settings.grading',
+                    'icon'  => 'calculator',
+                    'roles' => ['principal'],
+                ],
+
+                [
                     'label' => 'Attendance',
                     'route' => 'dean.settings.attendance',
                     'active' => 'dean.settings.attendance',
                     'icon'  => 'calendar-check',
+                    'roles' => ['dean'],
+                ],
+
+                [
+                    'label' => 'Grading Scheme',
+                    'route' => 'dean.settings.grading',
+                    'active' => 'dean.settings.grading',
+                    'icon'  => 'calculator',
                     'roles' => ['dean'],
                 ],
 

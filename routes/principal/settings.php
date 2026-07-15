@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Principal\GradeSettingsController;
 use App\Http\Controllers\Settings\AttendanceSettingsController;
+use App\Http\Controllers\Settings\GradingSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web', 'auth', 'role:principal'])
@@ -17,4 +18,10 @@ Route::middleware(['web', 'auth', 'role:principal'])
             ->defaults('band', 'basic')->name('attendance');
         Route::post('/attendance', [AttendanceSettingsController::class, 'update'])
             ->defaults('band', 'basic')->name('attendance.update');
+
+        // Settings → Grading scheme (per basic-ed level).
+        Route::get('/grading', [GradingSettingsController::class, 'index'])
+            ->defaults('band', 'basic')->name('grading');
+        Route::post('/grading', [GradingSettingsController::class, 'update'])
+            ->defaults('band', 'basic')->name('grading.update');
     });

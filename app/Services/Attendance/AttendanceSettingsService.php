@@ -4,22 +4,17 @@ namespace App\Services\Attendance;
 
 use App\Models\AcademicLevel;
 use App\Models\AttendanceSetting;
+use App\Support\AcademicBand;
 use Illuminate\Support\Collection;
 
 /**
  * Reads and writes per-level attendance configuration for one role band. The
  * "band" fixes which academic-level types a role may touch — basic ed for the
  * Principal, higher ed for the Dean — and is set by the route, never by user
- * input, so neither role can configure the other's levels.
+ * input, so neither role can configure the other's levels (see AcademicBand).
  */
 class AttendanceSettingsService
 {
-    /** Which academic_levels.type values each band governs. */
-    private const BAND_TYPES = [
-        'basic' => ['basic'],
-        'higher' => ['higher'],
-    ];
-
     /**
      * The band's levels, each paired with its saved setting or an unsaved model
      * carrying type-appropriate defaults (so the form always has values to show
@@ -29,7 +24,7 @@ class AttendanceSettingsService
      */
     public function levelsWithSettings(int $schoolId, string $band): Collection
     {
-        $levels = $this->bandLevels($schoolId, $band);
+        $levels = AcademicBand::levels($schoolId, $band);
 
         $saved = AttendanceSetting::where('school_id', $schoolId)
             ->whereIn('academic_level_id', $levels->pluck('id'))
@@ -52,7 +47,7 @@ class AttendanceSettingsService
      */
     public function save(int $schoolId, string $band, array $rows): int
     {
-        $allowedIds = $this->bandLevels($schoolId, $band)->pluck('id')->all();
+        $allowedIds = AcademicBand::levels($schoolId, $band)->pluck('id')->all();
 
         $saved = 0;
         foreach ($rows as $levelId => $attrs) {
@@ -70,22 +65,7 @@ class AttendanceSettingsService
         return $saved;
     }
 
-    public function bandTypes(string $band): array
-    {
-        return self::BAND_TYPES[$band] ?? [];
-    }
-
     /* ------------------------------------------------------------------ */
-
-    /** The academic levels a band owns, ordered as they appear to a user. */
-    private function bandLevels(int $schoolId, string $band): Collection
-    {
-        // AcademicLevel has no BelongsToSchool scope — filter by school explicitly.
-        return AcademicLevel::where('school_id', $schoolId)
-            ->whereIn('type', $this->bandTypes($band))
-            ->orderBy('sequence_order')
-            ->get();
-    }
 
     /**
      * Coerce raw form input into storable attributes. Unchecked checkboxes are

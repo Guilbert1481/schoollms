@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Settings\Concerns\ResolvesSettingsBand;
 use App\Models\AttendanceSetting;
 use App\Services\Attendance\AttendanceSettingsService;
 use Illuminate\Http\Request;
@@ -16,6 +17,8 @@ use Illuminate\Validation\Rule;
  */
 class AttendanceSettingsController extends Controller
 {
+    use ResolvesSettingsBand;
+
     public function index(Request $request, AttendanceSettingsService $service)
     {
         $band = $this->band($request);
@@ -46,24 +49,6 @@ class AttendanceSettingsController extends Controller
     }
 
     /* ------------------------------------------------------------------ */
-
-    private function schoolId(): int
-    {
-        $id = (int) auth()->user()->school_id;
-        abort_unless($id, 404);
-
-        return $id;
-    }
-
-    /** Read the band the route fixed us to (server-controlled, not user input). */
-    private function band(Request $request): string
-    {
-        $route = $request->route();
-        $band = $route ? ($route->defaults['band'] ?? null) : null;
-        abort_unless(in_array($band, ['basic', 'higher'], true), 404);
-
-        return $band;
-    }
 
     private function updateRoute(string $band): string
     {
