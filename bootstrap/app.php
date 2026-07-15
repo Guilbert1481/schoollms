@@ -12,7 +12,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
             __DIR__.'/../routes/web.php',
 
-
             /*
             |--------------------------------------------------------------------------
             | SCHOOL MODULE
@@ -31,21 +30,18 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/school/settings/master-data/events.php',
             __DIR__.'/../routes/admin/education-nodes.php',
             __DIR__.'/../routes/school/system/dynamic.php',
-                        
 
-                        /*
+            /*
             |--------------------------------------------------------------------------
             | SUPERADMIN MODULE
             |--------------------------------------------------------------------------
             */
 
-            
             __DIR__.'/../routes/superadmin/schools.php',
             __DIR__.'/../routes/superadmin/pricing.php',
             __DIR__.'/../routes/superadmin/subscriptions.php',
             __DIR__.'/../routes/superadmin/dashboard.php',
             __DIR__.'/../routes/superadmin/configuration.php',
-
 
             /*
             |--------------------------------------------------------------------------
@@ -55,7 +51,6 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/admin/assignments.php',
             __DIR__.'/../routes/admin/service-plan.php',
 
-
             /*
             |--------------------------------------------------------------------------
             | ADMISSION MODULE
@@ -64,14 +59,12 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/admission/sections.php',
             __DIR__.'/../routes/admission/dashboard.php',
 
-
             /*
             |--------------------------------------------------------------------------
             | REGISTRAR MODULE
             |--------------------------------------------------------------------------
             */
             __DIR__.'/../routes/staff/registrar.php',
-
 
             /*
             |--------------------------------------------------------------------------
@@ -81,6 +74,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/teacher/metadata.php',
             __DIR__.'/../routes/teacher/mcq-builder.php',
             __DIR__.'/../routes/teacher/dashboard.php',
+            __DIR__.'/../routes/teacher/attendance.php',
             __DIR__.'/../routes/teacher/lessons/lessons.php',
             __DIR__.'/../routes/teacher/lessons/resources.php',
 
@@ -100,12 +94,11 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/teacher/mtf-builder.php',
             __DIR__.'/../routes/teacher/enumeration-builder.php',
             __DIR__.'/../routes/teacher/fib-builder.php',
-            
+
             __DIR__.'/../routes/teacher/test-builder.php',
             __DIR__.'/../routes/teacher/test-builder-cascade-dropdown.php',
             __DIR__.'/../routes/teacher/test/test-builder/print.php',
             __DIR__.'/../routes/teacher/test/test-builder/answer-key.php',
-            
 
             /*
             |--------------------------------------------------------------------------
@@ -126,7 +119,6 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/student/training/training.php',
             __DIR__.'/../routes/address.php',
 
-            
             /*
             |--------------------------------------------------------------------------
             | TRAINING MODULES
@@ -166,7 +158,6 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/training/program-head/courses.php',
             __DIR__.'/../routes/training/program-head/trainors.php',
 
-
             /*
             |--------------------------------------------------------------------------
             | DEAN MODULE
@@ -179,8 +170,6 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/dean/curricula_panel.php',
             __DIR__.'/../routes/dean/academic_policies.php',
 
-            
-
             /*
             |--------------------------------------------------------------------------
             | PRINCIPAL MODULE (Basic Education)
@@ -192,7 +181,6 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/principal/ay_terms.php',
             __DIR__.'/../routes/principal/settings.php',
 
-
             /*
             |--------------------------------------------------------------------------
             | STAFF / PROGRAM HEAD MODULES
@@ -201,8 +189,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/staff/program_head/subjects.php',
             __DIR__.'/../routes/staff/program_head/topic_lesson.php',
             __DIR__.'/../routes/staff/program_head/lessons_competency.php',
-           
-            
+
             __DIR__.'/../routes/admission/enrollment-settings.php',
 
             /*
@@ -226,18 +213,17 @@ return Application::configure(basePath: dirname(__DIR__))
 
             __DIR__.'/../routes/modular_routing/settings.php',
 
-            
-            /*Reusable routes*/
+            /* Reusable routes */
             __DIR__.'/../routes/reusable/assignable.php',
 
-            /*Finance routes*/
+            /* Finance routes */
             __DIR__.'/../routes/finance/payments.php',
             __DIR__.'/../routes/finance/billing.php',
             __DIR__.'/../routes/finance/accounts.php',
             __DIR__.'/../routes/student/finance.php',
             __DIR__.'/../routes/checkout.php',
 
-            /*Tools routes*/
+            /* Tools routes */
             __DIR__.'/../routes/tools/index.php',
             __DIR__.'/../routes/tools/scientific-calculator.php',
             __DIR__.'/../routes/tools/editpdf.php',
@@ -262,15 +248,14 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/tools/video-conference/permissions.php',
             __DIR__.'/../routes/tools/video-conference/history.php',
 
-            /*Scheduler routes*/
+            /* Scheduler routes */
             __DIR__.'/../routes/scheduler/scheduler.php',
 
-            /*Guidance Counselor routes*/
+            /* Guidance Counselor routes */
             __DIR__.'/../routes/guidance_counselor/dashboard.php',
 
-            /*Website routes*/
+            /* Website routes */
             __DIR__.'/../routes/website/file.php',
-
 
         ],
 
@@ -278,7 +263,6 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
-
 
     ->withMiddleware(function (Middleware $middleware) {
 
@@ -292,18 +276,17 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
 
-            'school.resolve'   => \App\Http\Middleware\ResolveSchoolFromHost::class,
-            'role'             => \App\Http\Middleware\CheckRole::class,
-            '2fa'              => \App\Http\Middleware\TwoFactorMiddleware::class,
-            'subscription'     => \App\Http\Middleware\CheckSubscription::class,
-            'multi_redirect'   => \App\Http\Middleware\RedirectAfterLogin::class,
-            'school.active'    => \App\Http\Middleware\EnsureSchoolIsActive::class,
-            'enrollment.open'  => \App\Http\Middleware\EnsureEnrollmentOpen::class,
+            'school.resolve' => \App\Http\Middleware\ResolveSchoolFromHost::class,
+            'role' => \App\Http\Middleware\CheckRole::class,
+            '2fa' => \App\Http\Middleware\TwoFactorMiddleware::class,
+            'subscription' => \App\Http\Middleware\CheckSubscription::class,
+            'multi_redirect' => \App\Http\Middleware\RedirectAfterLogin::class,
+            'school.active' => \App\Http\Middleware\EnsureSchoolIsActive::class,
+            'enrollment.open' => \App\Http\Middleware\EnsureEnrollmentOpen::class,
 
         ]);
 
     })
-
 
     ->withExceptions(function (Exceptions $exceptions) {
         // Session expired / CSRF mismatch (HTTP 419):
@@ -319,6 +302,5 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
     })
-
 
     ->create();

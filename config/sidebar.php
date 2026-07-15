@@ -341,7 +341,7 @@ return [
 
                 [
                     'label' => 'Attendance',
-                    'route' => '#',
+                    'route' => 'teacher.attendance.index',
                     'icon'  => 'calendar-check',
                 ],
 
