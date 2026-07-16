@@ -2,6 +2,8 @@
 
 @section('page-subtitle', 'Define where your questions belong')
 
+@section('page-title', 'Question Metadata')
+
 @section('content')
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
@@ -13,6 +15,10 @@
 <div class="dashboard-content-rail">
   <div class="main-content-container">
 
+    <div style="margin-bottom: 20px;">
+      <h1 class="text-2xl font-bold text-slate-800">Question Metadata</h1>
+    </div>
+
     <form id="question-metadataForm" action="{{ route('teacher.question.metadata.save') }}" method="POST">
       @csrf
 
@@ -22,10 +28,12 @@
              single-select since a question carries exactly one level). --}}
         <div class="ti-card">
           <h2>Assessment Level</h2>
-          @include('components.level-cascade-single', [
-              'levelTree'    => $levelTree,
-              'levelsByNode' => $levelsByNode,
-              'name'         => 'academic_level_id',
+          @include('components.education-levels', [
+              'levelTree'      => $levelTree,
+              'levelsByNode'   => $levelsByNode,
+              'academicLevels' => $academicLevels,
+              'multiple'       => false,
+              'name'           => 'academic_level_id',
           ])
         </div>
 

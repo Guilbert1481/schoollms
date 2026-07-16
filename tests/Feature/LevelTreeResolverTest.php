@@ -53,7 +53,7 @@ class LevelTreeResolverTest extends TestCase
         }
     }
 
-    private function node(string $name, string $type, ?int $parentId = null, int $order = 0): int
+    private function node(string $name, string $type, ?int $parentId = null, int $order = 0, bool $offered = true): int
     {
         return DB::table('education_nodes')->insertGetId([
             'name' => $name,
@@ -61,6 +61,7 @@ class LevelTreeResolverTest extends TestCase
             'node_type' => $type,
             'order_index' => $order,
             'is_active' => true,
+            'is_offered' => $offered,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -147,6 +148,20 @@ class LevelTreeResolverTest extends TestCase
 
         $this->assertEqualsCanonicalizing(['Training', 'Review'], $this->levelNames($map, $training));
         $this->assertSame(['Review'], $this->levelNames($map, $review));
+    }
+
+    public function test_non_offered_roots_are_excluded_from_the_tree(): void
+    {
+        $offered = $this->node('Basic Education', 'level', null, 0, offered: true);
+        $notOffered = $this->node('Undergraduate Programs', 'level', null, 1, offered: false);
+        // An offered child under the non-offered root must NOT surface either.
+        $this->node('BSED - Math', 'stage', $notOffered, 0, offered: true);
+
+        $tree = (new LevelTreeResolver)->tree();
+        $ids = array_column($tree, 'id');
+
+        $this->assertContains($offered, $ids);
+        $this->assertNotContains($notOffered, $ids);
     }
 
     public function test_tree_marks_grade_leaf_parents_as_not_drillable(): void

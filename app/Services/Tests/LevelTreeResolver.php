@@ -77,10 +77,18 @@ class LevelTreeResolver
 
     /* ------------------------------------------------------------------ */
 
+    /**
+     * Only nodes the school actually offers (is_offered) feed the picker — the
+     * same rule the admin tree advertises ("Only checked items will appear") and
+     * the enrollment cascade uses. A non-offered node also blocks its subtree:
+     * its offered children point at an excluded parent, so buildBranch never
+     * reaches them (correct — nothing under an unchecked level should show).
+     */
     private function activeNodes(): Collection
     {
         return EducationNode::query()
             ->where('is_active', true)
+            ->where('is_offered', true)
             ->orderBy('order_index')
             ->orderBy('id')
             ->get(['id', 'name', 'node_type', 'parent_id']);
