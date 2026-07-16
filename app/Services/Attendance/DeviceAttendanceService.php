@@ -32,7 +32,10 @@ class DeviceAttendanceService
     /** Enrolment statuses that put a student on a live daily roster. */
     private const ROSTER_STATUSES = ['enrolled', 'provisionally_enrolled'];
 
-    public function __construct(private AttendanceIngestionService $ingest) {}
+    public function __construct(
+        private AttendanceIngestionService $ingest,
+        private AttendanceSettingResolver $settings,
+    ) {}
 
     /**
      * @return array{ok: bool, message: string, status?: string}
@@ -89,6 +92,8 @@ class DeviceAttendanceService
             return $this->fail('Student is not enrolled in this class.');
         }
 
+        $setting = $this->settings->forContext($schoolId, AttendanceRecord::SCOPE_SESSION, $classId);
+
         $record = $this->ingest->record([
             'school_id' => $schoolId,
             'scope' => AttendanceRecord::SCOPE_SESSION,
@@ -99,6 +104,8 @@ class DeviceAttendanceService
             'attendance_date' => now()->toDateString(),
             'time_in' => $timeIn,
             'method' => $method,
+            'late_after' => $setting->late_after,
+            'grace_minutes' => (int) $setting->grace_minutes,
         ]);
 
         return $this->ok($record->status);
@@ -121,6 +128,8 @@ class DeviceAttendanceService
             return $this->fail('Student is not enrolled in this section.');
         }
 
+        $setting = $this->settings->forContext($schoolId, AttendanceRecord::SCOPE_DAILY, $sectionId);
+
         $record = $this->ingest->record([
             'school_id' => $schoolId,
             'scope' => AttendanceRecord::SCOPE_DAILY,
@@ -131,6 +140,8 @@ class DeviceAttendanceService
             'attendance_date' => now()->toDateString(),
             'time_in' => $timeIn,
             'method' => $method,
+            'late_after' => $setting->late_after,
+            'grace_minutes' => (int) $setting->grace_minutes,
         ]);
 
         return $this->ok($record->status);

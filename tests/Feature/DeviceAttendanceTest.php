@@ -165,4 +165,29 @@ class DeviceAttendanceTest extends TestCase
 
         $this->assertDatabaseCount('attendance_records', 0);
     }
+
+    public function test_a_late_arrival_is_derived_from_the_level_rule(): void
+    {
+        [$school, $host] = $this->schoolWithHost();
+        [$classId, $studentId, $number] = $this->sessionScenario($school);
+
+        // The class's section is year_level 1 → higher-ed level 1; give that level
+        // a "late after 08:00" rule so a 09:00 sighting must resolve to late.
+        $levelId = DB::table('academic_levels')->insertGetId([
+            'school_id' => $school->id, 'name' => 'Year 1', 'sequence_order' => 1, 'type' => 'higher',
+        ]);
+        DB::table('attendance_settings')->insert([
+            'school_id' => $school->id, 'academic_level_id' => $levelId, 'capture_mode' => 'session',
+            'allow_manual' => 1, 'allow_qr' => 1, 'allow_biometric' => 1, 'allow_facial' => 1,
+            'late_after' => '08:00:00', 'grace_minutes' => 0, 'half_day_enabled' => 0, 'qr_rotation_seconds' => 10,
+        ]);
+
+        $this->send($host, ['context' => "session:{$classId}", 'student_number' => $number, 'method' => 'biometric', 'time' => '09:00'])
+            ->assertOk()
+            ->assertJson(['ok' => true, 'status' => 'late']);
+
+        $this->assertDatabaseHas('attendance_records', [
+            'student_id' => $studentId, 'class_id' => $classId, 'method' => 'biometric', 'status' => 'late',
+        ]);
+    }
 }

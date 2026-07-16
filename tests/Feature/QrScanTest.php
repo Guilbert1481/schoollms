@@ -124,4 +124,35 @@ class QrScanTest extends TestCase
             ->getJson(route('teacher.attendance.live.qr', ['type' => 'session', 'class_id' => $classId]))
             ->assertNotFound();
     }
+
+    public function test_a_scan_after_the_cutoff_is_marked_late(): void
+    {
+        $school = School::factory()->create();
+        [$classId, $studentUser, $student] = $this->scenario($school);
+        $context = "session:{$classId}";
+
+        // The section is year_level 1 → higher-ed level 1; give that level a
+        // "late after 08:00" rule so a 09:00 scan resolves to late, not present.
+        $levelId = DB::table('academic_levels')->insertGetId([
+            'school_id' => $school->id, 'name' => 'Year 1', 'sequence_order' => 1, 'type' => 'higher',
+        ]);
+        DB::table('attendance_settings')->insert([
+            'school_id' => $school->id, 'academic_level_id' => $levelId, 'capture_mode' => 'session',
+            'allow_manual' => 1, 'allow_qr' => 1, 'allow_biometric' => 0, 'allow_facial' => 0,
+            'late_after' => '08:00:00', 'grace_minutes' => 0, 'half_day_enabled' => 0, 'qr_rotation_seconds' => 10,
+        ]);
+
+        \Illuminate\Support\Carbon::setTestNow('2026-07-16 09:00:00');
+        $token = $this->token($context); // mint under the frozen clock so verify matches
+
+        $this->actingAs($studentUser)
+            ->get(route('attendance.scan', ['c' => $context, 't' => $token]))
+            ->assertOk()->assertSee('Checked in');
+
+        $this->assertDatabaseHas('attendance_records', [
+            'student_id' => $student->id, 'class_id' => $classId, 'method' => 'qr', 'status' => 'late',
+        ]);
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
 }

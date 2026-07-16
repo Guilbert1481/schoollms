@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Services\Attendance\AttendanceIngestionService;
+use App\Services\Attendance\AttendanceSettingResolver;
 use App\Services\Attendance\QrAttendanceTokenService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  */
 class ScanAttendanceController extends Controller
 {
-    public function scan(Request $request, QrAttendanceTokenService $tokens, AttendanceIngestionService $ingest)
+    public function scan(Request $request, QrAttendanceTokenService $tokens, AttendanceIngestionService $ingest, AttendanceSettingResolver $settings)
     {
         $context = (string) $request->query('c', '');
         $token = (string) $request->query('t', '');
@@ -35,15 +36,15 @@ class ScanAttendanceController extends Controller
         [$scope, $id] = array_pad(explode(':', $context, 2), 2, null);
 
         return match ($scope) {
-            'session' => $this->recordSession($student, (int) $id, $ingest),
-            'daily' => $this->recordDaily($student, (int) $id, $ingest),
+            'session' => $this->recordSession($student, (int) $id, $ingest, $settings),
+            'daily' => $this->recordDaily($student, (int) $id, $ingest, $settings),
             default => $this->result(false, 'Unrecognized code.'),
         };
     }
 
     /* ------------------------------------------------------------------ */
 
-    private function recordSession(Student $student, int $classId, AttendanceIngestionService $ingest)
+    private function recordSession(Student $student, int $classId, AttendanceIngestionService $ingest, AttendanceSettingResolver $settings)
     {
         $class = DB::table('classes')->where('id', $classId)->first(['id', 'section_id', 'term_id', 'subject_id']);
         if (! $class) {
@@ -58,6 +59,9 @@ class ScanAttendanceController extends Controller
             return $this->result(false, "You're not enrolled in this class.");
         }
 
+        // The level's late rule turns the scan time into present-vs-late.
+        $setting = $settings->forContext((int) $student->school_id, 'session', $classId);
+
         $ingest->record([
             'scope' => 'session',
             'student_id' => $student->id,
@@ -67,12 +71,14 @@ class ScanAttendanceController extends Controller
             'attendance_date' => now()->toDateString(),
             'time_in' => now()->format('H:i'),
             'method' => 'qr',
+            'late_after' => $setting->late_after,
+            'grace_minutes' => (int) $setting->grace_minutes,
         ]);
 
         return $this->result(true, 'Checked in. Your attendance is recorded.');
     }
 
-    private function recordDaily(Student $student, int $sectionId, AttendanceIngestionService $ingest)
+    private function recordDaily(Student $student, int $sectionId, AttendanceIngestionService $ingest, AttendanceSettingResolver $settings)
     {
         $section = DB::table('sections')->where('id', $sectionId)->first(['id', 'term_id']);
         $enrollment = DB::table('student_enrollments')
@@ -84,6 +90,9 @@ class ScanAttendanceController extends Controller
             return $this->result(false, "You're not enrolled in this section.");
         }
 
+        // The level's late rule turns the scan time into present-vs-late.
+        $setting = $settings->forContext((int) $student->school_id, 'daily', $sectionId);
+
         $ingest->record([
             'scope' => 'daily',
             'student_id' => $student->id,
@@ -93,6 +102,8 @@ class ScanAttendanceController extends Controller
             'attendance_date' => now()->toDateString(),
             'time_in' => now()->format('H:i'),
             'method' => 'qr',
+            'late_after' => $setting->late_after,
+            'grace_minutes' => (int) $setting->grace_minutes,
         ]);
 
         return $this->result(true, 'Checked in. Your attendance is recorded.');
