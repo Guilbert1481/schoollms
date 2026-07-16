@@ -15,59 +15,69 @@
 
     <form id="question-metadataForm" action="{{ route('teacher.question.metadata.save') }}" method="POST">
       @csrf
-      
+
       <div class="ti-layout">
 
-        <!-- LEFT -->
+        {{-- LEFT — Assessment Level (mirrors the Test Builder's Test Controls;
+             single-select since a question carries exactly one level). --}}
+        <div class="ti-card">
+          <h2>Assessment Level</h2>
+          @include('components.level-cascade-single', [
+              'levelTree'    => $levelTree,
+              'levelsByNode' => $levelsByNode,
+              'name'         => 'academic_level_id',
+          ])
+        </div>
+
+        {{-- RIGHT — Question Classification (the Test Builder's Test Source:
+             Subject → Topic → Lesson → Competency, ungated for authoring). --}}
         <div class="ti-card">
           <h2>Question Classification</h2>
           @include('components.cascading-dropdown', ['subjects' => $subjects])
         </div>
 
-        <!-- RIGHT -->
-        <div class="ti-card">
-          <h2>Question Settings</h2>
+      </div>
 
-          <select id="academic_level_id" name="academic_level_id" required>
-              <option value="">Select</option>
-              @foreach($academicLevels as $level)
-                  <option value="{{ $level->id }}">{{ $level->name }}</option>
-              @endforeach
+      {{-- Question Type + Proceed (full-width action row, like the Test
+           Builder's Render row below its two cards). --}}
+      <div class="qm-action-row">
+        <div class="qm-qtype">
+          <label for="qm-question-type">Question Type</label>
+          <select id="qm-question-type" name="question_type" class="ti-input" required>
+            <option value="">Select</option>
+            <option value="mcq">Multiple Choice</option>
+            <option value="true_or_false">True / False</option>
+            <option value="mtf">Modified True / False</option>
+            <option value="identification">Identification</option>
+            <option value="fib">Fill in the Blank</option>
+            <option value="matching">Matching Type</option>
+            <option value="enumeration">Enumeration</option>
+            <option value="essay">Essay</option>
           </select>
-
-
-
-          <div class="form-row">
-            <label>Question Type</label>
-            <select name="question_type" class="ti-input" required>
-              <option value="">Select</option>
-              <option value="mcq">Multiple Choice</option>
-              <option value="true_or_false">True / False</option>
-              <option value="mtf">Modified  True / False</option>
-              <option value="identification">Identification</option>
-              <option value="fib">Fill in the Blank</option>
-              <option value="matching">Matching Type</option>
-              <option value="enumeration">Enumeration</option>
-              <option value="essay">Essay</option>
-            </select>
-          </div>
-
-          <div class="ti-actions">
-            <button type="submit" class="ti-btn-primary">Proceed</button>
-            </a>
-          </div>
         </div>
 
+        <button type="submit" class="ti-btn-primary">Proceed</button>
       </div>
+
     </form>
 
   </div>
 </div>
 
-
+<style>
+  /* Action row under the two cards — Question Type + Proceed. */
+  .qm-action-row {
+      margin-top: 24px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+  }
+  .qm-action-row .qm-qtype { min-width: 260px; }
+  .qm-action-row .qm-qtype label { display: block; margin-bottom: 6px; }
+</style>
 
 <script src="{{ asset('js/tests/question-metadata.js') }}"></script>
-
-
 
 @endsection
