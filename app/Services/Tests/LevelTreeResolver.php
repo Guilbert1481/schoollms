@@ -117,21 +117,19 @@ class LevelTreeResolver
     }
 
     /**
-     * A node is worth drilling into only when at least one child is NOT a
-     * terminal grade/year leaf — otherwise the checkbox picker already lists
-     * those leaves and a sub-dropdown would just duplicate them.
+     * Drill into a node only when a child has its OWN children — a deeper
+     * structural branch that actually needs a sub-dropdown. Leaf children never
+     * warrant one: the mappable ones (Grade 6, Kinder) already show in the
+     * grade/year picker, and the non-mappable ones (Toddler, Nursery) have no
+     * questions. So Preschool → [Toddler, Nursery, Kindergarten] just offers
+     * "Kinder" in the picker instead of a redundant Toddler/Nursery dropdown.
      *
      * @param  array<int, array<string, mixed>>  $children
      */
     private function isDrillable(array $children): bool
     {
-        if (empty($children)) {
-            return false;
-        }
-
         foreach ($children as $c) {
-            $isLevelLeaf = empty($c['children']) && $this->normalise($c['name']) !== null;
-            if (! $isLevelLeaf) {
+            if (! empty($c['children'])) {
                 return true;
             }
         }

@@ -164,6 +164,24 @@ class LevelTreeResolverTest extends TestCase
         $this->assertNotContains($notOffered, $ids);
     }
 
+    public function test_leaf_children_that_map_to_nothing_do_not_make_a_node_drillable(): void
+    {
+        // Preschool → Toddler/Nursery (no level) + Kindergarten (→ Kinder). None
+        // have children, so no redundant sub-dropdown — the picker just offers Kinder.
+        $basic = $this->node('Basic Education', 'level');
+        $pre = $this->node('Preschool', 'stage', $basic);
+        $this->node('Toddler', 'stage', $pre, 1);
+        $this->node('Nursery', 'stage', $pre, 2);
+        $this->node('Kindergarten', 'stage', $pre, 3);
+
+        $resolver = new LevelTreeResolver;
+        $tree = $resolver->tree();
+        $preNode = collect(collect($tree)->firstWhere('id', $basic)['children'])->firstWhere('id', $pre);
+
+        $this->assertFalse($preNode['drillable']);
+        $this->assertSame(['Kinder'], $this->levelNames($resolver->levelsByNode($this->schoolId), $pre));
+    }
+
     public function test_tree_marks_grade_leaf_parents_as_not_drillable(): void
     {
         $basic = $this->node('Basic Education', 'level');
