@@ -49,6 +49,7 @@ return [
         'registrar' => [
             'registrar_validate_enrollment',
             'registrar_student_registry',
+            'registrar_teaching_assignments',
             'registrar_subject_credits',
             'registrar_transcripts',
             'communication',
@@ -562,6 +563,14 @@ return [
             'label'  => 'Student Registry',
             'route'  => 'registrar.student-registry.index',
             'active' => 'registrar.student-registry.*',
+            'roles'  => ['registrar'],
+        ],
+
+        'registrar_teaching_assignments' => [
+            'icon'   => 'user-check',
+            'label'  => 'Teaching Assignments',
+            'route'  => 'registrar.teaching-assignments.index',
+            'active' => 'registrar.teaching-assignments.*',
             'roles'  => ['registrar'],
         ],
 
