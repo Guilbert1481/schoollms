@@ -44,9 +44,23 @@
     </div>
 
     @if ($context)
-        @if (! $context['setting'])
+        {{-- Basic ed grades per grading period — let the teacher pick which. --}}
+        @if ($context['track'] === 'basic')
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-slate-600">Grading period:</span>
+                @foreach ([1 => '1st', 2 => '2nd', 3 => '3rd', 4 => '4th'] as $p => $label)
+                    <a href="{{ route('teacher.gradebook.index', ['class_id' => $context['class']->id, 'period' => $p]) }}"
+                        class="rounded-lg px-3 py-1.5 text-sm font-medium {{ $context['period'] === $p ? 'bg-slate-800 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50' }}">
+                        {{ $label }}
+                    </a>
+                @endforeach
+            </div>
+        @endif
+
+        @if (! $context['has_scheme'])
             <div class="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-6 text-sm text-amber-800">
-                No grading scheme is configured for this class's level yet. Ask your Dean to set one up under
+                No grading scheme is configured for this class's level yet. Ask your
+                <span class="font-semibold">{{ $context['track'] === 'basic' ? 'Principal' : 'Dean' }}</span> to set one up under
                 <span class="font-semibold">Settings → Grading Scheme</span> before entering grades.
             </div>
         @elseif ($context['roster']->isEmpty())
@@ -57,12 +71,16 @@
             <form method="POST" action="{{ route('teacher.gradebook.draft') }}">
                 @csrf
                 <input type="hidden" name="class_id" value="{{ $context['class']->id }}">
+                @if ($context['track'] === 'basic')
+                    <input type="hidden" name="period" value="{{ $context['period'] }}">
+                @endif
 
                 <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                         <h2 class="text-lg font-semibold text-slate-800">
                             {{ $context['class']->subject->name ?? $context['class']->code }}
                             @if ($context['class']->section) — {{ $context['class']->section->name }} @endif
+                            @if ($context['track'] === 'basic') <span class="text-sm font-normal text-slate-400">· Q{{ $context['period'] }}</span> @endif
                         </h2>
                         <span class="text-sm text-slate-500">{{ $context['roster']->count() }} student(s)</span>
                     </div>

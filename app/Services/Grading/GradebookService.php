@@ -245,6 +245,169 @@ class GradebookService
         return $results;
     }
 
+    /* ------------------------------------- Basic ed, per section (a class) */
+
+    /**
+     * Which track a class grades on. Higher ed materialises subject enrolments
+     * (student_enrollment_subjects); basic ed does not — its students carry an
+     * education node on their enrolment instead. Defaults to higher when neither
+     * signal is present (an empty class).
+     */
+    public function classTrack(ClassModel $class): string
+    {
+        if (DB::table('student_enrollment_subjects')->where('class_id', $class->id)->exists()) {
+            return 'higher';
+        }
+
+        $basic = DB::table('student_enrollments')
+            ->where('section_id', $class->section_id)
+            ->whereNotNull('education_node_id')
+            ->whereIn('status', ['enrolled', 'provisionally_enrolled'])
+            ->exists();
+
+        return $basic ? 'basic' : 'higher';
+    }
+
+    /**
+     * The basic-ed context for a class: the section's education node, its academic
+     * year, and the resolved grading scheme. Null when the section has no basic-ed
+     * enrolments or no scheme is configured. A section is taken to be one grade
+     * level, so the first enrolment's node represents the whole roster.
+     *
+     * @return array{node_id: int, academic_year_id: int, setting: GradingSetting}|null
+     */
+    public function basicContext(ClassModel $class): ?array
+    {
+        $rep = DB::table('student_enrollments')
+            ->where('section_id', $class->section_id)
+            ->whereNotNull('education_node_id')
+            ->whereIn('status', ['enrolled', 'provisionally_enrolled'])
+            ->orderBy('id')
+            ->first(['education_node_id', 'academic_year_id']);
+
+        if (! $rep) {
+            return null;
+        }
+
+        $setting = $this->resolver->forNode((int) $class->school_id, (int) $rep->education_node_id);
+        if (! $setting) {
+            return null;
+        }
+
+        return [
+            'node_id' => (int) $rep->education_node_id,
+            'academic_year_id' => (int) $rep->academic_year_id,
+            'setting' => $setting,
+        ];
+    }
+
+    /**
+     * Save draft scores for a basic-ed class in a grading period. Delegates to the
+     * node-scoped saver using the section's node + the class's learning area.
+     *
+     * @param  ScoreMap  $scores
+     */
+    public function saveClassBasicScores(ClassModel $class, int $period, array $scores, ?int $recordedBy = null): void
+    {
+        $ctx = $this->basicContext($class);
+        if (! $ctx) {
+            return;
+        }
+
+        $this->saveNodeScores((int) $class->school_id, $ctx['node_id'], (int) $class->subject_id, $period, $scores, $recordedBy);
+    }
+
+    /**
+     * Post finals for a basic-ed class/period into report_card_grades — scoped to
+     * THIS class's section (not the whole grade level), so a teacher only grades
+     * the students they teach. Only complete grades are written.
+     *
+     * @return array<int, GradeResult>
+     */
+    public function postClassBasic(ClassModel $class, int $period, ?int $recordedBy = null): array
+    {
+        $results = [];
+        foreach ($this->computeClassBasic($class, $period) as $row) {
+            $results[$row['student_id']] = $row['result'];
+
+            if ($row['result']->isComplete && $row['result']->final !== null) {
+                ReportCardGrade::updateOrCreate(
+                    [
+                        'student_id' => $row['student_id'],
+                        'education_node_id' => $row['node_id'],
+                        'subject_id' => (int) $class->subject_id,
+                        'academic_year_id' => $row['academic_year_id'],
+                        'grading_period' => $period,
+                    ],
+                    ['school_id' => (int) $class->school_id, 'final_grade' => $row['result']->final, 'recorded_by' => $recordedBy],
+                );
+            }
+        }
+
+        return $results;
+    }
+
+    /** @return array<int, GradeResult> */
+    public function previewClassBasic(ClassModel $class, int $period): array
+    {
+        $results = [];
+        foreach ($this->computeClassBasic($class, $period) as $row) {
+            $results[$row['student_id']] = $row['result'];
+        }
+
+        return $results;
+    }
+
+    /**
+     * Compute loop for a basic-ed class/period over the section's roster.
+     *
+     * @return list<array{student_id: int, node_id: int, academic_year_id: int, result: GradeResult}>
+     */
+    private function computeClassBasic(ClassModel $class, int $period): array
+    {
+        $ctx = $this->basicContext($class);
+        if (! $ctx) {
+            return [];
+        }
+
+        $setting = $ctx['setting'];
+        $weights = $this->weights($setting);
+        $attWeight = (float) $setting->attendance_weight;
+        $expectedDays = $attWeight > 0 ? $this->expectedDaysForNode((int) $class->school_id, $ctx['node_id']) : 0;
+
+        $students = DB::table('student_enrollments')
+            ->where('section_id', $class->section_id)
+            ->where('education_node_id', $ctx['node_id'])
+            ->whereIn('status', ['enrolled', 'provisionally_enrolled'])
+            ->get(['student_id', 'section_id', 'academic_year_id']);
+
+        $out = [];
+        foreach ($students as $e) {
+            $scores = $this->scoresFor(
+                [
+                    'education_node_id' => $ctx['node_id'],
+                    'subject_id' => (int) $class->subject_id,
+                    'grading_period' => $period,
+                    'student_id' => $e->student_id,
+                ],
+                array_keys($weights),
+            );
+
+            $rate = ($attWeight > 0 && $expectedDays > 0 && $e->section_id)
+                ? $this->rates->dailyRate((int) $e->student_id, (int) $e->section_id, $expectedDays, (int) $e->academic_year_id)
+                : null;
+
+            $out[] = [
+                'student_id' => (int) $e->student_id,
+                'node_id' => $ctx['node_id'],
+                'academic_year_id' => (int) $e->academic_year_id,
+                'result' => $this->engine->compute($weights, $scores, (float) $setting->passing_mark, $attWeight, $rate),
+            ];
+        }
+
+        return $out;
+    }
+
     /* ------------------------------------------------------------------ */
 
     /** @return array<int, float> [componentId => weight] */
