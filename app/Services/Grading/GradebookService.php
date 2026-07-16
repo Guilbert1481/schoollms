@@ -77,6 +77,47 @@ class GradebookService
      */
     public function postClass(ClassModel $class): array
     {
+        $results = [];
+        foreach ($this->computeClass($class) as $row) {
+            $results[$row['student_id']] = $row['result'];
+
+            if ($row['result']->isComplete && $row['result']->final !== null) {
+                DB::table('student_enrollment_subjects')->where('id', $row['ses_id'])->update([
+                    'final_grade' => $row['result']->final,
+                    'grade' => $row['result']->final,
+                    'status' => $row['result']->passed ? 'passed' : 'failed',
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Compute (without writing) the current finals for a class, so the gradebook
+     * can show the standing before a teacher posts.
+     *
+     * @return array<int, GradeResult>
+     */
+    public function previewClass(ClassModel $class): array
+    {
+        $results = [];
+        foreach ($this->computeClass($class) as $row) {
+            $results[$row['student_id']] = $row['result'];
+        }
+
+        return $results;
+    }
+
+    /**
+     * The compute loop shared by post and preview: each roster row with its
+     * enrolment-subject id and computed GradeResult. Empty when no scheme.
+     *
+     * @return list<array{student_id: int, ses_id: int, result: GradeResult}>
+     */
+    private function computeClass(ClassModel $class): array
+    {
         $setting = $this->resolver->forClass($class);
         if (! $setting) {
             return [];
@@ -90,7 +131,7 @@ class GradebookService
             ->where('ses.class_id', $class->id)
             ->get(['ses.id as ses_id', 'e.student_id']);
 
-        $results = [];
+        $out = [];
         foreach ($rows as $row) {
             $scores = $this->scoresFor(
                 ['class_id' => $class->id, 'student_id' => $row->student_id],
@@ -98,20 +139,14 @@ class GradebookService
             );
             $rate = $attWeight > 0 ? $this->rates->sessionRate((int) $row->student_id, (int) $class->id) : null;
 
-            $result = $this->engine->compute($weights, $scores, (float) $setting->passing_mark, $attWeight, $rate);
-            $results[(int) $row->student_id] = $result;
-
-            if ($result->isComplete && $result->final !== null) {
-                DB::table('student_enrollment_subjects')->where('id', $row->ses_id)->update([
-                    'final_grade' => $result->final,
-                    'grade' => $result->final,
-                    'status' => $result->passed ? 'passed' : 'failed',
-                    'updated_at' => now(),
-                ]);
-            }
+            $out[] = [
+                'student_id' => (int) $row->student_id,
+                'ses_id' => (int) $row->ses_id,
+                'result' => $this->engine->compute($weights, $scores, (float) $setting->passing_mark, $attWeight, $rate),
+            ];
         }
 
-        return $results;
+        return $out;
     }
 
     /* ---------------------------------------------------------- Basic ed */

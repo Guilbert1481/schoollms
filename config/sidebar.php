@@ -347,7 +347,7 @@ return [
 
                 [
                     'label' => 'Grades',
-                    'route' => '#',
+                    'route' => 'teacher.gradebook.index',
                     'icon'  => 'clipboard-list',
                 ],
 
