@@ -54,6 +54,7 @@ class DeviceAttendanceTest extends TestCase
     private function sessionScenario(School $school, bool $enroll = true): array
     {
         $termId = $this->term($school);
+        $ayId = DB::table('academic_years')->insertGetId(['school_id' => $school->id, 'name' => '2026-2027']);
         $sectionId = DB::table('sections')->insertGetId(['school_id' => $school->id, 'term_id' => $termId, 'name' => 'BSIT', 'year_level' => 1]);
         $subjectId = DB::table('subjects')->insertGetId(['school_id' => $school->id, 'code' => 'IT101', 'name' => 'IT']);
         $teacher = User::factory()->create(['school_id' => $school->id, 'role' => 'teacher']);
@@ -66,7 +67,8 @@ class DeviceAttendanceTest extends TestCase
 
         if ($enroll) {
             $enrollmentId = DB::table('student_enrollments')->insertGetId([
-                'school_id' => $school->id, 'student_id' => $studentId, 'term_id' => $termId, 'section_id' => $sectionId, 'status' => 'enrolled',
+                'school_id' => $school->id, 'student_id' => $studentId, 'academic_year_id' => $ayId,
+                'term_id' => $termId, 'section_id' => $sectionId, 'status' => 'enrolled',
             ]);
             DB::table('student_enrollment_subjects')->insert([
                 'student_enrollment_id' => $enrollmentId, 'class_id' => $classId, 'subject_id' => $subjectId, 'status' => 'enrolled',
