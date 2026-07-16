@@ -5,13 +5,15 @@
 
 <div class="cd-wrapper">
 
+    {{-- Subject is gated on the Assessment Levels picker: it stays disabled
+         until a grade/year level is chosen, then it's populated (by
+         testBuilder.js) with only the subjects that have questions at that
+         level. data-selected carries the saved subject for the edit page. --}}
     <div class="form-row">
         <label for="cd-subject">Subject</label>
-        <select id="cd-subject" name="subject_id" required>
-            <option value="">Select Subject</option>
-            @foreach ($subjects as $subject)
-                <option value="{{ $subject->id }}">{{ $subject->name }}</option>
-            @endforeach
+        <select id="cd-subject" name="subject_id" required disabled
+                data-selected="{{ optional($test ?? null)->subject_id }}">
+            <option value="">Select grade / year level first</option>
         </select>
     </div>
 

@@ -20,19 +20,9 @@
         =============================== --}}
         <div class="test-source-grid">
         
-        <!-- LEFT -->
-        <div class="card">
-            <h2 style="margin-left:25px">Test Source</h2>
-
-            <div class="test-source-card">
-            @include('components.testBuilder-cascadeDropdown', [
-                'showCompetency' => false
-            ])
-            </div>
-        </div>
-        
         {{-- ===============================
-            RENDER AVAILABILITY
+            TEST CONTROLS — shown first so the teacher sets difficulty + levels
+            before the source (the levels drive the Subject list).
         =============================== --}}
         <div class="card">
             <h2 style="margin-left:25px">Test Controls</h2>
@@ -169,6 +159,10 @@
                                     input.hidden = true;
                                     chipsWrap.appendChild(input);
                                 });
+
+                                // Level selection is the source of truth for the Subject
+                                // dropdown — tell the builder to refresh it.
+                                document.dispatchEvent(new CustomEvent('assessment-levels:changed'));
                             }
 
                             chipsWrap.addEventListener('click', (e) => {
@@ -268,6 +262,19 @@
                         </div>
                     @endif
                 </div>
+            </div>
+        </div>
+
+        {{-- ===============================
+            TEST SOURCE — second; its Subject list is gated by the levels above.
+        =============================== --}}
+        <div class="card">
+            <h2 style="margin-left:25px">Test Source</h2>
+
+            <div class="test-source-card">
+            @include('components.testBuilder-cascadeDropdown', [
+                'showCompetency' => false
+            ])
             </div>
         </div>
         </div>

@@ -154,6 +154,31 @@ class TestBuilderController extends Controller
     }
 
     /* ===============================
+       GET AVAILABLE SUBJECTS BY LEVEL
+       Level gates the Subject list: only subjects that actually have questions
+       tagged at the selected academic_level(s) are returned, so the dropdown is
+       scoped instead of dumping the school's whole subject catalogue.
+    =============================== */
+    public function getAvailableSubjects(Request $request)
+    {
+        $academicLevels = array_filter((array) $request->input('academic_levels', []));
+
+        // Level is the source of truth — no level picked, no subjects.
+        if (empty($academicLevels)) {
+            return response()->json([]);
+        }
+
+        $subjects = SubjectScope::applyTo(Subject::query())
+            ->whereHas('topics.questions', function ($q) use ($academicLevels) {
+                $q->whereIn('academic_level_id', $academicLevels);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json($subjects);
+    }
+
+    /* ===============================
        GET AVAILABLE TOPICS BY SUBJECT (Only topics w/ questions)
     =============================== */
     public function getAvailableTopics($subjectId, Request $request)

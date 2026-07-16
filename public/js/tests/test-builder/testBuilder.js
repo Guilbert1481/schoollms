@@ -27,6 +27,79 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =====================
+    // LEVEL-GATED SUBJECTS (Option 1)
+    // The Assessment Levels picker is the source of truth for the Subject list:
+    // Subject stays disabled until a grade/year level is chosen, then it is
+    // populated with only the subjects that have questions in the bank at the
+    // selected level(s). Keeps the dropdown short instead of dumping the whole
+    // subject catalogue.
+    // =====================
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    let subjectReqSeq = 0;
+    async function refreshSubjectsForLevels() {
+        if (!subjectSel) return;
+
+        const levels = Array.from(document.querySelectorAll('input[name="academic_levels[]"]:checked'))
+            .map(cb => cb.value);
+        const preselect = subjectSel.dataset.selected || '';
+
+        if (!levels.length) {
+            subjectSel.innerHTML = '<option value="">Select grade / year level first</option>';
+            subjectSel.disabled = true;
+            subjectSel.dispatchEvent(new Event('change'));
+            return;
+        }
+
+        const query = new URLSearchParams();
+        levels.forEach(v => query.append('academic_levels[]', v));
+
+        // Guard against out-of-order responses when levels are toggled quickly.
+        const seq = ++subjectReqSeq;
+        try {
+            const res = await fetch(`/teacher/tests/available-subjects?${query}`, {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' },
+            });
+            if (seq !== subjectReqSeq) return; // a newer request superseded this one
+            const subjects = res.ok ? await res.json() : [];
+            if (seq !== subjectReqSeq) return;
+
+            if (!Array.isArray(subjects) || !subjects.length) {
+                subjectSel.innerHTML = '<option value="">No subjects have questions at this level yet</option>';
+                subjectSel.disabled = true;
+            } else {
+                subjectSel.innerHTML = '<option value="">Select Subject</option>' +
+                    subjects.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+                subjectSel.disabled = false;
+                if (preselect && subjects.some(s => String(s.id) === String(preselect))) {
+                    subjectSel.value = String(preselect);
+                }
+            }
+        } catch (e) {
+            if (seq !== subjectReqSeq) return;
+            subjectSel.innerHTML = '<option value="">Error loading subjects</option>';
+            subjectSel.disabled = true;
+        }
+
+        // Reset the downstream cascade (topic/lesson/competency) for the new list.
+        subjectSel.dispatchEvent(new Event('change'));
+    }
+
+    // The cascade picker fires this custom event; the flat-list fallback fires a
+    // native change on its academic_levels[] checkboxes.
+    document.addEventListener('assessment-levels:changed', refreshSubjectsForLevels);
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.name === 'academic_levels[]') refreshSubjectsForLevels();
+    });
+
+    // Initial run — covers the edit page where levels are already selected.
+    refreshSubjectsForLevels();
+
+    // =====================
     // RENDER AVAILABILITY
     // =====================
     renderBtn.addEventListener('click', async () => {
