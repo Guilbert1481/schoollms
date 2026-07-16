@@ -33,7 +33,9 @@ class AttendanceIngestionService
      * Optional keys: class_session_id, section_id (session), academic_year_id,
      * term_id, time_in, time_out, status, method, remarks, recorded_by,
      * late_after (HH:MM), grace_minutes — the last two let device/QR capture
-     * derive present-vs-late from the level's rule.
+     * derive present-vs-late from the level's rule — and school_id, for capture
+     * paths with no authenticated user (unattended devices) to set the tenant
+     * explicitly; authed paths omit it and BelongsToSchool stamps it.
      *
      * @param  array<string, mixed>  $data
      */
@@ -88,6 +90,15 @@ class AttendanceIngestionService
             'remarks' => $data['remarks'] ?? null,
             'recorded_by' => $data['recorded_by'] ?? null,
         ];
+
+        // Unattended device capture has no authenticated user for BelongsToSchool
+        // to infer the tenant from, so it passes school_id explicitly and the
+        // upsert is scoped by it. Authed paths (manual, QR) omit school_id and the
+        // trait stamps + scopes exactly as before.
+        if (isset($data['school_id'])) {
+            $match['school_id'] = (int) $data['school_id'];
+            $values['school_id'] = (int) $data['school_id'];
+        }
 
         // BelongsToSchool auto-scopes the lookup and stamps school_id on create,
         // so this can never read or write across tenants.

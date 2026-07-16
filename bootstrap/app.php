@@ -114,6 +114,7 @@ return Application::configure(basePath: dirname(__DIR__))
             |--------------------------------------------------------------------------
             */
             __DIR__.'/../routes/student/dashboard.php',
+            __DIR__.'/../routes/student/attendance.php',
             __DIR__.'/../routes/student/subjects.php',
             __DIR__.'/../routes/student/transcript.php',
             __DIR__.'/../routes/student/applications.php',
@@ -200,6 +201,7 @@ return Application::configure(basePath: dirname(__DIR__))
             |--------------------------------------------------------------------------
             */
             __DIR__.'/../routes/student/enrollment.php',
+            __DIR__.'/../routes/attendance/device.php',
             __DIR__.'/../routes/communication.php',
             __DIR__.'/../routes/superpriority.php',
             __DIR__.'/../routes/profile/photo.php',
@@ -285,6 +287,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'multi_redirect' => \App\Http\Middleware\RedirectAfterLogin::class,
             'school.active' => \App\Http\Middleware\EnsureSchoolIsActive::class,
             'enrollment.open' => \App\Http\Middleware\EnsureEnrollmentOpen::class,
+            'attendance.device' => \App\Http\Middleware\VerifyAttendanceDevice::class,
 
         ]);
 

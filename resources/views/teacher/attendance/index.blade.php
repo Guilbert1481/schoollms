@@ -102,7 +102,16 @@
                     </h2>
                     <p class="text-sm text-slate-500">{{ \Illuminate\Support\Carbon::parse($date)->format('l, F j, Y') }}</p>
                 </div>
-                <span class="text-sm text-slate-500">{{ $roster->count() }} student(s)</span>
+                <div class="flex items-center gap-4">
+                    @php($liveParams = $context['type'] === 'daily'
+                        ? ['type' => 'daily', 'section_id' => $context['section']->id]
+                        : ['type' => 'session', 'class_id' => $context['class']->id])
+                    <a href="{{ route('teacher.attendance.live', $liveParams) }}"
+                        class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+                        QR check-in
+                    </a>
+                    <span class="text-sm text-slate-500">{{ $roster->count() }} student(s)</span>
+                </div>
             </div>
 
             @if ($roster->isEmpty())
