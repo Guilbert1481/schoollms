@@ -46,7 +46,7 @@ class TestBuilderController extends Controller
 
         return view('teacher.tests.testBuilder', [
             'test' => $test,
-            'subjects' => SubjectScope::applyTo(Subject::query())->orderBy('name')->get(),
+            'subjects' => SubjectScope::forTeacher(Subject::query())->orderBy('name')->get(),
             'academicLevels' => $academicLevels,
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
@@ -61,7 +61,7 @@ class TestBuilderController extends Controller
 
         return view('teacher.tests.testBuilder', [
             'test' => null,
-            'subjects' => SubjectScope::applyTo(Subject::query())->orderBy('name')->get(),
+            'subjects' => SubjectScope::forTeacher(Subject::query())->orderBy('name')->get(),
             'academicLevels' => $academicLevels,
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
@@ -81,7 +81,7 @@ class TestBuilderController extends Controller
 
         return view('teacher.tests.testBuilder', [
             'test' => $test,
-            'subjects' => SubjectScope::applyTo(Subject::query())->orderBy('name')->get(),
+            'subjects' => SubjectScope::forTeacher(Subject::query())->orderBy('name')->get(),
             'academicLevels' => $academicLevels,
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
@@ -168,7 +168,7 @@ class TestBuilderController extends Controller
             return response()->json([]);
         }
 
-        $subjects = SubjectScope::applyTo(Subject::query())
+        $subjects = SubjectScope::forTeacher(Subject::query())
             ->whereHas('topics.questions', function ($q) use ($academicLevels) {
                 $q->whereIn('academic_level_id', $academicLevels);
             })

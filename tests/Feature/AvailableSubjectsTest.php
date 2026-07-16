@@ -22,6 +22,8 @@ class AvailableSubjectsTest extends TestCase
 
     private User $teacher;
 
+    private int $profileId;
+
     private array $level = [];
 
     protected function setUp(): void
@@ -34,6 +36,13 @@ class AvailableSubjectsTest extends TestCase
             'role' => 'teacher',
         ]);
 
+        // The Subject dropdown is scoped to the teacher's assigned subjects, so
+        // the teacher needs a profile; subject() below assigns same-school subjects.
+        $this->profileId = DB::table('teacher_profiles')->insertGetId([
+            'user_id' => $this->teacher->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
         foreach (['Grade 7' => 7, 'Grade 8' => 8] as $name => $seq) {
             $this->level[$name] = DB::table('academic_levels')->insertGetId([
                 'school_id' => $this->school->id, 'name' => $name, 'sequence_order' => $seq, 'type' => 'basic',
@@ -43,14 +52,29 @@ class AvailableSubjectsTest extends TestCase
 
     private function subject(string $name, ?int $schoolId = null): int
     {
-        return DB::table('subjects')->insertGetId([
-            'school_id' => $schoolId ?? $this->school->id,
+        $schoolId = $schoolId ?? $this->school->id;
+
+        $id = DB::table('subjects')->insertGetId([
+            'school_id' => $schoolId,
             'code' => $name.'-'.uniqid(),
             'name' => $name,
             'scope' => 'academic',
             'is_active' => true,
             'created_at' => now(), 'updated_at' => now(),
         ]);
+
+        // Assign subjects in the teacher's own school to the teacher. Foreign-
+        // school subjects stay unassigned (they must never appear anyway).
+        if ($schoolId === $this->school->id) {
+            DB::table('teacher_subjects')->insert([
+                'teacher_id' => $this->profileId,
+                'subject_id' => $id,
+                'qualification_level' => 'primary',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        return $id;
     }
 
     private function questionUnder(int $subjectId, int $levelId, ?int $schoolId = null): void

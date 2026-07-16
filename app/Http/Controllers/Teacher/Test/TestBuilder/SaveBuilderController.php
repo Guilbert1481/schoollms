@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Teacher\Test\TestBuilder;
 
 use App\Http\Controllers\Controller;
-use App\Models\Test;
-use App\Models\TestSource;
-use App\Models\TestSetting;
-use App\Models\TestQuestion;
 use App\Models\Question;
-use App\Models\TestQuestionTypePoint; // <-- ADD THIS for the points model
+use App\Models\Subject;
+use App\Models\Test;
+use App\Models\TestQuestion;
+use App\Models\TestQuestionTypePoint;
+use App\Models\TestSetting;
+use App\Models\TestSource; // <-- ADD THIS for the points model
+use App\Support\SubjectScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +19,25 @@ class SaveBuilderController extends Controller
 {
     public function save(Request $request)
     {
+        // A teacher may only build tests for subjects assigned to them. Checked
+        // up front (before the transaction) so it returns a clean 403 rather
+        // than being swallowed by the catch below. Hiding the dropdown is not
+        // enough — the subject_id is client-supplied.
+        $user = auth()->user();
+        if ($user && $user->role === 'teacher' && $request->filled('subject_id')) {
+            $assigned = SubjectScope::restrictToTeacher(
+                Subject::whereKey($request->input('subject_id')),
+                $user
+            )->exists();
+
+            if (! $assigned) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You are not assigned to that subject.',
+                ], 403);
+            }
+        }
+
         try {
             // Validation
             $validated = $request->validate([
@@ -86,7 +107,7 @@ class SaveBuilderController extends Controller
 
             if ($hasDuration && $hasSchedule) {
                 return response()->json([
-                    'error' => 'Choose either duration mode or schedule mode, not both.'
+                    'error' => 'Choose either duration mode or schedule mode, not both.',
                 ], 422);
             }
 
@@ -96,22 +117,22 @@ class SaveBuilderController extends Controller
                 $availabilityMode = 'schedule';
             } else {
                 return response()->json([
-                    'error' => 'Please set either duration or schedule.'
+                    'error' => 'Please set either duration or schedule.',
                 ], 422);
             }
 
             $settings->availability_mode = $availabilityMode;
 
             if ($availabilityMode === 'duration') {
-                $durationMinutes = (int)$request->timer_minutes;
+                $durationMinutes = (int) $request->timer_minutes;
                 $settings->duration_minutes = $durationMinutes;
                 $settings->start_at = null;
                 $settings->end_at = null;
             }
 
             if ($availabilityMode === 'schedule') {
-                $startAt = $request->start_date . ' ' . $request->start_time;
-                $endAt = $request->end_date . ' ' . $request->end_time;
+                $startAt = $request->start_date.' '.$request->start_time;
+                $endAt = $request->end_date.' '.$request->end_time;
 
                 $settings->start_at = $startAt;
                 $settings->end_at = $endAt;
@@ -165,10 +186,11 @@ class SaveBuilderController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Test save error: ' . $e->getMessage());
+            Log::error('Test save error: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error saving test: ' . $e->getMessage()
+                'message' => 'Error saving test: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -207,7 +229,9 @@ class SaveBuilderController extends Controller
             ];
 
             foreach ($questionTypes as $type => $count) {
-                if ($count <= 0) continue;
+                if ($count <= 0) {
+                    continue;
+                }
 
                 $normalizedType = match ($type) {
                     'mcq' => 'multiple_choice',
@@ -238,11 +262,13 @@ class SaveBuilderController extends Controller
                     // Get the correct answer for the question
                     $answer = $this->getNormalizedAnswer($q);
 
-                    if (!in_array($answer, $usedAnswers) && !in_array($q->id, $usedQuestionIds)) {
+                    if (! in_array($answer, $usedAnswers) && ! in_array($q->id, $usedQuestionIds)) {
                         $selected[] = $q;
                         $usedAnswers[] = $answer;
                         $usedQuestionIds[] = $q->id;
-                        if (count($selected) >= $count) break;
+                        if (count($selected) >= $count) {
+                            break;
+                        }
                     }
                 }
                 // 2nd Pass: If not enough, allow duplicates
@@ -250,11 +276,13 @@ class SaveBuilderController extends Controller
                     foreach ($candidates as $q) {
                         $answer = $this->getNormalizedAnswer($q);
                         // Avoid the *same* question twice
-                        if (!in_array($q->id, $usedQuestionIds)) {
+                        if (! in_array($q->id, $usedQuestionIds)) {
                             $selected[] = $q;
                             $usedQuestionIds[] = $q->id;
                             // (usedAnswers don't matter here)
-                            if (count($selected) >= $count) break;
+                            if (count($selected) >= $count) {
+                                break;
+                            }
                         }
                     }
                 }
@@ -292,6 +320,7 @@ class SaveBuilderController extends Controller
                 return strtolower(trim($correct->choice_text));
             }
         }
+
         // fallback to question text if needed
         return strtolower(trim($question->question_text));
     }

@@ -13,7 +13,7 @@ class QuestionController extends Controller
 {
     public function index()
     {
-        $questions = Question::with(['subject','topic'])
+        $questions = Question::with(['subject', 'topic'])
             ->orderBy('question_text')
             ->paginate(20);
 
@@ -22,10 +22,10 @@ class QuestionController extends Controller
 
     public function create()
     {
-        $subjects = SubjectScope::applyTo(Subject::query())->orderBy('name')->get();
-        $topics   = Topic::whereIn('subject_id', $subjects->pluck('id'))->get();
+        $subjects = SubjectScope::forTeacher(Subject::query())->orderBy('name')->get();
+        $topics = Topic::whereIn('subject_id', $subjects->pluck('id'))->get();
 
-        return view('teacher.questions.create', compact('subjects','topics'));
+        return view('teacher.questions.create', compact('subjects', 'topics'));
     }
 
     // ❌ DO NOT USE THIS FOR MCQ PAGE

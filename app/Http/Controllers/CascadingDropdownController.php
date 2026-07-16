@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Competency;
+use App\Models\Lesson;
 use App\Models\Subject;
 use App\Models\Topic;
-use App\Models\Lesson;
-use App\Models\Competency;
+use App\Support\SubjectScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -25,7 +26,7 @@ class CascadingDropdownController extends Controller
                 ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
                 ->orderBy('name')
                 ->get(['id', 'code', 'name'])
-                ->map(fn ($p) => ['id' => $p->id, 'name' => $p->code . ' — ' . $p->name])
+                ->map(fn ($p) => ['id' => $p->id, 'name' => $p->code.' — '.$p->name])
         );
     }
 
@@ -53,7 +54,7 @@ class CascadingDropdownController extends Controller
         $semesterLabel = [1 => '1st', 2 => '2nd', 3 => '3rd', 4 => '4th', 5 => 'Summer'];
 
         return response()->json($rows->map(fn ($r) => [
-            'id'   => $r->id,
+            'id' => $r->id,
             'name' => sprintf(
                 '%s — %s (Y%d %s)',
                 $r->code,
@@ -71,17 +72,23 @@ class CascadingDropdownController extends Controller
      */
     public function subjects(): JsonResponse
     {
-        $schoolId = auth()->user()->school_id ?? null;
+        $user = auth()->user();
+        $schoolId = $user->school_id ?? null;
+
+        $query = Subject::when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
+
+        // Teachers only see the subjects assigned to them; other roles keep the
+        // full school catalogue (this endpoint is shared with admin/dean/etc.).
+        $query = SubjectScope::restrictToTeacher($query, $user);
 
         return response()->json(
-            Subject::when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-                ->orderBy('code')
+            $query->orderBy('code')
                 ->get(['id', 'code', 'name'])
                 ->map(fn ($s) => [
-                    'id'    => $s->id,
-                    'code'  => $s->code,
-                    'name'  => $s->name,
-                    'label' => $s->code . ' — ' . $s->name,
+                    'id' => $s->id,
+                    'code' => $s->code,
+                    'name' => $s->name,
+                    'label' => $s->code.' — '.$s->name,
                 ])
         );
     }
@@ -110,12 +117,12 @@ class CascadingDropdownController extends Controller
         $semLabel = [1 => '1st', 2 => '2nd', 3 => '3rd', 4 => '4th', 5 => 'Summer'];
 
         return response()->json($rows->map(fn ($r) => [
-            'id'         => $r->id,
-            'code'       => $r->code,
-            'name'       => $r->name,
+            'id' => $r->id,
+            'code' => $r->code,
+            'name' => $r->name,
             'year_level' => (int) $r->year_level,
-            'semester'   => $semLabel[(int) $r->semester_number] ?? (string) $r->semester_number,
-            'badge'      => sprintf(
+            'semester' => $semLabel[(int) $r->semester_number] ?? (string) $r->semester_number,
+            'badge' => sprintf(
                 '%s: Yr %d, Sem %s',
                 $r->code,
                 (int) $r->year_level,
@@ -145,12 +152,12 @@ class CascadingDropdownController extends Controller
      * =========================
      */
     /**
- * SUBJECT → TOPICS
- */
+     * SUBJECT → TOPICS
+     */
     public function lessons($topicId): JsonResponse
     {
         // The if check is good for safety
-        if (!is_numeric($topicId)) {
+        if (! is_numeric($topicId)) {
             return response()->json([], 200);
         }
 
@@ -162,7 +169,6 @@ class CascadingDropdownController extends Controller
                 ->get()
         );
     }
-
 
     /**
      * =========================

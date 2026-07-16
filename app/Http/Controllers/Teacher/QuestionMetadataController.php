@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\AcademicLevel;
 use App\Models\Subject;
 use App\Services\Tests\LevelTreeResolver;
+use App\Support\SubjectScope;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class QuestionMetadataController extends Controller
 {
@@ -20,24 +22,10 @@ class QuestionMetadataController extends Controller
         $user = $request->user();
         $schoolId = $user->school_id ?? null;
 
-        // Scope subjects by the current user's domain:
-        //   trainor / training_program_head -> training subjects only
-        //   everyone else (teacher, program_head, etc.) -> academic only
-        $scope = in_array($user->role, ['trainor', 'training_program_head'], true)
-            ? 'training'
-            : 'academic';
-
-        $subjects = Subject::when(
-            $schoolId,
-            fn ($q) => $q->where('school_id', $schoolId)
-        )
-            ->where(function ($q) use ($scope) {
-                if ($scope === 'academic') {
-                    $q->where('scope', 'academic')->orWhereNull('scope');
-                } else {
-                    $q->where('scope', $scope);
-                }
-            })
+        // Subjects are scoped to the current user's domain (school + academic/
+        // training) AND, for teachers, to the subjects assigned to them.
+        $subjects = SubjectScope::forTeacher(Subject::query(), $user)
+            ->orderBy('name')
             ->get();
 
         $academicLevels = AcademicLevel::where('school_id', auth()->user()->school_id)
@@ -70,16 +58,29 @@ class QuestionMetadataController extends Controller
      */
     public function storeInfo(Request $request)
     {
+        $user = $request->user();
+
+        $subjectRule = ['required', 'integer'];
+
+        // A teacher may only author questions for subjects assigned to them —
+        // the dropdown is scoped, but never trust the client (hiding ≠ security).
+        if ($user->role === 'teacher') {
+            $assignedSubjectIds = SubjectScope::restrictToTeacher(Subject::query(), $user)
+                ->pluck('id')
+                ->all();
+            $subjectRule[] = Rule::in($assignedSubjectIds);
+        }
+
         $data = $request->validate([
-            'subject_id' => 'required|integer',
+            'subject_id' => $subjectRule,
             'topic_id' => 'nullable|integer',
             'lesson_id' => 'nullable|integer',
             'competency_id' => 'nullable|integer',
             'question_type' => 'required|string',
             'academic_level_id' => 'required|integer|exists:academic_levels,id',
+        ], [
+            'subject_id.in' => 'You are not assigned to that subject.',
         ]);
-
-        $user = $request->user();
 
         // --- Normalize the question type for internal/builder use ---
         $normalizedType = match ($data['question_type']) {
