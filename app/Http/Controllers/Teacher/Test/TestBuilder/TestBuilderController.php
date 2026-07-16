@@ -3,22 +3,36 @@
 namespace App\Http\Controllers\Teacher\Test\TestBuilder;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Question;
-use App\Models\Test;
-use App\Models\TestSource;
-use App\Models\TestSetting;
-use App\Models\Subject;
-use App\Models\Topic;
-use App\Models\Lesson;
-use App\Models\Competency;
 use App\Models\ClassModel;
+use App\Models\Competency;
+use App\Models\Lesson;
+use App\Models\Question;
+use App\Models\Subject;
+use App\Models\Test;
+use App\Models\Topic;
+use App\Services\Tests\LevelTreeResolver;
 use App\Support\SubjectScope;
-
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class TestBuilderController extends Controller
 {
+    public function __construct(private LevelTreeResolver $levels) {}
+
+    /**
+     * Education-structure tree + resolved academic_levels-per-node for the
+     * "Assessment Levels" cascade. Shared by create/index/edit.
+     */
+    private function levelPickerData(): array
+    {
+        $schoolId = (int) auth()->user()->school_id;
+
+        return [
+            'levelTree' => $this->levels->tree(),
+            'levelsByNode' => $this->levels->levelsByNode($schoolId),
+        ];
+    }
+
     /* ===============================
        PAGE LOADER
     =============================== */
@@ -31,33 +45,30 @@ class TestBuilderController extends Controller
         $academicLevels = \App\Models\AcademicLevel::where('school_id', auth()->user()->school_id)->orderBy('sequence_order')->get();
 
         return view('teacher.tests.testBuilder', [
-            'test'           => $test,
-            'subjects'       => SubjectScope::applyTo(Subject::query())->orderBy('name')->get(),
+            'test' => $test,
+            'subjects' => SubjectScope::applyTo(Subject::query())->orderBy('name')->get(),
             'academicLevels' => $academicLevels,
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
                 ->get(),
 
-        ]);
+        ] + $this->levelPickerData());
     }
-
-
 
     public function create()
     {
         $academicLevels = \App\Models\AcademicLevel::where('school_id', auth()->user()->school_id)->orderBy('sequence_order')->get();
 
         return view('teacher.tests.testBuilder', [
-            'test'           => null,
-            'subjects'       => SubjectScope::applyTo(Subject::query())->orderBy('name')->get(),
+            'test' => null,
+            'subjects' => SubjectScope::applyTo(Subject::query())->orderBy('name')->get(),
             'academicLevels' => $academicLevels,
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
                 ->get(),
 
-        ]);
+        ] + $this->levelPickerData());
     }
-
 
     public function edit(Test $test)
     {
@@ -69,15 +80,14 @@ class TestBuilderController extends Controller
         $academicLevels = \App\Models\AcademicLevel::where('school_id', auth()->user()->school_id)->orderBy('sequence_order')->get();
 
         return view('teacher.tests.testBuilder', [
-            'test'           => $test,
-            'subjects'       => SubjectScope::applyTo(Subject::query())->orderBy('name')->get(),
+            'test' => $test,
+            'subjects' => SubjectScope::applyTo(Subject::query())->orderBy('name')->get(),
             'academicLevels' => $academicLevels,
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
                 ->get(),
-        ]);
+        ] + $this->levelPickerData());
     }
-
 
     /* ===============================
        LOAD TEST DATA (for editing existing test)
@@ -90,7 +100,7 @@ class TestBuilderController extends Controller
             'subject',
             'topic',
             'lesson',
-            'competency'
+            'competency',
         ])->findOrFail($testId);
         // C1 — tenant guard: never expose a test from another school.
         abort_unless((int) $test->school_id === (int) auth()->user()->school_id, 404);
@@ -149,11 +159,11 @@ class TestBuilderController extends Controller
     public function getAvailableTopics($subjectId, Request $request)
     {
         // Optional filtering
-        $difficulty     = $request->input('difficulty');
+        $difficulty = $request->input('difficulty');
         $academicLevels = $request->input('academic_levels');
 
         $topics = Topic::where('subject_id', $subjectId)
-            ->whereHas('questions', function($q) use ($difficulty, $academicLevels) {
+            ->whereHas('questions', function ($q) use ($difficulty, $academicLevels) {
                 if ($difficulty) {
                     $q->whereIn('difficulty', (array) $difficulty);
                 }
@@ -172,11 +182,11 @@ class TestBuilderController extends Controller
     =============================== */
     public function getAvailableLessons($topicId, Request $request)
     {
-        $difficulty     = $request->input('difficulty');
+        $difficulty = $request->input('difficulty');
         $academicLevels = $request->input('academic_levels');
 
         $lessons = Lesson::where('topic_id', $topicId)
-            ->whereHas('questions', function($q) use ($difficulty, $academicLevels) {
+            ->whereHas('questions', function ($q) use ($difficulty, $academicLevels) {
                 if ($difficulty) {
                     $q->whereIn('difficulty', (array) $difficulty);
                 }
@@ -224,7 +234,7 @@ class TestBuilderController extends Controller
         if ($request->lesson_id) {
             $query->where('lesson_id', $request->lesson_id);
         } elseif ($request->topic_id) {
-            $query->whereHas('lesson', function($q) use ($request) {
+            $query->whereHas('lesson', function ($q) use ($request) {
                 $q->where('topic_id', $request->topic_id);
             });
         } elseif ($request->subject_id) {
@@ -232,12 +242,12 @@ class TestBuilderController extends Controller
         }
 
         // Support legacy lesson name lookup
-        if ($request->lesson && !$request->lesson_id) {
+        if ($request->lesson && ! $request->lesson_id) {
             $query->where('lesson_id', function ($q) use ($request) {
                 $q->select('id')
-                  ->from('lessons')
-                  ->where('name', $request->lesson)
-                  ->limit(1);
+                    ->from('lessons')
+                    ->where('name', $request->lesson)
+                    ->limit(1);
             });
         }
 
@@ -252,14 +262,14 @@ class TestBuilderController extends Controller
     =============================== */
     public function availability(Request $request)
     {
-        $subjectId        = $request->subject_id;
-        $topicId          = $request->topic_id;
-        $lessonName       = $request->lesson;
-        $lessonId         = $request->lesson_id;
-        $difficulties     = $request->difficulty;
-        $academicLevels   = $request->academic_levels;
+        $subjectId = $request->subject_id;
+        $topicId = $request->topic_id;
+        $lessonName = $request->lesson;
+        $lessonId = $request->lesson_id;
+        $difficulties = $request->difficulty;
+        $academicLevels = $request->academic_levels;
 
-        if (!$subjectId) {
+        if (! $subjectId) {
             return response()->json([]);
         }
 
@@ -277,12 +287,10 @@ class TestBuilderController extends Controller
         /* ---------------------------------------------
            BASE QUESTION FILTER (NO subject_id filter)
         --------------------------------------------- */
-        $base = Question::query() ->whereIn('topic_id', $topicIds) 
-            ->when($difficulties, fn ($q) => 
-                $q->whereIn('difficulty', $difficulties)
+        $base = Question::query()->whereIn('topic_id', $topicIds)
+            ->when($difficulties, fn ($q) => $q->whereIn('difficulty', $difficulties)
             )
-            ->when($academicLevels, fn ($q) =>
-                $q->whereIn('academic_level_id', $academicLevels)
+            ->when($academicLevels, fn ($q) => $q->whereIn('academic_level_id', $academicLevels)
             );
 
         /* ---------------------------------------------
@@ -290,24 +298,24 @@ class TestBuilderController extends Controller
         --------------------------------------------- */
         if ($topicId && ($lessonName || $lessonId)) {
 
-            if (!$lessonId && $lessonName) {
+            if (! $lessonId && $lessonName) {
                 $lessonId = DB::table('lessons')
                     ->where('name', $lessonName)
                     ->value('id');
             }
 
-            if (!$lessonId) {
+            if (! $lessonId) {
                 return response()->json([]);
             }
 
             $rows = (clone $base)
                 ->where('topic_id', $topicId)
                 ->where('lesson_id', $lessonId)
-                ->selectRaw("
+                ->selectRaw('
                     competency_id,
                     question_type,
                     COUNT(*) as total
-                ")
+                ')
                 ->groupBy('competency_id', 'question_type')
                 ->get();
 
@@ -329,11 +337,11 @@ class TestBuilderController extends Controller
 
             $rows = (clone $base)
                 ->where('topic_id', $topicId)
-                ->selectRaw("
+                ->selectRaw('
                     lesson_id,
                     question_type,
                     COUNT(*) as total
-                ")
+                ')
                 ->groupBy('lesson_id', 'question_type')
                 ->get();
 
@@ -352,11 +360,11 @@ class TestBuilderController extends Controller
            CASE 3: SUBJECT ONLY → TOPICS
         --------------------------------------------- */
         $rows = (clone $base)
-            ->selectRaw("
+            ->selectRaw('
                 topic_id,
                 question_type,
                 COUNT(*) as total
-            ")
+            ')
             ->groupBy('topic_id', 'question_type')
             ->get();
 
@@ -377,18 +385,18 @@ class TestBuilderController extends Controller
     private function formatAvailability($rows, $dataCollection, $key = 'competency_id')
     {
         $typeMap = [
-            'multiple_choice'     => 'mcq',
-            'mcq'                 => 'mcq',
-            'true_false'          => 'tf',
-            'tf'                  => 'tf',
-            'identification'      => 'id',
-            'id'                  => 'id',
-            'matching'            => 'match',
-            'fib'                 => 'fib',
-            'enumeration'         => 'enum',
-            'enum'                => 'enum',
-            'essay'               => 'essay',
-            'mtf'                 => 'mtf'
+            'multiple_choice' => 'mcq',
+            'mcq' => 'mcq',
+            'true_false' => 'tf',
+            'tf' => 'tf',
+            'identification' => 'id',
+            'id' => 'id',
+            'matching' => 'match',
+            'fib' => 'fib',
+            'enumeration' => 'enum',
+            'enum' => 'enum',
+            'essay' => 'essay',
+            'mtf' => 'mtf',
         ];
 
         // Convert collection to map
@@ -398,22 +406,22 @@ class TestBuilderController extends Controller
 
         foreach ($grouped as $id => $items) {
 
-            if (!isset($nameMap[$id])) {
+            if (! isset($nameMap[$id])) {
                 continue;
             }
 
             $row = [
                 'source_id' => $id,
                 'source_type' => $this->detectSourceType($key),
-                'source'    => $nameMap[$id],
-                'mcq'       => 0,
-                'tf'        => 0,
-                'mtf'       => 0,
-                'id'        => 0,
-                'match'     => 0,
-                'fib'       => 0,
-                'enum'      => 0,
-                'essay'     => 0,
+                'source' => $nameMap[$id],
+                'mcq' => 0,
+                'tf' => 0,
+                'mtf' => 0,
+                'id' => 0,
+                'match' => 0,
+                'fib' => 0,
+                'enum' => 0,
+                'essay' => 0,
             ];
 
             foreach ($items as $item) {
@@ -450,79 +458,75 @@ class TestBuilderController extends Controller
     private function detectSourceType($key)
     {
         return match ($key) {
-            'topic_id'      => 'topic',
-            'lesson_id'     => 'lesson',
+            'topic_id' => 'topic',
+            'lesson_id' => 'lesson',
             'competency_id' => 'competency',
-            default         => 'unknown',
+            default => 'unknown',
         };
     }
-
 
     /* ===============================
    GENERATE TEST QUESTIONS
 =============================== */
-private function generateTestQuestions(Test $test, $questionSettings)
-{
-    // Clear old questions
-    $test->testQuestions()->delete();
+    private function generateTestQuestions(Test $test, $questionSettings)
+    {
+        // Clear old questions
+        $test->testQuestions()->delete();
 
-    $order = 1;
+        $order = 1;
 
-    foreach ($questionSettings as $setting) {
+        foreach ($questionSettings as $setting) {
 
-        $query = Question::query()
-            ->where($setting['source_type'] . '_id', $setting['source_id'])
-            ->whereIn('difficulty', $test->difficulty)
-            ->whereIn('academic_level_id', $test->academic_levels);
+            $query = Question::query()
+                ->where($setting['source_type'].'_id', $setting['source_id'])
+                ->whereIn('difficulty', $test->difficulty)
+                ->whereIn('academic_level_id', $test->academic_levels);
 
-        // Pull MCQ
-        if ($setting['mcq'] > 0) {
-            $questions = (clone $query)
-                ->where('question_type', 'mcq')
-                ->inRandomOrder()
-                ->limit($setting['mcq'])
-                ->get();
+            // Pull MCQ
+            if ($setting['mcq'] > 0) {
+                $questions = (clone $query)
+                    ->where('question_type', 'mcq')
+                    ->inRandomOrder()
+                    ->limit($setting['mcq'])
+                    ->get();
 
-            foreach ($questions as $q) {
-                $test->testQuestions()->create([
-                    'question_id' => $q->id,
-                    'order' => $order++,
-                    'points' => 1
-                ]);
+                foreach ($questions as $q) {
+                    $test->testQuestions()->create([
+                        'question_id' => $q->id,
+                        'order' => $order++,
+                        'points' => 1,
+                    ]);
+                }
             }
+
+            // Repeat for other types...
+            // true_false, mtf, id, match, fib, enum, essay
+            // (I can generate the full block if you want)
         }
-
-        // Repeat for other types...
-        // true_false, mtf, id, match, fib, enum, essay
-        // (I can generate the full block if you want)
     }
-}
 
-/* ===============================
-   GENERATE AVAILABILITY
-=============================== */
-private function generateTestAvailability(Test $test)
-{
-    $test->testAvailability()->delete();
+    /* ===============================
+       GENERATE AVAILABILITY
+    =============================== */
+    private function generateTestAvailability(Test $test)
+    {
+        $test->testAvailability()->delete();
 
-    $test->testAvailability()->create([
-        'is_published' => false,
-        'show_score_immediately' => false,
-        'show_correct_answers' => false,
-        'allow_retakes' => false,
-        'allow_practice' => false,
-    ]);
-}
+        $test->testAvailability()->create([
+            'is_published' => false,
+            'show_score_immediately' => false,
+            'show_correct_answers' => false,
+            'allow_retakes' => false,
+            'allow_practice' => false,
+        ]);
+    }
 
-// In TestBuilderController or SaveBuilderController
-public function savePointsToSession(Request $request)
-{
-    // Expects: $request->question_type_points = ['mcq' => 1, 'tf' => 1, ...]
-    session(['test_points.question_types' => $request->input('question_type_points', [])]);
-    return response()->json(['success' => true]);
-}
+    // In TestBuilderController or SaveBuilderController
+    public function savePointsToSession(Request $request)
+    {
+        // Expects: $request->question_type_points = ['mcq' => 1, 'tf' => 1, ...]
+        session(['test_points.question_types' => $request->input('question_type_points', [])]);
 
-
-
-
+        return response()->json(['success' => true]);
+    }
 }
