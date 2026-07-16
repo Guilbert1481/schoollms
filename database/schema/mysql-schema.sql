@@ -233,6 +233,74 @@ CREATE TABLE `applications` (
   CONSTRAINT `applications_student_id_foreign` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `attendance_records`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `attendance_records` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `school_id` bigint(20) unsigned NOT NULL,
+  `student_id` bigint(20) unsigned NOT NULL,
+  `scope` enum('daily','session') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `section_id` bigint(20) unsigned DEFAULT NULL,
+  `class_id` bigint(20) unsigned DEFAULT NULL,
+  `class_session_id` bigint(20) unsigned DEFAULT NULL,
+  `academic_year_id` bigint(20) unsigned DEFAULT NULL,
+  `term_id` bigint(20) unsigned DEFAULT NULL,
+  `attendance_date` date NOT NULL,
+  `time_in` time DEFAULT NULL,
+  `time_out` time DEFAULT NULL,
+  `status` enum('present','absent','late','excused','half_day') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'present',
+  `method` enum('manual','qr','biometric','facial') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'manual',
+  `remarks` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `recorded_by` bigint(20) unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `attendance_records_natural_key_unique` (`student_id`,`attendance_date`,`scope`,`class_id`,`section_id`),
+  KEY `attendance_records_class_session_id_foreign` (`class_session_id`),
+  KEY `attendance_records_academic_year_id_foreign` (`academic_year_id`),
+  KEY `attendance_records_term_id_foreign` (`term_id`),
+  KEY `attendance_records_recorded_by_foreign` (`recorded_by`),
+  KEY `attendance_records_school_id_attendance_date_index` (`school_id`,`attendance_date`),
+  KEY `attendance_records_student_id_attendance_date_index` (`student_id`,`attendance_date`),
+  KEY `attendance_records_class_id_attendance_date_index` (`class_id`,`attendance_date`),
+  KEY `attendance_records_section_id_attendance_date_index` (`section_id`,`attendance_date`),
+  CONSTRAINT `attendance_records_academic_year_id_foreign` FOREIGN KEY (`academic_year_id`) REFERENCES `academic_years` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `attendance_records_class_id_foreign` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `attendance_records_class_session_id_foreign` FOREIGN KEY (`class_session_id`) REFERENCES `class_sessions` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `attendance_records_recorded_by_foreign` FOREIGN KEY (`recorded_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `attendance_records_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `attendance_records_section_id_foreign` FOREIGN KEY (`section_id`) REFERENCES `sections` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `attendance_records_student_id_foreign` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `attendance_records_term_id_foreign` FOREIGN KEY (`term_id`) REFERENCES `terms` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `attendance_settings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `attendance_settings` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `school_id` bigint(20) unsigned NOT NULL,
+  `academic_level_id` bigint(20) unsigned NOT NULL,
+  `capture_mode` enum('daily','session') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `allow_manual` tinyint(1) NOT NULL DEFAULT '1',
+  `allow_qr` tinyint(1) NOT NULL DEFAULT '0',
+  `allow_biometric` tinyint(1) NOT NULL DEFAULT '0',
+  `allow_facial` tinyint(1) NOT NULL DEFAULT '0',
+  `late_after` time DEFAULT NULL,
+  `grace_minutes` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `half_day_enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `expected_days_per_period` smallint(5) unsigned DEFAULT NULL,
+  `qr_rotation_seconds` smallint(5) unsigned NOT NULL DEFAULT '10',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `attendance_settings_school_id_academic_level_id_unique` (`school_id`,`academic_level_id`),
+  KEY `attendance_settings_academic_level_id_foreign` (`academic_level_id`),
+  CONSTRAINT `attendance_settings_academic_level_id_foreign` FOREIGN KEY (`academic_level_id`) REFERENCES `academic_levels` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `attendance_settings_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `banks`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -657,6 +725,39 @@ CREATE TABLE `competencies` (
   CONSTRAINT `competencies_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE,
   CONSTRAINT `competencies_subject_id_foreign` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE,
   CONSTRAINT `competencies_topic_id_foreign` FOREIGN KEY (`topic_id`) REFERENCES `topics` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `component_scores`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `component_scores` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `school_id` bigint(20) unsigned NOT NULL,
+  `student_id` bigint(20) unsigned NOT NULL,
+  `grade_component_id` bigint(20) unsigned NOT NULL,
+  `class_id` bigint(20) unsigned DEFAULT NULL,
+  `subject_id` bigint(20) unsigned DEFAULT NULL,
+  `education_node_id` bigint(20) unsigned DEFAULT NULL,
+  `grading_period` tinyint(3) unsigned DEFAULT NULL,
+  `score` decimal(5,2) DEFAULT NULL,
+  `recorded_by` bigint(20) unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `component_scores_natural_key_unique` (`student_id`,`grade_component_id`,`class_id`,`subject_id`,`education_node_id`,`grading_period`),
+  KEY `component_scores_school_id_foreign` (`school_id`),
+  KEY `component_scores_grade_component_id_foreign` (`grade_component_id`),
+  KEY `component_scores_subject_id_foreign` (`subject_id`),
+  KEY `component_scores_recorded_by_foreign` (`recorded_by`),
+  KEY `component_scores_class_id_student_id_index` (`class_id`,`student_id`),
+  KEY `component_scores_node_area_period_idx` (`education_node_id`,`subject_id`,`grading_period`),
+  CONSTRAINT `component_scores_class_id_foreign` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `component_scores_education_node_id_foreign` FOREIGN KEY (`education_node_id`) REFERENCES `education_nodes` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `component_scores_grade_component_id_foreign` FOREIGN KEY (`grade_component_id`) REFERENCES `grade_components` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `component_scores_recorded_by_foreign` FOREIGN KEY (`recorded_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `component_scores_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `component_scores_student_id_foreign` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `component_scores_subject_id_foreign` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `configurations`;
@@ -1311,6 +1412,25 @@ CREATE TABLE `game_quiz_settings` (
   CONSTRAINT `game_quiz_settings_topic_id_foreign` FOREIGN KEY (`topic_id`) REFERENCES `topics` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `grade_components`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `grade_components` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `school_id` bigint(20) unsigned NOT NULL,
+  `grading_setting_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `weight` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `sort_order` smallint(5) unsigned NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `grade_components_school_id_foreign` (`school_id`),
+  KEY `grade_components_grading_setting_id_index` (`grading_setting_id`),
+  CONSTRAINT `grade_components_grading_setting_id_foreign` FOREIGN KEY (`grading_setting_id`) REFERENCES `grading_settings` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `grade_components_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `grade_level_subjects`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -1356,6 +1476,25 @@ CREATE TABLE `grading_components` (
   PRIMARY KEY (`id`),
   KEY `grading_components_grading_system_id_foreign` (`grading_system_id`),
   CONSTRAINT `grading_components_grading_system_id_foreign` FOREIGN KEY (`grading_system_id`) REFERENCES `grading_systems` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `grading_settings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `grading_settings` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `school_id` bigint(20) unsigned NOT NULL,
+  `academic_level_id` bigint(20) unsigned NOT NULL,
+  `scale_type` enum('percentage','gpa','letter','pass_fail') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'percentage',
+  `passing_mark` decimal(5,2) NOT NULL DEFAULT '75.00',
+  `attendance_weight` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `grading_settings_school_id_academic_level_id_unique` (`school_id`,`academic_level_id`),
+  KEY `grading_settings_academic_level_id_foreign` (`academic_level_id`),
+  CONSTRAINT `grading_settings_academic_level_id_foreign` FOREIGN KEY (`academic_level_id`) REFERENCES `academic_levels` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `grading_settings_school_id_foreign` FOREIGN KEY (`school_id`) REFERENCES `schools` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `grading_systems`;
@@ -4161,3 +4300,7 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (376,'2026_07_14_05
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (377,'2026_07_14_060000_add_incidental_fee_id_to_invoices_table',90);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (378,'2026_07_14_120000_create_school_roles_table',91);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (379,'2026_07_14_130000_backfill_catalog_roles_for_existing_schools',92);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (380,'2026_07_14_140000_create_attendance_records_table',93);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (381,'2026_07_15_000000_create_attendance_settings_table',93);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (382,'2026_07_15_010000_create_grading_settings_table',93);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (383,'2026_07_15_020000_create_component_scores_table',93);
