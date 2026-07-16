@@ -16,6 +16,10 @@ use InvalidArgumentException;
  */
 class AttendanceIngestionService
 {
+    public function __construct(
+        private AttendanceStatusResolver $statusResolver = new AttendanceStatusResolver,
+    ) {}
+
     /**
      * Record (create or update) one attendance mark.
      *
@@ -27,7 +31,9 @@ class AttendanceIngestionService
      *   - class_id         required when scope=session
      *
      * Optional keys: class_session_id, section_id (session), academic_year_id,
-     * term_id, time_in, time_out, status, method, remarks, recorded_by.
+     * term_id, time_in, time_out, status, method, remarks, recorded_by,
+     * late_after (HH:MM), grace_minutes — the last two let device/QR capture
+     * derive present-vs-late from the level's rule.
      *
      * @param  array<string, mixed>  $data
      */
@@ -89,8 +95,8 @@ class AttendanceIngestionService
     }
 
     /**
-     * Explicit status wins. Otherwise derive a minimal status from presence of a
-     * time-in (richer late / half-day rules arrive with per-level config later).
+     * Explicit status wins. Otherwise derive it from the time-in against the
+     * level's late rule (late_after + grace_minutes), when supplied.
      *
      * @param  array<string, mixed>  $data
      */
@@ -104,8 +110,10 @@ class AttendanceIngestionService
             return $data['status'];
         }
 
-        return empty($data['time_in'])
-            ? AttendanceRecord::STATUS_ABSENT
-            : AttendanceRecord::STATUS_PRESENT;
+        return $this->statusResolver->derive(
+            $data['time_in'] ?? null,
+            $data['late_after'] ?? null,
+            (int) ($data['grace_minutes'] ?? 0),
+        );
     }
 }
