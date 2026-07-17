@@ -37,8 +37,6 @@
         }
         .section-block {
             margin-bottom: 40px;
-            break-inside: avoid;
-            page-break-inside: avoid;
         }
         .section-title {
             font-weight: bold;
@@ -47,6 +45,17 @@
         }
         .question-block {
             margin-bottom: 2px;
+            /* Keep an individual question intact across a page break, but let a
+               whole section flow so it fills the page instead of jumping to the
+               next one and leaving a large blank. */
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .choice-line {
+            /* Uniform, tight vertical spacing for every choice. The long-answer
+               branch of the MCQ partial used <p> and inherited the browser's wide
+               default margin, so some questions spaced their choices unevenly. */
+            margin: 3px 0 3px 20px;
         }
         @media print {
             .no-print { display: none; }
@@ -76,19 +85,17 @@
         {{-- Exam Header --}}
         <div class="exam-header">
             <div class="school-name">
-                {{ $school->name ?? 'Memory Ridge International Schools' }}
+                {{ $school_name ?? 'School Name' }}
             </div>
-            <div class="college-name">
-                {{ $school->college_name ?? 'College of Education' }}
-            </div>
-            <div class="exam-meta">
-                @if($test->class?->semester)
-                    {{ $test->class->semester->name }}<br>
-                @endif
-                @if($test->settings->term)
-                    {{ ucfirst($test->settings->term) }} Examination in
-                @endif
-            </div>
+            @if(!empty($printHeader['academicYear']))
+                <div class="academic-year">{{ $printHeader['academicYear'] }}</div>
+            @endif
+            @if(!empty($printHeader['level']))
+                <div class="level-name">{{ $printHeader['level'] }}</div>
+            @endif
+            @if(!empty($printHeader['semester']))
+                <div class="semester-name">{{ $printHeader['semester'] }}</div>
+            @endif
             <div class="subject-name">
                 {{ $test->subject->name ?? 'Subject Name' }}
             </div>
