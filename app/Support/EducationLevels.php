@@ -85,6 +85,107 @@ class EducationLevels
     }
 
     /**
+     * Top-most offered stage groups under Basic Education (Preschool,
+     * Elementary, Junior High, Senior High …) in tree order, as objects with
+     * ->id and ->name — the shape <x-table.level-tabs> expects. Stages nested
+     * inside another offered stage (Grade 1 under Elementary, strand-scoped
+     * Grade 11s, …) are represented by their top-most stage ancestor; pair
+     * with descendantIds() to match data mapped anywhere in a group's subtree.
+     * Empty collection when Basic Education is not offered.
+     */
+    public static function basicStageGroups(): Collection
+    {
+        $root = self::offeredRoots()->first(fn ($r) => self::isBasic($r->name));
+        if (! $root) {
+            return collect();
+        }
+
+        $byParent = DB::table('education_nodes')
+            ->where('is_active', 1)
+            ->orderBy('order_index')
+            ->orderBy('id')
+            ->get(['id', 'name', 'parent_id', 'node_type', 'is_offered'])
+            ->groupBy('parent_id');
+
+        $groups = collect();
+        $walk = function ($parentId) use (&$walk, $byParent, &$groups) {
+            foreach ($byParent->get($parentId, collect()) as $child) {
+                if ($child->node_type === 'stage' && $child->is_offered) {
+                    // Offered stage = a tab group; its subtree belongs to it.
+                    $groups->push((object) ['id' => (int) $child->id, 'name' => $child->name]);
+                } else {
+                    // Non-stage (track/strand) or non-offered stage: keep
+                    // descending so offered stages deeper down still surface.
+                    $walk($child->id);
+                }
+            }
+        };
+        $walk($root->id);
+
+        return $groups;
+    }
+
+    /**
+     * Offered, active stage nodes anywhere under a node (excluding the node
+     * itself), in tree order — e.g. the grade levels inside a
+     * basicStageGroups() group (Elementary → Grade 1..6). Plain ->id/->name
+     * objects; names repeat when the same grade exists under several strands.
+     */
+    public static function stageDescendants(int $nodeId): Collection
+    {
+        if (! $nodeId) {
+            return collect();
+        }
+
+        $byParent = DB::table('education_nodes')
+            ->where('is_active', 1)
+            ->orderBy('order_index')
+            ->orderBy('id')
+            ->get(['id', 'name', 'parent_id', 'node_type', 'is_offered'])
+            ->groupBy('parent_id');
+
+        $out = collect();
+        $walk = function ($parentId) use (&$walk, $byParent, &$out) {
+            foreach ($byParent->get($parentId, collect()) as $child) {
+                if ($child->node_type === 'stage' && $child->is_offered) {
+                    $out->push((object) ['id' => (int) $child->id, 'name' => $child->name]);
+                }
+                $walk($child->id);
+            }
+        };
+        $walk($nodeId);
+
+        return $out;
+    }
+
+    /**
+     * A node's own id plus every descendant id (the whole subtree) — the
+     * counterpart of ancestorIds(). Returns [] for a null/0 node.
+     *
+     * @return int[]
+     */
+    public static function descendantIds(?int $nodeId): array
+    {
+        if (! $nodeId) {
+            return [];
+        }
+
+        $byParent = DB::table('education_nodes')->get(['id', 'parent_id'])->groupBy('parent_id');
+
+        $ids = [];
+        $stack = [$nodeId];
+        while ($stack) {
+            $cur = (int) array_pop($stack);
+            $ids[] = $cur;
+            foreach ($byParent->get($cur, collect()) as $child) {
+                $stack[] = $child->id;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
      * Year levels offered anywhere under a higher-education level's subtree, as
      * [yearLevel => label], e.g. ['1' => 'Year 1', … '4' => 'Year 4']. Numbers
      * are read from node names like "Year 1" / "year 4" (deduped + sorted), so

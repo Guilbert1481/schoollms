@@ -123,8 +123,27 @@ Encode the rules before changing code. Pure markdown.
 - [ ] **M3** Force `SESSION_SECURE_COOKIE=true` in prod (`config/session.php:172`); add `config/cors.php`.
 - [ ] **M2** Enforce 2FA (`pragmarx/google2fa` already installed) in `LoginController::handlePostLogin`.
 
+- [x] **M6** Password-change/reset session eviction — `AuthenticateSession` appended to the `web`
+  group (`bootstrap/app.php`) so changing/resetting a password logs out every other session for that
+  account (`SECURITY_PRINCIPLES.md` §15). **Verified:** `PasswordChangeSessionEvictionTest` (2 tests —
+  session survives unchanged password; stale session evicted after change); full suite run, only
+  pre-existing OMR decimal failure unrelated. *(Added & completed 2026-07-17 — ADR-0008.)*
+- [ ] **H6** Rate-limit sweep beyond login: password reset (partially done), chat sends, uploads,
+  AI/OCR endpoints, exports; upload endpoints get `max:` size rules; document nginx
+  `client_max_body_size`. Named limiters on the shared cache store only. *(Added 2026-07-17.)*
+- [x] **AI1** AiProvider hardening at release: `encrypted` cast on `api_key` ✅ (shipped with the
+  feature), masked round-trip ✅, routes `role:superadmin`+`2fa` ✅, `base_url` scheme validation
+  `url:http,https` ✅ (SSRF — `SECURITY_PRINCIPLES.md` §16/§18). *(Added & completed 2026-07-17.)*
+- [ ] **AI2** Audit AiProvider changes (provider/key/URL/default) once the Phase 3 `audit_logs`
+  table exists — key *changes* are logged, key *values* never.
+- [ ] **AI3** AI usage guardrails: per-user throttle on AI/OCR endpoints (with H6); prompts carry
+  minimum PII (no government-ID numbers); model output treated as untrusted input at every
+  consumer (`SECURITY_PRINCIPLES.md` §18).
+
 **Safety:** CSP starts in report-only so inline scripts/styles aren't broken; headers append-only.
-**Verify:** site renders with headers; 2FA challenge appears post-login. M2 note: 2FA **mandatory** for
+M6 is additive middleware — existing sessions self-heal (hash stored on next request).
+**Verify:** site renders with headers; 2FA challenge appears post-login; after a password reset the
+old session's next request is logged out. M2 note: 2FA **mandatory** for
 staff roles (admin/finance/registrar), optional for students.
 
 ---
@@ -141,6 +160,9 @@ staff roles (admin/finance/registrar), optional for students.
   are kept; delete on schedule (minors' data — also an RA 10173 concern, see P3).
 - [ ] **D4** Staff session hardening — shorter lifetime / idle timeout for admin/finance/registrar (currently
   480 min, `config/session.php:35`); `expire_on_close` for shared school computers.
+- [ ] **D5** Backup dead-man switch — the D1 backup job pings a monitor (healthchecks.io-class) on
+  success; a **missed** backup alerts the operator. A silent backup failure discovered at restore
+  time is the disaster scenario. *(Added 2026-07-17, Argo-parity — proven pattern there.)*
 
 **Safety:** casts are per-column and reversible; backups/retention are additive jobs.
 **Verify:** DB dump shows ciphertext for ID columns; a backup restore is actually performed on a scratch DB; expired staff session forces re-login.
@@ -155,6 +177,9 @@ staff roles (admin/finance/registrar), optional for students.
 - [ ] **S3** Production error monitoring (Sentry/Flare-class) — probing attempts surface as exceptions first.
 - [ ] **S4** Ship/back up audit logs off the app database so a DB-level attacker can't erase their trail
   (builds on Phase 3 H2 / Phase 4).
+- [ ] **S5** External uptime monitoring on the framework `/up` health endpoint for
+  `sophentis.philceb.ph` (+ one school host), alerting the operator — downtime is noticed by us,
+  not by a school. *(Added 2026-07-17.)*
 
 **Safety:** all additive/observability-only; CI audit can start non-blocking then be promoted to required.
 **Verify:** CI fails on a known-vulnerable package pin; test exception appears in the monitor; audit rows exist off-box.
@@ -172,6 +197,10 @@ staff roles (admin/finance/registrar), optional for students.
   Phases 3–4 logs to know what leaked).
 - [ ] **P4** External penetration test — the graduation exam, after Phases 2–6 are done and before
   multi-school SaaS is marketed as production-grade.
+- [ ] **P5** DR runbook — extend `docs/deploy/` with: what is backed up and where, encryption keys
+  (⚠ `APP_KEY` ↔ D2 casts), RTO/RPO targets, exact restore commands, VPS rebuild-from-zero path.
+  Kept accurate: any change adding a stateful store updates it in the same change
+  (`FULL_PRODUCTION_STACK.md` layer 13). *(Added 2026-07-17.)*
 
 **Safety:** process/documentation only; no runtime changes except session-kill on deactivation.
 **Verify:** tabletop walkthrough of the IR plan; deactivated staff user's open session is dead on next request.
@@ -207,18 +236,26 @@ staff roles (admin/finance/registrar), optional for students.
 | H2 | No finance/grade audit log | 3 |
 | M3 | No CSP/headers, secure cookie | 5 |
 | M2 | 2FA installed but unused (staff-mandatory) | 5 |
+| M6 | Password change doesn't evict other sessions | 5 |
+| H6 | Rate limits only on login; no request-size rules | 5 |
+| AI1 | AiProvider base_url unvalidated (SSRF); key/gating shipped ✅ | 5 |
+| AI2 | AiProvider changes unaudited (needs H2 table) | 5 |
+| AI3 | No AI throttle / PII-minimization / output-trust rules wired | 5 |
 | D1 | No backups | 6 |
 | D2 | No encryption at rest for gov IDs | 6 |
 | D3 | No PII retention policy | 6 |
 | D4 | 8h staff sessions | 6 |
+| D5 | No alert on silently-failed backups (dead-man switch) | 6 |
 | S1 | No dependency audit in CI | 7 |
 | S2 | No Dependabot | 7 |
 | S3 | No error monitoring | 7 |
 | S4 | Audit logs erasable with the DB | 7 |
+| S5 | No uptime monitoring on production hosts | 7 |
 | P1 | No incident-response plan | 8 |
 | P2 | No offboarding/session-kill procedure | 8 |
 | P3 | RA 10173 readiness (DPO, 72h breach notice) | 8 |
 | P4 | No external pen test | 8 |
+| P5 | No DR runbook (restore commands, RTO/RPO, rebuild path) | 8 |
 | L1–L4 | Low / cleanup | Deferred |
 
 > **Milestone:** after **Phases 2 + 2.5**, Sophentis is safe for a single-school production pilot.

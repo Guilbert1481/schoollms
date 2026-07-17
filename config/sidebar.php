@@ -353,7 +353,7 @@ return [
                 ],
 
                 [
-                    'label' => 'Assignments',
+                    'label' => 'Homework',
                     'route' => 'teacher.homework.index',
                     'icon'  => 'file-text',
                 ],

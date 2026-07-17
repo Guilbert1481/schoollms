@@ -54,6 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     </select>
                 </div>
 
+                <button type="button" class="ai-gen-btn" title="Generate questions with AI">✨ AI</button>
+
                 <div class="qb-meta-right">
                     Keyword
                     <input type="text" class="keyword-input">
@@ -110,6 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         questionsContainer.appendChild(card);
         bindCardButtons(card);
         renumberQuestions();
+        return card;
     }
 
     function renderOption(uid, number) {
@@ -271,6 +274,117 @@ document.addEventListener('DOMContentLoaded', () => {
             isSaving = false;
         }
     });
+
+    /* =========================
+       AI GENERATE
+    ========================= */
+    const aiModal     = document.getElementById('aiModal');
+    const aiCreateBtn = document.getElementById('aiCreate');
+    const aiCancelBtn = document.getElementById('aiCancel');
+    const aiCloseBtn  = document.getElementById('aiClose');
+    const aiError     = document.getElementById('aiError');
+
+    function openAiModal() {
+        if (!aiModal) return;
+        if (aiError) { aiError.hidden = true; aiError.textContent = ''; }
+        aiModal.hidden = false;
+    }
+    function closeAiModal() { if (aiModal) aiModal.hidden = true; }
+    function showAiError(msg) {
+        if (!aiError) { alert(msg); return; }
+        aiError.textContent = msg;
+        aiError.hidden = false;
+    }
+
+    // The ✨ AI button lives inside each card's meta bar — delegate the click.
+    questionsContainer.addEventListener('click', (e) => {
+        if (e.target.closest('.ai-gen-btn')) { e.preventDefault(); openAiModal(); }
+    });
+    if (aiCancelBtn) aiCancelBtn.addEventListener('click', closeAiModal);
+    if (aiCloseBtn)  aiCloseBtn.addEventListener('click', closeAiModal);
+    if (aiModal)     aiModal.addEventListener('click', (e) => { if (e.target === aiModal) closeAiModal(); });
+
+    if (aiCreateBtn) {
+        aiCreateBtn.addEventListener('click', async () => {
+            const nq = parseInt(document.getElementById('aiNumQuestions').value, 10);
+            const nc = parseInt(document.getElementById('aiNumChoices').value, 10);
+            if (!(nq >= 1 && nq <= 20) || !(nc >= 2 && nc <= 6)) {
+                showAiError('Enter 1–20 questions and 2–6 choices.');
+                return;
+            }
+
+            const label = aiCreateBtn.textContent;
+            aiCreateBtn.disabled = true;
+            aiCreateBtn.textContent = 'Generating…';
+            if (aiError) aiError.hidden = true;
+
+            try {
+                const res = await fetch('/teacher/tests/mcq/ai-generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ num_questions: nq, num_choices: nc })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.success && Array.isArray(data.questions)) {
+                    questionsContainer.innerHTML = '';
+                    data.questions.forEach(fillNewCard);
+                    renumberQuestions();
+                    closeAiModal();
+                } else {
+                    showAiError(data.error || 'Generation failed.');
+                }
+            } catch (err) {
+                console.error(err);
+                showAiError('Server error while generating.');
+            } finally {
+                aiCreateBtn.disabled = false;
+                aiCreateBtn.textContent = label;
+            }
+        });
+    }
+
+    // Build a card from an AI-generated question and populate every field.
+    function fillNewCard(q) {
+        const card = addQuestionCard();
+
+        const diff = card.querySelector('.difficulty-select');
+        if (diff) diff.value = (q.difficulty === 'advanced') ? 'advanced' : 'average';
+
+        const qi = card.querySelector('.question-input');
+        if (qi) qi.value = q.question_text || '';
+
+        const choices = Array.isArray(q.choices) ? q.choices : [];
+        const container = card.querySelector('.options-container');
+        const uid = card.dataset.uid;
+        if (container && choices.length) {
+            container.innerHTML = choices.map((_, i) => renderOption(uid, i + 1)).join('');
+            container.querySelectorAll('.option-row').forEach((row, i) => {
+                const input = row.querySelector('.option-input');
+                if (input) input.value = choices[i] || '';
+                if (i === q.correct_index) {
+                    const radio = row.querySelector('input[type="radio"]');
+                    if (radio) radio.checked = true;
+                }
+            });
+            bindDeleteOption(card);
+        }
+
+        if (q.explanation) {
+            const box = card.querySelector('.explanation-container');
+            const showBtn = card.querySelector('.show-explanation-btn');
+            const input = card.querySelector('.explanation-input');
+            if (box) box.classList.remove('hidden');
+            if (input) input.value = q.explanation;
+            if (showBtn) showBtn.style.display = 'none';
+        }
+
+        return card;
+    }
 
     // Start with one question
     if (questionsContainer && questionsContainer.children.length === 0) {

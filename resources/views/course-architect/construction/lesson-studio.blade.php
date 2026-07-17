@@ -19,7 +19,13 @@
         </div>
 
         {{-- Action buttons (contextual) --}}
+        @php
+            // Bulk-add vocabulary per level: tick a parent row, add children.
+            $bulkParent = ['Subject', 'Topic', 'Lesson'][$level] ?? null;
+            $bulkChild  = ['Topic', 'Lesson', 'Competency'][$level] ?? null;
+        @endphp
         <div class="flex items-center gap-2">
+            {{-- Add Topic/Lesson lives next to the view toggle (see _bulk-add-button). --}}
             @if($level === 3)
                 <button type="button"
                         onclick="openModal('newLessonModal')"
@@ -30,7 +36,29 @@
         </div>
     </div>
 
-    {{-- Breadcrumb --}}
+    {{-- Stage-group tabs (education-level tabs pattern, basic ed only) --}}
+    @if($level === 0)
+        <x-table.level-tabs route="course-architect.lesson-studio.index"
+                            :levels="$gradeLevels"
+                            :activeLevelId="$activeLevelId"
+                            :showAll="$showAll" />
+    @endif
+
+    {{-- Flash messages --}}
+    @if(session('success'))
+        <div class="bg-emerald-50/80 backdrop-blur border border-emerald-200 text-emerald-800 px-4 py-2 rounded-xl">
+            {{ session('success') }}
+        </div>
+    @endif
+    @if($errors->any())
+        <div class="bg-rose-50/80 backdrop-blur border border-rose-200 text-rose-800 px-4 py-2 rounded-xl">
+            <ul class="list-disc pl-5 text-sm">
+                @foreach($errors->all() as $error) <li>{{ $error }}</li> @endforeach
+            </ul>
+        </div>
+    @endif
+
+    {{-- Breadcrumb: Subjects → Topic → Lesson → Competency trail, kept just above the browser --}}
     <nav class="flex items-center gap-1 text-sm flex-wrap">
         @foreach($breadcrumbs as $i => $crumb)
             @if($i > 0)
@@ -50,20 +78,6 @@
         @endforeach
     </nav>
 
-    {{-- Flash messages --}}
-    @if(session('success'))
-        <div class="bg-emerald-50/80 backdrop-blur border border-emerald-200 text-emerald-800 px-4 py-2 rounded-xl">
-            {{ session('success') }}
-        </div>
-    @endif
-    @if($errors->any())
-        <div class="bg-rose-50/80 backdrop-blur border border-rose-200 text-rose-800 px-4 py-2 rounded-xl">
-            <ul class="list-disc pl-5 text-sm">
-                @foreach($errors->all() as $error) <li>{{ $error }}</li> @endforeach
-            </ul>
-        </div>
-    @endif
-
     {{-- LEVEL 0/1/2 — Folder browser --}}
     @if($level < 3)
         @php
@@ -76,17 +90,24 @@
             <div class="rounded-2xl bg-white/60 backdrop-blur-xl ring-1 ring-white/60 shadow-sm p-12 text-center">
                 <i data-lucide="folder-open" class="w-10 h-10 text-slate-300 mx-auto"></i>
                 <p class="mt-3 text-slate-500 text-sm">
-                    @if($level === 0) No subjects yet.
+                    @if($level === 0 && ! $showAll) No subjects mapped to this level yet.
+                    @elseif($level === 0) No subjects yet.
                     @elseif($level === 1) No topics in this subject yet.
                     @else No lessons in this topic yet.
                     @endif
                 </p>
-                <p class="mt-1 text-xs text-slate-400">Ask your Program Head to add it.</p>
+                <p class="mt-1 text-xs text-slate-400">
+                    @if($level === 0) Ask your Principal to add it.
+                    @else Ask your Program Head to add it.
+                    @endif
+                </p>
             </div>
         @else
             {{-- CARD VIEW (with its own display toggle, top-right) --}}
             <div id="folderCardWrap">
-                <div class="flex items-center justify-end mb-2">
+                <div class="flex items-center justify-end gap-2 mb-2">
+                    @include('course-architect.construction.partials._grade-filter')
+                    @include('course-architect.construction.partials._bulk-add-button')
                     @include('course-architect.construction.partials._view-toggle', ['idSuffix' => 'Card'])
                 </div>
 
@@ -94,6 +115,11 @@
                     @foreach($folders as $i => $f)
                         <div class="folder-item relative" data-id="{{ $f['id'] }}"
                              data-name="{{ \Illuminate\Support\Str::lower($f['name'] . ' ' . ($f['subtitle'] ?? '')) }}">
+                            <input type="checkbox"
+                                   class="ls-pick absolute top-2 z-10 w-4 h-4 rounded border-slate-300 text-indigo-600"
+                                   style="right: {{ $reorderType ? '2.9rem' : '0.5rem' }};"
+                                   data-id="{{ $f['id'] }}" data-name="{{ $f['name'] }}"
+                                   title="Tick to add {{ strtolower($bulkChild) }}s under this {{ strtolower($bulkParent) }}">
                             @if($reorderType)
                                 <button type="button"
                                         class="drag-handle absolute top-2 right-2 z-10 w-7 h-7 rounded-lg bg-white/80 ring-1 ring-slate-200 text-slate-400 hover:text-indigo-600 hover:bg-white flex items-center justify-center cursor-grab active:cursor-grabbing"
@@ -136,9 +162,13 @@
                     :columns="$listColumns"
                     :data="$listData"
                     :hideActions="true"
-                    :rowNumbers="true"
+                    :rowNumbers="(bool) $reorderType"
                     :reorderable="(bool) $reorderType"
                 >
+                    <x-slot:afterFilter>
+                        @include('course-architect.construction.partials._grade-filter')
+                    </x-slot:afterFilter>
+                    @include('course-architect.construction.partials._bulk-add-button')
                     @include('course-architect.construction.partials._view-toggle', ['idSuffix' => 'List'])
                 </x-table.table>
             </div>
@@ -190,6 +220,33 @@
         @include('course-architect.construction.partials.edit-lesson-modal')
         @include('course-architect.construction.partials.preview-lesson-modal')
     @endif
+
+    {{-- Bulk-add modal: tick one {{ strtolower($bulkParent ?? 'row') }}, add several {{ strtolower($bulkChild ?? 'item') }}s at once --}}
+    @if($level < 3 && count($folders) > 0)
+        <x-modal.form id="bulkAddModal" :title="'Add '.$bulkChild.'s'" widthClass="w-[440px]">
+            <form method="POST" action="{{ route('course-architect.lesson-studio.folder.store') }}">
+                @csrf
+                <input type="hidden"
+                       name="{{ ['subject_id', 'topic_id', 'lesson_id'][$level] }}"
+                       id="bulkPickedId">
+                <div class="space-y-3">
+                    <div class="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-3 text-sm text-slate-600">
+                        <span class="font-semibold text-slate-700">{{ $bulkParent }}:</span>
+                        <span id="bulkPickedName"></span>
+                    </div>
+                    <div id="bulkNameRows" class="space-y-2">
+                        <input type="text" name="names[]" required maxlength="255"
+                               placeholder="{{ $bulkChild }} name"
+                               class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
+                    </div>
+                    <button type="button" onclick="lsAddBulkRow()"
+                            class="inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:text-indigo-800">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Add another {{ strtolower($bulkChild) }}
+                    </button>
+                </div>
+            </form>
+        </x-modal.form>
+    @endif
 </div>
 
 <script>
@@ -203,6 +260,42 @@
 
     function createTestFromResource(id) {
         window.location.href = "{{ route('course-architect.assessment-lab.index') }}?from_resource=" + id;
+    }
+
+    // ── Bulk add: single-select checkboxes (synced across card/list views) ──
+    document.addEventListener('change', function (e) {
+        const cb = e.target;
+        if (!cb.classList || !cb.classList.contains('ls-pick')) return;
+        document.querySelectorAll('.ls-pick').forEach(other => {
+            if (other === cb) return;
+            other.checked = cb.checked && other.dataset.id === cb.dataset.id;
+        });
+    });
+
+    function lsAddBulkRow() {
+        const rows = document.getElementById('bulkNameRows');
+        if (!rows) return;
+        const input = rows.querySelector('input').cloneNode();
+        input.value = '';
+        input.required = false;
+        rows.appendChild(input);
+        input.focus();
+    }
+
+    function lsOpenBulkAdd() {
+        const picked = document.querySelector('.ls-pick:checked');
+        if (!picked) {
+            alert(@json('Tick a '.strtolower($bulkParent ?? 'row').' first, then click Add '.($bulkChild ?? '').'.'));
+            return;
+        }
+        document.getElementById('bulkPickedId').value = picked.dataset.id;
+        document.getElementById('bulkPickedName').textContent = picked.dataset.name;
+        const rows = document.getElementById('bulkNameRows');
+        rows.querySelectorAll('input').forEach((inp, i) => {
+            if (i === 0) inp.value = '';
+            else inp.remove();
+        });
+        openModal('bulkAddModal');
     }
 
     // ── Drag-to-reorder (Topics @ L1, Lessons @ L2) ─────────────────────────

@@ -2,6 +2,7 @@
 
     use Illuminate\Support\Facades\Route;
     use App\Http\Controllers\Teacher\Question\McqController;
+    use App\Http\Controllers\Teacher\Question\AiQuestionController;
     
 
     /*
@@ -19,6 +20,10 @@
         // SAVE route (Must match what is in mcq.js)
         Route::post('/mcq/save', [McqController::class, 'saveMcq'])
             ->name('mcq.save');
+
+        // AI-assisted generation — fills the builder for the teacher to review.
+        Route::post('/mcq/ai-generate', [AiQuestionController::class, 'generateMcq'])
+            ->name('mcq.ai-generate');
 
         Route::match(['get'], '/mcq/save', function () {
             return response('Method Not Allowed', 405);

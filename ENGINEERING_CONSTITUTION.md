@@ -1,7 +1,7 @@
 # Engineering Constitution — Sophentis / schoollms
 
 > **The supreme engineering document for Sophentis.** Every other governance doc derives its
-> authority from this one. **Status:** Active · **Version:** 1.1 · **Last updated:** 2026-07-05 ·
+> authority from this one. **Status:** Active · **Version:** 1.2 · **Last updated:** 2026-07-17 ·
 > **Applies to:** everyone who engineers Sophentis — human developers and AI assistants alike, with
 > no exemption.
 >
@@ -129,6 +129,30 @@ Every decision must preserve: **tenant isolation** (`BelongsToSchool` global sco
 clean layering (Route → Controller → Service → Repository → Model), thin controllers, and off-thread
 side effects (Events/Jobs). A change that worsens these without a recorded reason is not acceptable.
 
+## 11A. Production-stack compliance
+
+Sophentis is engineered as a **full production system**, not a collection of features. The thirteen
+production layers — Frontend Foundation; APIs & Backend Logic; Database & Storage; Auth &
+Permissions; Hosting & Deployment; Cloud & Compute; CI/CD & Version Control; Security & Tenant
+Isolation; Rate Limiting; Caching & CDN; Load Balancing & Scaling; Error Tracking & Logs;
+Availability & Recovery — are catalogued, with their mandatory implementation rules and honest
+current status, in [`FULL_PRODUCTION_STACK.md`](./FULL_PRODUCTION_STACK.md).
+
+- **Before creating any new file or editing any existing one**, every contributor (human or AI)
+  **MUST** consult that checklist, identify which layers the change touches, and follow each touched
+  layer's rules.
+- A change that **degrades any layer** (an unscoped query, an unthrottled abuse-prone endpoint, an
+  unaudited money/grade mutation, a new stateful store outside the backup scope) is a **defect**,
+  not a trade-off — fixed within the change or covered by an explicit, owner-approved ADR exception.
+- A change that **depends on a documented gap** (e.g., anything that raises the value of the
+  not-yet-existing backups) must not silently widen it; the dependency is surfaced in Discussion.
+- When a roadmap phase lands, the affected layer's **status is updated in the same commit** — the
+  checklist stays truthful.
+
+[`FULL_PRODUCTION_STACK.md`](./FULL_PRODUCTION_STACK.md) is a mandatory companion checklist of this
+Constitution. For its security layer it **indexes** [`SECURITY_PRINCIPLES.md`](./SECURITY_PRINCIPLES.md);
+precedence (§6) is unchanged.
+
 ## 12. Code ownership
 
 Code is owned by the team; anyone may fix anything. But **finance, auth, and tenancy changes require a
@@ -146,8 +170,9 @@ one item at a time. Over time: debt down, tenant coverage up (from ~15/131 model
 Read, in order, before advising or coding: this Constitution → `ENGINEERING_PRINCIPLES` →
 `ARCHITECTURE_PRINCIPLES` → `SECURITY_PRINCIPLES` (+ `ACCESS_CONTROL`) → `DEVELOPMENT_WORKFLOW` →
 `CONTINUOUS_MODERNIZATION` → `CLAUDE_OPERATIONAL_GUIDELINES`, and skim `MODERNIZATION_ROADMAP` for current priorities. Evaluate every
-request against them; on conflict, state it and propose a compliant alternative. Operationalized in
-[`AGENT.md`](./AGENT.md).
+request against them; on conflict, state it and propose a compliant alternative. Before creating or
+editing any file, walk the layer checklist in [`FULL_PRODUCTION_STACK.md`](./FULL_PRODUCTION_STACK.md)
+(§11A). Operationalized in [`AGENT.md`](./AGENT.md).
 
 ## 15. Final principle
 
@@ -158,4 +183,7 @@ and trustworthy** for the schools and children who depend on it. Leave it better
 
 *Living document — amended by ADR and versioned. Governs the companion standards listed in §5.*
 
-**Amendment history:** v1.0 (2026-07-03) — initial ratification, harmonized with the existing Sophentis governance set (`ENGINEERING_PRINCIPLES`, `ARCHITECTURE_PRINCIPLES`, `SECURITY_PRINCIPLES`/`ACCESS_CONTROL`, `DEVELOPMENT_WORKFLOW`, `MODERNIZATION_ROADMAP`/`PROGRESS`). v1.1 (2026-07-05) — ratified `CLAUDE_OPERATIONAL_GUIDELINES.md` into the governance set (§5), precedence order (§6, deliberately last), AI collaboration policy (§8), and reading protocol (§14); recorded as ADR-0004.
+**Amendment history:** v1.2 (2026-07-17) — added §11A *Production-stack compliance*, ratifying
+[`FULL_PRODUCTION_STACK.md`](./FULL_PRODUCTION_STACK.md) as a mandatory companion checklist consulted
+before creating or editing any file (+ §14 pre-flight bullet); part of the Argo-parity security
+uplift, recorded as ADR-0008. v1.0 (2026-07-03) — initial ratification, harmonized with the existing Sophentis governance set (`ENGINEERING_PRINCIPLES`, `ARCHITECTURE_PRINCIPLES`, `SECURITY_PRINCIPLES`/`ACCESS_CONTROL`, `DEVELOPMENT_WORKFLOW`, `MODERNIZATION_ROADMAP`/`PROGRESS`). v1.1 (2026-07-05) — ratified `CLAUDE_OPERATIONAL_GUIDELINES.md` into the governance set (§5), precedence order (§6, deliberately last), AI collaboration policy (§8), and reading protocol (§14); recorded as ADR-0004.

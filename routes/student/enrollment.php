@@ -21,10 +21,11 @@ use App\Http\Controllers\Public\EnrollmentQrLandingController;
 
 Route::prefix('apply')->name('public.apply.')->middleware('enrollment.open')->group(function () {
 
-    // QR-code landing (public — handles auth state internally)
+    // QR-code landing (public — handles auth state internally). The POSTs are
+    // unauthenticated, so they are IP-throttled (H6).
     Route::get('/qr/{term}',           [EnrollmentQrLandingController::class, 'show'])->name('qr');
-    Route::post('/qr/{term}/login',    [EnrollmentQrLandingController::class, 'login'])->name('qr.login');
-    Route::post('/qr/{term}/register', [EnrollmentQrLandingController::class, 'register'])->name('qr.register');
+    Route::post('/qr/{term}/login',    [EnrollmentQrLandingController::class, 'login'])->name('qr.login')->middleware('throttle:public-apply');
+    Route::post('/qr/{term}/register', [EnrollmentQrLandingController::class, 'register'])->name('qr.register')->middleware('throttle:public-apply');
 
     // GET fallbacks: if a user hits these via refresh / back-button / direct URL,
     // bounce them back to the landing page instead of throwing 405.
@@ -35,8 +36,8 @@ Route::prefix('apply')->name('public.apply.')->middleware('enrollment.open')->gr
 
     Route::middleware(['auth', 'role:student'])->group(function () {
 
-        // Step 1 — Personal Info
-        Route::post('/{term}', [EnrollmentController::class, 'store'])->name('store');
+        // Step 1 — Personal Info (photo/ID uploads — H6 throttled)
+        Route::post('/{term}', [EnrollmentController::class, 'store'])->name('store')->middleware('throttle:uploads');
         Route::post('/{term}/draft', [EnrollmentController::class, 'saveDraft'])->name('draft');
         Route::get('/{term}/exit', [EnrollmentController::class, 'exitToDashboard'])->name('exit');
 
@@ -50,7 +51,7 @@ Route::prefix('apply')->name('public.apply.')->middleware('enrollment.open')->gr
 
         // Step 4 — Learning Pathway (cascading education node + program)
         Route::get('/{term}/pathway',  [EnrollmentController::class, 'showPathway'])->name('pathway');
-        Route::post('/{term}/pathway', [EnrollmentController::class, 'storePathway'])->name('pathway.store');
+        Route::post('/{term}/pathway', [EnrollmentController::class, 'storePathway'])->name('pathway.store')->middleware('throttle:uploads'); // H6 — file-bearing step
         Route::get('/{term}/pathway/branch/{node}', [EnrollmentController::class, 'pathwayBranch'])
             ->name('pathway.branch');
         Route::get('/{term}/pathway/subjects', [EnrollmentController::class, 'pathwaySubjects'])

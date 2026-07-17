@@ -34,6 +34,7 @@
               'academicLevels' => $academicLevels,
               'multiple'       => false,
               'name'           => 'academic_level_id',
+              'selected'       => $preLevel ?? [],
           ])
         </div>
 
@@ -86,6 +87,7 @@
   .qm-action-row .qm-qtype label { display: block; margin-bottom: 6px; }
 </style>
 
+<script>window.QM_PRESELECT = @json($preselect ?? null);</script>
 <script src="{{ asset('js/tests/question-metadata.js') }}"></script>
 
 @endsection

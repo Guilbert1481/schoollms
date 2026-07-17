@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Superadmin\AiProviderController;
 use App\Http\Controllers\Superadmin\ConfigurationController;
 
 Route::middleware([
@@ -24,6 +25,16 @@ Route::middleware([
 
         Route::post('/update', [ConfigurationController::class, 'update'])
             ->name('update');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AI PROVIDERS
+        |--------------------------------------------------------------------------
+        */
+
+        Route::post('/ai', [AiProviderController::class, 'update'])
+            ->name('ai.update');
 
 
         /*

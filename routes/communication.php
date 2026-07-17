@@ -66,7 +66,8 @@ Route::middleware(['auth'])
 
             Route::get('/{thread}', [ChatController::class, 'show'])->name('show');
             Route::get('/{thread}/messages', [ChatController::class, 'threadMessages'])->name('messages');
-            Route::post('/{thread}/message', [ChatController::class, 'storeMessage'])->name('message.store');
+            Route::post('/{thread}/message', [ChatController::class, 'storeMessage'])->name('message.store')
+                ->middleware('throttle:chat'); // H6 — message/attachment flood guard
 
             Route::delete('/{thread}', [ChatController::class, 'destroy'])->name('destroy');
             Route::get('/{thread}/members', [ChatController::class, 'members'])->name('members');

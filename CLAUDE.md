@@ -12,7 +12,9 @@ In order: [`ENGINEERING_CONSTITUTION.md`](./ENGINEERING_CONSTITUTION.md) →
 [`SECURITY_PRINCIPLES.md`](./SECURITY_PRINCIPLES.md) (+ [`ACCESS_CONTROL.md`](./ACCESS_CONTROL.md)) →
 [`DEVELOPMENT_WORKFLOW.md`](./DEVELOPMENT_WORKFLOW.md) →
 [`CONTINUOUS_MODERNIZATION.md`](./CONTINUOUS_MODERNIZATION.md). Current priorities:
-[`MODERNIZATION_ROADMAP.md`](./MODERNIZATION_ROADMAP.md).
+[`MODERNIZATION_ROADMAP.md`](./MODERNIZATION_ROADMAP.md). Before creating or editing **any** file,
+walk the 13-layer checklist in [`FULL_PRODUCTION_STACK.md`](./FULL_PRODUCTION_STACK.md)
+(Constitution §11A).
 
 Precedence when docs disagree: **Constitution → Security → Architecture → Engineering → Workflow →
 Modernization.** Security and tenant isolation override convenience; architecture overrides shortcuts.

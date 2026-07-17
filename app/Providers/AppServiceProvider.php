@@ -219,6 +219,11 @@ class AppServiceProvider extends ServiceProvider
      * Keyed on the submitted email + client IP so one attacker on a shared IP
      * can't lock out every user, while per-account guessing stays bounded.
      * A wider per-IP ceiling catches distributed email spraying.
+     *
+     * H6 — Named limiters for the other abuse-prone surfaces (chat sends,
+     * uploads, AI/OCR calls, public application endpoints). All ride the shared
+     * cache store, so limits hold across php-fpm workers and restarts
+     * (SECURITY_PRINCIPLES §16, FULL_PRODUCTION_STACK layer 9).
      */
     protected function configureRateLimiting(): void
     {
@@ -229,6 +234,28 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute(6)->by($email.'|'.$request->ip()),
                 Limit::perMinute(20)->by($request->ip()),
             ];
+        });
+
+        // Authenticated surfaces are keyed per user (IP fallback covers any
+        // unauthenticated hit before `auth` rejects it).
+        RateLimiter::for('chat', function (Request $request) {
+            return Limit::perMinute(30)->by('chat|'.($request->user()?->id ?: $request->ip()));
+        });
+
+        RateLimiter::for('uploads', function (Request $request) {
+            return Limit::perMinute(20)->by('uploads|'.($request->user()?->id ?: $request->ip()));
+        });
+
+        // AI/OCR calls are the most expensive requests in the app; one account
+        // must not be able to drain the provider budget or flood the queue.
+        // Attach as `throttle:ai` on AI-calling endpoints (AI3).
+        RateLimiter::for('ai', function (Request $request) {
+            return Limit::perMinute(10)->by('ai|'.($request->user()?->id ?: $request->ip()));
+        });
+
+        // Public application endpoints are unauthenticated — bound per IP.
+        RateLimiter::for('public-apply', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip());
         });
     }
 
