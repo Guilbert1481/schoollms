@@ -28,6 +28,8 @@ class OmrSheetService
      */
     private const BUBBLE_TYPES = ['mcq', 'multiple_choice', 'tf', 'true_false'];
 
+    private const WRITE_TYPES = ['identification', 'id', 'matching', 'match'];
+
     public function __construct(
         private OmrSheetTokenService $tokens,
         private OmrSheetSnapshotService $snapshots,
@@ -88,8 +90,37 @@ class OmrSheetService
             'grid' => OmrLayout::map($itemCount, 5),
             'fiducials' => OmrLayout::fiducials(),
             'layoutVersion' => OmrLayout::VERSION,
+            'written' => $this->writtenItems($test, $itemCount),
             'sheets' => $sheets,
         ];
+    }
+
+    /**
+     * Write-in items (identification / matching) for the printable sheet,
+     * numbered continuously after the bubble items. Display only — the correct
+     * answers live in the frozen snapshot.
+     *
+     * @return array<int, array{n:int,type:string}>
+     */
+    private function writtenItems(Test $test, int $offset): array
+    {
+        $questions = $test->testQuestions()
+            ->with('question')
+            ->orderBy('order')
+            ->get()
+            ->map(fn ($tq) => $tq->question)
+            ->filter(fn ($q) => $q && in_array($q->question_type, self::WRITE_TYPES, true))
+            ->values();
+
+        $out = [];
+        foreach ($questions as $i => $q) {
+            $out[] = [
+                'n' => $offset + $i + 1,
+                'type' => in_array($q->question_type, ['matching', 'match'], true) ? 'matching' : 'identification',
+            ];
+        }
+
+        return $out;
     }
 
     /**
@@ -103,21 +134,36 @@ class OmrSheetService
         return $this->enrolledStudents((int) $section->id)->map(function ($s) use ($test, $section) {
             $sheet = $this->snapshots->forStudent($test, (int) $s->id, (int) $section->id);
             $result = OmrResult::with('items')->where('omr_sheet_id', $sheet->id)->first();
+            $bubbleCount = (int) $sheet->item_count;
+
+            $marks = [];
+            $writtenMarks = [];
+            if ($result) {
+                foreach ($result->items as $it) {
+                    /** @var OmrItemResult $it */
+                    if ($it->item_number <= $bubbleCount) {
+                        $marks[$it->item_number] = $it->marked ? explode(',', $it->marked) : [];
+                    } else {
+                        $writtenMarks[$it->item_number] = $it->marked ?? '';
+                    }
+                }
+            }
 
             return [
                 'name' => $this->fullName($s),
                 'student_number' => $s->student_number,
                 'sheet_token' => $this->tokens->sheetToken($sheet->token, $sheet->layout_version),
-                'item_count' => (int) $sheet->item_count,
+                'item_count' => $bubbleCount,
+                'written_items' => array_map(
+                    fn ($k) => ['n' => $k['n'], 'type' => $k['type']],
+                    $sheet->written_key ?? []
+                ),
                 'graded' => (bool) $result,
                 'raw_score' => $result?->raw_score,
                 'max_score' => (int) $sheet->max_score,
                 'percentage' => $result ? (float) $result->percentage : null,
-                'marks' => $result
-                    ? $result->items->mapWithKeys(fn (OmrItemResult $it) => [
-                        $it->item_number => $it->marked ? explode(',', $it->marked) : [],
-                    ])->all()
-                    : [],
+                'marks' => $marks,
+                'written_marks' => $writtenMarks,
             ];
         })->all();
     }

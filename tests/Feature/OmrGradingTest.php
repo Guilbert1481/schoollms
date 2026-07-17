@@ -136,6 +136,41 @@ class OmrGradingTest extends TestCase
         $this->assertSame(['correct', 'incorrect', 'blank', 'multiple'], $outcomes);
     }
 
+    public function test_grades_identification_and_matching_as_written_answers(): void
+    {
+        $test = Test::create([
+            'school_id' => $this->school->id, 'teacher_id' => $this->teacher->id,
+            'title' => 'Exam', 'status' => 'draft',
+        ]);
+        $this->question($test, 1, 'mcq', ['w', 'w', 'w', 'w'], 0);         // item 1 (bubble) correct A
+        $this->question($test, 2, 'identification', ['Photosynthesis'], 0); // item 2 (written)
+        $this->question($test, 3, 'matching', ['Tokyo'], 0);               // item 3 (written)
+
+        $sheet = app(OmrSheetSnapshotService::class)->forStudent($test, 777, null);
+
+        $this->assertSame(1, $sheet->item_count);
+        $this->assertSame(2, $sheet->written_count);
+        $this->assertSame(3, $sheet->max_score);
+
+        $res = $this->actingAs($this->teacher)
+            ->postJson(route('teacher.tests.omr.scan'), [
+                'sheet_token' => app(OmrSheetTokenService::class)->sheetToken($sheet->token, $sheet->layout_version),
+                'marked_answers' => [['n' => 1, 'marks' => ['A']]],
+                'written_answers' => [
+                    ['n' => 2, 'text' => '  photosynthesis! '], // fuzzy → correct
+                    ['n' => 3, 'text' => 'Paris'],              // wrong (correct is Tokyo)
+                ],
+            ])
+            ->assertOk()->json();
+
+        // 1 bubble correct + 1 written correct + 1 written wrong = 2/3.
+        $this->assertSame(2, $res['result']['raw_score']);
+        $this->assertSame(3, $res['result']['max_score']);
+        $this->assertSame(2, $res['result']['correct_count']);
+        $this->assertSame(1, $res['result']['incorrect_count']);
+        $this->assertSame(['correct', 'correct', 'incorrect'], array_column($res['items'], 'outcome'));
+    }
+
     public function test_duplicate_scan_is_refused_then_allowed_with_authorization(): void
     {
         $sheet = $this->makeSheet();

@@ -31,6 +31,9 @@ class OmrScanController extends Controller
             'marked_answers.*.n' => ['required', 'integer', 'min:1'],
             'marked_answers.*.marks' => ['array'],
             'marked_answers.*.marks.*' => ['string', 'max:2'],
+            'written_answers' => ['nullable', 'array'],
+            'written_answers.*.n' => ['required', 'integer', 'min:1'],
+            'written_answers.*.text' => ['nullable', 'string', 'max:255'],
             'source' => ['nullable', 'in:manual,camera'],
             'allow_rescan' => ['nullable', 'boolean'],
             'is_override' => ['nullable', 'boolean'],
@@ -59,6 +62,7 @@ class OmrScanController extends Controller
             $result = $this->grading->record(
                 sheet: $sheet,
                 markedAnswers: $data['marked_answers'],
+                writtenAnswers: $data['written_answers'] ?? [],
                 scannedBy: (int) auth()->id(),
                 source: $data['source'] ?? 'manual',
                 meta: $data['meta'] ?? [],

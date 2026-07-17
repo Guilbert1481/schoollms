@@ -7,6 +7,7 @@ use App\Models\OmrResult;
 use App\Models\OmrScanAttempt;
 use App\Models\OmrSheet;
 use App\Services\Tests\Exceptions\DuplicateScanException;
+use App\Support\AnswerMatch;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -19,11 +20,13 @@ use Illuminate\Support\Facades\DB;
 class OmrGradingService
 {
     /**
-     * @param  array<int, array<string, mixed>>  $markedAnswers
+     * @param  array<int, array<string, mixed>>  $markedAnswers  bubble marks: [{n, marks:[]}]
+     * @param  array<int, array<string, mixed>>  $writtenAnswers  write-in text: [{n, text}]
      */
     public function record(
         OmrSheet $sheet,
         array $markedAnswers,
+        array $writtenAnswers,
         ?int $scannedBy,
         string $source = 'manual',
         array $meta = [],
@@ -37,15 +40,17 @@ class OmrGradingService
         }
 
         $marks = $this->normalise($markedAnswers);
-        $graded = $this->grade($sheet, $marks);
+        $written = $this->normaliseWritten($writtenAnswers);
+        $graded = $this->grade($sheet, $marks, $written);
 
-        return DB::transaction(function () use ($sheet, $marks, $scannedBy, $source, $meta, $confidence, $graded, $isOverride) {
+        return DB::transaction(function () use ($sheet, $marks, $written, $scannedBy, $source, $meta, $confidence, $graded, $isOverride) {
             $attempt = OmrScanAttempt::create([
                 'school_id' => $sheet->school_id,
                 'omr_sheet_id' => $sheet->id,
                 'scanned_by' => $scannedBy,
                 'source' => $source,
                 'marked_answers' => $this->marksForStorage($marks),
+                'written_answers' => $this->writtenForStorage($written) ?: null,
                 'confidence' => $confidence,
                 'meta' => $meta ?: null,
                 'outcome' => $graded['result'],
@@ -80,12 +85,13 @@ class OmrGradingService
     }
 
     /**
-     * Grade marks against the sheet's answer key.
+     * Grade bubble marks + write-in answers against the sheet's frozen keys.
      *
      * @param  array<int, array<int,string>>  $marks  item number → marked letters
+     * @param  array<int, string>  $written  item number → written text
      * @return array{result:array<string,mixed>, items:array<int,array<string,mixed>>}
      */
-    private function grade(OmrSheet $sheet, array $marks): array
+    private function grade(OmrSheet $sheet, array $marks, array $written): array
     {
         $items = [];
         $correct = $incorrect = $blank = $multiple = 0;
@@ -118,6 +124,32 @@ class OmrGradingService
                 'question_id' => $k['question_id'] ?? null,
                 'marked' => $marked,
                 'correct' => $correctLabel,
+                'outcome' => $outcome,
+            ];
+        }
+
+        // Identification / matching: normalise + fuzzy-match the written answer.
+        foreach (($sheet->written_key ?? []) as $k) {
+            $n = (int) $k['n'];
+            $text = $written[$n] ?? '';
+            $accept = $k['accept'] ?? [];
+
+            if (trim($text) === '') {
+                $outcome = 'blank';
+                $blank++;
+            } elseif (AnswerMatch::matches($text, $accept)) {
+                $outcome = 'correct';
+                $correct++;
+            } else {
+                $outcome = 'incorrect';
+                $incorrect++;
+            }
+
+            $items[] = [
+                'n' => $n,
+                'question_id' => $k['question_id'] ?? null,
+                'marked' => $text !== '' ? $text : null,
+                'correct' => $k['correct'] ?? null,
                 'outcome' => $outcome,
             ];
         }
@@ -170,6 +202,39 @@ class OmrGradingService
         $out = [];
         foreach ($marks as $n => $m) {
             $out[] = ['n' => $n, 'marks' => array_values($m)];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Normalise write-in submissions to item number → trimmed text.
+     *
+     * @param  array<int, array<string, mixed>>  $input  [{n, text}]
+     * @return array<int, string>
+     */
+    private function normaliseWritten(array $input): array
+    {
+        $out = [];
+        foreach ($input as $row) {
+            if (! isset($row['n'])) {
+                continue;
+            }
+            $out[(int) $row['n']] = trim((string) ($row['text'] ?? ''));
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array<int, string>  $written
+     * @return array<int, array{n:int, text:string}>
+     */
+    private function writtenForStorage(array $written): array
+    {
+        $out = [];
+        foreach ($written as $n => $text) {
+            $out[] = ['n' => $n, 'text' => $text];
         }
 
         return $out;

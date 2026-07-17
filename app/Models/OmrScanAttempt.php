@@ -14,11 +14,12 @@ class OmrScanAttempt extends Model
 {
     protected $fillable = [
         'school_id', 'omr_sheet_id', 'scanned_by', 'source',
-        'marked_answers', 'confidence', 'meta', 'outcome',
+        'marked_answers', 'written_answers', 'confidence', 'meta', 'outcome',
     ];
 
     protected $casts = [
         'marked_answers' => 'array',
+        'written_answers' => 'array',
         'confidence' => 'array',
         'meta' => 'array',
         'outcome' => 'array',

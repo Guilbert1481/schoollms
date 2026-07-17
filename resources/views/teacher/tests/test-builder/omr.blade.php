@@ -47,6 +47,13 @@
         .omr-num { position: absolute; transform: translate(-118%, -50%); font-size: 10px; font-weight: 700; white-space: nowrap; }
         .omr-region .ver { position: absolute; right: 0; bottom: -13px; font-size: 8px; color: #94a3b8; letter-spacing: .5px; }
 
+        /* Write-in (identification / matching) — bounded boxes for OCR later. */
+        .write-in { margin-top: 8px; }
+        .wrow { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; break-inside: avoid; }
+        .wrow .wnum { width: 26px; text-align: right; font-weight: 700; font-size: 11px; }
+        .wrow .wbox { flex: 1; height: 0.34in; border: 1.2px solid #111; border-radius: 4px; }
+        .wrow .wtype { width: 66px; font-size: 8px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; }
+
         .empty-note { margin-top: 18px; padding: 14px; border: 1px dashed #94a3b8; color: #475569; font-size: 13px; text-align: center; }
 
         @media print {
@@ -108,7 +115,7 @@
             </div>
         </div>
 
-        {{-- ===== Scannable answer grid (fixed coordinates + corner fiducials) ===== --}}
+        {{-- ===== Bubbles (multiple-choice / true-false) ===== --}}
         @if ($itemCount > 0)
             <div class="grid-title">Answer Sheet — fully shade the letter of your answer; keep the corner squares clean</div>
             <div class="omr-region">
@@ -124,11 +131,24 @@
                 </div>
                 <span class="ver">OMR {{ $layoutVersion }}</span>
             </div>
-        @else
-            <div class="empty-note">
-                This test has no multiple-choice / true-or-false items, so there is nothing to bubble.
-                Answers are written directly on the test paper.
+        @endif
+
+        {{-- ===== Write-in (identification / matching) ===== --}}
+        @if (! empty($written))
+            <div class="grid-title">Write-In — print your answer in CAPITAL letters, one per line</div>
+            <div class="write-in">
+                @foreach ($written as $w)
+                    <div class="wrow">
+                        <span class="wnum">{{ $w['n'] }}.</span>
+                        <span class="wbox"></span>
+                        <span class="wtype">{{ $w['type'] }}</span>
+                    </div>
+                @endforeach
             </div>
+        @endif
+
+        @if ($itemCount === 0 && empty($written))
+            <div class="empty-note">This test has no auto-scannable items.</div>
         @endif
     </div>
 @empty

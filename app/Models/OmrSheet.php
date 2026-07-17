@@ -15,11 +15,13 @@ class OmrSheet extends Model
 {
     protected $fillable = [
         'school_id', 'test_id', 'student_id', 'section_id',
-        'layout_version', 'token', 'answer_key', 'item_count', 'max_score', 'generated_at',
+        'layout_version', 'token', 'answer_key', 'written_key',
+        'item_count', 'written_count', 'max_score', 'generated_at',
     ];
 
     protected $casts = [
         'answer_key' => 'array',
+        'written_key' => 'array',
         'generated_at' => 'datetime',
     ];
 

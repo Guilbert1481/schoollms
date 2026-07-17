@@ -67,6 +67,7 @@
                         <span id="statusPill"></span>
                     </div>
                     <div class="rec-grid" id="recGrid"></div>
+                    <div id="recWritten" style="margin-top:12px;"></div>
                     <div style="margin-top:16px; display:flex; align-items:center; gap:12px;">
                         <button type="button" class="btn btn-primary" id="recordBtn">Record answers</button>
                         <span class="res" id="recResult"></span>
@@ -93,8 +94,11 @@
     const btn        = document.getElementById('recordBtn');
     const resultEl   = document.getElementById('recResult');
     const pill       = document.getElementById('statusPill');
+    const written    = document.getElementById('recWritten');
 
     let current = null; // selected roster entry
+
+    const escAttr = (s) => String(s).replace(/"/g, '&quot;');
 
     function renderGrid(r) {
         grid.innerHTML = '';
@@ -108,6 +112,20 @@
                 ).join('');
             grid.appendChild(row);
         }
+
+        // Write-in items (identification / matching) — type the student's answer.
+        written.innerHTML = '';
+        (r.written_items || []).forEach((w) => {
+            const val = (r.written_marks && r.written_marks[w.n] != null) ? r.written_marks[w.n] : '';
+            const row = document.createElement('div');
+            row.className = 'rec-row';
+            row.style.marginBottom = '6px';
+            row.innerHTML = '<span class="n">' + w.n + '.</span>' +
+                '<input type="text" class="wtext" data-n="' + w.n + '" value="' + escAttr(val) + '" ' +
+                'placeholder="' + w.type + ' answer" style="flex:1; padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px;">';
+            written.appendChild(row);
+        });
+
         pill.innerHTML = r.graded
             ? '<span class="pill graded">Recorded · ' + r.raw_score + '/' + r.max_score + ' (' + r.percentage + '%)</span>'
             : '<span class="pill pending">Not yet recorded</span>';
@@ -136,6 +154,13 @@
         return answers;
     }
 
+    function collectWritten(r) {
+        return (r.written_items || []).map((w) => ({
+            n: w.n,
+            text: (written.querySelector('.wtext[data-n="' + w.n + '"]')?.value || '').trim(),
+        }));
+    }
+
     async function submit(allowRescan) {
         if (!current) return;
         btn.disabled = true;
@@ -148,6 +173,7 @@
                 body: JSON.stringify({
                     sheet_token: current.sheet_token,
                     marked_answers: collectMarks(current),
+                    written_answers: collectWritten(current),
                     source: 'manual',
                     allow_rescan: !!allowRescan,
                 }),
