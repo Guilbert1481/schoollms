@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\ClassModel;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
+use App\Services\Grading\GradebookService;
+use App\Services\Grading\GradingSchemeResolver;
+use App\Services\Grading\HomeworkComponentFeed;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +23,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class HomeworkController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, GradingSchemeResolver $resolver, GradebookService $gradebook)
     {
         $userId = Auth::id();
         $classes = ClassModel::where('teacher_id', $userId)->orderBy('code')->get();
@@ -29,11 +32,22 @@ class HomeworkController extends Controller
         if ($request->filled('class_id')) {
             $class = $classes->firstWhere('id', (int) $request->query('class_id'));
             if ($class) {
+                // The class's grade components — a homework can be tagged to one so
+                // grading it feeds that component of the gradebook.
+                $track = $gradebook->classTrack($class);
+                if ($track === 'basic') {
+                    $ctx = $gradebook->basicContext($class);
+                    $components = $ctx ? $ctx['setting']->components : collect();
+                } else {
+                    $setting = $resolver->forClass($class);
+                    $components = $setting ? $setting->components : collect();
+                }
+
                 $context = [
                     'class' => $class,
-                    'homework' => Homework::where('class_id', $class->id)
-                        ->withCount('submissions')
-                        ->orderByDesc('id')->get(),
+                    'track' => $track,
+                    'components' => $components,
+                    'homework' => Homework::where('class_id', $class->id)->withCount('submissions')->orderByDesc('id')->get(),
                 ];
             }
         }
@@ -49,6 +63,8 @@ class HomeworkController extends Controller
             'instructions' => ['nullable', 'string'],
             'points' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'due_at' => ['nullable', 'date'],
+            'grade_component_id' => ['nullable', 'integer'],
+            'grading_period' => ['nullable', 'integer', 'min:1', 'max:4'],
         ]);
 
         $class = ClassModel::where('teacher_id', Auth::id())->findOrFail($data['class_id']);
@@ -59,6 +75,8 @@ class HomeworkController extends Controller
             'instructions' => $data['instructions'] ?? null,
             'points' => $data['points'] ?? null,
             'due_at' => $data['due_at'] ?? null,
+            'grade_component_id' => $this->validComponentId($class, $data['grade_component_id'] ?? null),
+            'grading_period' => $data['grading_period'] ?? null,
             'is_published' => $request->boolean('is_published'),
             'created_by' => Auth::id(),
         ]);
@@ -77,7 +95,7 @@ class HomeworkController extends Controller
         return view('teacher.homework.show', compact('homework', 'submissions'));
     }
 
-    public function grade(Request $request, Homework $homework)
+    public function grade(Request $request, Homework $homework, HomeworkComponentFeed $feed)
     {
         $this->authorizeOwner($homework);
 
@@ -101,6 +119,10 @@ class HomeworkController extends Controller
             ]);
         }
 
+        // If this homework is tagged to a grade component, roll the new scores
+        // into the gradebook automatically.
+        $feed->sync($homework);
+
         return back()->with('success', 'Grades saved.');
     }
 
@@ -120,5 +142,20 @@ class HomeworkController extends Controller
     {
         $ownerId = DB::table('classes')->where('id', $homework->class_id)->value('teacher_id');
         abort_unless((int) $ownerId === (int) Auth::id(), 403);
+    }
+
+    /** Accept a component tag only if it is a real grade component in this school. */
+    private function validComponentId(ClassModel $class, ?int $componentId): ?int
+    {
+        if (! $componentId) {
+            return null;
+        }
+
+        $exists = DB::table('grade_components as gc')
+            ->join('grading_settings as gs', 'gs.id', '=', 'gc.grading_setting_id')
+            ->where('gc.id', $componentId)->where('gs.school_id', $class->school_id)
+            ->exists();
+
+        return $exists ? $componentId : null;
     }
 }

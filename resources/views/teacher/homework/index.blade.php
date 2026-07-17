@@ -73,6 +73,29 @@
                         </label>
                     </div>
                 </div>
+                <div class="grid gap-3 md:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-slate-600">Counts toward</label>
+                        <select name="grade_component_id" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            <option value="">Not graded / practice</option>
+                            @foreach ($context['components'] as $c)
+                                <option value="{{ $c->id }}">{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-[11px] text-slate-400">Graded homework in a component auto-feeds that component of the gradebook.</p>
+                    </div>
+                    @if ($context['track'] === 'basic')
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-600">Grading period</label>
+                            <select name="grading_period" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                                @foreach ([1 => '1st', 2 => '2nd', 3 => '3rd', 4 => '4th'] as $p => $label)
+                                    <option value="{{ $p }}">{{ $label }} grading</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+                </div>
+
                 <div class="flex justify-end">
                     <button type="submit" class="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Post homework</button>
                 </div>
