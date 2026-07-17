@@ -269,6 +269,7 @@
                                      Test-Source subject + selected grade/year level. --}}
                                 <select id="class_id" name="class_id">
                                     <option value="">None</option>
+                                    <option value="others">Others (personal — not for a class)</option>
                                     @foreach($classes as $class)
                                         <option value="{{ $class->id }}"
                                             data-subject-id="{{ $class->subject_id }}"

@@ -45,10 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // "Others" (a personal test) and "None" both save with no class.
+        const classVal = document.getElementById('class_id')?.value || '';
+
         const payload = {
             test_id: document.getElementById('testId')?.value || null,
             subject_id: document.getElementById('cd-subject')?.value || null,
-            class_id: document.getElementById('class_id')?.value || null,
+            class_id: (classVal && classVal !== 'others') ? classVal : null,
             topic_id: document.getElementById('cd-topic')?.value || null,
             lesson_id: document.getElementById('cd-lesson')?.value || null,
             competency_id: document.getElementById('cd-competency')?.value || null,

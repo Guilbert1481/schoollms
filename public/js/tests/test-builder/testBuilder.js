@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
         Array.from(classSel.options).forEach((opt) => {
-            if (!opt.value) return; // always keep "None"
+            if (!opt.value || opt.value === 'others') return; // always keep "None" / "Others"
             const subjectOk = chosenSubject !== '' && opt.dataset.subjectId === String(chosenSubject);
             const yearOk = years.size === 0 || years.has(String(opt.dataset.yearLevel));
             const show = subjectOk && yearOk;
