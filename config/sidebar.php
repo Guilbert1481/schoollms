@@ -354,7 +354,7 @@ return [
 
                 [
                     'label' => 'Assignments',
-                    'route' => '#',
+                    'route' => 'teacher.homework.index',
                     'icon'  => 'file-text',
                 ],
 
@@ -1194,8 +1194,9 @@ return [
                     'icon'  => 'scroll-text',
                 ],
                 [
-                    'label' => 'Tasks',
-                    'route' => '#',
+                    'label' => 'Homework',
+                    'route' => 'student.homework.index',
+                    'active' => 'student.homework.*',
                     'icon'  => 'clipboard-list',
                 ],
                 [

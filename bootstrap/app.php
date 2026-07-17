@@ -76,6 +76,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/teacher/dashboard.php',
             __DIR__.'/../routes/teacher/attendance.php',
             __DIR__.'/../routes/teacher/grades.php',
+            __DIR__.'/../routes/teacher/homework.php',
             __DIR__.'/../routes/teacher/lessons/lessons.php',
             __DIR__.'/../routes/teacher/lessons/resources.php',
 
@@ -116,6 +117,7 @@ return Application::configure(basePath: dirname(__DIR__))
             */
             __DIR__.'/../routes/student/dashboard.php',
             __DIR__.'/../routes/student/attendance.php',
+            __DIR__.'/../routes/student/homework.php',
             __DIR__.'/../routes/student/subjects.php',
             __DIR__.'/../routes/student/transcript.php',
             __DIR__.'/../routes/student/applications.php',
