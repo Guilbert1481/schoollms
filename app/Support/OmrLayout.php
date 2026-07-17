@@ -79,11 +79,13 @@ class OmrLayout
      * numbering always matches.
      *
      * @param  array<int, array<string, mixed>>  $items
+     * @param  int|null  $seed  print arrangement seed; null = natural order
      * @return array<int, array<string, mixed>>
      */
-    public static function sequence(array $items): array
+    public static function sequence(array $items, ?int $seed = null): array
     {
-        usort($items, fn ($a, $b) => [self::rank($a['type']), $a['order']] <=> [self::rank($b['type']), $b['order']]);
+        usort($items, fn ($a, $b) => [self::rank($a['type']), TestArrangement::orderKey($seed, $a['order'])]
+            <=> [self::rank($b['type']), TestArrangement::orderKey($seed, $b['order'])]);
 
         $n = 0;
         foreach ($items as &$item) {

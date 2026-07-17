@@ -70,7 +70,7 @@ class OmrSheetSnapshotService
             ->values()
             ->all();
 
-        return OmrLayout::sequence($raw);
+        return OmrLayout::sequence($raw, $test->print_seed);
     }
 
     /**

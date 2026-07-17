@@ -82,7 +82,9 @@ class PrintTestController extends Controller
                 continue;
             }
 
-            $sectionQuestions = $grouped[$type]->sortBy('id')->values();
+            $sectionQuestions = $grouped[$type]
+                ->sortBy(fn ($q) => \App\Support\TestArrangement::orderKey($test->print_seed, (int) $q->order))
+                ->values();
 
             // --- SECTION POINTS LOGIC ---
             if ($type === 'enumeration') {
