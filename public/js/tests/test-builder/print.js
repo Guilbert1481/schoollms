@@ -43,4 +43,17 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // Scan OMR with the device camera.
+    const scanBtn = document.getElementById("scanOmrBtn");
+    if (scanBtn) {
+        scanBtn.addEventListener("click", function () {
+            const testId = document.getElementById("testId")?.value;
+            if (!testId) {
+                alert("Test ID not found.");
+                return;
+            }
+            window.open(`/teacher/tests/${testId}/omr/scan-camera`, "_blank");
+        });
+    }
+
 });

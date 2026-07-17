@@ -359,6 +359,16 @@
             Record Answers
         </button>
 
+        {{-- SCAN OMR (CAMERA) BUTTON (hidden first) --}}
+        <button
+            type="button"
+            id="scanOmrBtn"
+            class="btn btn-print"
+            style="display:none;"
+        >
+            Scan (Camera)
+        </button>
+
         {{-- EDIT BUTTON (hidden first) --}}
         <button
             type="button"

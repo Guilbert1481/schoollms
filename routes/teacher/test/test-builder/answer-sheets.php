@@ -21,6 +21,11 @@ Route::prefix('teacher')
             ->name('tests.omr.record')
             ->missing(fn () => abort(404, 'No valid test found.'));
 
+        // Camera scan page (Phase 2b) — client-side detection → auto-record.
+        Route::get('tests/{test}/omr/scan-camera', [PrintOmrController::class, 'scanCamera'])
+            ->name('tests.omr.scan-camera')
+            ->missing(fn () => abort(404, 'No valid test found.'));
+
         // Record a scan / manual submission for one sheet → graded result.
         Route::post('tests/omr/scan', [OmrScanController::class, 'store'])
             ->name('tests.omr.scan');

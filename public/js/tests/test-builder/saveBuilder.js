@@ -119,11 +119,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const editBtn = document.getElementById('editTestBtn');
             const answerBtn = document.getElementById('answerSheetsBtn');
             const recordBtn = document.getElementById('recordOmrBtn');
+            const scanBtn = document.getElementById('scanOmrBtn');
             if (saveBtn) saveBtn.style.display = 'none';
             if (printBtn) printBtn.style.display = 'inline-block';
             if (editBtn) editBtn.style.display = 'inline-block';
             if (answerBtn) answerBtn.style.display = 'inline-block';
             if (recordBtn) recordBtn.style.display = 'inline-block';
+            if (scanBtn) scanBtn.style.display = 'inline-block';
         } catch (err) {
             alert('Something went wrong while saving: ' + err.message);
         }

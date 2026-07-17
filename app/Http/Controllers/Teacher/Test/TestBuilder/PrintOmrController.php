@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Section;
 use App\Models\Test;
 use App\Services\Tests\OmrSheetService;
+use App\Support\OmrLayout;
 use Illuminate\Http\Request;
 
 class PrintOmrController extends Controller
@@ -70,6 +71,43 @@ class PrintOmrController extends Controller
             'section' => $section,
             'sectionId' => $sectionId,
             'roster' => $roster,
+        ]);
+    }
+
+    /**
+     * Camera scan page (Phase 2b): the device camera reads the QR + fiducials and
+     * detects bubbles entirely in the browser (the image never leaves the device);
+     * high-confidence reads auto-record, low-confidence ones drop to review. All
+     * sheets in a test share one bubble layout, embedded here for the detector.
+     */
+    public function scanCamera(Test $test, Request $request)
+    {
+        abort_unless((int) $test->school_id === (int) auth()->user()->school_id, 404);
+
+        $test->load(['subject', 'teacher']);
+
+        $sections = $this->sheets->sectionsForPicker($test);
+        $sectionId = $request->integer('section_id');
+
+        $section = null;
+        $roster = [];
+        $itemCount = 0;
+        if ($sectionId) {
+            $section = Section::findOrFail($sectionId);
+            abort_unless((int) $section->school_id === (int) auth()->user()->school_id, 404);
+            $roster = $this->sheets->recordRoster($test, $section);
+            $itemCount = (int) ($roster[0]['item_count'] ?? 0);
+        }
+
+        return view('teacher.tests.test-builder.omr-scan', [
+            'test' => $test,
+            'sections' => $sections,
+            'section' => $section,
+            'sectionId' => $sectionId,
+            'roster' => $roster,
+            'itemCount' => $itemCount,
+            'grid' => OmrLayout::map($itemCount, 5),
+            'fiducials' => OmrLayout::fiducials(),
         ]);
     }
 }
