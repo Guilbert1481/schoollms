@@ -355,7 +355,9 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    // Optionally show a success message here
+                    // Refresh the inline "Points/type" summary so the new values
+                    // show immediately, without a page reload.
+                    window.renderPointsSummary?.();
                     // Hide the modal (pure JS way):
                     document.getElementById('pointsModal').style.display = 'none';
                     // OR if you use jQuery/Bootstrap 4 modal: $('#pointsModal').modal('hide');

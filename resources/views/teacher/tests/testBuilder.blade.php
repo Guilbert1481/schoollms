@@ -114,6 +114,22 @@
                 <h3 style="margin-bottom: 0;">Question Settings</h3>
                 <button id="pointsBtn" type="button" class="custom-points-btn">Points</button>
             </div>
+            @php
+                $ptLabels = ['mcq' => 'MCQ', 'tf' => 'TF', 'mtf' => 'MTF', 'id' => 'ID', 'match' => 'Match', 'fib' => 'FIB', 'enum' => 'Enum', 'essay' => 'Essay'];
+                $ptParts = [];
+                foreach ($ptLabels as $ptKey => $ptLabel) {
+                    if (isset(($typePoints ?? [])[$ptKey]) && (int) $typePoints[$ptKey] > 0) {
+                        $ptParts[] = $ptLabel.' '.(int) $typePoints[$ptKey];
+                    }
+                }
+            @endphp
+            <div id="pointsSummary" style="margin-top:6px; font-size:0.85rem; color:#475569;">
+                @if (count($ptParts))
+                    <strong>Points/type:</strong> {{ implode(' · ', $ptParts) }}
+                @else
+                    <span style="color:#94a3b8;">No custom points set — defaults to 1 pt each.</span>
+                @endif
+            </div>
 
             <table class="builder-table mb-3">
                 <thead>
@@ -141,38 +157,39 @@
         <div id="pointsModal" class="modal" style="display:none; position:fixed; z-index:1050; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); align-items:center; justify-content:center;">
             <div style="background:white; border-radius:8px; max-width:400px; width:90%; padding:24px; margin:40px auto; position:relative;">
                 <h4 style="margin-top:0;">Set Points Per Question Type</h4>
+                @php $typePoints = $typePoints ?? []; @endphp
                 <form id="pointsForm" autocomplete="off">
                     <div style="display: flex; align-items:center; margin-bottom: 10px;">
                         <label style="flex:1;" for="points-mcq">MCQ:</label>
-                        <input type="number" min="0" class="form-control" name="mcq_points" id="points-mcq" style="max-width:60px;" />
+                        <input type="number" min="0" class="form-control" name="mcq_points" id="points-mcq" value="{{ $typePoints['mcq'] ?? '' }}" style="max-width:60px;" />
                     </div>
                     <div style="display: flex; align-items:center; margin-bottom: 10px;">
                         <label style="flex:1;" for="points-tf">TF:</label>
-                        <input type="number" min="0" class="form-control" name="tf_points" id="points-tf" style="max-width:60px;" />
+                        <input type="number" min="0" class="form-control" name="tf_points" id="points-tf" value="{{ $typePoints['tf'] ?? '' }}" style="max-width:60px;" />
                     </div>
                     <div style="display: flex; align-items:center; margin-bottom: 10px;">
                         <label style="flex:1;" for="points-mtf">MTF:</label>
-                        <input type="number" min="0" class="form-control" name="mtf_points" id="points-mtf" style="max-width:60px;" />
+                        <input type="number" min="0" class="form-control" name="mtf_points" id="points-mtf" value="{{ $typePoints['mtf'] ?? '' }}" style="max-width:60px;" />
                     </div>
                     <div style="display: flex; align-items:center; margin-bottom: 10px;">
                         <label style="flex:1;" for="points-id">ID:</label>
-                        <input type="number" min="0" class="form-control" name="id_points" id="points-id" style="max-width:60px;" />
+                        <input type="number" min="0" class="form-control" name="id_points" id="points-id" value="{{ $typePoints['id'] ?? '' }}" style="max-width:60px;" />
                     </div>
                     <div style="display: flex; align-items:center; margin-bottom: 10px;">
                         <label style="flex:1;" for="points-match">Match:</label>
-                        <input type="number" min="0" class="form-control" name="match_points" id="points-match" style="max-width:60px;" />
+                        <input type="number" min="0" class="form-control" name="match_points" id="points-match" value="{{ $typePoints['match'] ?? '' }}" style="max-width:60px;" />
                     </div>
                     <div style="display: flex; align-items:center; margin-bottom: 10px;">
                         <label style="flex:1;" for="points-fib">FIB:</label>
-                        <input type="number" min="0" class="form-control" name="fib_points" id="points-fib" style="max-width:60px;" />
+                        <input type="number" min="0" class="form-control" name="fib_points" id="points-fib" value="{{ $typePoints['fib'] ?? '' }}" style="max-width:60px;" />
                     </div>
                     <div style="display: flex; align-items:center; margin-bottom: 10px;">
                         <label style="flex:1;" for="points-enum">Enum:</label>
-                        <input type="number" min="0" class="form-control" name="enum_points" id="points-enum" style="max-width:60px;" />
+                        <input type="number" min="0" class="form-control" name="enum_points" id="points-enum" value="{{ $typePoints['enum'] ?? '' }}" style="max-width:60px;" />
                     </div>
                     <div style="display: flex; align-items:center; margin-bottom: 10px;">
                         <label style="flex:1;" for="points-essay">Essay:</label>
-                        <input type="number" min="0" class="form-control" name="essay_points" id="points-essay" style="max-width:60px;" />
+                        <input type="number" min="0" class="form-control" name="essay_points" id="points-essay" value="{{ $typePoints['essay'] ?? '' }}" style="max-width:60px;" />
                     </div>
                     <div style="text-align:right; margin-top: 18px;">
                         <button type="button" id="closePointsModal" class="btn btn-sm btn-secondary" style="margin-right:10px;">Cancel</button>
