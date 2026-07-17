@@ -24,6 +24,8 @@
     const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
     const GRID = CFG.grid || [];          // [{n, options:[{label,x,y}]}] normalised coords
+    const WRITES = CFG.written || [];     // [{n, type, box:{x,y,w,h}}] normalised coords
+    const WRITE_CONF_MIN = 70;            // Tesseract confidence (0..100) below → flag
     const ROSTER = {};                    // sheet_token → roster row
     (CFG.roster || []).forEach((r) => { ROSTER[r.sheet_token] = r; });
 
@@ -35,9 +37,12 @@
     const captureBtn = document.getElementById('omrCapture');
     const reviewEl = document.getElementById('omrReview');
     const gridEl = document.getElementById('omrGrid');
+    const writtenEl = document.getElementById('omrWritten');
     const recordBtn = document.getElementById('omrRecordBtn');
     const resultEl = document.getElementById('omrResult');
     if (!video || !canvas) return;
+
+    let ocrWorker = null; // lazily-created Tesseract worker (reused across boxes)
 
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
         ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -104,7 +109,7 @@
     }
 
     // ---- capture + detect -----------------------------------------------------
-    function capture() {
+    async function capture() {
         const img = frameImageData();
         if (!img) { setStatus('No camera frame yet.'); return; }
 
@@ -112,31 +117,90 @@
         const row = code ? ROSTER[code.data] : null;
         if (!row) { setStatus('Align the sheet so the QR is readable and belongs to this section.'); return; }
 
+        if (captureBtn) captureBtn.disabled = true;
         let warped = null;
         try {
             warped = warpToRegion(img);
         } catch (e) {
             setStatus('Detection error: ' + e.message);
+            if (captureBtn) captureBtn.disabled = false;
             return;
         }
         if (!warped) {
             setStatus('Could not locate the four corner squares. Flatten the sheet, add light, and try again.');
+            if (captureBtn) captureBtn.disabled = false;
             return;
         }
 
         const analysis = analyze(warped.gray);
+
+        // OCR the write-in boxes (identification / matching), if any.
+        let written = [];
+        if (WRITES.length) {
+            setStatus('Reading written answers…');
+            try {
+                written = await ocrWrites(warped.gray);
+            } catch (e) {
+                written = WRITES.map((w) => ({ n: w.n, text: '', conf: 0, low: true }));
+            }
+        }
         warped.gray.delete();
+        if (captureBtn) captureBtn.disabled = false;
 
-        pending = { token: code.data, row: row, answers: analysis.answers, confidence: analysis.confidence, needsReview: analysis.needsReview };
-        renderReview(row, analysis);
+        // Write-in answers always get a human confirm (handwriting OCR is only a hint).
+        const needsReview = analysis.needsReview || written.length > 0;
 
-        if (!analysis.needsReview && !row.graded) {
-            submit(false); // high confidence, not yet recorded → auto-record
+        pending = {
+            token: code.data, row: row,
+            answers: analysis.answers, confidence: analysis.confidence,
+            written: written, needsReview: needsReview,
+        };
+        renderReview(row, analysis, written);
+
+        if (!needsReview && !row.graded) {
+            submit(false); // pure-bubble sheet, high confidence → auto-record
         } else if (row.graded) {
             setStatus('This student already has a recorded result — review below, then Record to replace it.');
+        } else if (written.length) {
+            setStatus('Check the written answers (and any amber bubbles), then Record.');
         } else {
             setStatus('Some marks are unclear — check the highlighted items, then Record.');
         }
+    }
+
+    // OCR each write-in box from the warped region → { n, text, conf, low }.
+    async function ocrWrites(warped) {
+        if (!window.Tesseract) return WRITES.map((w) => ({ n: w.n, text: '', conf: 0, low: true }));
+        if (!ocrWorker) {
+            ocrWorker = await Tesseract.createWorker('eng');
+            await ocrWorker.setParameters({ tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -' });
+        }
+
+        const out = [];
+        for (const w of WRITES) {
+            const crop = cropBox(warped, w.box);            // canvas of the box
+            const { data } = await ocrWorker.recognize(crop);
+            const text = (data.text || '').replace(/\s+/g, ' ').trim();
+            const conf = Math.round(data.confidence || 0);
+            out.push({ n: w.n, text: text, conf: conf, low: text === '' || conf < WRITE_CONF_MIN });
+        }
+        return out;
+    }
+
+    // Crop a normalised box from the warped gray Mat into an upscaled canvas.
+    function cropBox(warped, box) {
+        const x = Math.max(0, Math.round(box.x * WARP_W));
+        const y = Math.max(0, Math.round(box.y * WARP_H));
+        const w = Math.min(WARP_W - x, Math.round(box.w * WARP_W));
+        const h = Math.min(WARP_H - y, Math.round(box.h * WARP_H));
+        const roi = warped.roi(new cv.Rect(x, y, w, h));
+        const up = new cv.Mat();
+        cv.resize(roi, up, new cv.Size(w * 2, h * 2), 0, 0, cv.INTER_CUBIC);
+        cv.threshold(up, up, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+        const c = document.createElement('canvas');
+        cv.imshow(c, up);
+        roi.delete(); up.delete();
+        return c;
     }
 
     // Detect the 4 fiducials, order them, and perspective-warp the gray region.
@@ -254,7 +318,7 @@
     }
 
     // ---- review grid ----------------------------------------------------------
-    function renderReview(row, analysis) {
+    function renderReview(row, analysis, written) {
         if (!reviewEl || !gridEl) return;
         reviewEl.style.display = '';
         if (whoEl) whoEl.textContent = 'Sheet: ' + row.name;
@@ -270,6 +334,17 @@
             return '<div class="rec-row"><span class="n">' + a.n + '.</span>' + opts +
                 (c.low ? '<span class="flag">review</span>' : '') + '</div>';
         }).join('');
+
+        // Write-in inputs pre-filled with the OCR guess (amber = low confidence).
+        if (writtenEl) {
+            writtenEl.innerHTML = (written || []).map((w) => {
+                const border = w.low ? '#f59e0b' : '#cbd5e1';
+                return '<div class="rec-row"><span class="n">' + w.n + '.</span>' +
+                    '<input type="text" class="wtext" data-n="' + w.n + '" value="' + esc(w.text) + '" ' +
+                    'style="flex:1; padding:6px 8px; border:1.4px solid ' + border + '; border-radius:6px; font-size:13px;">' +
+                    (w.low ? '<span class="flag">review</span>' : '') + '</div>';
+            }).join('');
+        }
     }
 
     if (gridEl) {
@@ -283,6 +358,16 @@
         return GRID.map((item) => ({
             n: item.n,
             marks: Array.from(gridEl.querySelectorAll('.opt.on[data-n="' + item.n + '"]')).map((el) => el.dataset.l),
+        }));
+    }
+
+    function collectWritten() {
+        if (!writtenEl || !writtenEl.children.length) {
+            return (pending && pending.written) ? pending.written.map((w) => ({ n: w.n, text: w.text })) : [];
+        }
+        return WRITES.map((w) => ({
+            n: w.n,
+            text: (writtenEl.querySelector('.wtext[data-n="' + w.n + '"]')?.value || '').trim(),
         }));
     }
 
@@ -300,6 +385,7 @@
                 body: JSON.stringify({
                     sheet_token: pending.token,
                     marked_answers: answers,
+                    written_answers: collectWritten(),
                     source: 'camera',
                     confidence: pending.confidence,
                     meta: { detector: 'omr-scan.js', ts: Date.now() },
@@ -338,9 +424,12 @@
     }
 
     // ---- wire up --------------------------------------------------------------
-    if (captureBtn) captureBtn.addEventListener('click', capture);
+    if (captureBtn) captureBtn.addEventListener('click', () => { capture(); });
     if (recordBtn) recordBtn.addEventListener('click', () => submit(false));
-    window.addEventListener('beforeunload', () => { if (stream) stream.getTracks().forEach((t) => t.stop()); });
+    window.addEventListener('beforeunload', () => {
+        if (stream) stream.getTracks().forEach((t) => t.stop());
+        if (ocrWorker) { try { ocrWorker.terminate(); } catch (e) { /* ignore */ } }
+    });
 
     setStatus('Loading detector…');
     whenCvReady(() => { setStatus('Detector ready.'); startCamera(); });

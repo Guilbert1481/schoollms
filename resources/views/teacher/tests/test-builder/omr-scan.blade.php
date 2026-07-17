@@ -65,8 +65,9 @@
                 <button type="button" class="btn btn-primary" id="omrCapture" disabled>Capture &amp; detect</button>
 
                 <div id="omrReview" style="display:none; margin-top:16px;">
-                    <div class="muted">Detected answers — amber items need a look. Tap to correct, then Record.</div>
+                    <div class="muted">Detected answers — amber items need a look. Tap bubbles / edit text, then Record.</div>
                     <div class="rec-grid" id="omrGrid"></div>
+                    <div id="omrWritten" style="margin-top:12px;"></div>
                     <div style="margin-top:14px;">
                         <button type="button" class="btn btn-primary" id="omrRecordBtn">Record</button>
                     </div>
@@ -84,6 +85,7 @@
     <script>
         window.OMR_SCAN = {
             grid: @json($grid),
+            written: @json($written),
             roster: @json($roster),
             scanUrl: @json(route('teacher.tests.omr.scan')),
             csrf: document.querySelector('meta[name="csrf-token"]')?.content,
@@ -91,6 +93,7 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <script async src="https://docs.opencv.org/4.10.0/opencv.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="{{ asset('js/tests/test-builder/omr-scan.js') }}"></script>
 @endif
 @endsection

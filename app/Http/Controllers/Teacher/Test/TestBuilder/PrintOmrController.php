@@ -92,11 +92,23 @@ class PrintOmrController extends Controller
         $section = null;
         $roster = [];
         $itemCount = 0;
+        $written = [];
+        $layout = OmrLayout::regions(0, 0, 5);
         if ($sectionId) {
             $section = Section::findOrFail($sectionId);
             abort_unless((int) $section->school_id === (int) auth()->user()->school_id, 404);
             $roster = $this->sheets->recordRoster($test, $section);
             $itemCount = (int) ($roster[0]['item_count'] ?? 0);
+            $writtenItems = $roster[0]['written_items'] ?? [];
+
+            $layout = OmrLayout::regions($itemCount, count($writtenItems), 5);
+            foreach ($writtenItems as $i => $w) {
+                $written[] = [
+                    'n' => $w['n'],
+                    'type' => $w['type'],
+                    'box' => $layout['writes'][$i]['box'] ?? null,
+                ];
+            }
         }
 
         return view('teacher.tests.test-builder.omr-scan', [
@@ -106,8 +118,9 @@ class PrintOmrController extends Controller
             'sectionId' => $sectionId,
             'roster' => $roster,
             'itemCount' => $itemCount,
-            'grid' => OmrLayout::map($itemCount, 5),
+            'grid' => $layout['bubbles'],
             'fiducials' => OmrLayout::fiducials(),
+            'written' => $written,
         ]);
     }
 }

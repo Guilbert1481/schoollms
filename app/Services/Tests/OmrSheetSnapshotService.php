@@ -70,8 +70,6 @@ class OmrSheetSnapshotService
             ->filter(fn ($q) => $q && in_array($q->question_type, self::BUBBLE_TYPES, true))
             ->values();
 
-        $coords = OmrLayout::map($questions->count(), self::OPTION_LETTERS);
-
         $key = [];
         foreach ($questions as $i => $q) {
             $options = [];
@@ -94,7 +92,6 @@ class OmrSheetSnapshotService
                 'type' => $q->question_type,
                 'correct' => $correct,
                 'options' => $options,
-                'bubbles' => $coords[$i]['options'] ?? [],
             ];
         }
 

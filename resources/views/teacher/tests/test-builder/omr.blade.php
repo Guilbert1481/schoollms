@@ -38,7 +38,7 @@
         /* Scannable region: fixed size, corner fiducials, absolute bubbles.
            Coordinates (0..1) map to .omr-grid, whose corners = fiducial centres,
            so the printed sheet and the stored bubble map agree exactly. */
-        .omr-region { position: relative; width: 100%; height: 7.2in; }
+        .omr-region { position: relative; width: 100%; }
         .fid { position: absolute; width: 0.28in; height: 0.28in; background: #000; }
         .fid.tl { left: 0; top: 0; } .fid.tr { right: 0; top: 0; }
         .fid.bl { left: 0; bottom: 0; } .fid.br { right: 0; bottom: 0; }
@@ -47,12 +47,10 @@
         .omr-num { position: absolute; transform: translate(-118%, -50%); font-size: 10px; font-weight: 700; white-space: nowrap; }
         .omr-region .ver { position: absolute; right: 0; bottom: -13px; font-size: 8px; color: #94a3b8; letter-spacing: .5px; }
 
-        /* Write-in (identification / matching) — bounded boxes for OCR later. */
-        .write-in { margin-top: 8px; }
-        .wrow { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; break-inside: avoid; }
-        .wrow .wnum { width: 26px; text-align: right; font-weight: 700; font-size: 11px; }
-        .wrow .wbox { flex: 1; height: 0.34in; border: 1.2px solid #111; border-radius: 4px; }
-        .wrow .wtype { width: 66px; font-size: 8px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; }
+        /* Write-in (identification / matching) — bounded boxes at fixed coords,
+           in the same fiducial region as the bubbles so the camera can crop them. */
+        .omr-wbox { position: absolute; border: 1.2px solid #111; border-radius: 4px; }
+        .omr-wnum { position: absolute; transform: translate(-50%, -50%); font-size: 10px; font-weight: 700; }
 
         .empty-note { margin-top: 18px; padding: 14px; border: 1px dashed #94a3b8; color: #475569; font-size: 13px; text-align: center; }
 
@@ -115,10 +113,10 @@
             </div>
         </div>
 
-        {{-- ===== Bubbles (multiple-choice / true-false) ===== --}}
-        @if ($itemCount > 0)
-            <div class="grid-title">Answer Sheet — fully shade the letter of your answer; keep the corner squares clean</div>
-            <div class="omr-region">
+        {{-- ===== Scannable region: bubbles (top) + write-in boxes (below) ===== --}}
+        @if ($itemCount > 0 || ! empty($written))
+            <div class="grid-title">Answer Sheet — shade the letter for choices; PRINT write-in answers in CAPITALS. Keep the corner squares clean.</div>
+            <div class="omr-region" style="height: {{ $regionHeight }}in;">
                 <span class="fid tl"></span><span class="fid tr"></span>
                 <span class="fid bl"></span><span class="fid br"></span>
                 <div class="omr-grid">
@@ -128,26 +126,14 @@
                             <span class="omr-bub" style="left: {{ $o['x'] * 100 }}%; top: {{ $o['y'] * 100 }}%;">{{ $o['label'] }}</span>
                         @endforeach
                     @endforeach
+                    @foreach ($written as $w)
+                        <span class="omr-wnum" style="left: {{ $w['num']['x'] * 100 }}%; top: {{ $w['num']['y'] * 100 }}%;">{{ $w['n'] }}</span>
+                        <span class="omr-wbox" style="left: {{ $w['box']['x'] * 100 }}%; top: {{ $w['box']['y'] * 100 }}%; width: {{ $w['box']['w'] * 100 }}%; height: {{ $w['box']['h'] * 100 }}%;"></span>
+                    @endforeach
                 </div>
                 <span class="ver">OMR {{ $layoutVersion }}</span>
             </div>
-        @endif
-
-        {{-- ===== Write-in (identification / matching) ===== --}}
-        @if (! empty($written))
-            <div class="grid-title">Write-In — print your answer in CAPITAL letters, one per line</div>
-            <div class="write-in">
-                @foreach ($written as $w)
-                    <div class="wrow">
-                        <span class="wnum">{{ $w['n'] }}.</span>
-                        <span class="wbox"></span>
-                        <span class="wtype">{{ $w['type'] }}</span>
-                    </div>
-                @endforeach
-            </div>
-        @endif
-
-        @if ($itemCount === 0 && empty($written))
+        @else
             <div class="empty-note">This test has no auto-scannable items.</div>
         @endif
     </div>

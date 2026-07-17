@@ -81,16 +81,25 @@ class OmrSheetService
         })->all();
 
         $itemCount = $this->objectiveItemCount($test);
+        $written = $this->writtenItems($test, $itemCount);
+        $layout = OmrLayout::regions($itemCount, count($written), 5);
+
+        foreach ($written as $i => &$w) {
+            $w['box'] = $layout['writes'][$i]['box'] ?? null;
+            $w['num'] = $layout['writes'][$i]['num'] ?? null;
+        }
+        unset($w);
 
         return [
             'schoolYear' => $this->schoolYear((int) $test->school_id, $meta?->academic_year_id),
             'profile' => SchoolProfile::where('school_id', $test->school_id)->first(),
             'gradeLabel' => $this->gradeLabel($section, $meta?->education_level),
             'itemCount' => $itemCount,
-            'grid' => OmrLayout::map($itemCount, 5),
+            'grid' => $layout['bubbles'],
             'fiducials' => OmrLayout::fiducials(),
             'layoutVersion' => OmrLayout::VERSION,
-            'written' => $this->writtenItems($test, $itemCount),
+            'regionHeight' => $layout['region_height_in'],
+            'written' => $written,
             'sheets' => $sheets,
         ];
     }
