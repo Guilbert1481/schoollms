@@ -25,7 +25,13 @@ use App\Http\Controllers\Tenancy\TlsCheckController;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    // On a school's own host, the root is that school's public website;
+    // on the central/platform host there is no school, so show the landing page.
+    $school = current_school();
+
+    return $school
+        ? redirect()->route('website.home', ['schoolSlug' => $school->slug])
+        : view('welcome');
 });
 
 // On-demand TLS "ask" endpoint for the reverse proxy (Caddy). Answers 200 only

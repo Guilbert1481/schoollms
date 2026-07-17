@@ -41,5 +41,8 @@ return [
     */
     'reserved_labels' => [
         'www', 'app', 'admin', 'portal', 'api', 'mail', 'static', 'assets', 'cdn',
+        // Platform host + sibling apps sharing the philceb.ph zone — a school
+        // slug must never resolve on (or redirect to) these hosts.
+        'sophentis', 'superadmin', 'gideon', 'argo', 'email',
     ],
 ];
