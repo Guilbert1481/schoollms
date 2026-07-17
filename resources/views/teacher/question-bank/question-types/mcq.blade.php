@@ -69,6 +69,8 @@
     .ai-actions .tb-btn[disabled] { opacity: .6; cursor: not-allowed; }
     .ai-gen-btn { border: 0; background: #eef2ff; color: #4f46e5; font-weight: 700; font-size: .78rem; padding: .3rem .6rem; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: .25rem; }
     .ai-gen-btn:hover { background: #e0e7ff; }
+    /* ✨ AI generate icon hidden for now — the backend/modal stay wired; delete this one rule to restore it. */
+    .ai-gen-btn { display: none; }
 </style>
 
 
