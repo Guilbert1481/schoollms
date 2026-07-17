@@ -102,10 +102,16 @@ class SaveBuilderController extends Controller
                 ]
             );
 
-            $hasDuration = ($request->timer_minutes);
-            $hasSchedule = ($request->start_date && $request->start_time && $request->end_date && $request->end_time);
+            // The form posts a single timer field and combined datetime-local
+            // fields, so match those keys — `start_at`/`end_at`, not the split
+            // date/time fields the client never sends (that made schedule mode
+            // permanently unreachable).
+            $hasDuration = $request->filled('timer_minutes');
+            $hasSchedule = $request->filled('start_at') && $request->filled('end_at');
 
             if ($hasDuration && $hasSchedule) {
+                DB::rollBack();
+
                 return response()->json([
                     'error' => 'Choose either duration mode or schedule mode, not both.',
                 ], 422);
@@ -116,6 +122,8 @@ class SaveBuilderController extends Controller
             } elseif ($hasSchedule) {
                 $availabilityMode = 'schedule';
             } else {
+                DB::rollBack();
+
                 return response()->json([
                     'error' => 'Please set either duration or schedule.',
                 ], 422);
@@ -131,11 +139,9 @@ class SaveBuilderController extends Controller
             }
 
             if ($availabilityMode === 'schedule') {
-                $startAt = $request->start_date.' '.$request->start_time;
-                $endAt = $request->end_date.' '.$request->end_time;
-
-                $settings->start_at = $startAt;
-                $settings->end_at = $endAt;
+                // Combined datetime-local values, stored as-is.
+                $settings->start_at = $request->start_at;
+                $settings->end_at = $request->end_at;
                 $settings->duration_minutes = null;
             }
 

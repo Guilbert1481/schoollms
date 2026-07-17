@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
             catch { throw new Error('Response is not valid JSON'); }
 
             if (!res.ok || !data.success) {
-                alert(data.message || 'Save failed');
+                alert(data.message || data.error || 'Save failed');
                 return;
             }
             if (data.test_id && document.getElementById('testId')) {
