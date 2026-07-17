@@ -265,14 +265,23 @@
                         <div class="diff-assessment-render-grid">
                             <div class="ts-row">
                                 <label for="class_id">Class</label>
+                                {{-- Options are filtered by testBuilder.js to the chosen
+                                     Test-Source subject + selected grade/year level. --}}
                                 <select id="class_id" name="class_id">
                                     <option value="">None</option>
                                     @foreach($classes as $class)
-                                        <option value="{{ $class->id }}">
-                                            {{ $class->section->name }} - {{ $class->subject->name }}
+                                        <option value="{{ $class->id }}"
+                                            data-subject-id="{{ $class->subject_id }}"
+                                            data-year-level="{{ optional($class->section)->year_level }}">
+                                            {{ optional($class->section)->name }} - {{ optional($class->subject)->name }}
                                         </option>
                                     @endforeach
                                 </select>
+                                <script>
+                                    // academic_level id → year number (sequence_order), for matching
+                                    // a selected level to a class section's year_level.
+                                    window.CLASS_LEVEL_YEARS = @json($academicLevels->pluck('sequence_order', 'id'));
+                                </script>
                                 <!-- EXISTING TERM DROPDOWN -->
                                 <label class="mt-2" for="term-select">Term</label>
                                 <select id="term-select" name="term">
