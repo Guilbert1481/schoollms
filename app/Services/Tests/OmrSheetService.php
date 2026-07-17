@@ -3,9 +3,12 @@
 namespace App\Services\Tests;
 
 use App\Models\AcademicYear;
+use App\Models\OmrItemResult;
+use App\Models\OmrResult;
 use App\Models\SchoolProfile;
 use App\Models\Section;
 use App\Models\Test;
+use App\Support\OmrLayout;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -60,13 +63,7 @@ class OmrSheetService
             ->where('status', 'enrolled')
             ->first(['academic_year_id', 'education_level']);
 
-        $students = DB::table('student_enrollments as se')
-            ->join('students as s', 's.id', '=', 'se.student_id')
-            ->where('se.section_id', $section->id)
-            ->where('se.status', 'enrolled')
-            ->orderBy('s.last_name')
-            ->orderBy('s.first_name')
-            ->get(['s.id', 's.first_name', 's.middle_name', 's.last_name', 's.suffix', 's.student_number', 's.lrn']);
+        $students = $this->enrolledStudents((int) $section->id);
 
         $sheets = $students->map(function ($s) use ($test, $section) {
             // Generating the printable sheets is exactly when the immutable
@@ -81,13 +78,59 @@ class OmrSheetService
             ];
         })->all();
 
+        $itemCount = $this->objectiveItemCount($test);
+
         return [
             'schoolYear' => $this->schoolYear((int) $test->school_id, $meta?->academic_year_id),
             'profile' => SchoolProfile::where('school_id', $test->school_id)->first(),
             'gradeLabel' => $this->gradeLabel($section, $meta?->education_level),
-            'itemCount' => $this->objectiveItemCount($test),
+            'itemCount' => $itemCount,
+            'grid' => OmrLayout::map($itemCount, 5),
+            'fiducials' => OmrLayout::fiducials(),
+            'layoutVersion' => OmrLayout::VERSION,
             'sheets' => $sheets,
         ];
+    }
+
+    /**
+     * Per-student rows for the manual record page: sheet token, item count, and
+     * the current graded result (with per-item marks) to pre-fill for editing.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function recordRoster(Test $test, Section $section): array
+    {
+        return $this->enrolledStudents((int) $section->id)->map(function ($s) use ($test, $section) {
+            $sheet = $this->snapshots->forStudent($test, (int) $s->id, (int) $section->id);
+            $result = OmrResult::with('items')->where('omr_sheet_id', $sheet->id)->first();
+
+            return [
+                'name' => $this->fullName($s),
+                'student_number' => $s->student_number,
+                'sheet_token' => $this->tokens->sheetToken($sheet->token, $sheet->layout_version),
+                'item_count' => (int) $sheet->item_count,
+                'graded' => (bool) $result,
+                'raw_score' => $result?->raw_score,
+                'max_score' => (int) $sheet->max_score,
+                'percentage' => $result ? (float) $result->percentage : null,
+                'marks' => $result
+                    ? $result->items->mapWithKeys(fn (OmrItemResult $it) => [
+                        $it->item_number => $it->marked ? explode(',', $it->marked) : [],
+                    ])->all()
+                    : [],
+            ];
+        })->all();
+    }
+
+    private function enrolledStudents(int $sectionId): Collection
+    {
+        return DB::table('student_enrollments as se')
+            ->join('students as s', 's.id', '=', 'se.student_id')
+            ->where('se.section_id', $sectionId)
+            ->where('se.status', 'enrolled')
+            ->orderBy('s.last_name')
+            ->orderBy('s.first_name')
+            ->get(['s.id', 's.first_name', 's.middle_name', 's.last_name', 's.suffix', 's.student_number', 's.lrn']);
     }
 
     private function objectiveItemCount(Test $test): int

@@ -16,6 +16,11 @@ Route::prefix('teacher')
                 abort(404, 'No valid test found.');
             });
 
+        // Manual record page (Phase 2a) — key/confirm answers per student.
+        Route::get('tests/{test}/omr/record', [PrintOmrController::class, 'record'])
+            ->name('tests.omr.record')
+            ->missing(fn () => abort(404, 'No valid test found.'));
+
         // Record a scan / manual submission for one sheet → graded result.
         Route::post('tests/omr/scan', [OmrScanController::class, 'store'])
             ->name('tests.omr.scan');

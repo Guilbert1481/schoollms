@@ -33,11 +33,19 @@
         .student .qr { text-align: center; }
         .student .qr .cap { font-size: 9px; color: #555; margin-top: 2px; letter-spacing: .5px; }
 
-        .grid-title { margin: 16px 0 8px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #111; padding-bottom: 3px; }
-        .bubbles { column-count: 4; column-gap: 22px; }
-        .brow { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; break-inside: avoid; font-size: 12px; }
-        .brow .num { width: 26px; text-align: right; font-weight: 700; }
-        .bub { width: 17px; height: 17px; border: 1.4px solid #111; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; color: #333; }
+        .grid-title { margin: 14px 0 6px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #111; padding-bottom: 3px; }
+
+        /* Scannable region: fixed size, corner fiducials, absolute bubbles.
+           Coordinates (0..1) map to .omr-grid, whose corners = fiducial centres,
+           so the printed sheet and the stored bubble map agree exactly. */
+        .omr-region { position: relative; width: 100%; height: 7.2in; }
+        .fid { position: absolute; width: 0.28in; height: 0.28in; background: #000; }
+        .fid.tl { left: 0; top: 0; } .fid.tr { right: 0; top: 0; }
+        .fid.bl { left: 0; bottom: 0; } .fid.br { right: 0; bottom: 0; }
+        .omr-grid { position: absolute; left: 0.14in; top: 0.14in; right: 0.14in; bottom: 0.14in; }
+        .omr-bub { position: absolute; transform: translate(-50%, -50%); width: 0.19in; height: 0.19in; border: 1.3px solid #111; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #555; }
+        .omr-num { position: absolute; transform: translate(-118%, -50%); font-size: 10px; font-weight: 700; white-space: nowrap; }
+        .omr-region .ver { position: absolute; right: 0; bottom: -13px; font-size: 8px; color: #94a3b8; letter-spacing: .5px; }
 
         .empty-note { margin-top: 18px; padding: 14px; border: 1px dashed #94a3b8; color: #475569; font-size: 13px; text-align: center; }
 
@@ -100,18 +108,21 @@
             </div>
         </div>
 
-        {{-- ===== Answer grid (multiple-choice / true-false only) ===== --}}
+        {{-- ===== Scannable answer grid (fixed coordinates + corner fiducials) ===== --}}
         @if ($itemCount > 0)
-            <div class="grid-title">Answer Sheet — shade the letter of your answer</div>
-            <div class="bubbles">
-                @for ($i = 1; $i <= $itemCount; $i++)
-                    <div class="brow">
-                        <span class="num">{{ $i }}.</span>
-                        @foreach (['A', 'B', 'C', 'D', 'E'] as $l)
-                            <span class="bub">{{ $l }}</span>
+            <div class="grid-title">Answer Sheet — fully shade the letter of your answer; keep the corner squares clean</div>
+            <div class="omr-region">
+                <span class="fid tl"></span><span class="fid tr"></span>
+                <span class="fid bl"></span><span class="fid br"></span>
+                <div class="omr-grid">
+                    @foreach ($grid as $item)
+                        <span class="omr-num" style="left: {{ $item['num']['x'] * 100 }}%; top: {{ $item['num']['y'] * 100 }}%;">{{ $item['n'] }}</span>
+                        @foreach ($item['options'] as $o)
+                            <span class="omr-bub" style="left: {{ $o['x'] * 100 }}%; top: {{ $o['y'] * 100 }}%;">{{ $o['label'] }}</span>
                         @endforeach
-                    </div>
-                @endfor
+                    @endforeach
+                </div>
+                <span class="ver">OMR {{ $layoutVersion }}</span>
             </div>
         @else
             <div class="empty-note">

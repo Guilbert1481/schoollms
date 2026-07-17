@@ -349,6 +349,16 @@
             Answer Sheets
         </button>
 
+        {{-- RECORD OMR ANSWERS BUTTON (hidden first) --}}
+        <button
+            type="button"
+            id="recordOmrBtn"
+            class="btn btn-print"
+            style="display:none;"
+        >
+            Record Answers
+        </button>
+
         {{-- EDIT BUTTON (hidden first) --}}
         <button
             type="button"

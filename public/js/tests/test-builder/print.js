@@ -30,4 +30,17 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // Record OMR answers — manual entry / grading page.
+    const recordBtn = document.getElementById("recordOmrBtn");
+    if (recordBtn) {
+        recordBtn.addEventListener("click", function () {
+            const testId = document.getElementById("testId")?.value;
+            if (!testId) {
+                alert("Test ID not found.");
+                return;
+            }
+            window.open(`/teacher/tests/${testId}/omr/record`, "_blank");
+        });
+    }
+
 });

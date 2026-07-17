@@ -34,9 +34,10 @@ class OmrLayout
     }
 
     /**
-     * Per-item bubble coordinates for the given item/option counts.
+     * Per-item bubble coordinates for the given item/option counts. Each item
+     * also carries the item-number anchor (`num`) for rendering.
      *
-     * @return array<int, array{n:int,options:array<int,array{label:string,x:float,y:float}>}>
+     * @return array<int, array{n:int,num:array{x:float,y:float},options:array<int,array{label:string,x:float,y:float}>}>
      */
     public static function map(int $itemCount, int $optionCount = 5): array
     {
@@ -70,7 +71,11 @@ class OmrLayout
                 ];
             }
 
-            $items[] = ['n' => $i + 1, 'options' => $options];
+            $items[] = [
+                'n' => $i + 1,
+                'num' => ['x' => round($x0, 5), 'y' => $y],
+                'options' => $options,
+            ];
         }
 
         return $items;

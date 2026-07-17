@@ -118,10 +118,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const printBtn = document.getElementById('printTestBtn');
             const editBtn = document.getElementById('editTestBtn');
             const answerBtn = document.getElementById('answerSheetsBtn');
+            const recordBtn = document.getElementById('recordOmrBtn');
             if (saveBtn) saveBtn.style.display = 'none';
             if (printBtn) printBtn.style.display = 'inline-block';
             if (editBtn) editBtn.style.display = 'inline-block';
             if (answerBtn) answerBtn.style.display = 'inline-block';
+            if (recordBtn) recordBtn.style.display = 'inline-block';
         } catch (err) {
             alert('Something went wrong while saving: ' + err.message);
         }
