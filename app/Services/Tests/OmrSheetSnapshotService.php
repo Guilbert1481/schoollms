@@ -17,10 +17,6 @@ use Illuminate\Support\Str;
  */
 class OmrSheetSnapshotService
 {
-    private const BUBBLE_TYPES = ['mcq', 'multiple_choice', 'tf', 'true_false'];
-
-    private const WRITE_TYPES = ['identification', 'id', 'matching', 'match'];
-
     private const OPTION_LETTERS = 5; // A–E
 
     public function forStudent(Test $test, int $studentId, ?int $sectionId = null): OmrSheet
@@ -30,8 +26,9 @@ class OmrSheetSnapshotService
             return $existing;
         }
 
-        $key = $this->answerKey($test);
-        $written = $this->writtenKey($test, count($key));
+        $items = $this->orderedItems($test);
+        $key = $this->answerKey($items);
+        $written = $this->writtenKey($items);
 
         try {
             return OmrSheet::create([
@@ -55,23 +52,42 @@ class OmrSheetSnapshotService
     }
 
     /**
-     * Immutable bubble map: item order, question id, labelled choices, correct
-     * label, and A–E bubble coordinates.
+     * The test's OMR items ordered into the canonical section sequence and
+     * numbered 1..N (OmrLayout::sequence), each carrying its question model. The
+     * live sheet (OmrSheetService) sequences the same way, so the frozen numbers
+     * match what gets printed and scanned.
      *
      * @return array<int, array<string, mixed>>
      */
-    private function answerKey(Test $test): array
+    private function orderedItems(Test $test): array
     {
-        $questions = $test->testQuestions()
+        $raw = $test->testQuestions()
             ->with('question.choices')
             ->orderBy('order')
             ->get()
-            ->map(fn ($tq) => $tq->question)
-            ->filter(fn ($q) => $q && in_array($q->question_type, self::BUBBLE_TYPES, true))
-            ->values();
+            ->filter(fn ($tq) => $tq->question && OmrLayout::isSupported($tq->question->question_type))
+            ->map(fn ($tq) => ['type' => $tq->question->question_type, 'order' => (int) $tq->order, 'q' => $tq->question])
+            ->values()
+            ->all();
 
+        return OmrLayout::sequence($raw);
+    }
+
+    /**
+     * Immutable bubble map: the bubble items (True/False, Multiple Choice) with
+     * their frozen item number, question id, labelled choices, and correct label.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<int, array<string, mixed>>
+     */
+    private function answerKey(array $items): array
+    {
         $key = [];
-        foreach ($questions as $i => $q) {
+        foreach ($items as $item) {
+            if ($item['kind'] !== 'bubble') {
+                continue;
+            }
+            $q = $item['q'];
             $options = [];
             $correct = null;
 
@@ -87,7 +103,7 @@ class OmrSheetSnapshotService
             }
 
             $key[] = [
-                'n' => $i + 1,
+                'n' => $item['n'],
                 'question_id' => $q->id,
                 'type' => $q->question_type,
                 'correct' => $correct,
@@ -99,31 +115,27 @@ class OmrSheetSnapshotService
     }
 
     /**
-     * Frozen write-in key: identification + matching questions in printed order,
-     * each with its correct answer text. Both are graded the same way (the student
-     * writes the answer term), so matching needs no Column-B letter mapping.
-     * Numbered continuously after the bubble items.
+     * Frozen write-in key: the write items (Matching, Identification) with their
+     * correct answer text. Both are graded the same way (the student writes the
+     * answer term), so matching needs no Column-B letter mapping.
      *
+     * @param  array<int, array<string, mixed>>  $items
      * @return array<int, array<string, mixed>>
      */
-    private function writtenKey(Test $test, int $offset): array
+    private function writtenKey(array $items): array
     {
-        $questions = $test->testQuestions()
-            ->with('question.choices')
-            ->orderBy('order')
-            ->get()
-            ->map(fn ($tq) => $tq->question)
-            ->filter(fn ($q) => $q && in_array($q->question_type, self::WRITE_TYPES, true))
-            ->values();
-
         $key = [];
-        foreach ($questions as $i => $q) {
+        foreach ($items as $item) {
+            if ($item['kind'] !== 'write') {
+                continue;
+            }
+            $q = $item['q'];
             $correct = optional($q->choices->first())->choice_text;
 
             $key[] = [
-                'n' => $offset + $i + 1,
+                'n' => $item['n'],
                 'question_id' => $q->id,
-                'type' => in_array($q->question_type, ['matching', 'match'], true) ? 'matching' : 'identification',
+                'type' => $item['canonical'],
                 'correct' => $correct,
                 'accept' => array_values(array_filter([$correct], fn ($v) => $v !== null && $v !== '')),
             ];

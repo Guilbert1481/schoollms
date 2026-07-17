@@ -23,14 +23,23 @@ class PrintOmrController extends Controller
         // Tenant guard: never expose a test from another school.
         abort_unless((int) $test->school_id === (int) auth()->user()->school_id, 404);
 
-        $test->load(['subject', 'teacher']);
+        $test->load(['subject', 'teacher', 'class']);
 
         $sectionId = $request->integer('section_id');
         if (! $sectionId) {
-            return view('teacher.tests.test-builder.omr-select', [
-                'test' => $test,
-                'sections' => $this->sheets->sectionsForPicker($test),
-            ]);
+            $sections = $this->sheets->sectionsForPicker($test);
+
+            // A class-bound test resolves to a single section — skip the picker
+            // and go straight to its sheets. Personal/multi-section tests still
+            // get the picker to choose from.
+            if ($sections->count() === 1) {
+                $sectionId = (int) $sections->first()->id;
+            } else {
+                return view('teacher.tests.test-builder.omr-select', [
+                    'test' => $test,
+                    'sections' => $sections,
+                ]);
+            }
         }
 
         $section = Section::findOrFail($sectionId);
@@ -84,7 +93,7 @@ class PrintOmrController extends Controller
     {
         abort_unless((int) $test->school_id === (int) auth()->user()->school_id, 404);
 
-        $test->load(['subject', 'teacher']);
+        $test->load(['subject', 'teacher', 'class']);
 
         $sections = $this->sheets->sectionsForPicker($test);
         $sectionId = $request->integer('section_id');
@@ -92,23 +101,20 @@ class PrintOmrController extends Controller
         $section = null;
         $roster = [];
         $itemCount = 0;
+        $grid = [];
         $written = [];
-        $layout = OmrLayout::regions(0, 0, 5);
         if ($sectionId) {
             $section = Section::findOrFail($sectionId);
             abort_unless((int) $section->school_id === (int) auth()->user()->school_id, 404);
             $roster = $this->sheets->recordRoster($test, $section);
-            $itemCount = (int) ($roster[0]['item_count'] ?? 0);
-            $writtenItems = $roster[0]['written_items'] ?? [];
 
-            $layout = OmrLayout::regions($itemCount, count($writtenItems), 5);
-            foreach ($writtenItems as $i => $w) {
-                $written[] = [
-                    'n' => $w['n'],
-                    'type' => $w['type'],
-                    'box' => $layout['writes'][$i]['box'] ?? null,
-                ];
-            }
+            // Same sequenced geometry the printed sheet uses, so the detector
+            // samples each bubble/box exactly where it was printed.
+            $items = $this->sheets->layoutItems($test);
+            $layout = OmrLayout::regions($items);
+            $grid = $layout['bubbles'];
+            $written = $layout['writes'];
+            $itemCount = count(array_filter($items, fn ($it) => $it['kind'] === 'bubble'));
         }
 
         return view('teacher.tests.test-builder.omr-scan', [
@@ -118,7 +124,7 @@ class PrintOmrController extends Controller
             'sectionId' => $sectionId,
             'roster' => $roster,
             'itemCount' => $itemCount,
-            'grid' => $layout['bubbles'],
+            'grid' => $grid,
             'fiducials' => OmrLayout::fiducials(),
             'written' => $written,
         ]);

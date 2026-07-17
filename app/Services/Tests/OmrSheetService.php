@@ -21,27 +21,29 @@ use Illuminate\Support\Facades\DB;
  */
 class OmrSheetService
 {
-    /**
-     * Objective question types that map to A–E bubbles. Both the short codes
-     * actually stored in `questions` (mcq/tf) and the long forms used elsewhere
-     * in the builder are listed so the count is correct either way.
-     */
-    private const BUBBLE_TYPES = ['mcq', 'multiple_choice', 'tf', 'true_false'];
-
-    private const WRITE_TYPES = ['identification', 'id', 'matching', 'match'];
-
     public function __construct(
         private OmrSheetTokenService $tokens,
         private OmrSheetSnapshotService $snapshots,
     ) {}
 
-    /** Sections in the test's school that have enrolled students (print picker). */
+    /**
+     * Sections with enrolled students for the print picker. A class-bound test
+     * targets exactly its class's section, so scope to that one — otherwise the
+     * picker lists every section in the school. Personal/no-class tests fall
+     * back to all sections that have enrolled students.
+     */
     public function sectionsForPicker(Test $test): Collection
     {
-        return DB::table('student_enrollments as se')
+        $query = DB::table('student_enrollments as se')
             ->join('sections as sec', 'sec.id', '=', 'se.section_id')
             ->where('sec.school_id', $test->school_id)
-            ->where('se.status', 'enrolled')
+            ->where('se.status', 'enrolled');
+
+        if ($sectionId = $test->class?->section_id) {
+            $query->where('sec.id', $sectionId);
+        }
+
+        return $query
             ->groupBy('sec.id', 'sec.name', 'sec.year_level')
             ->orderBy('sec.year_level')
             ->orderBy('sec.name')
@@ -80,56 +82,45 @@ class OmrSheetService
             ];
         })->all();
 
-        $itemCount = $this->objectiveItemCount($test);
-        $written = $this->writtenItems($test, $itemCount);
-        $layout = OmrLayout::regions($itemCount, count($written), 5);
-
-        foreach ($written as $i => &$w) {
-            $w['box'] = $layout['writes'][$i]['box'] ?? null;
-            $w['num'] = $layout['writes'][$i]['num'] ?? null;
-        }
-        unset($w);
+        $items = $this->layoutItems($test);
+        $layout = OmrLayout::regions($items);
 
         return [
             'schoolYear' => $this->schoolYear((int) $test->school_id, $meta?->academic_year_id),
             'profile' => SchoolProfile::where('school_id', $test->school_id)->first(),
             'gradeLabel' => $this->gradeLabel($section, $meta?->education_level),
-            'itemCount' => $itemCount,
+            'itemCount' => count($items),
             'grid' => $layout['bubbles'],
+            'writes' => $layout['writes'],
+            'headers' => $layout['headers'],
+            'bands' => $layout['bands'],
             'fiducials' => OmrLayout::fiducials(),
             'layoutVersion' => OmrLayout::VERSION,
             'regionHeight' => $layout['region_height_in'],
-            'written' => $written,
             'sheets' => $sheets,
         ];
     }
 
     /**
-     * Write-in items (identification / matching) for the printable sheet,
-     * numbered continuously after the bubble items. Display only — the correct
-     * answers live in the frozen snapshot.
+     * The test's OMR items ordered into the canonical section sequence and
+     * numbered 1..N, so the printed sheet, the camera scanner, and the frozen
+     * answer key (OmrSheetSnapshotService, which sequences identically) all agree
+     * on which number is which question.
      *
-     * @return array<int, array{n:int,type:string}>
+     * @return array<int, array<string, mixed>>
      */
-    private function writtenItems(Test $test, int $offset): array
+    public function layoutItems(Test $test): array
     {
-        $questions = $test->testQuestions()
+        $raw = $test->testQuestions()
             ->with('question')
             ->orderBy('order')
             ->get()
-            ->map(fn ($tq) => $tq->question)
-            ->filter(fn ($q) => $q && in_array($q->question_type, self::WRITE_TYPES, true))
-            ->values();
+            ->filter(fn ($tq) => $tq->question && OmrLayout::isSupported($tq->question->question_type))
+            ->map(fn ($tq) => ['type' => $tq->question->question_type, 'order' => (int) $tq->order])
+            ->values()
+            ->all();
 
-        $out = [];
-        foreach ($questions as $i => $q) {
-            $out[] = [
-                'n' => $offset + $i + 1,
-                'type' => in_array($q->question_type, ['matching', 'match'], true) ? 'matching' : 'identification',
-            ];
-        }
-
-        return $out;
+        return OmrLayout::sequence($raw);
     }
 
     /**
@@ -186,13 +177,6 @@ class OmrSheetService
             ->orderBy('s.last_name')
             ->orderBy('s.first_name')
             ->get(['s.id', 's.first_name', 's.middle_name', 's.last_name', 's.suffix', 's.student_number', 's.lrn']);
-    }
-
-    private function objectiveItemCount(Test $test): int
-    {
-        return $test->testQuestions()
-            ->whereHas('question', fn ($q) => $q->whereIn('question_type', self::BUBBLE_TYPES))
-            ->count();
     }
 
     private function fullName(object $s): string
