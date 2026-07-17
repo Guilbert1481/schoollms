@@ -6,7 +6,6 @@ use App\Models\School;
 use App\Models\Test;
 use App\Models\User;
 use App\Services\Tests\OmrSheetService;
-use App\Services\Tests\OmrSheetTokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -108,7 +107,7 @@ class OmrSheetTest extends TestCase
         $test = $this->makeTest();
         $this->enroll('Dela Cruz', 'Juan', '2026-00125');
 
-        $sections = (new OmrSheetService(new OmrSheetTokenService))->sectionsForPicker($test);
+        $sections = app(OmrSheetService::class)->sectionsForPicker($test);
 
         $this->assertCount(1, $sections);
         $this->assertSame($this->sectionId, (int) $sections->first()->id);

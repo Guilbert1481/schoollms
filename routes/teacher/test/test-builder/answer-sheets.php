@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Teacher\Test\TestBuilder\OmrScanController;
 use App\Http\Controllers\Teacher\Test\TestBuilder\PrintOmrController;
 use Illuminate\Support\Facades\Route;
 
@@ -14,5 +15,9 @@ Route::prefix('teacher')
             ->missing(function () {
                 abort(404, 'No valid test found.');
             });
+
+        // Record a scan / manual submission for one sheet → graded result.
+        Route::post('tests/omr/scan', [OmrScanController::class, 'store'])
+            ->name('tests.omr.scan');
 
     });

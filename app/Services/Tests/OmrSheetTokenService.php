@@ -3,48 +3,49 @@
 namespace App\Services\Tests;
 
 /**
- * Stateless signed token printed as the QR on each OMR answer sheet. It binds a
- * sheet to (test, student) and is HMAC-signed with the app key, so Phase 2
- * (scan/grade) can decode which student's sheet it is and reject a tampered or
- * hand-crafted code. Nothing is stored — the signature is the proof.
+ * Signs the QR printed on each OMR sheet. The QR carries the sheet's unguessable
+ * lookup token plus the layout version, HMAC-signed with the app key. Scanning
+ * decodes to the sheet (which resolves student + test + section) and is rejected
+ * if tampered or hand-crafted. The sheet row is the record of truth; the
+ * signature just makes a forged code useless.
  */
 class OmrSheetTokenService
 {
-    /** "testId.studentId.signature" — compact ASCII for a dense QR. */
-    public function token(int $testId, int $studentId): string
+    /** "lookupToken.version.signature" — compact ASCII for a dense QR. */
+    public function sheetToken(string $lookupToken, string $version): string
     {
-        $payload = $testId.'.'.$studentId;
+        $payload = $lookupToken.'.'.$version;
 
         return $payload.'.'.$this->sign($payload);
     }
 
     /**
-     * Verify a scanned token and return ['test_id' => …, 'student_id' => …],
+     * Verify a scanned QR payload and return ['token' => …, 'version' => …],
      * or null when the shape or signature is invalid.
      *
-     * @return array{test_id:int,student_id:int}|null
+     * @return array{token:string,version:string}|null
      */
-    public function verify(string $token): ?array
+    public function verifySheet(string $payload): ?array
     {
-        $parts = explode('.', $token);
+        $parts = explode('.', $payload);
         if (count($parts) !== 3) {
             return null;
         }
 
-        [$testId, $studentId, $sig] = $parts;
-        if (! ctype_digit($testId) || ! ctype_digit($studentId)) {
+        [$token, $version, $sig] = $parts;
+        if ($token === '' || $version === '') {
             return null;
         }
 
-        if (! hash_equals($this->sign($testId.'.'.$studentId), $sig)) {
+        if (! hash_equals($this->sign($token.'.'.$version), $sig)) {
             return null;
         }
 
-        return ['test_id' => (int) $testId, 'student_id' => (int) $studentId];
+        return ['token' => $token, 'version' => $version];
     }
 
     private function sign(string $payload): string
     {
-        return substr(hash_hmac('sha256', "omr:{$payload}", (string) config('app.key')), 0, 16);
+        return substr(hash_hmac('sha256', "omr-sheet:{$payload}", (string) config('app.key')), 0, 16);
     }
 }

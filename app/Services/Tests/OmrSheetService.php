@@ -25,7 +25,10 @@ class OmrSheetService
      */
     private const BUBBLE_TYPES = ['mcq', 'multiple_choice', 'tf', 'true_false'];
 
-    public function __construct(private OmrSheetTokenService $tokens) {}
+    public function __construct(
+        private OmrSheetTokenService $tokens,
+        private OmrSheetSnapshotService $snapshots,
+    ) {}
 
     /** Sections in the test's school that have enrolled students (print picker). */
     public function sectionsForPicker(Test $test): Collection
@@ -65,12 +68,18 @@ class OmrSheetService
             ->orderBy('s.first_name')
             ->get(['s.id', 's.first_name', 's.middle_name', 's.last_name', 's.suffix', 's.student_number', 's.lrn']);
 
-        $sheets = $students->map(fn ($s) => [
-            'name' => $this->fullName($s),
-            'student_number' => $s->student_number,
-            'lrn' => $s->lrn,
-            'qr' => $this->tokens->token((int) $test->id, (int) $s->id),
-        ])->all();
+        $sheets = $students->map(function ($s) use ($test, $section) {
+            // Generating the printable sheets is exactly when the immutable
+            // snapshot is frozen; the QR carries that sheet's signed token.
+            $sheet = $this->snapshots->forStudent($test, (int) $s->id, (int) $section->id);
+
+            return [
+                'name' => $this->fullName($s),
+                'student_number' => $s->student_number,
+                'lrn' => $s->lrn,
+                'qr' => $this->tokens->sheetToken($sheet->token, $sheet->layout_version),
+            ];
+        })->all();
 
         return [
             'schoolYear' => $this->schoolYear((int) $test->school_id, $meta?->academic_year_id),
