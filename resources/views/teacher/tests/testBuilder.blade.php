@@ -339,6 +339,16 @@
             Print Test
         </button>
 
+        {{-- ANSWER SHEETS (OMR) BUTTON (hidden first) --}}
+        <button
+            type="button"
+            id="answerSheetsBtn"
+            class="btn btn-print"
+            style="display:none;"
+        >
+            Answer Sheets
+        </button>
+
         {{-- EDIT BUTTON (hidden first) --}}
         <button
             type="button"

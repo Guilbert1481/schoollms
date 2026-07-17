@@ -117,9 +117,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const saveBtn = document.getElementById('saveTestBtn');
             const printBtn = document.getElementById('printTestBtn');
             const editBtn = document.getElementById('editTestBtn');
+            const answerBtn = document.getElementById('answerSheetsBtn');
             if (saveBtn) saveBtn.style.display = 'none';
             if (printBtn) printBtn.style.display = 'inline-block';
             if (editBtn) editBtn.style.display = 'inline-block';
+            if (answerBtn) answerBtn.style.display = 'inline-block';
         } catch (err) {
             alert('Something went wrong while saving: ' + err.message);
         }
