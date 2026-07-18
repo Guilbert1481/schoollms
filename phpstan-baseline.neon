@@ -1657,24 +1657,6 @@ parameters:
 			path: app/Http/Controllers/Teacher/Test/TestBuilder/TestBuilderController.php
 
 		-
-			message: '#^Relation ''program'' is not found in App\\Models\\Test model\.$#'
-			identifier: larastan.relationExistence
-			count: 2
-			path: app/Http/Controllers/Teacher/TestManagementController.php
-
-		-
-			message: '#^Relation ''section'' is not found in App\\Models\\Test model\.$#'
-			identifier: larastan.relationExistence
-			count: 2
-			path: app/Http/Controllers/Teacher/TestManagementController.php
-
-		-
-			message: '#^Relation ''subject'' is not found in App\\Models\\Test model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Http/Controllers/Teacher/TestManagementController.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$action\.$#'
 			identifier: property.notFound
 			count: 1
