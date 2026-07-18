@@ -36,12 +36,14 @@
         </div>
     </div>
 
-    {{-- Stage-group tabs (education-level tabs pattern, basic ed only) --}}
+    {{-- Education-level tabs (offered top-level roots, narrowed to this
+         architect's assigned levels). --}}
     @if($level === 0)
         <x-table.level-tabs route="course-architect.lesson-studio.index"
                             :levels="$gradeLevels"
                             :activeLevelId="$activeLevelId"
-                            :showAll="$showAll" />
+                            :showAll="$showAll"
+                            :counts="$levelCounts" />
     @endif
 
     {{-- Flash messages --}}

@@ -10,7 +10,8 @@
 
 Reference implementations: `finance/ledger`, `finance/payment` (payments + verification
 tabs), `registrar/student_ledgers`, `registrar/enrollments`, `registrar/transcripts`,
-`registrar/settings/documents`.
+`registrar/settings/documents`, `course-architect/lesson-studio` (per-user scoping +
+per-root joins — see parts 3b and 5).
 
 ---
 
@@ -77,10 +78,16 @@ $effectiveLevel = $activeLevel ?? $singleLevel;      // what filters key off
 (`App\Support\EducationLevels::offeredRoots()` returns the same set if you prefer the
 helper over an inline query.)
 
-**Basic-ed-only variant** — for pages whose role only touches Basic Education (e.g. the
-Course Architect Lesson Studio), the tabs are the offered **stage groups** under the
-Basic Education root (Preschool / Elementary / Junior High / Senior High) instead of the
-top-level roots, and a selected tab matches data mapped anywhere in its subtree:
+**Basic-ed-only variant** — for pages whose role genuinely only touches Basic Education
+(e.g. the Principal's Grading Scheme page), the tabs are the offered **stage groups**
+under the Basic Education root (Preschool / Elementary / Junior High / Senior High)
+instead of the top-level roots, and a selected tab matches data mapped anywhere in its
+subtree:
+
+> Be sure the page really is basic-ed-only before reaching for this. The Course Architect
+> Lesson Studio used this variant on that assumption and it was wrong — the architect also
+> authors undergraduate material, which the stage-group tabs made unreachable. It now uses
+> the standard roots variant plus part 3b.
 
 ```php
 $levels  = EducationLevels::basicStageGroups();          // ->id / ->name, tree order
@@ -90,6 +97,20 @@ $nodeIds = EducationLevels::descendantIds($activeLevelId); // group + whole subt
 
 Don't tab on the raw grade/stage leaves — a K-12 tree with SHS strands yields 30+ stage
 nodes, which is unusable as a tab bar. Use `allLabel` if "All Levels" reads wrong.
+
+### 3b. Per-user level scoping — `offeredRootsFor()`
+
+When two staff share a page but own different levels (the Course Architect case: one
+authors Basic Education, another the higher-ed programs), assign each user their roots in
+`user_education_scopes` and build the tabs with:
+
+```php
+$levels = EducationLevels::offeredRootsFor($request->user()->id);
+```
+
+**No rows for a user means UNRESTRICTED** — every existing user keeps seeing everything,
+so scoping can ship before anyone is assigned. Scope "All Levels" to `$levels` too, not to
+all offered roots, or a scoped user reaches other levels' data just by dropping `?level=`.
 
 ### 4. `App\Support\EducationLevels` — level-aware filters + data scoping (controller)
 
@@ -105,6 +126,21 @@ scope the actual query rows to the selected level:
 | `EducationLevels::yearLevelOptions($levelId)` | Year-level options for a higher-ed tab. |
 | `EducationLevels::offeredRoots()` | Offered top-level roots (same as part 3). |
 | `EducationLevels::nodeRootMap()` | `[education_node_id => root_id]` map — resolve any row's node to its root to filter the dataset by the selected tab. |
+| `EducationLevels::offeredRootsFor($userId)` | Offered roots this user may see (all when unscoped) — see part 3b. |
+| `EducationLevels::scopeRootIds($userId)` | Raw scoped root ids; `[]` means unrestricted. |
+
+### 5. A tab may select a different JOIN, not just a different filter value
+
+Do not assume every level reaches your rows the same way. In Lesson Studio, subjects
+belong to Basic Education via the `subjects.is_basic_ed` flag, but to any higher-ed root
+only through `program_subjects → programs.education_node_id` — the two sets are disjoint
+and higher-ed subjects have **no** `grade_level_subjects` rows at all. Give each root its
+own predicate and `orWhere` them together for "All Levels"
+(`LessonStudioController::subjectsInRoot()` is the reference).
+
+Also prefer whatever key the page already ships with: Basic Ed there keys on the
+`is_basic_ed` flag rather than the tree, because 156 subjects carry the flag while only
+107 have a tree row — switching to the tree would have silently dropped 49 subjects.
 
 **House filter conventions:**
 - Grade/Year filter: `basicGradeOptions()` on Basic Ed, `yearLevelOptions()` on higher ed.
