@@ -10,6 +10,8 @@ use App\Models\Question;
 use App\Models\Subject;
 use App\Models\Test;
 use App\Models\TestQuestionTypePoint;
+use App\Models\TestSetting;
+use App\Models\TestSource;
 use App\Models\Topic;
 use App\Services\Tests\LevelTreeResolver;
 use App\Support\SubjectScope;
@@ -110,7 +112,78 @@ class TestBuilderController extends Controller
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
                 ->get(),
+            'editPayload' => $this->editPayload($test),
         ] + $this->levelPickerData() + $this->gradeComponentData());
+    }
+
+    /**
+     * Everything hydrateBuilder.js needs to restore a saved test into the
+     * builder form (window.EDIT_TEST). The drill-down position isn't stored on
+     * tests, but the source rows imply it: lesson-type sources mean a topic was
+     * selected (recovered from any of those lessons), and competency-type
+     * sources mean a topic AND lesson were (recovered from any competency).
+     *
+     * @return array<string, mixed>
+     */
+    private function editPayload(Test $test): array
+    {
+        // Direct queries rather than $test->testSources/->testSettings: the
+        // Test model's class() relation breaks Larastan's relation discovery,
+        // and these come back fully typed.
+        $sources = TestSource::where('test_id', $test->id)->get();
+
+        $lessonId = null;
+        if ($comp = $sources->firstWhere('source_type', 'competency')) {
+            $lessonId = DB::table('competencies')->where('id', $comp->source_id)->value('lesson_id');
+        }
+
+        $topicRefLessonId = $lessonId
+            ?? $sources->firstWhere('source_type', 'lesson')?->source_id;
+        $topicId = $topicRefLessonId
+            ? DB::table('lessons')->where('id', $topicRefLessonId)->value('topic_id')
+            : null;
+
+        $s = TestSetting::where('test_id', $test->id)->first();
+
+        return [
+            'test' => [
+                'id' => $test->id,
+                'subject_id' => $test->subject_id,
+                'topic_id' => $topicId,
+                'lesson_id' => $lessonId,
+                'class_id' => $test->class_id,
+                'grade_component_id' => $test->grade_component_id,
+                'difficulty' => array_values((array) $test->difficulty),
+                'status' => $test->status,
+            ],
+            'settings' => $s ? [
+                'mode' => $s->mode,
+                'term' => $s->term,
+                'assessment_type' => $s->assessment_type,
+                'timer_minutes' => $s->timer_minutes ?? $s->duration_minutes,
+                'attempts_allowed' => $s->attempts_allowed,
+                'passing_score' => $s->passing_score,
+                'show_results' => $s->show_results,
+                'show_correct_answers' => $s->show_correct_answers,
+                'shuffle_questions' => (bool) $s->shuffle_questions,
+                'shuffle_mcq_choices' => (bool) $s->shuffle_mcq_choices,
+                // datetime-local format, so the inputs accept them as-is.
+                'start_at' => $s->start_at?->format('Y-m-d\TH:i'),
+                'end_at' => $s->end_at?->format('Y-m-d\TH:i'),
+            ] : null,
+            'sources' => $sources->map(fn ($src) => [
+                'source_type' => $src->source_type,
+                'source_id' => (int) $src->source_id,
+                'mcq' => (int) $src->mcq_count,
+                'tf' => (int) $src->tf_count,
+                'mtf' => (int) $src->mtf_count,
+                'id' => (int) $src->identification_count,
+                'match' => (int) $src->matching_count,
+                'fib' => (int) $src->fib_count,
+                'enum' => (int) $src->enumeration_count,
+                'essay' => (int) $src->essay_count,
+            ])->values()->all(),
+        ];
     }
 
     /* ===============================

@@ -209,6 +209,16 @@
         <div class="test-settings-card">
             <div class="ts-section">
                 <h3 class="test-settings-title">Assignment &amp; Classification</h3>
+
+                    {{-- Auto-fills from the deepest rendered source (the competency
+                         when the teacher drills that far); typing your own wins. --}}
+                    <div class="ts-row" style="margin-bottom:14px;">
+                        <label for="test-title">Test Title</label>
+                        <input type="text" id="test-title" name="title" maxlength="255"
+                               placeholder="Auto-fills from the selected source — edit anytime"
+                               value="{{ optional($test)->title === 'Untitled Test' ? '' : optional($test)->title }}">
+                    </div>
+
                     <div class="ts-grid two">
 
                         <div class="diff-assessment-render-grid">
@@ -407,8 +417,14 @@
 @endsection
 
 @push('scripts')
+@if(!empty($editPayload))
+{{-- Edit mode: the saved test, settings and per-source counts that
+     hydrateBuilder.js restores into the form. --}}
+<script>window.EDIT_TEST = @json($editPayload);</script>
+@endif
 <script src="{{ asset('js/tests/test-builder/testBuilder-cascadeDropdown.js') }}"></script>
 <script src="{{ asset('js/tests/test-builder/testBuilder.js') }}"></script>
+<script src="{{ asset('js/tests/test-builder/hydrateBuilder.js') }}"></script>
 <script src="{{ asset('js/tests/test-builder/modeVisibility.js') }}"></script>
 <script src="{{ asset('js/tests/test-builder/saveBuilder.js') }}"></script>
 <script src="{{ asset('js/tests/test-builder/points-modal.js') }}"></script>
