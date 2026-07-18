@@ -117,8 +117,9 @@ documents done (Phase 2); tenant coverage still expanding (~15/131 models → al
   mandatory in Roadmap Phase 5 (M2).
 - Password changes/resets evict other active sessions (`AuthenticateSession` — Roadmap M6).
 
-**Current status: ✅ / ⚠️** — role gating + throttle + reset flow done; Policies sweep (Phase 2.5)
-and staff-2FA enforcement (M2) pending.
+**Current status: ✅ / ⚠️** — role gating + throttle + reset flow done; record-level ownership
+Policies done (Phase 2.5, 2026-07-18: 8 Policies + route sweep, 3 IDORs fixed); staff-2FA
+enforcement (M2) pending.
 
 ### 5. Hosting & Deployment
 
@@ -189,8 +190,8 @@ never see Student B. **This layer's authority is [`SECURITY_PRINCIPLES.md`](./SE
 - Gated actions (deploys, live-DB migrations, deletions, mass guardian email, auth/role/tenancy
   changes) require explicit human approval — never self-authorized.
 
-**Current status: ⚠️ Managed risk** — Phases 0–2 done; Phase 2.5 (intra-school authorization) is the
-current security priority; audit log Phase 3.
+**Current status: ✅ / ⚠️** — Phases 0–2.5 done (2026-07-18: intra-school authorization Policies,
+IDOR route sweep, raw-query/mass-assignment sweep all clear); audit log (Phase 3) is the next gap.
 
 ### 9. Rate Limiting
 
@@ -207,8 +208,8 @@ current security priority; audit log Phase 3.
   satisfies this — do not hand-roll.
 - Limits return 429; request-size limits complement them (nginx `client_max_body_size` + validation).
 
-**Current status: ⚠️ Partial** — login (6/min email+IP) and reset throttled; the wider H6 sweep
-(uploads/chat/AI) pending in Phase 5.
+**Current status: ✅ / ⚠️** — login, reset, chat, uploads, and public-apply throttled (H6,
+2026-07-18); `throttle:ai` limiter defined and waiting to be attached to the AI/OCR endpoints (AI3).
 
 ### 10. Caching & CDN
 

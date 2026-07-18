@@ -84,17 +84,36 @@ Encode the rules before changing code. Pure markdown.
 > but does **nothing** between two users of the same school. C1 was one instance of this bug class fixed
 > individually; this phase sweeps the whole class. Exploitable with any student login → same priority tier as Phase 2.
 
-- [ ] **A1** Laravel Policies on user-owned models — `Invoice`, `Payment`, `StatementOfAccount`,
-  grades/test results, `StudentEnrollment`, `EnrollmentDocument`, `ChatThread`/`ChatMessage`. One auditable
-  ownership rule per model instead of scattered `abort_unless` lines. Generalize the parent portal's
-  `ResolvesChildren` chokepoint pattern.
-- [ ] **A2** Route sweep — audit every route that takes a user-owned ID (`/invoices/{id}`,
-  `/grades/{student}`, …) and confirm it passes through a Policy/ownership check, not just the tenant scope.
-- [ ] **A3** Raw-query & mass-assignment sweep — audit all `DB::raw`/`whereRaw` for injection and
-  `$fillable` on sensitive models (extends the parent-portal `password_change_required` fix).
+- [x] **A1** Laravel Policies on user-owned models. Added 8 auto-discovered Policies (`app/Policies/`):
+  `InvoicePolicy` (view/pay), `PaymentPolicy`, `StatementOfAccountPolicy`, `StudentEnrollmentPolicy`
+  (view/update — student_id references students.id, resolved via student.user_id), `EnrollmentDocumentPolicy`,
+  `StudentPolicy::viewDocuments`, `ChatThreadPolicy` (view/delete/manage), `ChatMessagePolicy`. The scattered
+  `abort_unless` chokepoints (Student\FinanceController, CheckoutController::authorizeInvoice,
+  ChatController::authorizeThread, SecureDocumentController) now delegate to them. Grades/test results have no
+  student-facing ID-taking routes (report card/transcript are auth-scoped index pages); staff grade routes stay
+  role+tenant gated. Parent portal keeps `ResolvesChildren` (already a single chokepoint). *Completed 2026-07-18.*
+- [x] **A2** Route sweep of every user-owned-ID route. **Three live intra-school IDORs found & fixed** in
+  `Public\EnrollmentController`: `confirmation`, `exam`, and `submitExam` loaded any `StudentEnrollment` by ID
+  with no ownership check — `submitExam` let any student POST a pass/fail outcome for anyone's enrolment.
+  All three now require the owning student (404 on foreign IDs). Verified guarded: student finance PDFs,
+  checkout, chat (+attachments), secure documents, trainee training payments (trainee_id-scoped), parent portal,
+  staff routes (role+tenant). *Completed 2026-07-18.*
+- [x] **A3** Raw-query & mass-assignment sweep. All 37 files with `DB::raw`/`whereRaw`/`selectRaw` audited —
+  every site is static SQL or `?`-bound; zero injection. `$guarded=[]` is unused anywhere. **One live
+  mass-assignment hole fixed**: `Staff\ProgramHead\SubjectController::store` passed `$request->all()` into
+  `Subject::create()`, letting a program head spoof `school_id` (cross-tenant write) and `created_by`; now an
+  explicit whitelist with server-side `school_id`/`created_by`. Latent (documented, not exploitable today):
+  `User.$fillable` still exposes `role`/`school_id` — safe while all writers use `only()`/`validated()`.
+  *Completed 2026-07-18.*
 
 **Safety:** policies are additive; legitimate owner/staff access keeps working.
-**Verify:** Student A requesting Student B's invoice/grade (same school) → 403/404; owner and authorized staff unaffected.
+**Verify:** ✅ `IntraSchoolAuthorizationTest` 6/6 (18 assertions): same-school peer → 404 on another's enrolment
+confirmation / exam submit (status unchanged) / invoice PDF / SOA PDF, 403 on checkout & foreign chat thread;
+owner + same-school finance staff allowed, cross-school finance denied; program head cannot spoof
+`school_id`/`created_by` on subject create. Full suite: 213 passed — only the 4 `OmrGradingTest` failures
+owned by the in-flight OMR session remain (choice-shuffle work, unrelated).
+
+> **Phase 2.5 complete (2026-07-18)** — the multi-user intra-school security bar is now met.
 
 ---
 
@@ -128,17 +147,23 @@ Encode the rules before changing code. Pure markdown.
   account (`SECURITY_PRINCIPLES.md` §15). **Verified:** `PasswordChangeSessionEvictionTest` (2 tests —
   session survives unchanged password; stale session evicted after change); full suite run, only
   pre-existing OMR decimal failure unrelated. *(Added & completed 2026-07-17 — ADR-0008.)*
-- [ ] **H6** Rate-limit sweep beyond login: password reset (partially done), chat sends, uploads,
-  AI/OCR endpoints, exports; upload endpoints get `max:` size rules; document nginx
-  `client_max_body_size`. Named limiters on the shared cache store only. *(Added 2026-07-17.)*
+- [x] **H6** Rate-limit sweep beyond login. Named limiters (`chat` 30/min/user, `uploads`
+  20/min/user, `ai` 10/min/user, `public-apply` 10/min/IP) in
+  `AppServiceProvider::configureRateLimiting`; attached to chat `message.store`, `form.save`,
+  enrollment `store`/`pathway.store` (the file-bearing steps), and the public QR `login`/`register`
+  POSTs. Password reset was already `throttle:6,1`; upload size capped by `SecureUpload` (`max:5120`)
+  and chat (`max:20480`). **Verified:** `RateLimitSweepTest` — real 429 on the 31st chat message +
+  route-table wiring assertions; Enrollment suites green. Remaining: attach `throttle:ai` to the
+  AI/OCR endpoints (tracked as AI3 — those routes belong to the in-flight OMR work); note nginx
+  `client_max_body_size` in the deploy runbook at VPS setup. *(Added & completed 2026-07-18.)*
 - [x] **AI1** AiProvider hardening at release: `encrypted` cast on `api_key` ✅ (shipped with the
   feature), masked round-trip ✅, routes `role:superadmin`+`2fa` ✅, `base_url` scheme validation
   `url:http,https` ✅ (SSRF — `SECURITY_PRINCIPLES.md` §16/§18). *(Added & completed 2026-07-17.)*
 - [ ] **AI2** Audit AiProvider changes (provider/key/URL/default) once the Phase 3 `audit_logs`
   table exists — key *changes* are logged, key *values* never.
-- [ ] **AI3** AI usage guardrails: per-user throttle on AI/OCR endpoints (with H6); prompts carry
-  minimum PII (no government-ID numbers); model output treated as untrusted input at every
-  consumer (`SECURITY_PRINCIPLES.md` §18).
+- [ ] **AI3** AI usage guardrails: attach the ready-made `throttle:ai` limiter (H6) to AI/OCR
+  endpoints when that in-flight work lands; prompts carry minimum PII (no government-ID numbers);
+  model output treated as untrusted input at every consumer (`SECURITY_PRINCIPLES.md` §18).
 
 **Safety:** CSP starts in report-only so inline scripts/styles aren't broken; headers append-only.
 M6 is additive middleware — existing sessions self-heal (hash stored on next request).
