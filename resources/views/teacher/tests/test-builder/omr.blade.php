@@ -23,6 +23,7 @@
         .lh .sy { font-size: 11px; font-weight: 700; white-space: nowrap; color: #075985; }
 
         .meta { text-align: center; font-size: 13px; font-weight: 800; margin: 8px 0 2px; }
+        .meta .coverage { font-size: 10.5px; font-weight: 400; font-style: italic; color: #475569; margin-top: 2px; }
         .meta .line { font-size: 11px; font-weight: 400; color: #334155; display: flex; justify-content: space-between; margin-top: 3px; }
 
         .student { display: flex; justify-content: space-between; gap: 16px; margin-top: 10px; border: 1px solid #0f172a; padding: 9px 11px; }
@@ -90,6 +91,9 @@
         {{-- ===== Test meta ===== --}}
         <div class="meta">
             {{ $test->subject?->name ?? 'Subject' }} — {{ $test->settings?->assessment_type ?? 'Assessment' }}
+            @if (! empty($coverage))
+                <div class="coverage">{{ $coverage }}</div>
+            @endif
             <div class="line">
                 <span>Teacher: {{ $test->teacher?->full_name ?: '—' }}</span>
                 <span>Date: {{ optional($test->test_date ?? $test->created_at)->format('F d, Y') }}</span>

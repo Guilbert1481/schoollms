@@ -63,6 +63,9 @@
     <div class="assessment-type">
         {{ $test->settings->assessment_type ?? 'Assessment Type' }}
     </div>
+    @if (! empty($printHeader['coverage']))
+        <div class="coverage-name">{{ $printHeader['coverage'] }}</div>
+    @endif
 </div>
 <hr class="divider">
 ANSWER KEY

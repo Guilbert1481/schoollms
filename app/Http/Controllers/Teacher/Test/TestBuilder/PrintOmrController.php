@@ -49,6 +49,9 @@ class PrintOmrController extends Controller
         return view('teacher.tests.test-builder.omr', [
             'test' => $test,
             'section' => $section,
+            // Same coverage line the questionnaire and answer key print, so all
+            // three sheets describe the same scope.
+            'coverage' => \App\Support\TestPrintHeader::for($test)['coverage'],
         ] + $this->sheets->build($test, $section));
     }
 

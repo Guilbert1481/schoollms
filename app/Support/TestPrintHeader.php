@@ -24,14 +24,18 @@ class TestPrintHeader
      * (line 1), subject, and assessment type are already trivially available in
      * the view, so only the enrollment-derived lines are computed here.
      *
-     * @return array{academicYear: ?string, level: ?string, semester: ?string}
+     * @return array{academicYear: ?string, level: ?string, semester: ?string, coverage: ?string}
      */
     public static function for(Test $test): array
     {
+        // Coverage comes from the test's recorded question sources, not from the
+        // roster, so it is resolved for every path — including a personal test that
+        // has no section.
+        $coverage = self::coverage($test);
         $section = $test->class?->section;
 
         if (! $section) {
-            return ['academicYear' => null, 'level' => null, 'semester' => null];
+            return ['academicYear' => null, 'level' => null, 'semester' => null, 'coverage' => $coverage];
         }
 
         $enrollment = DB::table('student_enrollments')
@@ -53,6 +57,7 @@ class TestPrintHeader
                 'academicYear' => $academicYear,
                 'level' => 'Basic Education'.($yearLevel !== '' ? ' - Grade '.$yearLevel : ''),
                 'semester' => null,
+                'coverage' => $coverage,
             ];
         }
 
@@ -62,7 +67,60 @@ class TestPrintHeader
             'academicYear' => $academicYear,
             'level' => $name.($yearLevel !== '' ? ' - Year '.$yearLevel : ''),
             'semester' => $term->term ?? null, // e.g. "1st Semester" — higher ed only
+            'coverage' => $coverage,
         ];
+    }
+
+    /**
+     * What the test actually covers, read from its recorded question sources: the
+     * competency, lesson, or topic names behind the questions.
+     *
+     * A test can draw from several sources at once, so we print the names of the
+     * MOST SPECIFIC type present (competency → lesson → topic) — the narrowest true
+     * description of the coverage — joined by commas. The subject is already its own
+     * letterhead line, so it is never repeated here. Null when the test has no
+     * recorded sources, in which case the views omit the line entirely.
+     */
+    private static function coverage(Test $test): ?string
+    {
+        $sources = DB::table('test_sources')
+            ->where('test_id', $test->id)
+            ->get(['source_type', 'source_id']);
+
+        if ($sources->isEmpty()) {
+            return null;
+        }
+
+        // Ordered most specific first; the first type with resolvable names wins.
+        $tables = [
+            'competency' => 'competencies',
+            'lesson' => 'lessons',
+            'topic' => 'topics',
+        ];
+
+        foreach ($tables as $type => $table) {
+            $ids = $sources->where('source_type', $type)
+                ->pluck('source_id')
+                ->filter()
+                ->unique();
+
+            if ($ids->isEmpty()) {
+                continue;
+            }
+
+            $names = DB::table($table)
+                ->whereIn('id', $ids)
+                ->orderBy('id')
+                ->pluck('name')
+                ->filter(fn ($n) => trim((string) $n) !== '')
+                ->values();
+
+            if ($names->isNotEmpty()) {
+                return $names->implode(', ');
+            }
+        }
+
+        return null;
     }
 
     /** Academic-year name for the enrollment's year, falling back to the school's active year. */

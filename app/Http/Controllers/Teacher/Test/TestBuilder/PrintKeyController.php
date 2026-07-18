@@ -12,7 +12,9 @@ class PrintKeyController extends Controller
 
     public function printAnswerKey(Test $test)
     {
-        $test->load(['settings', 'subject', 'teacher', 'class.semester']);
+        // class.section is needed by TestPrintHeader (it derives the letterhead from
+        // the section's enrolled roster).
+        $test->load(['settings', 'subject', 'teacher', 'class.semester', 'class.section']);
 
         $questions = $test->testQuestions()->with(['question.choices'])->get();
 
@@ -123,6 +125,7 @@ class PrintKeyController extends Controller
             'test' => $test,
             'sections' => $sections,
             'school' => $school,
+            'printHeader' => \App\Support\TestPrintHeader::for($test),
         ]);
     }
 }
