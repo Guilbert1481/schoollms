@@ -240,6 +240,16 @@
                                     <option value="midterm">Midterm</option>
                                     <option value="finals">Finals</option>
                                 </select>
+
+                                {{-- Tagging a component makes every OMR-scanned score for
+                                     this test roll into the gradebook automatically. --}}
+                                <label class="mt-2" for="grade-component-select">Grade Component</label>
+                                <select id="grade-component-select" name="grade_component_id">
+                                    <option value="">Not graded (no gradebook entry)</option>
+                                    @foreach($gradeComponents as $gc)
+                                        <option value="{{ $gc->id }}">{{ $gc->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                         </div>
 

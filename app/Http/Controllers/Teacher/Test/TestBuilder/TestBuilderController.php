@@ -74,7 +74,7 @@ class TestBuilderController extends Controller
                 ->where('teacher_id', auth()->id())
                 ->get(),
 
-        ] + $this->levelPickerData());
+        ] + $this->levelPickerData() + $this->gradeComponentData());
     }
 
     public function create()
@@ -90,7 +90,7 @@ class TestBuilderController extends Controller
                 ->where('teacher_id', auth()->id())
                 ->get(),
 
-        ] + $this->levelPickerData());
+        ] + $this->levelPickerData() + $this->gradeComponentData());
     }
 
     public function edit(Test $test)
@@ -110,7 +110,7 @@ class TestBuilderController extends Controller
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
                 ->get(),
-        ] + $this->levelPickerData());
+        ] + $this->levelPickerData() + $this->gradeComponentData());
     }
 
     /* ===============================
@@ -502,6 +502,24 @@ class TestBuilderController extends Controller
             default:
                 return 'Unknown';
         }
+    }
+
+    /**
+     * Grade components the teacher can tag a test with, so its OMR-scanned scores
+     * feed the gradebook (TestComponentFeed). Scoped to the school through the
+     * grading setting that owns each component — the same check the save applies.
+     *
+     * @return array{gradeComponents: \Illuminate\Support\Collection}
+     */
+    private function gradeComponentData(): array
+    {
+        return [
+            'gradeComponents' => DB::table('grade_components as gc')
+                ->join('grading_settings as gs', 'gs.id', '=', 'gc.grading_setting_id')
+                ->where('gs.school_id', auth()->user()->school_id)
+                ->orderBy('gc.sort_order')
+                ->get(['gc.id', 'gc.name']),
+        ];
     }
 
     private function detectSourceType($key)

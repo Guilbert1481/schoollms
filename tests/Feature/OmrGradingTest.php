@@ -72,17 +72,28 @@ class OmrGradingTest extends TestCase
         ]);
     }
 
-    /** A test + snapshot sheet with correct answers A, B, A, C over 4 items. */
+    /**
+     * A test + snapshot sheet over 4 items.
+     *
+     * Items are NOT numbered in the order they are added: OmrLayout::sequence puts
+     * them in canonical section order (True or False → Multiple Choice → …), so the
+     * true_false added 3rd becomes item 1 and the frozen key is A, A, B, C:
+     *
+     *   n1 = true_false (correct True  → A)
+     *   n2 = mcq order 1 (correct index 0 → A)
+     *   n3 = mcq order 2 (correct index 1 → B)
+     *   n4 = mcq order 4 (correct index 2 → C)
+     */
     private function makeSheet(?int $schoolId = null): OmrSheet
     {
         $test = Test::create([
             'school_id' => $schoolId ?? $this->school->id, 'teacher_id' => $this->teacher->id,
             'title' => 'Exam', 'status' => 'draft',
         ]);
-        $this->question($test, 1, 'mcq', ['w', 'w', 'w', 'w'], 0);          // correct A
-        $this->question($test, 2, 'mcq', ['w', 'w', 'w', 'w'], 1);          // correct B
-        $this->question($test, 3, 'true_false', ['True', 'False'], 0);      // correct A
-        $this->question($test, 4, 'mcq', ['w', 'w', 'w', 'w'], 2);          // correct C
+        $this->question($test, 1, 'mcq', ['w', 'w', 'w', 'w'], 0);          // → item 2, correct A
+        $this->question($test, 2, 'mcq', ['w', 'w', 'w', 'w'], 1);          // → item 3, correct B
+        $this->question($test, 3, 'true_false', ['True', 'False'], 0);      // → item 1, correct A
+        $this->question($test, 4, 'mcq', ['w', 'w', 'w', 'w'], 2);          // → item 4, correct C
 
         return app(OmrSheetSnapshotService::class)->forStudent($test, 555, null);
     }
@@ -109,18 +120,19 @@ class OmrGradingTest extends TestCase
 
         $this->assertSame(4, $sheet->item_count);
         $this->assertSame(4, $sheet->max_score);
-        $this->assertSame(['A', 'B', 'A', 'C'], array_column($sheet->answer_key, 'correct'));
+        // Canonical section order: the true_false leads, then the three MCQs.
+        $this->assertSame(['A', 'A', 'B', 'C'], array_column($sheet->answer_key, 'correct'));
     }
 
     public function test_grades_marks_into_score_counts_and_per_item(): void
     {
         $sheet = $this->makeSheet();
 
-        // 1 correct, 1 wrong, 1 blank, 1 multiple.
+        // 1 correct, 1 wrong, 1 blank, 1 multiple. Key is A, A, B, C.
         $res = $this->actingAs($this->teacher)
             ->postJson(route('teacher.tests.omr.scan'), $this->payload($sheet, [
                 1 => ['A'],        // correct
-                2 => ['A'],        // wrong (correct B)
+                2 => ['B'],        // wrong (correct A)
                 3 => [],           // blank
                 4 => ['A', 'B'],   // multiple
             ]))
@@ -128,7 +140,9 @@ class OmrGradingTest extends TestCase
 
         $this->assertSame(1, $res['result']['raw_score']);
         $this->assertSame(4, $res['result']['max_score']);
-        $this->assertSame('25.00', (string) $res['result']['percentage']);
+        // Compare the value, not its decimal formatting — the response carries the
+        // freshly computed number, which may not be the DB's "25.00" string form.
+        $this->assertSame(25.0, (float) $res['result']['percentage']);
         $this->assertSame(1, $res['result']['correct_count']);
         $this->assertSame(1, $res['result']['incorrect_count']);
         $this->assertSame(1, $res['result']['blank_count']);
@@ -144,9 +158,11 @@ class OmrGradingTest extends TestCase
             'school_id' => $this->school->id, 'teacher_id' => $this->teacher->id,
             'title' => 'Exam', 'status' => 'draft',
         ]);
-        $this->question($test, 1, 'mcq', ['w', 'w', 'w', 'w'], 0);         // item 1 (bubble) correct A
-        $this->question($test, 2, 'identification', ['Photosynthesis'], 0); // item 2 (written)
-        $this->question($test, 3, 'matching', ['Tokyo'], 0);               // item 3 (written)
+        // Canonical order is Multiple Choice → Matching → Identification, so the
+        // matching added last becomes item 2 and identification item 3.
+        $this->question($test, 1, 'mcq', ['w', 'w', 'w', 'w'], 0);          // → item 1 (bubble) correct A
+        $this->question($test, 2, 'identification', ['Photosynthesis'], 0); // → item 3 (written)
+        $this->question($test, 3, 'matching', ['Tokyo'], 0);                // → item 2 (written)
 
         $sheet = app(OmrSheetSnapshotService::class)->forStudent($test, 777, null);
 
@@ -159,8 +175,8 @@ class OmrGradingTest extends TestCase
                 'sheet_token' => app(OmrSheetTokenService::class)->sheetToken($sheet->token, $sheet->layout_version),
                 'marked_answers' => [['n' => 1, 'marks' => ['A']]],
                 'written_answers' => [
-                    ['n' => 2, 'text' => '  photosynthesis! '], // fuzzy → correct
-                    ['n' => 3, 'text' => 'Paris'],              // wrong (correct is Tokyo)
+                    ['n' => 2, 'text' => '  tokyo! '],   // matching, fuzzy → correct
+                    ['n' => 3, 'text' => 'Paris'],       // identification, wrong (correct is Photosynthesis)
                 ],
             ])
             ->assertOk()->json();
@@ -205,7 +221,7 @@ class OmrGradingTest extends TestCase
 
         $res = $this->actingAs($this->teacher)
             ->postJson(route('teacher.tests.omr.scan'), $this->payload($sheet, [
-                1 => ['A'], 2 => ['B'], 3 => ['A'], 4 => ['C'],
+                1 => ['A'], 2 => ['A'], 3 => ['B'], 4 => ['C'],  // all four correct
             ], ['is_override' => true]))
             ->assertOk()->json();
 

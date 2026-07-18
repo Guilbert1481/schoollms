@@ -62,6 +62,7 @@ class SaveBuilderController extends Controller
                 'mode' => 'nullable|string',
                 'term' => 'nullable|string|in:prelim,midterm,finals',
                 'assessment_type' => 'nullable|string',
+                'grade_component_id' => 'nullable|integer',
             ]);
 
             DB::beginTransaction();
@@ -78,6 +79,8 @@ class SaveBuilderController extends Controller
                     'academic_levels' => $request->academic_levels,
                     'title' => 'Untitled Test',
                     'status' => 'draft',
+                    // Tag that makes this test's OMR scores feed the gradebook.
+                    'grade_component_id' => $this->validComponentId($request->input('grade_component_id')),
                 ]
             );
 
@@ -212,6 +215,26 @@ class SaveBuilderController extends Controller
     }
 
     // NEW
+    /**
+     * Accept a grade-component tag only if it is a real component in this school —
+     * the id is client-supplied, and it decides which gradebook column the test's
+     * scanned scores land in.
+     */
+    private function validComponentId($componentId): ?int
+    {
+        if (! $componentId) {
+            return null;
+        }
+
+        $exists = DB::table('grade_components as gc')
+            ->join('grading_settings as gs', 'gs.id', '=', 'gc.grading_setting_id')
+            ->where('gc.id', (int) $componentId)
+            ->where('gs.school_id', auth()->user()->school_id)
+            ->exists();
+
+        return $exists ? (int) $componentId : null;
+    }
+
     private function generateTestQuestions($test, $request)
     {
         TestQuestion::where('test_id', $test->id)->delete();

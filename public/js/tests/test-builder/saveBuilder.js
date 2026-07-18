@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
             assessment_type: document.getElementById('assessment-type-select')?.value || null,
             mode: document.getElementById('mode-select')?.value || null,
             term: document.getElementById('term-select')?.value || null,
+            grade_component_id: document.getElementById('grade-component-select')?.value || null,
             timer_minutes: document.getElementById('time-limit')?.value || null,
             attempts_allowed: document.getElementById('attempts-allowed')?.value || null,
             passing_score: document.getElementById('passingScore')?.value || null,

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Teacher\Test\TestBuilder;
 
 use App\Http\Controllers\Controller;
 use App\Models\OmrSheet;
+use App\Services\Grading\TestComponentFeed;
 use App\Services\Tests\Exceptions\DuplicateScanException;
 use App\Services\Tests\OmrGradingService;
 use App\Services\Tests\OmrSheetTokenService;
@@ -21,6 +22,7 @@ class OmrScanController extends Controller
     public function __construct(
         private OmrSheetTokenService $tokens,
         private OmrGradingService $grading,
+        private TestComponentFeed $feed,
     ) {}
 
     public function store(Request $request): JsonResponse
@@ -75,6 +77,13 @@ class OmrScanController extends Controller
                 'error' => 'already_scanned',
                 'message' => $e->getMessage(),
             ], 409);
+        }
+
+        // A scanned sheet becomes a grade with no re-keying. No-op unless the test
+        // is tagged with a grade component, and re-runs after a re-scan/override so
+        // a corrected result replaces the old one.
+        if ($sheet->test) {
+            $this->feed->sync($sheet->test);
         }
 
         return response()->json([
