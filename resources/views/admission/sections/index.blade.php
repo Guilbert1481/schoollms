@@ -117,6 +117,7 @@
             @endif
         </div>
 
+        <div class="overflow-x-auto">
         <table class="min-w-full text-sm">
             <thead class="text-left text-slate-500">
                 <tr>
@@ -172,6 +173,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 @endsection

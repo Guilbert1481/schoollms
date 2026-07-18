@@ -100,6 +100,44 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshSubjectsForLevels();
 
     // =====================
+    // CLASS DROPDOWN SCOPING
+    // Show only the teacher's classes whose subject matches the chosen Test
+    // Source subject AND whose section year level matches a selected grade/year.
+    // =====================
+    function filterClasses() {
+        const classSel = document.getElementById('class_id');
+        if (!classSel) return;
+
+        const chosenSubject = subjectSel ? subjectSel.value : '';
+        const levelYears = window.CLASS_LEVEL_YEARS || {};
+        const years = new Set(
+            Array.from(document.querySelectorAll('input[name="academic_levels[]"]:checked'))
+                .map((cb) => String(levelYears[cb.value]))
+                .filter((y) => y !== 'undefined' && y !== 'null' && y !== '')
+        );
+
+        Array.from(classSel.options).forEach((opt) => {
+            if (!opt.value || opt.value === 'others') return; // always keep "None" / "Others"
+            const subjectOk = chosenSubject !== '' && opt.dataset.subjectId === String(chosenSubject);
+            const yearOk = years.size === 0 || years.has(String(opt.dataset.yearLevel));
+            const show = subjectOk && yearOk;
+            opt.hidden = !show;
+            opt.disabled = !show;
+        });
+
+        // Drop a stale selection that's no longer valid for the current filter.
+        const current = classSel.selectedOptions[0];
+        if (current && current.value && current.hidden) classSel.value = '';
+    }
+
+    document.addEventListener('assessment-levels:changed', filterClasses);
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.name === 'academic_levels[]') filterClasses();
+    });
+    if (subjectSel) subjectSel.addEventListener('change', filterClasses);
+    filterClasses(); // initial
+
+    // =====================
     // RENDER AVAILABILITY
     // =====================
     renderBtn.addEventListener('click', async () => {
@@ -317,7 +355,9 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    // Optionally show a success message here
+                    // Refresh the inline "Points/type" summary so the new values
+                    // show immediately, without a page reload.
+                    window.renderPointsSummary?.();
                     // Hide the modal (pure JS way):
                     document.getElementById('pointsModal').style.display = 'none';
                     // OR if you use jQuery/Bootstrap 4 modal: $('#pointsModal').modal('hide');

@@ -77,6 +77,7 @@
 
 {!! $sectionTitle('Class Schedule') !!}
 <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:0;font-size:14px;overflow:hidden;">
+    <div class="overflow-x-auto">
     <table style="width:100%;border-collapse:collapse;">
         <thead style="background:#f8fafc;">
             <tr>
@@ -99,6 +100,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 </div>
 
 <form method="POST" action="{{ route('public.apply.higher_regular.submit', $term->id) }}" style="margin-top:32px;">

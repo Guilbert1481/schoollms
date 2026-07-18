@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\EducationNode;
+use App\Services\Tests\LevelVocabularySync;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -11,6 +12,8 @@ use Illuminate\View\View;
 
 class EducationNodeController extends Controller
 {
+    public function __construct(private LevelVocabularySync $levelSync) {}
+
     /**
      * Tree page (admin) or JSON of children when ?parent_id is provided.
      *
@@ -32,7 +35,7 @@ class EducationNodeController extends Controller
             return response()->json($children);
         }
 
-        $tree      = EducationNode::tree();
+        $tree = EducationNode::tree();
         $nodeTypes = EducationNode::TYPES;
 
         return view('admin.education_nodes.index', compact('tree', 'nodeTypes'));
@@ -41,18 +44,19 @@ class EducationNodeController extends Controller
     public function store(Request $request): JsonResponse|RedirectResponse
     {
         $data = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
-            'parent_id'   => ['nullable', 'integer', 'exists:education_nodes,id'],
-            'node_type'   => ['required', 'string', 'in:level,stage,track,strand,program_type'],
+            'name' => ['required', 'string', 'max:255'],
+            'parent_id' => ['nullable', 'integer', 'exists:education_nodes,id'],
+            'node_type' => ['required', 'string', 'in:level,stage,track,strand,program_type'],
             'order_index' => ['nullable', 'integer'],
-            'is_offered'  => ['nullable', 'boolean'],
+            'is_offered' => ['nullable', 'boolean'],
         ]);
 
         $data['order_index'] = $data['order_index'] ?? 0;
-        $data['is_offered']  = (bool) ($data['is_offered'] ?? false);
-        $data['is_active']   = true;
+        $data['is_offered'] = (bool) ($data['is_offered'] ?? false);
+        $data['is_active'] = true;
 
         $node = EducationNode::create($data);
+        $this->levelSync->syncAllSchools();
 
         if ($request->wantsJson()) {
             return response()->json(['ok' => true, 'node' => $node], 201);
@@ -66,14 +70,15 @@ class EducationNodeController extends Controller
     public function update(Request $request, EducationNode $education_node): JsonResponse|RedirectResponse
     {
         $data = $request->validate([
-            'name'        => ['sometimes', 'required', 'string', 'max:255'],
-            'node_type'   => ['sometimes', 'required', 'string', 'in:level,stage,track,strand,program_type'],
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'node_type' => ['sometimes', 'required', 'string', 'in:level,stage,track,strand,program_type'],
             'order_index' => ['sometimes', 'integer'],
-            'is_offered'  => ['sometimes', 'boolean'],
-            'is_active'   => ['sometimes', 'boolean'],
+            'is_offered' => ['sometimes', 'boolean'],
+            'is_active' => ['sometimes', 'boolean'],
         ]);
 
         $education_node->update($data);
+        $this->levelSync->syncAllSchools();
 
         if ($request->wantsJson()) {
             return response()->json(['ok' => true, 'node' => $education_node->fresh()]);
@@ -108,10 +113,11 @@ class EducationNodeController extends Controller
             : ! $education_node->is_offered;
 
         $education_node->update(['is_offered' => $next]);
+        $this->levelSync->syncAllSchools();
 
         return response()->json([
-            'ok'         => true,
-            'id'         => $education_node->id,
+            'ok' => true,
+            'id' => $education_node->id,
             'is_offered' => $education_node->is_offered,
         ]);
     }

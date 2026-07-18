@@ -53,6 +53,26 @@ document.addEventListener('DOMContentLoaded', () => {
     setOptions(comp, await fetchJson(`/api/lessons/${lesson.value}/competencies`));
   });
 
+  /* Prefill the classification cascade when arriving from a competency's
+     "Create question" action (window.QM_PRESELECT set server-side). Each level
+     depends on the previous fetch, so it runs sequentially. */
+  (async function prefill() {
+    const p = window.QM_PRESELECT;
+    if (!p || !p.subject_id || !subject) return;
+    subject.value = String(p.subject_id);
+    if (!subject.value) return; // subject not in the teacher's scoped list
+    try {
+      setOptions(topic, await fetchJson(`/api/subjects/${p.subject_id}/topics`), 'Select Topic');
+      if (!p.topic_id) return;
+      topic.value = String(p.topic_id);
+      setOptions(lesson, await fetchJson(`/api/topics/${p.topic_id}/lessons`), 'Select Lesson');
+      if (!p.lesson_id) return;
+      lesson.value = String(p.lesson_id);
+      setOptions(comp, await fetchJson(`/api/lessons/${p.lesson_id}/competencies`), 'Select Competency');
+      if (p.competency_id && comp) comp.value = String(p.competency_id);
+    } catch (e) { /* leave partially filled — the teacher can adjust */ }
+  })();
+
   /* =========================
      SUBMIT METADATA
      ========================= */

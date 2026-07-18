@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Superadmin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiProvider;
 use App\Models\PlatformSetting;
 use Illuminate\Http\Request;
 
@@ -14,9 +15,19 @@ class ConfigurationController extends Controller
 {
     public function index()
     {
+        // Make sure a row exists for every known AI provider so the AI tab is
+        // always populated (idempotent).
+        AiProvider::syncCatalog();
+
+        $order = array_flip(array_keys(AiProvider::CATALOG));
+        $aiProviders = AiProvider::all()
+            ->sortBy(fn ($p) => $order[$p->provider] ?? 99)
+            ->values();
+
         return view('superadmin.settings', [
-            'systemFee'        => PlatformSetting::systemFee(),
+            'systemFee' => PlatformSetting::systemFee(),
             'defaultSystemFee' => PlatformSetting::DEFAULT_SYSTEM_FEE,
+            'aiProviders' => $aiProviders,
         ]);
     }
 

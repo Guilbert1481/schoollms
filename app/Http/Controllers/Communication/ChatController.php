@@ -606,33 +606,13 @@ class ChatController extends Controller
 
     protected function authorizeThread(ChatThread $thread)
     {
-        $user = Auth::user();
-
-        if (in_array($thread->type, ['private', 'group'])) {
-            abort_unless(
-                $thread->participants->contains('id', $user->id),
-                403
-            );
-        }
-
-        if ($thread->type === 'department') {
-            abort_unless(
-                $user->department_id === $thread->department_id,
-                403
-            );
-        }
-
-        if ($thread->type === 'class') {
-            abort_unless(
-                $user->classes->contains($thread->class_id),
-                403
-            );
-        }
+        // Membership rule lives in ChatThreadPolicy (A1).
+        abort_unless(Auth::user()->can('view', $thread), 403);
     }
 
     public function deleteMessage(ChatMessage $message)
     {
-        abort_unless($message->user_id === auth()->id(), 403);
+        abort_unless(auth()->user()->can('delete', $message), 403); // ChatMessagePolicy (A1)
 
         $message->update([
             'deleted_by_user' => true,
@@ -649,11 +629,9 @@ class ChatController extends Controller
     public function destroy(ChatThread $thread)
     {
         $this->authorizeThread($thread);
-        $meId = auth()->id();
 
-        if ($thread->type === 'group') {
-            abort_unless($thread->created_by === $meId, 403, 'Only the creator can delete this group.');
-        }
+        // ChatThreadPolicy::delete — private: either participant; group: creator only.
+        abort_unless(auth()->user()->can('delete', $thread), 403, 'Only the creator can delete this group.');
 
         $thread->messages()->delete();
         $thread->participants()->detach();
@@ -723,7 +701,7 @@ class ChatController extends Controller
     {
         $this->authorizeThread($thread);
         abort_unless($thread->type === 'group', 422, 'Can only remove members from group chats.');
-        abort_unless($thread->created_by === auth()->id(), 403, 'Only the creator can remove members.');
+        abort_unless(auth()->user()->can('manage', $thread), 403, 'Only the creator can remove members.');
         abort_if($user->id === $thread->created_by, 422, 'Creator cannot be removed.');
 
         $thread->participants()->detach($user->id);
@@ -733,7 +711,7 @@ class ChatController extends Controller
 
     public function requestDeletion(ChatThread $thread)
     {
-        abort_unless($thread->created_by === auth()->id(), 403);
+        abort_unless(auth()->user()->can('manage', $thread), 403); // ChatThreadPolicy (A1)
 
         $thread->update([
             'status' => 'pending_deletion',

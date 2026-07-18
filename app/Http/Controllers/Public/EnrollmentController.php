@@ -1611,6 +1611,10 @@ class EnrollmentController extends Controller
         $enrollment = StudentEnrollment::with(['program', 'modality', 'educationNode'])
             ->findOrFail($enrollmentId);
 
+        // A2: only the owning student may view this enrolment — a foreign ID
+        // must be indistinguishable from a nonexistent one.
+        abort_unless(auth()->user()->can('view', $enrollment), 404);
+
         // The diagnostic / admission exam is now taken during the wizard
         // (Step 7 — Diagnostic Test), so the post-submission prompt is suppressed.
         $examRequired = false;
@@ -1782,6 +1786,8 @@ class EnrollmentController extends Controller
         $term = Term::findOrFail($termId);
         $enrollment = StudentEnrollment::with(['program'])->findOrFail($enrollmentId);
 
+        abort_unless(auth()->user()->can('view', $enrollment), 404); // A2
+
         [$examRequired, $examPurpose, $examInstructions] =
             $this->resolveExamPrompt($enrollment);
 
@@ -1811,6 +1817,10 @@ class EnrollmentController extends Controller
     {
         $term = Term::findOrFail($termId);
         $enrollment = StudentEnrollment::findOrFail($enrollmentId);
+
+        // A2: exam results may only be recorded against the caller's OWN
+        // enrolment — otherwise any student could pass/fail anyone.
+        abort_unless(auth()->user()->can('update', $enrollment), 404);
 
         $setting = \App\Models\AdmissionExamSetting::where('school_id', $enrollment->school_id)->first();
 

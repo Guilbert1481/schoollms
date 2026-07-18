@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Settings\Concerns\ResolvesSettingsBand;
 use App\Models\GradingSetting;
 use App\Services\Grading\GradingSettingsService;
+use App\Support\AcademicBand;
+use App\Support\EducationLevels;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -22,10 +24,38 @@ class GradingSettingsController extends Controller
     public function index(Request $request, GradingSettingsService $service)
     {
         $band = $this->band($request);
+        $levels = $service->levelsWithSettings($this->schoolId(), $band);
+
+        // Basic ed only: fold the (long) list of grade levels behind the shared
+        // education-level tabs — offered stage groups (Preschool / Elementary /
+        // …). Higher ed keeps the flat list, so its tab collection stays empty.
+        $stageGroups = collect();
+        $activeLevelId = 0;
+        $showAll = true;
+
+        if ($band === AcademicBand::BASIC) {
+            $stageGroups = EducationLevels::basicStageGroups();
+
+            $requested = $request->query('level');
+            if ($requested !== null && $requested !== 'all'
+                && $stageGroups->contains(fn ($g) => (int) $g->id === (int) $requested)) {
+                $activeLevelId = (int) $requested;
+                $showAll = false;
+
+                $bucket = EducationLevels::bucketBasicLevels($levels->pluck('level'));
+                $levels = $levels
+                    ->filter(fn ($row) => ($bucket[$row['level']->id] ?? null) === $activeLevelId)
+                    ->values();
+            }
+        }
 
         return view('settings.grading', [
             'band' => $band,
-            'levels' => $service->levelsWithSettings($this->schoolId(), $band),
+            'levels' => $levels,
+            'stageGroups' => $stageGroups,
+            'activeLevelId' => $activeLevelId,
+            'showAll' => $showAll,
+            'indexRoute' => $this->indexRoute($band),
             'updateRoute' => $this->updateRoute($band),
             'scales' => GradingSetting::SCALES,
         ]);
@@ -48,6 +78,13 @@ class GradingSettingsController extends Controller
         $count = $service->save($this->schoolId(), $band, $request->input('settings', []));
 
         return back()->with('success', "Grading settings saved for {$count} level(s).");
+    }
+
+    private function indexRoute(string $band): string
+    {
+        return $band === 'basic'
+            ? 'principal.settings.grading'
+            : 'dean.settings.grading';
     }
 
     private function updateRoute(string $band): string

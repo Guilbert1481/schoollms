@@ -47,9 +47,20 @@ class QuestionMetadataController extends Controller
             'essay' => 'Essay',
         ];
 
+        // Pre-selection when arriving from a competency's "Create question" action:
+        // pre-fill the assessment level + the Subject → Topic → Lesson → Competency
+        // classification so the teacher only has to pick a question type.
+        $preLevel = $request->filled('academic_level_id') ? [(int) $request->query('academic_level_id')] : [];
+        $preselect = [
+            'subject_id' => $request->query('subject_id'),
+            'topic_id' => $request->query('topic_id'),
+            'lesson_id' => $request->query('lesson_id'),
+            'competency_id' => $request->query('competency_id'),
+        ];
+
         return view(
             'teacher.tests.question-metadata',
-            compact('subjects', 'academicLevels', 'questionTypes', 'levelTree', 'levelsByNode')
+            compact('subjects', 'academicLevels', 'questionTypes', 'levelTree', 'levelsByNode', 'preLevel', 'preselect')
         );
     }
 

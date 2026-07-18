@@ -32,8 +32,8 @@
     </div>
 @else
     @foreach ($choices as $ci => $choice)
-        <p class="choice-line">
+        <div class="choice-line">
             {{ $letters[$ci] }}. {{ $choice->choice_text }}
-        </p>
+        </div>
     @endforeach
 @endif

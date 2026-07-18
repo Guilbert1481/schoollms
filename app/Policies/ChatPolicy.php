@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
-use App\Models\User;
 use App\Models\Chat;
+use App\Models\User;
 
 class ChatPolicy
 {
@@ -28,7 +28,7 @@ class ChatPolicy
      */
     public function escalate(User $user, Chat $chat)
     {
-        return $user->role === 'admin' 
+        return $user->role === 'admin'
             && in_array($chat->status, ['pending', 'approved']);
     }
 
@@ -37,7 +37,7 @@ class ChatPolicy
      */
     public function close(User $user, Chat $chat)
     {
-        return $user->role === 'admin' 
+        return $user->role === 'admin'
             && in_array($chat->status, ['approved', 'escalated']);
     }
 }

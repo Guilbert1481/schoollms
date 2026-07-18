@@ -4,7 +4,7 @@
 
 
 {{-- resources/views/admin/dashboard.blade.php --}}
-<div class="w-full p-6 bg-slate-50 min-h-screen flex flex-col gap-6" 
+<div class="w-full p-0 md:p-6 bg-slate-50 min-h-screen flex flex-col gap-6"
      x-data="{ 
         openAttendance: false, 
         openAtRisk: false, 
@@ -12,12 +12,12 @@
      }">
 
     <!-- ========================= -->
-    <!-- ROW 1: KPI CARDS (FORCED SINGLE ROW) -->
+    <!-- ROW 1: KPI CARDS -->
     <!-- ========================= -->
-    <div class="w-full flex justify-between gap-4">
+    <div class="w-full grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
 
         <!-- Total Classes -->
-        <div class="min-w-[220px] bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
             <div class="p-2 bg-purple-50 w-fit rounded-lg text-purple-600 mb-3">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
                      viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -30,7 +30,7 @@
         </div>
 
         <!-- Avg Grade -->
-        <div class="min-w-[220px] bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
             <div class="p-2 bg-blue-50 w-fit rounded-lg text-blue-600 mb-3">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
                      viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -44,7 +44,7 @@
 
         <!-- Attendance -->
         <div @click="openAttendance = true"
-             class="min-w-[220px] bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-400 cursor-pointer transition-all group">
+             class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-400 cursor-pointer transition-all group">
             <div class="flex justify-between items-start mb-3">
                 <div class="p-2 bg-emerald-50 rounded-lg text-emerald-600 group-hover:bg-emerald-100">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
@@ -60,7 +60,7 @@
         </div>
 
         <!-- Pending Grading -->
-        <div class="min-w-[220px] bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
             <div class="p-2 bg-amber-50 w-fit rounded-lg text-amber-600 mb-3">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
                      viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -74,7 +74,7 @@
 
         <!-- At Risk -->
         <div @click="openAtRisk = true"
-             class="min-w-[220px] bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:border-rose-400 cursor-pointer transition-all group">
+             class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:border-rose-400 cursor-pointer transition-all group">
             <div class="flex justify-between items-start mb-3">
                 <div class="p-2 bg-rose-50 rounded-lg text-rose-600 group-hover:bg-rose-100">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
@@ -94,10 +94,10 @@
     <!-- ========================= -->
     <!-- ROW 2: CHARTS -->
     <!-- ========================= -->
-    <div class="flex gap-6">
-    
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
     <!-- Grade Distribution -->
-    <div class="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 cursor-pointer"
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 cursor-pointer"
         @click="openGradeModal = true">
         <h3 class="text-md font-bold text-slate-700 mb-4">Grade Distribution</h3>
         <div class="h-[250px]">
@@ -106,7 +106,7 @@
     </div>
 
     <!-- Attendance Performance Trend -->
-    <div class="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <h3 class="text-md font-bold text-slate-700 mb-4">Attendance Performance Trend</h3>
         <div class="h-[250px]">
             <canvas id="attendanceChart"></canvas>
@@ -114,7 +114,7 @@
     </div>
 
     <!-- Subject Performance -->
-    <div class="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
         <h3 class="text-md font-bold text-slate-700 mb-4">Subject Performance</h3>
         <div class="h-[250px]">
             <canvas id="subjectChart"></canvas>
@@ -126,10 +126,10 @@
     <!-- ========================= -->
     <!-- ROW 3: ANNOUNCEMENTS + DEADLINES -->
     <!-- ========================= -->
-    <div class="flex gap-6">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 
         <!-- Announcements -->
-        <div class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
             <div class="p-4 border-b border-slate-100 flex justify-between items-center">
                 <h3 class="text-md font-bold text-slate-700">School Announcements</h3>
                 <button class="text-xs font-bold text-blue-600 hover:underline">View All</button>
@@ -149,7 +149,7 @@
         </div>
 
         <!-- Deadlines -->
-        <div class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200">
             <div class="p-4 border-b border-slate-100 flex justify-between items-center">
                 <h3 class="text-md font-bold text-slate-700">Upcoming Deadlines</h3>
                 <button class="text-xs font-bold text-blue-600 hover:underline">View All</button>

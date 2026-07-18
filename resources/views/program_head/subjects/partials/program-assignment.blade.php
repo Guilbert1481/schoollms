@@ -9,6 +9,7 @@
     <form method="POST" action="#">
         @csrf
 
+        <div class="overflow-x-auto">
         <table class="table" style="width:100%;border-collapse:collapse;">
             <thead>
                 <tr>
@@ -49,6 +50,7 @@
 
             </tbody>
         </table>
+        </div>
 
         <div style="margin-top:20px;">
             <button type="submit" class="btn-primary">

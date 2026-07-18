@@ -1,11 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Communication\CommunicationController;
 use App\Http\Controllers\Communication\AnnouncementController;
-use App\Http\Controllers\Communication\DeadlineController;
 use App\Http\Controllers\Communication\ChatController;
-
+use App\Http\Controllers\Communication\CommunicationController;
+use App\Http\Controllers\Communication\DeadlineController;
+use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])
     ->prefix('communication')
@@ -27,12 +26,12 @@ Route::middleware(['auth'])
         Route::resource('announcements', AnnouncementController::class);
 
         /*
-        
+
         |--------------------------------------------------------------------------
         | DEADLINES & EXTRA ACTIONS
         |--------------------------------------------------------------------------
         */
-        
+
         // Custom "Manage" route MUST come before the resource to avoid ID conflicts
         Route::get('deadlines/{deadline}/manage', [DeadlineController::class, 'manage'])
             ->name('deadlines.manage');
@@ -66,7 +65,8 @@ Route::middleware(['auth'])
 
             Route::get('/{thread}', [ChatController::class, 'show'])->name('show');
             Route::get('/{thread}/messages', [ChatController::class, 'threadMessages'])->name('messages');
-            Route::post('/{thread}/message', [ChatController::class, 'storeMessage'])->name('message.store');
+            Route::post('/{thread}/message', [ChatController::class, 'storeMessage'])->name('message.store')
+                ->middleware('throttle:chat'); // H6 — message/attachment flood guard
 
             Route::delete('/{thread}', [ChatController::class, 'destroy'])->name('destroy');
             Route::get('/{thread}/members', [ChatController::class, 'members'])->name('members');
@@ -75,12 +75,7 @@ Route::middleware(['auth'])
 
         });
 
-
-
         // ANNOUNCEMENT ACKNOWLEDGE ROUTE (must be inside group for correct naming)
-            Route::post('announcements/{id}/acknowledge', [AnnouncementController::class, 'acknowledge'])
-                ->name('announcements.acknowledge');
+        Route::post('announcements/{id}/acknowledge', [AnnouncementController::class, 'acknowledge'])
+            ->name('announcements.acknowledge');
     });
-
-
-    

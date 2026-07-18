@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Teacher\Test\TestBuilder;
 
 use App\Http\Controllers\Controller;
 use App\Models\Test;
-use Illuminate\Http\Request;
 use App\Traits\BuildsTestSections;
 
 class PrintKeyController extends Controller
@@ -13,57 +12,69 @@ class PrintKeyController extends Controller
 
     public function printAnswerKey(Test $test)
     {
-        $test->load(['settings', 'subject', 'teacher', 'class.semester']);
+        // class.section is needed by TestPrintHeader (it derives the letterhead from
+        // the section's enrolled roster).
+        $test->load(['settings', 'subject', 'teacher', 'class.semester', 'class.section']);
 
         $questions = $test->testQuestions()->with(['question.choices'])->get();
 
         foreach ($questions as $q) {
             $q->print_type = match ($q->question->question_type) {
-                'multiple_choice'     => 'mcq',
-                'true_false'          => 'true_false',
-                'mtf'                 => 'mtf',
-                'matching'            => 'matching',
-                'fib'                 => 'fib',
-                'identification'      => 'identification',
-                'enumeration'         => 'enumeration',
-                'essay'               => 'essay',
-                default               => $q->question->question_type,
+                'multiple_choice' => 'mcq',
+                'true_false' => 'true_false',
+                'mtf' => 'mtf',
+                'matching' => 'matching',
+                'fib' => 'fib',
+                'identification' => 'identification',
+                'enumeration' => 'enumeration',
+                'essay' => 'essay',
+                default => $q->question->question_type,
             };
+
+            // Match the questionnaire + snapshot MCQ choice order so the correct
+            // letter shown here is the same letter the student's sheet was graded on.
+            if ($q->question->question_type === 'multiple_choice') {
+                $q->question->setRelation('choices', \App\Support\TestArrangement::choiceOrder(
+                    $test->print_seed,
+                    $q->question->id,
+                    $q->question->choices
+                ));
+            }
         }
 
         $order = [
-            'true_false'     => 1,
-            'mtf'            => 2,
-            'mcq'            => 3,
-            'matching'       => 4,
-            'fib'            => 5,
+            'true_false' => 1,
+            'mtf' => 2,
+            'mcq' => 3,
+            'matching' => 4,
+            'fib' => 5,
             'identification' => 6,
-            'enumeration'    => 7,
-            'essay'          => 8,
+            'enumeration' => 7,
+            'essay' => 8,
         ];
 
-        $questions = $questions->sortBy(fn($q) => $order[$q->print_type] ?? 99)->values();
+        $questions = $questions->sortBy(fn ($q) => $order[$q->print_type] ?? 99)->values();
 
         $sectionTitles = [
-            'true_false'     => 'True or False',
-            'mtf'            => 'Modified True or False',
-            'mcq'            => 'Multiple Choice',
-            'matching'       => 'Matching Type',
-            'fib'            => 'Fill in the Blanks',
+            'true_false' => 'True or False',
+            'mtf' => 'Modified True or False',
+            'mcq' => 'Multiple Choice',
+            'matching' => 'Matching Type',
+            'fib' => 'Fill in the Blanks',
             'identification' => 'Identification',
-            'enumeration'    => 'Enumeration',
-            'essay'          => 'Essay',
+            'enumeration' => 'Enumeration',
+            'essay' => 'Essay',
         ];
 
         $directions = [
-            'true_false'     => 'Write TRUE if the statement is correct and FALSE if it is not.',
-            'mtf'            => 'Write TRUE if the statement is correct; if FALSE, underline the word that makes it incorrect and write the correct answer on the blank.',
-            'mcq'            => 'Encircle the letter of the correct answer.',
-            'matching'       => 'Match Column A with Column B.',
-            'fib'            => 'Write the correct answer in the blank.',
+            'true_false' => 'Write TRUE if the statement is correct and FALSE if it is not.',
+            'mtf' => 'Write TRUE if the statement is correct; if FALSE, underline the word that makes it incorrect and write the correct answer on the blank.',
+            'mcq' => 'Encircle the letter of the correct answer.',
+            'matching' => 'Match Column A with Column B.',
+            'fib' => 'Write the correct answer in the blank.',
             'identification' => 'Identify what is being described.',
-            'enumeration'    => 'Enumerate the required items.',
-            'essay'          => 'Answer the question in essay form.',
+            'enumeration' => 'Enumerate the required items.',
+            'essay' => 'Answer the question in essay form.',
         ];
 
         $grouped = $questions->groupBy('print_type');
@@ -73,9 +84,13 @@ class PrintKeyController extends Controller
         $index = 0;
 
         foreach ($sectionTitles as $type => $title) {
-            if (!isset($grouped[$type])) continue;
+            if (! isset($grouped[$type])) {
+                continue;
+            }
 
-            $sectionQuestions = $grouped[$type]->sortBy('id')->values();
+            $sectionQuestions = $grouped[$type]
+                ->sortBy(fn ($q) => \App\Support\TestArrangement::orderKey($test->print_seed, (int) $q->order))
+                ->values();
 
             // You don't need to compute points/directions for answer key, but they can be included if needed for consistency
 
@@ -83,21 +98,21 @@ class PrintKeyController extends Controller
             if ($type === 'matching') {
                 // Combine all choices for matching (Column B: unique by choice_text, keeps order)
                 $columnB = $sectionQuestions
-                    ->flatMap(fn($q) => $q->question->choices)
+                    ->flatMap(fn ($q) => $q->question->choices)
                     ->unique('choice_text')
                     ->values();
 
                 $sections[] = [
-                    'roman'      => $roman[$index],
-                    'title'      => $title,
-                    'questions'  => $sectionQuestions,
-                    'columnB'    => $columnB, // Now available for every row in the view
+                    'roman' => $roman[$index],
+                    'title' => $title,
+                    'questions' => $sectionQuestions,
+                    'columnB' => $columnB, // Now available for every row in the view
                 ];
             } else {
                 $sections[] = [
-                    'roman'      => $roman[$index],
-                    'title'      => $title,
-                    'questions'  => $sectionQuestions,
+                    'roman' => $roman[$index],
+                    'title' => $title,
+                    'questions' => $sectionQuestions,
                 ];
             }
             $index++;
@@ -110,6 +125,7 @@ class PrintKeyController extends Controller
             'test' => $test,
             'sections' => $sections,
             'school' => $school,
+            'printHeader' => \App\Support\TestPrintHeader::for($test),
         ]);
     }
 }

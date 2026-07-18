@@ -38,7 +38,7 @@
 </div>
 
 
-<div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+<div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden overflow-x-auto">
     <table class="min-w-full text-sm" id="deadlinesTable">
         <thead class="bg-gray-50 text-gray-600 border-b border-gray-100">
             <tr>

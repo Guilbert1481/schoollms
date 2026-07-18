@@ -76,6 +76,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/teacher/dashboard.php',
             __DIR__.'/../routes/teacher/attendance.php',
             __DIR__.'/../routes/teacher/grades.php',
+            __DIR__.'/../routes/teacher/homework.php',
             __DIR__.'/../routes/teacher/lessons/lessons.php',
             __DIR__.'/../routes/teacher/lessons/resources.php',
 
@@ -100,6 +101,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/teacher/test-builder-cascade-dropdown.php',
             __DIR__.'/../routes/teacher/test/test-builder/print.php',
             __DIR__.'/../routes/teacher/test/test-builder/answer-key.php',
+            __DIR__.'/../routes/teacher/test/test-builder/answer-sheets.php',
 
             /*
             |--------------------------------------------------------------------------
@@ -115,6 +117,7 @@ return Application::configure(basePath: dirname(__DIR__))
             */
             __DIR__.'/../routes/student/dashboard.php',
             __DIR__.'/../routes/student/attendance.php',
+            __DIR__.'/../routes/student/homework.php',
             __DIR__.'/../routes/student/subjects.php',
             __DIR__.'/../routes/student/transcript.php',
             __DIR__.'/../routes/student/applications.php',
@@ -276,6 +279,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\ResolveSchoolFromHost::class,
             \App\Http\Middleware\EnsureSchoolIsActive::class,
             \App\Http\Middleware\ForcePasswordChange::class,
+            // Evict every OTHER session when a password changes (M6): a session
+            // whose stored password hash no longer matches is logged out. The
+            // session that performed the change keeps working (hash re-stored
+            // after each response).
+            \Illuminate\Session\Middleware\AuthenticateSession::class,
         ]);
 
         $middleware->alias([

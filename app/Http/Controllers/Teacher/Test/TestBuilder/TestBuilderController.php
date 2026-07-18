@@ -9,6 +9,7 @@ use App\Models\Lesson;
 use App\Models\Question;
 use App\Models\Subject;
 use App\Models\Test;
+use App\Models\TestQuestionTypePoint;
 use App\Models\Topic;
 use App\Services\Tests\LevelTreeResolver;
 use App\Support\SubjectScope;
@@ -33,6 +34,26 @@ class TestBuilderController extends Controller
         ];
     }
 
+    /**
+     * Points-per-question-type used to pre-fill the "Set Points" modal so the
+     * teacher always sees the current values instead of blank inputs. A saved
+     * test reads its stored rows (the source of truth used at print time); a
+     * brand-new build reads the in-progress session copy. Keys are the modal's
+     * short codes: mcq, tf, mtf, id, match, fib, enum, essay.
+     *
+     * @return array<string, int>
+     */
+    private function typePointsFor(?Test $test): array
+    {
+        if ($test) {
+            return TestQuestionTypePoint::where('test_id', $test->id)
+                ->pluck('points', 'question_type')
+                ->all();
+        }
+
+        return session('test_points.question_types', []);
+    }
+
     /* ===============================
        PAGE LOADER
     =============================== */
@@ -48,6 +69,7 @@ class TestBuilderController extends Controller
             'test' => $test,
             'subjects' => SubjectScope::forTeacher(Subject::query())->orderBy('name')->get(),
             'academicLevels' => $academicLevels,
+            'typePoints' => $this->typePointsFor($test),
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
                 ->get(),
@@ -63,6 +85,7 @@ class TestBuilderController extends Controller
             'test' => null,
             'subjects' => SubjectScope::forTeacher(Subject::query())->orderBy('name')->get(),
             'academicLevels' => $academicLevels,
+            'typePoints' => $this->typePointsFor(null),
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
                 ->get(),
@@ -83,6 +106,7 @@ class TestBuilderController extends Controller
             'test' => $test,
             'subjects' => SubjectScope::forTeacher(Subject::query())->orderBy('name')->get(),
             'academicLevels' => $academicLevels,
+            'typePoints' => $this->typePointsFor($test),
             'classes' => ClassModel::with(['section', 'subject'])
                 ->where('teacher_id', auth()->id())
                 ->get(),

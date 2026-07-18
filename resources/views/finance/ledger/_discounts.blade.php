@@ -49,6 +49,7 @@
     @if($itemDiscounts->isNotEmpty())
         <div>
             <h4 class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Fee Discounts</h4>
+            <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
                 <thead>
                     <tr class="text-slate-500">
@@ -67,12 +68,14 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
         </div>
     @endif
 
     <div>
         <h4 class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Applied on Invoices</h4>
         @if($invoiceDiscounts->isNotEmpty())
+            <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
                 <thead>
                     <tr class="text-slate-500">
@@ -95,6 +98,7 @@
                     </tr>
                 </tbody>
             </table>
+            </div>
         @else
             <p class="text-slate-400">No discounts have been applied on invoices yet.</p>
         @endif

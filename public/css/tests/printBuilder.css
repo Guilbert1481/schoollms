@@ -74,6 +74,14 @@ body.print-page {
     color: #444;
 }
 
+/* What the test covers — the competency / lesson / topic behind the questions. */
+.coverage-name {
+    font-size: 13px;
+    margin-top: 3px;
+    color: #555;
+    font-style: italic;
+}
+
 /* DARK GRAY SOLID LINES */
 .divider {
     border: none;

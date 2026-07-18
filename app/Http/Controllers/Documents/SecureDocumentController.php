@@ -19,12 +19,13 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class SecureDocumentController extends Controller
 {
-    private const STAFF_ROLES = ['admin', 'registrar', 'admission_manager', 'finance_manager'];
-
     /** Government-ID image/PDF uploaded on enrollment step 1 (students.photo_id). */
     public function studentId(Student $student): Response
     {
-        $this->authorizeAccess($student);
+        // Owner, same-school staff, or superadmin — 404 otherwise. Rule lives
+        // in StudentPolicy::viewDocuments (A1); the BelongsToSchool global
+        // scope already filters the binding, this is the explicit check.
+        abort_unless(auth()->user()->can('viewDocuments', $student), 404);
 
         return $this->serve($student->photo_id);
     }
@@ -32,30 +33,9 @@ class SecureDocumentController extends Controller
     /** Registrar-required document (transcript, birth certificate, …). */
     public function enrollment(EnrollmentDocument $document): Response
     {
-        $student = $document->enrollment?->student;
-        abort_unless($student !== null, 404);
-
-        $this->authorizeAccess($student, (int) $document->school_id);
+        abort_unless(auth()->user()->can('view', $document), 404); // EnrollmentDocumentPolicy (A1)
 
         return $this->serve($document->file_path);
-    }
-
-    /**
-     * Owner, same-school staff, or superadmin — 404 otherwise.
-     * The BelongsToSchool global scope already filters the binding; this is
-     * the explicit belt-and-suspenders check the governance docs require.
-     */
-    private function authorizeAccess(Student $student, ?int $schoolId = null): void
-    {
-        $user = auth()->user();
-        $schoolId ??= (int) $student->school_id;
-
-        $isOwner = (int) $student->user_id === (int) $user->id;
-
-        $isStaff = in_array($user->role, self::STAFF_ROLES, true)
-            && (int) $user->school_id === $schoolId;
-
-        abort_unless($isOwner || $isStaff || $user->isSuperadmin(), 404);
     }
 
     /**

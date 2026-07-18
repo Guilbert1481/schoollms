@@ -12,6 +12,7 @@ class Lesson extends Model
         'topic_id',
         'name',
         'description',
+        'created_by',
     ];
 
     /**
@@ -37,7 +38,6 @@ class Lesson extends Model
     {
         return $this->belongsTo(Subject::class);
     }
-
 
     /**
      * Get the school that owns the lesson.

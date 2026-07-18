@@ -16,6 +16,7 @@
             </button>
         </div>
 
+        <div class="overflow-x-auto">
         <table class="w-full border border-slate-200">
             <thead class="bg-slate-100">
                 <tr>
@@ -49,6 +50,7 @@
                 </tr>
             </tbody>
         </table>
+        </div>
 
     </div>
 

@@ -1,10 +1,18 @@
 document.addEventListener("DOMContentLoaded", function () {
 
-    const printBtn = document.getElementById("printTestBtn");
+    // "Preview Test" — the single entry point to the print hub, which hosts the
+    // Questionnaire / Answer Sheet / Answer Key tabs (Questionnaire is the default
+    // tab) plus Reshuffle, Record Answers and Scan (Camera). Those used to be four
+    // separate buttons on the builder's action bar.
+    //
+    // Deliberately NOT id="previewTestBtn": the dormant previewTest.js binds that id
+    // and opens a /preview route that was never built, so sharing it would risk a
+    // double handler the day anyone includes that script.
+    const previewBtn = document.getElementById("printHubBtn");
 
-    if (!printBtn) return;
+    if (!previewBtn) return;
 
-    printBtn.addEventListener("click", function () {
+    previewBtn.addEventListener("click", function () {
 
         const testId = document.getElementById("testId")?.value;
 
@@ -13,7 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        window.open(`/teacher/tests/${testId}/print`, "_blank");
+        window.open(`/teacher/tests/${testId}/print-hub`, "_blank");
 
     });
 

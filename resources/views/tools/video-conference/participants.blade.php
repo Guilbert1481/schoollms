@@ -11,7 +11,7 @@
     </div>
 
     <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div class="overflow-hidden rounded-xl border border-slate-200">
+        <div class="overflow-hidden overflow-x-auto rounded-xl border border-slate-200">
             <table class="min-w-full text-sm">
                 <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                     <tr>

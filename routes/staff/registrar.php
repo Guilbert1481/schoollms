@@ -6,6 +6,7 @@ use App\Http\Controllers\Staff\Registrar\Settings\ParentPortalSettingController;
 use App\Http\Controllers\Staff\Registrar\Settings\StudentIdSettingController;
 use App\Http\Controllers\Staff\Registrar\StudentLedgerController;
 use App\Http\Controllers\Staff\Registrar\SubjectCreditController;
+use App\Http\Controllers\Staff\Registrar\TeachingAssignmentController;
 use App\Http\Controllers\Staff\Registrar\TranscriptOfRecordController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +14,12 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
     ->prefix('registrar')
     ->name('registrar.')
     ->group(function () {
+
+        // Teaching Assignments — assign a teacher to a subject × section (upserts
+        // the class row that grading + attendance read as the source of truth).
+        Route::get('teaching-assignments', [TeachingAssignmentController::class, 'index'])->name('teaching-assignments.index');
+        Route::post('teaching-assignments', [TeachingAssignmentController::class, 'store'])->name('teaching-assignments.store');
+        Route::delete('teaching-assignments/{class}', [TeachingAssignmentController::class, 'destroy'])->name('teaching-assignments.destroy');
 
         // 1. Validate Enrollment
         Route::get('enrollments', [EnrollmentValidationController::class, 'index'])

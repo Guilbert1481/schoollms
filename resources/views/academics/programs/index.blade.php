@@ -13,7 +13,7 @@
     </a>
 </div>
 
-<div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+<div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden overflow-x-auto">
 
     <table class="w-full text-sm">
         <thead class="bg-slate-50 border-b border-slate-200">

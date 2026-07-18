@@ -28,6 +28,7 @@
     </div>
     {{-- Table --}}
     <form>
+    <div class="overflow-x-auto">
     <table class="min-w-full text-sm">
         <thead class="bg-slate-50 border-b text-slate-600 text-xs uppercase tracking-wide">
             <tr>
@@ -60,6 +61,7 @@
             @endforeach
         </tbody>
     </table>
+    </div>
     </form>
     {{-- Assign Modal --}}
     <div x-show="openAssign" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">

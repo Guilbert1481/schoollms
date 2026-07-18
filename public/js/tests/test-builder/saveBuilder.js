@@ -45,10 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // "Others" (a personal test) and "None" both save with no class.
+        const classVal = document.getElementById('class_id')?.value || '';
+
         const payload = {
             test_id: document.getElementById('testId')?.value || null,
             subject_id: document.getElementById('cd-subject')?.value || null,
-            class_id: document.getElementById('class_id')?.value || null,
+            class_id: (classVal && classVal !== 'others') ? classVal : null,
             topic_id: document.getElementById('cd-topic')?.value || null,
             lesson_id: document.getElementById('cd-lesson')?.value || null,
             competency_id: document.getElementById('cd-competency')?.value || null,
@@ -107,18 +110,19 @@ document.addEventListener('DOMContentLoaded', () => {
             catch { throw new Error('Response is not valid JSON'); }
 
             if (!res.ok || !data.success) {
-                alert(data.message || 'Save failed');
+                alert(data.message || data.error || 'Save failed');
                 return;
             }
             if (data.test_id && document.getElementById('testId')) {
                 document.getElementById('testId').value = data.test_id;
             }
             alert('✅ Test saved successfully!');
+            // Print/answer-sheet/record/scan all live behind Preview Test now.
             const saveBtn = document.getElementById('saveTestBtn');
-            const printBtn = document.getElementById('printTestBtn');
+            const previewBtn = document.getElementById('printHubBtn');
             const editBtn = document.getElementById('editTestBtn');
             if (saveBtn) saveBtn.style.display = 'none';
-            if (printBtn) printBtn.style.display = 'inline-block';
+            if (previewBtn) previewBtn.style.display = 'inline-block';
             if (editBtn) editBtn.style.display = 'inline-block';
         } catch (err) {
             alert('Something went wrong while saving: ' + err.message);

@@ -4,6 +4,7 @@ namespace App\Services\Tests;
 
 use App\Models\AcademicLevel;
 use App\Models\EducationNode;
+use App\Support\LevelName;
 use Illuminate\Support\Collection;
 
 /**
@@ -52,11 +53,10 @@ class LevelTreeResolver
     {
         $nodes = $this->activeNodes()->keyBy('id');
 
-        // Standard per-school vocabulary, keyed by lowercased name for matching.
+        // Per-school vocabulary, keyed the same way node names are matched.
         $levelByName = AcademicLevel::where('school_id', $schoolId)
-            ->orderBy('sequence_order')
-            ->get(['id', 'name', 'sequence_order'])
-            ->keyBy(fn ($l) => mb_strtolower($l->name));
+            ->get(['id', 'name'])
+            ->keyBy(fn ($l) => LevelName::key($l->name));
 
         // parent_id => [childId, ...] for subtree walks. Roots (null parent) are
         // never looked up by parent, so skip them and avoid a null array offset.
@@ -158,72 +158,35 @@ class LevelTreeResolver
     }
 
     /**
-     * Distinct academic levels named anywhere in a node's subtree, ordered by
-     * the level's sequence.
+     * Distinct academic levels named anywhere in a node's subtree, in tree
+     * order (BFS over order_index-sorted children). Matching is by name via
+     * LevelName so any offered level maps — not just a fixed pattern set.
      *
      * @return array<int, array{id:int,name:string}>
      */
     private function subtreeLevels(int $nodeId, Collection $nodes, array $childrenOf, Collection $levelByName): array
     {
         $found = [];
-        $stack = [$nodeId];
+        $queue = [$nodeId];
 
-        while ($stack) {
-            $cur = array_pop($stack);
+        while ($queue) {
+            $cur = array_shift($queue);
             $node = $nodes[$cur] ?? null;
             if (! $node) {
                 continue;
             }
 
-            $key = $this->normalise($node->name);
+            $key = LevelName::key($node->name);
             if ($key !== null && $levelByName->has($key)) {
                 $lvl = $levelByName->get($key);
-                $found[$lvl->id] = ['id' => $lvl->id, 'name' => $lvl->name, 'seq' => $lvl->sequence_order];
+                $found[$lvl->id] = ['id' => $lvl->id, 'name' => $lvl->name];
             }
 
             foreach ($childrenOf[$cur] ?? [] as $childId) {
-                $stack[] = $childId;
+                $queue[] = $childId;
             }
         }
 
-        uasort($found, fn ($a, $b) => $a['seq'] <=> $b['seq']);
-
-        return array_values(array_map(
-            fn ($f) => ['id' => $f['id'], 'name' => $f['name']],
-            $found
-        ));
-    }
-
-    /**
-     * Normalise an education-node name to an `academic_levels` name key
-     * (lowercased), or null when the node carries no grade/year of its own.
-     * Handles the known tree ↔ vocabulary mismatches:
-     *   "Grade 11 (Core)" → "grade 11"; "Kindergarten" → "kinder";
-     *   "year 4" → "year 4"; "Training"/"Review" pass through.
-     */
-    private function normalise(string $name): ?string
-    {
-        $n = trim($name);
-        // Drop a trailing parenthetical qualifier: "Grade 11 (Core)" → "Grade 11".
-        $n = (string) preg_replace('/\s*\([^)]*\)\s*$/', '', $n);
-        $n = trim($n);
-
-        if (preg_match('/^kinder/i', $n)) {
-            return 'kinder';
-        }
-        if (preg_match('/^grade\s*(\d{1,2})$/i', $n, $m)) {
-            return 'grade '.$m[1];
-        }
-        if (preg_match('/^year\s*(\d{1,2})$/i', $n, $m)) {
-            return 'year '.$m[1];
-        }
-        if (preg_match('/^training$/i', $n)) {
-            return 'training';
-        }
-        if (preg_match('/^review$/i', $n)) {
-            return 'review';
-        }
-
-        return null;
+        return array_values($found);
     }
 }

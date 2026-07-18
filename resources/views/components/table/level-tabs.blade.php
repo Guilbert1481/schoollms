@@ -17,6 +17,8 @@
                      page tab pane to return to). Level tabs intentionally do
                      NOT carry the other filter params (same as Student Ledgers).
     - counts:        optional [levelId => int] red-badge counts per level.
+    - allLabel:      label for the first tab (default "All Levels") — e.g.
+                     "All Grade Levels" when the levels are basic-ed grades.
 
     Hidden entirely when the school offers a single level (no tabs needed).
 --}}
@@ -28,6 +30,7 @@
     'params' => [],
     'counts' => [],
     'accent' => 'indigo',
+    'allLabel' => 'All Levels',
 ])
 
 @php
@@ -37,7 +40,7 @@
 @if($levelList->count() > 1)
     @php
         $tabs = [[
-            'label'  => 'All Levels',
+            'label'  => $allLabel,
             'url'    => route($route, array_merge($params, ['level' => 'all'])),
             'active' => (bool) $showAll,
         ]];

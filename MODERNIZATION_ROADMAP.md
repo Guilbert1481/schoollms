@@ -84,17 +84,36 @@ Encode the rules before changing code. Pure markdown.
 > but does **nothing** between two users of the same school. C1 was one instance of this bug class fixed
 > individually; this phase sweeps the whole class. Exploitable with any student login → same priority tier as Phase 2.
 
-- [ ] **A1** Laravel Policies on user-owned models — `Invoice`, `Payment`, `StatementOfAccount`,
-  grades/test results, `StudentEnrollment`, `EnrollmentDocument`, `ChatThread`/`ChatMessage`. One auditable
-  ownership rule per model instead of scattered `abort_unless` lines. Generalize the parent portal's
-  `ResolvesChildren` chokepoint pattern.
-- [ ] **A2** Route sweep — audit every route that takes a user-owned ID (`/invoices/{id}`,
-  `/grades/{student}`, …) and confirm it passes through a Policy/ownership check, not just the tenant scope.
-- [ ] **A3** Raw-query & mass-assignment sweep — audit all `DB::raw`/`whereRaw` for injection and
-  `$fillable` on sensitive models (extends the parent-portal `password_change_required` fix).
+- [x] **A1** Laravel Policies on user-owned models. Added 8 auto-discovered Policies (`app/Policies/`):
+  `InvoicePolicy` (view/pay), `PaymentPolicy`, `StatementOfAccountPolicy`, `StudentEnrollmentPolicy`
+  (view/update — student_id references students.id, resolved via student.user_id), `EnrollmentDocumentPolicy`,
+  `StudentPolicy::viewDocuments`, `ChatThreadPolicy` (view/delete/manage), `ChatMessagePolicy`. The scattered
+  `abort_unless` chokepoints (Student\FinanceController, CheckoutController::authorizeInvoice,
+  ChatController::authorizeThread, SecureDocumentController) now delegate to them. Grades/test results have no
+  student-facing ID-taking routes (report card/transcript are auth-scoped index pages); staff grade routes stay
+  role+tenant gated. Parent portal keeps `ResolvesChildren` (already a single chokepoint). *Completed 2026-07-18.*
+- [x] **A2** Route sweep of every user-owned-ID route. **Three live intra-school IDORs found & fixed** in
+  `Public\EnrollmentController`: `confirmation`, `exam`, and `submitExam` loaded any `StudentEnrollment` by ID
+  with no ownership check — `submitExam` let any student POST a pass/fail outcome for anyone's enrolment.
+  All three now require the owning student (404 on foreign IDs). Verified guarded: student finance PDFs,
+  checkout, chat (+attachments), secure documents, trainee training payments (trainee_id-scoped), parent portal,
+  staff routes (role+tenant). *Completed 2026-07-18.*
+- [x] **A3** Raw-query & mass-assignment sweep. All 37 files with `DB::raw`/`whereRaw`/`selectRaw` audited —
+  every site is static SQL or `?`-bound; zero injection. `$guarded=[]` is unused anywhere. **One live
+  mass-assignment hole fixed**: `Staff\ProgramHead\SubjectController::store` passed `$request->all()` into
+  `Subject::create()`, letting a program head spoof `school_id` (cross-tenant write) and `created_by`; now an
+  explicit whitelist with server-side `school_id`/`created_by`. Latent (documented, not exploitable today):
+  `User.$fillable` still exposes `role`/`school_id` — safe while all writers use `only()`/`validated()`.
+  *Completed 2026-07-18.*
 
 **Safety:** policies are additive; legitimate owner/staff access keeps working.
-**Verify:** Student A requesting Student B's invoice/grade (same school) → 403/404; owner and authorized staff unaffected.
+**Verify:** ✅ `IntraSchoolAuthorizationTest` 6/6 (18 assertions): same-school peer → 404 on another's enrolment
+confirmation / exam submit (status unchanged) / invoice PDF / SOA PDF, 403 on checkout & foreign chat thread;
+owner + same-school finance staff allowed, cross-school finance denied; program head cannot spoof
+`school_id`/`created_by` on subject create. Full suite: 213 passed — only the 4 `OmrGradingTest` failures
+owned by the in-flight OMR session remain (choice-shuffle work, unrelated).
+
+> **Phase 2.5 complete (2026-07-18)** — the multi-user intra-school security bar is now met.
 
 ---
 
@@ -123,8 +142,33 @@ Encode the rules before changing code. Pure markdown.
 - [ ] **M3** Force `SESSION_SECURE_COOKIE=true` in prod (`config/session.php:172`); add `config/cors.php`.
 - [ ] **M2** Enforce 2FA (`pragmarx/google2fa` already installed) in `LoginController::handlePostLogin`.
 
+- [x] **M6** Password-change/reset session eviction — `AuthenticateSession` appended to the `web`
+  group (`bootstrap/app.php`) so changing/resetting a password logs out every other session for that
+  account (`SECURITY_PRINCIPLES.md` §15). **Verified:** `PasswordChangeSessionEvictionTest` (2 tests —
+  session survives unchanged password; stale session evicted after change); full suite run, only
+  pre-existing OMR decimal failure unrelated. *(Added & completed 2026-07-17 — ADR-0008.)*
+- [x] **H6** Rate-limit sweep beyond login. Named limiters (`chat` 30/min/user, `uploads`
+  20/min/user, `ai` 10/min/user, `public-apply` 10/min/IP) in
+  `AppServiceProvider::configureRateLimiting`; attached to chat `message.store`, `form.save`,
+  enrollment `store`/`pathway.store` (the file-bearing steps), and the public QR `login`/`register`
+  POSTs. Password reset was already `throttle:6,1`; upload size capped by `SecureUpload` (`max:5120`)
+  and chat (`max:20480`). **Verified:** `RateLimitSweepTest` — real 429 on the 31st chat message +
+  route-table wiring assertions; Enrollment suites green. Remaining: attach `throttle:ai` to the
+  AI/OCR endpoints (tracked as AI3 — those routes belong to the in-flight OMR work); note nginx
+  `client_max_body_size` in the deploy runbook at VPS setup. *(Added & completed 2026-07-18.)*
+- [x] **AI1** AiProvider hardening at release: `encrypted` cast on `api_key` ✅ (shipped with the
+  feature), masked round-trip ✅, routes `role:superadmin`+`2fa` ✅, `base_url` scheme validation
+  `url:http,https` ✅ (SSRF — `SECURITY_PRINCIPLES.md` §16/§18). *(Added & completed 2026-07-17.)*
+- [ ] **AI2** Audit AiProvider changes (provider/key/URL/default) once the Phase 3 `audit_logs`
+  table exists — key *changes* are logged, key *values* never.
+- [ ] **AI3** AI usage guardrails: attach the ready-made `throttle:ai` limiter (H6) to AI/OCR
+  endpoints when that in-flight work lands; prompts carry minimum PII (no government-ID numbers);
+  model output treated as untrusted input at every consumer (`SECURITY_PRINCIPLES.md` §18).
+
 **Safety:** CSP starts in report-only so inline scripts/styles aren't broken; headers append-only.
-**Verify:** site renders with headers; 2FA challenge appears post-login. M2 note: 2FA **mandatory** for
+M6 is additive middleware — existing sessions self-heal (hash stored on next request).
+**Verify:** site renders with headers; 2FA challenge appears post-login; after a password reset the
+old session's next request is logged out. M2 note: 2FA **mandatory** for
 staff roles (admin/finance/registrar), optional for students.
 
 ---
@@ -141,6 +185,9 @@ staff roles (admin/finance/registrar), optional for students.
   are kept; delete on schedule (minors' data — also an RA 10173 concern, see P3).
 - [ ] **D4** Staff session hardening — shorter lifetime / idle timeout for admin/finance/registrar (currently
   480 min, `config/session.php:35`); `expire_on_close` for shared school computers.
+- [ ] **D5** Backup dead-man switch — the D1 backup job pings a monitor (healthchecks.io-class) on
+  success; a **missed** backup alerts the operator. A silent backup failure discovered at restore
+  time is the disaster scenario. *(Added 2026-07-17, Argo-parity — proven pattern there.)*
 
 **Safety:** casts are per-column and reversible; backups/retention are additive jobs.
 **Verify:** DB dump shows ciphertext for ID columns; a backup restore is actually performed on a scratch DB; expired staff session forces re-login.
@@ -155,6 +202,9 @@ staff roles (admin/finance/registrar), optional for students.
 - [ ] **S3** Production error monitoring (Sentry/Flare-class) — probing attempts surface as exceptions first.
 - [ ] **S4** Ship/back up audit logs off the app database so a DB-level attacker can't erase their trail
   (builds on Phase 3 H2 / Phase 4).
+- [ ] **S5** External uptime monitoring on the framework `/up` health endpoint for
+  `sophentis.philceb.ph` (+ one school host), alerting the operator — downtime is noticed by us,
+  not by a school. *(Added 2026-07-17.)*
 
 **Safety:** all additive/observability-only; CI audit can start non-blocking then be promoted to required.
 **Verify:** CI fails on a known-vulnerable package pin; test exception appears in the monitor; audit rows exist off-box.
@@ -172,6 +222,10 @@ staff roles (admin/finance/registrar), optional for students.
   Phases 3–4 logs to know what leaked).
 - [ ] **P4** External penetration test — the graduation exam, after Phases 2–6 are done and before
   multi-school SaaS is marketed as production-grade.
+- [ ] **P5** DR runbook — extend `docs/deploy/` with: what is backed up and where, encryption keys
+  (⚠ `APP_KEY` ↔ D2 casts), RTO/RPO targets, exact restore commands, VPS rebuild-from-zero path.
+  Kept accurate: any change adding a stateful store updates it in the same change
+  (`FULL_PRODUCTION_STACK.md` layer 13). *(Added 2026-07-17.)*
 
 **Safety:** process/documentation only; no runtime changes except session-kill on deactivation.
 **Verify:** tabletop walkthrough of the IR plan; deactivated staff user's open session is dead on next request.
@@ -207,18 +261,26 @@ staff roles (admin/finance/registrar), optional for students.
 | H2 | No finance/grade audit log | 3 |
 | M3 | No CSP/headers, secure cookie | 5 |
 | M2 | 2FA installed but unused (staff-mandatory) | 5 |
+| M6 | Password change doesn't evict other sessions | 5 |
+| H6 | Rate limits only on login; no request-size rules | 5 |
+| AI1 | AiProvider base_url unvalidated (SSRF); key/gating shipped ✅ | 5 |
+| AI2 | AiProvider changes unaudited (needs H2 table) | 5 |
+| AI3 | No AI throttle / PII-minimization / output-trust rules wired | 5 |
 | D1 | No backups | 6 |
 | D2 | No encryption at rest for gov IDs | 6 |
 | D3 | No PII retention policy | 6 |
 | D4 | 8h staff sessions | 6 |
+| D5 | No alert on silently-failed backups (dead-man switch) | 6 |
 | S1 | No dependency audit in CI | 7 |
 | S2 | No Dependabot | 7 |
 | S3 | No error monitoring | 7 |
 | S4 | Audit logs erasable with the DB | 7 |
+| S5 | No uptime monitoring on production hosts | 7 |
 | P1 | No incident-response plan | 8 |
 | P2 | No offboarding/session-kill procedure | 8 |
 | P3 | RA 10173 readiness (DPO, 72h breach notice) | 8 |
 | P4 | No external pen test | 8 |
+| P5 | No DR runbook (restore commands, RTO/RPO, rebuild path) | 8 |
 | L1–L4 | Low / cleanup | Deferred |
 
 > **Milestone:** after **Phases 2 + 2.5**, Sophentis is safe for a single-school production pilot.

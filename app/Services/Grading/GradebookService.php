@@ -248,24 +248,32 @@ class GradebookService
     /* ------------------------------------- Basic ed, per section (a class) */
 
     /**
-     * Which track a class grades on. Higher ed materialises subject enrolments
-     * (student_enrollment_subjects); basic ed does not — its students carry an
-     * education node on their enrolment instead. Defaults to higher when neither
-     * signal is present (an empty class).
+     * Which track a class grades on. Basic ed is authoritative: a section whose
+     * active roster carries an education node IS a basic-ed grade level, and that
+     * wins over the higher-ed subject-enrolment marker. Higher ed materialises
+     * subject enrolments (student_enrollment_subjects) and its students carry no
+     * education node; basic ed is the reverse. Checking the education node first
+     * means a stray student_enrollment_subjects row (e.g. a basic student wrongly
+     * materialised into one) can't misroute the class to higher ed and hide the
+     * basic grading scheme. Defaults to higher when neither signal is present.
      */
     public function classTrack(ClassModel $class): string
     {
-        if (DB::table('student_enrollment_subjects')->where('class_id', $class->id)->exists()) {
-            return 'higher';
-        }
-
         $basic = DB::table('student_enrollments')
             ->where('section_id', $class->section_id)
             ->whereNotNull('education_node_id')
             ->whereIn('status', ['enrolled', 'provisionally_enrolled'])
             ->exists();
 
-        return $basic ? 'basic' : 'higher';
+        if ($basic) {
+            return 'basic';
+        }
+
+        if (DB::table('student_enrollment_subjects')->where('class_id', $class->id)->exists()) {
+            return 'higher';
+        }
+
+        return 'higher';
     }
 
     /**
