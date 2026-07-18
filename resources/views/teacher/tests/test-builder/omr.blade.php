@@ -44,7 +44,12 @@
         .omr-grid { position: absolute; left: 0.14in; top: 0.14in; right: 0.14in; bottom: 0.14in; }
 
         .omr-band { position: absolute; left: 0; right: 0; background: #eff8fe; z-index: 0; }
-        .omr-sec { position: absolute; left: 0; right: 0; transform: translateY(-50%); background: #0284c7; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .6px; padding: 2px 8px; border-radius: 3px; z-index: 2; }
+        /* Inset past the fiducials: .omr-grid's corners are the fiducial CENTRES, so
+           each 0.28in square reaches 0.14in into the grid. A full-width header bar
+           would print underneath the top corner squares. Keep this inset — it is
+           cosmetic only (the detector never samples headers), but a black square
+           bleeding through the bar reads as a misprint and can dirty the marker. */
+        .omr-sec { position: absolute; left: 0.16in; right: 0.16in; transform: translateY(-50%); background: #0284c7; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .6px; padding: 2px 8px; border-radius: 3px; z-index: 2; }
         .omr-bub { position: absolute; transform: translate(-50%, -50%); width: 0.16in; height: 0.16in; border: 1.4px solid #0284c7; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 7px; color: #0284c7; z-index: 1; }
         .omr-num { position: absolute; transform: translateY(-50%); font-size: 9px; font-weight: 700; white-space: nowrap; z-index: 1; }
         .omr-wbox { position: absolute; border-bottom: 1.3px solid #475569; z-index: 1; }
@@ -86,7 +91,7 @@
         <div class="meta">
             {{ $test->subject?->name ?? 'Subject' }} — {{ $test->settings?->assessment_type ?? 'Assessment' }}
             <div class="line">
-                <span>Teacher: {{ $test->teacher?->name ?: '—' }}</span>
+                <span>Teacher: {{ $test->teacher?->full_name ?: '—' }}</span>
                 <span>Date: {{ optional($test->test_date ?? $test->created_at)->format('F d, Y') }}</span>
             </div>
         </div>
