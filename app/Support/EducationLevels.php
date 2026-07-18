@@ -159,6 +159,73 @@ class EducationLevels
     }
 
     /**
+     * Bucket the school's "academic levels" (Kinder, Grade 1, … — rows that
+     * carry NO education_node foreign key) into the offered Basic-Ed stage
+     * groups they belong to, so a page keyed on academic_levels can still use
+     * the education-level tabs. Bridges the two tables by name, since they share
+     * no key: by grade number ("Grade N") first, then, for pre-grade levels, by
+     * loose token containment so "Kinder" still lands under the tree's
+     * "Kindergarten". Returns [academicLevelId => stageGroupId]; levels that
+     * match no offered stage are omitted (they only ever show under "All").
+     * Empty when Basic Education defines no stage groups.
+     *
+     * @param  Collection<int, object>  $levels  objects with ->id and ->name
+     * @return array<int, int>
+     */
+    public static function bucketBasicLevels(Collection $levels): array
+    {
+        $groups = self::basicStageGroups();
+        if ($groups->isEmpty()) {
+            return [];
+        }
+
+        // Index each group's offered stage subtree: grade numbers and, for
+        // pre-grade stages, their normalized name tokens. First writer wins —
+        // SHS strand duplicates ("Grade 11" × N) all resolve to the same group.
+        $numberToGroup = [];
+        $tokenToGroup = [];
+        foreach ($groups as $g) {
+            foreach (self::stageDescendants((int) $g->id) as $node) {
+                if (preg_match('/grade\s*(\d+)/i', (string) $node->name, $m)) {
+                    $numberToGroup[(int) $m[1]] ??= (int) $g->id;
+                } elseif (($token = self::normalizeLevelToken($node->name)) !== '') {
+                    $tokenToGroup[$token] ??= (int) $g->id;
+                }
+            }
+        }
+
+        $map = [];
+        foreach ($levels as $lvl) {
+            $name = (string) $lvl->name;
+
+            if (preg_match('/grade\s*(\d+)/i', $name, $m) && isset($numberToGroup[(int) $m[1]])) {
+                $map[(int) $lvl->id] = $numberToGroup[(int) $m[1]];
+
+                continue;
+            }
+
+            $token = self::normalizeLevelToken($name);
+            if ($token === '') {
+                continue;
+            }
+            foreach ($tokenToGroup as $word => $gid) {
+                if (str_contains($word, $token) || str_contains($token, $word)) {
+                    $map[(int) $lvl->id] = $gid;
+                    break;
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /** Lowercased, alphanumeric-only form of a level name for loose matching. */
+    protected static function normalizeLevelToken(string $name): string
+    {
+        return (string) preg_replace('/[^a-z0-9]/', '', strtolower($name));
+    }
+
+    /**
      * A node's own id plus every descendant id (the whole subtree) — the
      * counterpart of ancestorIds(). Returns [] for a null/0 node.
      *

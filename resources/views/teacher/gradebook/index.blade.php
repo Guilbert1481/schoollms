@@ -59,8 +59,7 @@
 
         @if (! $context['has_scheme'])
             <div class="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-6 text-sm text-amber-800">
-                No grading scheme is configured for this class's level yet. Ask your
-                <span class="font-semibold">{{ $context['track'] === 'basic' ? 'Principal' : 'Dean' }}</span> to set one up under
+                No grading scheme is configured for this class's level yet. It needs to be set up under
                 <span class="font-semibold">Settings → Grading Scheme</span> before entering grades.
             </div>
         @elseif ($context['roster']->isEmpty())
