@@ -82,70 +82,80 @@ class SaveBuilderController extends Controller
             );
 
             // 2. Save TestSetting
+            //
+            // Delivery mode decides whether the online-only settings apply at all. An
+            // F2F test is printed and scanned, so the builder hides the Test Settings
+            // block entirely and we null those columns here — a stale value left in a
+            // hidden input can never survive onto an F2F test.
+            $isOnline = $request->input('mode') === 'online';
+
             $settings = TestSetting::updateOrCreate(
                 ['test_id' => $test->id],
                 [
-                    'timer_minutes' => $request->input('timer_minutes') !== ''
+                    'mode' => $request->input('mode') !== '' ? $request->input('mode') : null,
+                    'timer_minutes' => $isOnline && $request->input('timer_minutes') !== ''
                         ? (int) $request->input('timer_minutes') : null,
-                    'attempts_allowed' => $request->input('attempts_allowed') !== ''
+                    'attempts_allowed' => $isOnline && $request->input('attempts_allowed') !== ''
                         ? (int) $request->input('attempts_allowed') : null,
-                    'passing_score' => $request->input('passing_score') !== ''
+                    'passing_score' => $isOnline && $request->input('passing_score') !== ''
                         ? (int) $request->input('passing_score') : null,
-                    'show_results' => $request->input('show_results') !== ''
+                    'show_results' => $isOnline && $request->input('show_results') !== ''
                         ? $request->input('show_results') : null,
-                    'show_correct_answers' => $request->input('show_correct_answers') !== ''
+                    'show_correct_answers' => $isOnline && $request->input('show_correct_answers') !== ''
                         ? $request->input('show_correct_answers') : null,
-                    'shuffle_questions' => $request->boolean('shuffle_questions'),
-                    'shuffle_mcq_choices' => $request->boolean('shuffle_mcq_choices'),
+                    'shuffle_questions' => $isOnline && $request->boolean('shuffle_questions'),
+                    'shuffle_mcq_choices' => $isOnline && $request->boolean('shuffle_mcq_choices'),
                     'term' => $request->input('term') !== '' ? $request->input('term') : null,
                     'assessment_type' => $request->input('assessment_type') !== '' ? $request->input('assessment_type') : null,
                 ]
             );
 
-            // The form posts a single timer field and combined datetime-local
-            // fields, so match those keys — `start_at`/`end_at`, not the split
-            // date/time fields the client never sends (that made schedule mode
-            // permanently unreachable).
-            $hasDuration = $request->filled('timer_minutes');
-            $hasSchedule = $request->filled('start_at') && $request->filled('end_at');
-
-            if ($hasDuration && $hasSchedule) {
-                DB::rollBack();
-
-                return response()->json([
-                    'error' => 'Choose either duration mode or schedule mode, not both.',
-                ], 422);
-            }
-
-            if ($hasDuration) {
-                $availabilityMode = 'duration';
-            } elseif ($hasSchedule) {
-                $availabilityMode = 'schedule';
-            } else {
-                DB::rollBack();
-
-                return response()->json([
-                    'error' => 'Please set either duration or schedule.',
-                ], 422);
-            }
-
-            $settings->availability_mode = $availabilityMode;
-
-            if ($availabilityMode === 'duration') {
-                $durationMinutes = (int) $request->timer_minutes;
-                $settings->duration_minutes = $durationMinutes;
+            // Availability (duration vs schedule) is an online-delivery concept. An
+            // F2F test carries none of it — that is what lets a printed test save
+            // without the teacher inventing a timer or an availability window.
+            if (! $isOnline) {
+                $settings->availability_mode = null;
+                $settings->duration_minutes = null;
                 $settings->start_at = null;
                 $settings->end_at = null;
-            }
+                $settings->save();
+            } else {
+                // The form posts a single timer field and combined datetime-local
+                // fields, so match those keys — `start_at`/`end_at`, not the split
+                // date/time fields the client never sends (that made schedule mode
+                // permanently unreachable).
+                $hasDuration = $request->filled('timer_minutes');
+                $hasSchedule = $request->filled('start_at') && $request->filled('end_at');
 
-            if ($availabilityMode === 'schedule') {
-                // Combined datetime-local values, stored as-is.
-                $settings->start_at = $request->start_at;
-                $settings->end_at = $request->end_at;
-                $settings->duration_minutes = null;
-            }
+                if ($hasDuration && $hasSchedule) {
+                    DB::rollBack();
 
-            $settings->save();
+                    return response()->json([
+                        'error' => 'Choose either duration mode or schedule mode, not both.',
+                    ], 422);
+                }
+
+                if ($hasDuration) {
+                    $settings->availability_mode = 'duration';
+                    $settings->duration_minutes = (int) $request->timer_minutes;
+                    $settings->start_at = null;
+                    $settings->end_at = null;
+                } elseif ($hasSchedule) {
+                    // Combined datetime-local values, stored as-is.
+                    $settings->availability_mode = 'schedule';
+                    $settings->start_at = $request->start_at;
+                    $settings->end_at = $request->end_at;
+                    $settings->duration_minutes = null;
+                } else {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'error' => 'Please set either duration or schedule.',
+                    ], 422);
+                }
+
+                $settings->save();
+            }
 
             // ---- SAVE QUESTION TYPE POINTS TO DB ----
             $questionTypePoints = session('test_points.question_types', []);

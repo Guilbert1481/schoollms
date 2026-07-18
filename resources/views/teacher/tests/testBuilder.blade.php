@@ -202,11 +202,87 @@
         </div>
 
         {{-- ===============================
-            TEST SETTINGS
+            ASSIGNMENT & CLASSIFICATION
+            Comes first: Mode decides whether the online-only Test Settings
+            block below is shown at all.
         =============================== --}}
         <div class="test-settings-card">
             <div class="ts-section">
-                <h3 class="test-settings-title">Test Settings</h3>
+                <h3 class="test-settings-title">Assignment &amp; Classification</h3>
+                    <div class="ts-grid two">
+
+                        <div class="diff-assessment-render-grid">
+                            <div class="ts-row">
+                                <label for="class_id">Class</label>
+                                {{-- Options are filtered by testBuilder.js to the chosen
+                                     Test-Source subject + selected grade/year level. --}}
+                                <select id="class_id" name="class_id">
+                                    <option value="">None</option>
+                                    <option value="others">Others (personal — not for a class)</option>
+                                    @foreach($classes as $class)
+                                        <option value="{{ $class->id }}"
+                                            data-subject-id="{{ $class->subject_id }}"
+                                            data-year-level="{{ optional($class->section)->year_level }}">
+                                            {{ optional($class->section)->name }} - {{ optional($class->subject)->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <script>
+                                    // academic_level id → year number (sequence_order), for matching
+                                    // a selected level to a class section's year_level.
+                                    window.CLASS_LEVEL_YEARS = @json($academicLevels->pluck('sequence_order', 'id'));
+                                </script>
+                                <!-- EXISTING TERM DROPDOWN -->
+                                <label class="mt-2" for="term-select">Term</label>
+                                <select id="term-select" name="term">
+                                    <option value="">None</option>
+                                    <option value="prelim">Prelim</option>
+                                    <option value="midterm">Midterm</option>
+                                    <option value="finals">Finals</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="diff-assessment-render-grid">
+                            <div class="ts-row">
+                                <label for="mode-select">Mode</label>
+                                <select id="mode-select" name="mode">
+                                    <option value="">Select Mode</option>
+                                    <option value="online">Online</option>
+                                    <option value="f2f">F2F</option>
+                                </select>
+
+                                <label class="mt-2" for="assessment-type-select">Assessment Type</label>
+                                <select id="assessment-type-select" name="assessment_type">
+                                    <option value="">Select Type</option>
+                                    <option>Quiz</option>
+                                    <option>Homework</option>
+                                    <option>Prelim Examination</option>
+                                    <option>Midterm Examination</option>
+                                    <option>Final Examination</option>
+                                    <option>Long Test</option>
+                                    <option>Seatwork</option>
+                                    <option>Evaluation Test</option>
+                                    <option>Diagnostic Test</option>
+                                    <option>Mock Test</option>
+                                    <option>Review</option>
+                                    <option>Practice</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+
+            {{-- ===============================
+                TEST SETTINGS (online delivery only)
+                An F2F test is printed and scanned, so none of this applies. The
+                block is hidden by default and revealed only when Mode = Online
+                (modeVisibility.js); the save controller ignores/nulls these
+                fields whenever the mode is not online.
+            =============================== --}}
+            <div class="ts-divider" id="test-settings-divider" style="display:none;"></div>
+            <div class="ts-section" id="test-settings-section" style="display:none;">
+                <h4 class="ts-subtitle">Test Settings</h4>
 
                 <div class="ts-grid two">
                     <div class="diff-assessment-render">
@@ -275,72 +351,6 @@
                     </div>
                     </div>
                 </div>
-            </div>
-            <div class="ts-divider"></div>
-            <div class="ts-section">
-                <h4 class="ts-subtitle">Assignment & Classification</h4>
-                    <div class="ts-grid two">
-
-                        <div class="diff-assessment-render-grid">
-                            <div class="ts-row">
-                                <label for="class_id">Class</label>
-                                {{-- Options are filtered by testBuilder.js to the chosen
-                                     Test-Source subject + selected grade/year level. --}}
-                                <select id="class_id" name="class_id">
-                                    <option value="">None</option>
-                                    <option value="others">Others (personal — not for a class)</option>
-                                    @foreach($classes as $class)
-                                        <option value="{{ $class->id }}"
-                                            data-subject-id="{{ $class->subject_id }}"
-                                            data-year-level="{{ optional($class->section)->year_level }}">
-                                            {{ optional($class->section)->name }} - {{ optional($class->subject)->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <script>
-                                    // academic_level id → year number (sequence_order), for matching
-                                    // a selected level to a class section's year_level.
-                                    window.CLASS_LEVEL_YEARS = @json($academicLevels->pluck('sequence_order', 'id'));
-                                </script>
-                                <!-- EXISTING TERM DROPDOWN -->
-                                <label class="mt-2" for="term-select">Term</label>
-                                <select id="term-select" name="term">
-                                    <option value="">None</option>
-                                    <option value="prelim">Prelim</option>
-                                    <option value="midterm">Midterm</option>
-                                    <option value="finals">Finals</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="diff-assessment-render-grid">
-                            <div class="ts-row">
-                                <label for="mode-select">Mode</label>
-                                <select id="mode-select" name="mode">
-                                    <option value="">Select Mode</option>
-                                    <option value="online">Online</option>
-                                    <option value="f2f">F2F</option>
-                                </select>
-
-                                <label class="mt-2" for="assessment-type-select">Assessment Type</label>
-                                <select id="assessment-type-select" name="assessment_type">
-                                    <option value="">Select Type</option>
-                                    <option>Quiz</option>
-                                    <option>Homework</option>
-                                    <option>Prelim Examination</option>
-                                    <option>Midterm Examination</option>
-                                    <option>Final Examination</option>
-                                    <option>Long Test</option>
-                                    <option>Seatwork</option>
-                                    <option>Evaluation Test</option>
-                                    <option>Diagnostic Test</option>
-                                    <option>Mock Test</option>
-                                    <option>Review</option>
-                                    <option>Practice</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
             </div>
         </div>
 
@@ -417,6 +427,7 @@
 @push('scripts')
 <script src="{{ asset('js/tests/test-builder/testBuilder-cascadeDropdown.js') }}"></script>
 <script src="{{ asset('js/tests/test-builder/testBuilder.js') }}"></script>
+<script src="{{ asset('js/tests/test-builder/modeVisibility.js') }}"></script>
 <script src="{{ asset('js/tests/test-builder/saveBuilder.js') }}"></script>
 <script src="{{ asset('js/tests/test-builder/points-modal.js') }}"></script>
 <script src="{{ asset('js/tests/test-builder/edit.js') }}"></script>
