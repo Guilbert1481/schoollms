@@ -30,7 +30,7 @@
         })->values();
     @endphp
 
-    <div x-data="notificationBell({{ (int) $notifCount }}, {{ Illuminate\Support\Js::from($initialNotifications->filter(fn($n) => !$n['read'])->values()) }})" class="relative">
+    <div x-data="notificationBell({{ (int) $notifCount }}, {{ Illuminate\Support\Js::from($initialNotifications->filter(fn($n) => !$n['read'])->values()) }})" @click.away="open = false" class="relative">
 
         <button @click="open = !open" class="p-2 rounded-lg {{ $hoverClass }} transition relative"
                 :class="hasUrgent ? 'animate-pulse' : ''">
@@ -43,7 +43,6 @@
         </button>
 
         <div x-show="open"
-            @click.away="open = false"
             class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border z-50 text-slate-700"
             style="display:none">
 

@@ -58,20 +58,16 @@
     <!-- Mobile sidebar backdrop -->
     <div
         x-show="sidebarOpen"
-        x-transition.opacity
         @click="sidebarOpen = false"
         class="fixed inset-0 z-40 bg-black/50 md:hidden"
         style="display: none;"
     ></div>
 
-    <!-- Mobile sidebar -->
+    <!-- Mobile sidebar (off-canvas slide, argo pattern) -->
     <aside
-        x-show="sidebarOpen"
         @keydown.window.escape="sidebarOpen = false"
-        @click.away="sidebarOpen = false"
-        x-transition
-        class="fixed inset-y-0 left-0 w-64 bg-slate-100 border-r border-slate-200 z-50 shadow-md md:hidden flex flex-col"
-        style="display: none;"
+        class="fixed inset-y-0 left-0 w-64 bg-slate-100 border-r border-slate-200 z-50 shadow-md md:hidden flex flex-col transform transition-transform duration-300 -translate-x-full"
+        :style="sidebarOpen ? 'transform: translateX(0)' : ''"
     >
         <div class="flex-1 overflow-y-auto">
             @include('layouts.sidebar')
@@ -104,7 +100,6 @@
     x-data="{ open: false }"
     x-on:open-theme-modal.window="open = true"
     x-show="open"
-    x-transition
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
     style="display: none;"
 >
