@@ -21,6 +21,11 @@
         .ph-tab.is-active { background: #fff; color: #0f172a; box-shadow: 0 1px 2px rgba(15,23,42,.12); }
         .ph-reshuffle { display: inline-flex; align-items: center; gap: 7px; border: 0; background: #0284c7; color: #fff; font-weight: 700; font-size: 14px; padding: 9px 16px; border-radius: 8px; cursor: pointer; }
         .ph-reshuffle:disabled { opacity: .6; cursor: default; }
+        .ph-actions { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        /* Same emerald as the builder's .btn-print, so these read as the same actions
+           that used to sit on the test-builder action bar. */
+        .ph-action { display: inline-flex; align-items: center; text-decoration: none; background: #059669; color: #fff; font-weight: 700; font-size: 14px; padding: 9px 16px; border-radius: 8px; }
+        .ph-action:hover { background: #047857; }
         .ph-note { font-size: 12px; color: #64748b; margin-top: 6px; }
         .ph-frame-wrap { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff; }
         .ph-frame { width: 100%; height: 78vh; border: 0; display: block; background: #fff; }
@@ -33,9 +38,15 @@
                 <button type="button" class="ph-tab" data-url="{{ route('teacher.tests.answer-sheets', $test) }}">Answer Sheet</button>
                 <button type="button" class="ph-tab" data-url="{{ route('teacher.tests.print-answer-key', $test) }}">Answer Key</button>
             </div>
-            <button type="button" class="ph-reshuffle" id="phReshuffle">
-                <span aria-hidden="true">⟳</span> Reshuffle
-            </button>
+            <div class="ph-actions">
+                <button type="button" class="ph-reshuffle" id="phReshuffle">
+                    <span aria-hidden="true">⟳</span> Reshuffle
+                </button>
+                <a class="ph-action" href="{{ route('teacher.tests.omr.record', $test) }}"
+                   target="_blank" rel="noopener">Record Answers</a>
+                <a class="ph-action" href="{{ route('teacher.tests.omr.scan-camera', $test) }}"
+                   target="_blank" rel="noopener">Scan (Camera)</a>
+            </div>
         </div>
 
         <div class="ph-frame-wrap">

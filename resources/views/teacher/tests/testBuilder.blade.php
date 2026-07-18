@@ -368,44 +368,16 @@
             Save Test
         </button>
 
-        {{-- PRINT BUTTON (hidden first) --}}
+        {{-- PREVIEW TEST (hidden first) — single entry point to the print hub, which
+             carries the Questionnaire / Answer Sheet / Answer Key tabs (Questionnaire
+             is the default) plus Reshuffle, Record Answers and Scan (Camera). --}}
         <button
             type="button"
-            id="printTestBtn"
+            id="printHubBtn"
             class="btn btn-print"
             style="display:none;"
         >
-            Print Test
-        </button>
-
-        {{-- ANSWER SHEETS (OMR) BUTTON (hidden first) --}}
-        <button
-            type="button"
-            id="answerSheetsBtn"
-            class="btn btn-print"
-            style="display:none;"
-        >
-            Answer Sheets
-        </button>
-
-        {{-- RECORD OMR ANSWERS BUTTON (hidden first) --}}
-        <button
-            type="button"
-            id="recordOmrBtn"
-            class="btn btn-print"
-            style="display:none;"
-        >
-            Record Answers
-        </button>
-
-        {{-- SCAN OMR (CAMERA) BUTTON (hidden first) --}}
-        <button
-            type="button"
-            id="scanOmrBtn"
-            class="btn btn-print"
-            style="display:none;"
-        >
-            Scan (Camera)
+            Preview Test
         </button>
 
         {{-- EDIT BUTTON (hidden first) --}}

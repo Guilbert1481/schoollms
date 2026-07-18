@@ -117,18 +117,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('testId').value = data.test_id;
             }
             alert('✅ Test saved successfully!');
+            // Print/answer-sheet/record/scan all live behind Preview Test now.
             const saveBtn = document.getElementById('saveTestBtn');
-            const printBtn = document.getElementById('printTestBtn');
+            const previewBtn = document.getElementById('printHubBtn');
             const editBtn = document.getElementById('editTestBtn');
-            const answerBtn = document.getElementById('answerSheetsBtn');
-            const recordBtn = document.getElementById('recordOmrBtn');
-            const scanBtn = document.getElementById('scanOmrBtn');
             if (saveBtn) saveBtn.style.display = 'none';
-            if (printBtn) printBtn.style.display = 'inline-block';
+            if (previewBtn) previewBtn.style.display = 'inline-block';
             if (editBtn) editBtn.style.display = 'inline-block';
-            if (answerBtn) answerBtn.style.display = 'inline-block';
-            if (recordBtn) recordBtn.style.display = 'inline-block';
-            if (scanBtn) scanBtn.style.display = 'inline-block';
         } catch (err) {
             alert('Something went wrong while saving: ' + err.message);
         }
