@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Teacher\AttendanceController;
+use App\Http\Controllers\Teacher\AttendanceSummaryController;
 use App\Http\Controllers\Teacher\LiveAttendanceController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,6 +13,9 @@ Route::middleware(['web', 'auth', 'role:teacher'])
         // load the roster for a date, and save marks.
         Route::get('/', [AttendanceController::class, 'index'])->name('index');
         Route::post('/', [AttendanceController::class, 'store'])->name('store');
+
+        // Historical roll-up over the marks captured above (read-only).
+        Route::get('/summary', [AttendanceSummaryController::class, 'index'])->name('summary');
 
         // Live QR check-in board + its rotating-QR endpoint.
         Route::get('/live', [LiveAttendanceController::class, 'show'])->name('live');

@@ -1,4 +1,4 @@
-<div x-data="{ open: false }" class="relative flex items-center gap-3">
+<div x-data="{ open: false }" @click.away="open = false" class="relative flex items-center gap-3">
 
     <div class="text-right hidden sm:block">
         <div class="text-sm font-bold leading-none mb-1">
@@ -17,9 +17,9 @@
     </button>
 
     <div x-show="open"
-         @click.away="open = false"
-         x-transition
-         class="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 text-slate-700">
+         x-cloak
+         class="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 text-slate-700"
+         style="display: none;">
 
         {{-- ACCOUNT HEADER --}}
         <div class="p-4 bg-slate-50/50 border-b border-slate-100">

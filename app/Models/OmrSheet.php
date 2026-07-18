@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -24,6 +25,12 @@ class OmrSheet extends Model
         'written_key' => 'array',
         'generated_at' => 'datetime',
     ];
+
+    /** The test this sheet was printed for — the source of the grade component. */
+    public function test(): BelongsTo
+    {
+        return $this->belongsTo(Test::class);
+    }
 
     public function result(): HasOne
     {

@@ -31,12 +31,16 @@ class Test extends Model
         'academic_owner_id',
         'section_id',
         'print_seed',
+        'grade_component_id',
+        'grading_period',
     ];
 
     protected $casts = [
         'difficulty' => 'array',
         'academic_levels' => 'array',
         'print_seed' => 'integer',
+        'grade_component_id' => 'integer',
+        'grading_period' => 'integer',
     ];
 
     public function testSources()

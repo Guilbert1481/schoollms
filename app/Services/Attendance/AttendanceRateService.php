@@ -30,6 +30,25 @@ class AttendanceRateService
     ];
 
     /**
+     * The attendance-credit policy, exposed read-only so reporting (the teacher
+     * Attendance → Summary tab) scores a status exactly the way the gradebook
+     * does. Without this the two surfaces could drift and show a teacher two
+     * different percentages for the same student.
+     *
+     * @return array<string, float>
+     */
+    public static function creditMap(): array
+    {
+        return self::CREDIT;
+    }
+
+    /** What one status is worth toward "attended" (0.0 when unrecognised). */
+    public static function creditFor(?string $status): float
+    {
+        return self::CREDIT[$status] ?? 0.0;
+    }
+
+    /**
      * Daily homeroom rate over a section, against the configured expected days.
      * Null when there is no denominator to divide by.
      */

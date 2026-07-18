@@ -23,6 +23,39 @@ class EducationLevels
             ->get(['id', 'name']);
     }
 
+    /**
+     * Root ids a user is scoped to (`user_education_scopes`). An EMPTY array means
+     * unrestricted — that is the default for every user with no rows, so scoping can
+     * be introduced without locking anyone out.
+     *
+     * @return array<int, int>
+     */
+    public static function scopeRootIds(?int $userId): array
+    {
+        if (! $userId) {
+            return [];
+        }
+
+        return DB::table('user_education_scopes')
+            ->where('user_id', $userId)
+            ->pluck('education_node_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * Offered roots this user may see — all of them when the user has no scope rows.
+     * Use for the level tabs AND for what "All Levels" is allowed to span, so a
+     * scoped user can never reach another level's data by dropping the ?level param.
+     */
+    public static function offeredRootsFor(?int $userId): Collection
+    {
+        $scoped = self::scopeRootIds($userId);
+        $roots = self::offeredRoots();
+
+        return $scoped === [] ? $roots : $roots->whereIn('id', $scoped)->values();
+    }
+
     public static function isBasic(?string $name): bool
     {
         return $name !== null && str_contains(strtolower($name), 'basic');
