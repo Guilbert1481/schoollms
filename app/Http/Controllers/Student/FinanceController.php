@@ -19,13 +19,11 @@ use Illuminate\Http\Request;
  */
 class FinanceController extends Controller
 {
-    public function __construct(private readonly LedgerService $ledger)
-    {
-    }
+    public function __construct(private readonly LedgerService $ledger) {}
 
     public function index(Request $request)
     {
-        $user     = $request->user();
+        $user = $request->user();
         $schoolId = (int) $user->school_id;
 
         $entries = LedgerEntry::query()
@@ -41,16 +39,16 @@ class FinanceController extends Controller
             ->get();
 
         return view('student.finance.index', [
-            'balance'    => $this->ledger->currentBalance($schoolId, (int) $user->id),
-            'entries'    => $entries,
+            'balance' => $this->ledger->currentBalance($schoolId, (int) $user->id),
+            'entries' => $entries,
             'statements' => $statements,
-            'setting'    => FinanceSetting::forSchool($schoolId),
+            'setting' => FinanceSetting::forSchool($schoolId),
         ]);
     }
 
     public function invoices(Request $request)
     {
-        $user     = $request->user();
+        $user = $request->user();
         $schoolId = (int) $user->school_id;
 
         $invoices = Invoice::query()
@@ -64,7 +62,7 @@ class FinanceController extends Controller
 
     public function payments(Request $request)
     {
-        $user     = $request->user();
+        $user = $request->user();
         $schoolId = (int) $user->school_id;
 
         $payments = Payment::query()
@@ -79,17 +77,15 @@ class FinanceController extends Controller
 
     public function downloadStatement(Request $request, StatementOfAccount $statement)
     {
-        abort_unless(
-            (int) $statement->student_id === (int) $request->user()->id
-                && (int) $statement->school_id === (int) $request->user()->school_id,
-            404
-        );
+        // Ownership rule lives in StatementOfAccountPolicy (A1); 404 so a
+        // foreign ID is indistinguishable from a nonexistent one.
+        abort_unless($request->user()->can('view', $statement), 404);
 
         $statement->load(['student', 'school']);
 
         $pdf = Pdf::loadView('finance.pdf.statement_of_account', [
             'statement' => $statement,
-            'school'    => $statement->school,
+            'school' => $statement->school,
         ])->setPaper('a4');
 
         return $pdf->download('SOA-'.$statement->soa_number.'.pdf');
@@ -97,17 +93,13 @@ class FinanceController extends Controller
 
     public function downloadInvoice(Request $request, Invoice $invoice)
     {
-        abort_unless(
-            (int) $invoice->student_id === (int) $request->user()->id
-                && (int) $invoice->school_id === (int) $request->user()->school_id,
-            404
-        );
+        abort_unless($request->user()->can('view', $invoice), 404); // InvoicePolicy (A1)
 
         $invoice->load(['items', 'student', 'school', 'enrollment.term', 'enrollment.program']);
 
         $pdf = Pdf::loadView('finance.pdf.invoice', [
             'invoice' => $invoice,
-            'school'  => $invoice->school,
+            'school' => $invoice->school,
         ])->setPaper('a4');
 
         return $pdf->download('Invoice-'.$invoice->invoice_number.'.pdf');

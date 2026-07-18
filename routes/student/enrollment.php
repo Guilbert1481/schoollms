@@ -1,8 +1,8 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Public\EnrollmentController;
 use App\Http\Controllers\Public\EnrollmentQrLandingController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,14 +23,14 @@ Route::prefix('apply')->name('public.apply.')->middleware('enrollment.open')->gr
 
     // QR-code landing (public — handles auth state internally). The POSTs are
     // unauthenticated, so they are IP-throttled (H6).
-    Route::get('/qr/{term}',           [EnrollmentQrLandingController::class, 'show'])->name('qr');
-    Route::post('/qr/{term}/login',    [EnrollmentQrLandingController::class, 'login'])->name('qr.login')->middleware('throttle:public-apply');
+    Route::get('/qr/{term}', [EnrollmentQrLandingController::class, 'show'])->name('qr');
+    Route::post('/qr/{term}/login', [EnrollmentQrLandingController::class, 'login'])->name('qr.login')->middleware('throttle:public-apply');
     Route::post('/qr/{term}/register', [EnrollmentQrLandingController::class, 'register'])->name('qr.register')->middleware('throttle:public-apply');
 
     // GET fallbacks: if a user hits these via refresh / back-button / direct URL,
     // bounce them back to the landing page instead of throwing 405.
-    Route::get('/qr/{term}/login',     fn ($term) => redirect()->route('public.apply.qr', $term));
-    Route::get('/qr/{term}/register',  fn ($term) => redirect()->route('public.apply.qr', $term));
+    Route::get('/qr/{term}/login', fn ($term) => redirect()->route('public.apply.qr', $term));
+    Route::get('/qr/{term}/register', fn ($term) => redirect()->route('public.apply.qr', $term));
 
     Route::get('/{term}', [EnrollmentController::class, 'show'])->name('show');
 
@@ -42,15 +42,15 @@ Route::prefix('apply')->name('public.apply.')->middleware('enrollment.open')->gr
         Route::get('/{term}/exit', [EnrollmentController::class, 'exitToDashboard'])->name('exit');
 
         // Step 2 — Contact Details
-        Route::get('/{term}/step-2',  [EnrollmentController::class, 'showStep2'])->name('step2');
+        Route::get('/{term}/step-2', [EnrollmentController::class, 'showStep2'])->name('step2');
         Route::post('/{term}/step-2', [EnrollmentController::class, 'storeStep2'])->name('step2.store');
 
         // Step 3 — Family & Emergency
-        Route::get('/{term}/family',  [EnrollmentController::class, 'showFamily'])->name('family');
+        Route::get('/{term}/family', [EnrollmentController::class, 'showFamily'])->name('family');
         Route::post('/{term}/family', [EnrollmentController::class, 'storeFamily'])->name('family.store');
 
         // Step 4 — Learning Pathway (cascading education node + program)
-        Route::get('/{term}/pathway',  [EnrollmentController::class, 'showPathway'])->name('pathway');
+        Route::get('/{term}/pathway', [EnrollmentController::class, 'showPathway'])->name('pathway');
         Route::post('/{term}/pathway', [EnrollmentController::class, 'storePathway'])->name('pathway.store')->middleware('throttle:uploads'); // H6 — file-bearing step
         Route::get('/{term}/pathway/branch/{node}', [EnrollmentController::class, 'pathwayBranch'])
             ->name('pathway.branch');
@@ -58,24 +58,24 @@ Route::prefix('apply')->name('public.apply.')->middleware('enrollment.open')->gr
             ->name('pathway.subjects');
 
         // Step 5 — Academic Background (skipped when student_type=regular)
-        Route::get('/{term}/academic',  [EnrollmentController::class, 'showAcademic'])->name('academic');
+        Route::get('/{term}/academic', [EnrollmentController::class, 'showAcademic'])->name('academic');
         Route::post('/{term}/academic', [EnrollmentController::class, 'storeAcademic'])->name('academic.store');
 
         // Step 6 — Health Information
-        Route::get('/{term}/health',  [EnrollmentController::class, 'showHealth'])->name('health');
+        Route::get('/{term}/health', [EnrollmentController::class, 'showHealth'])->name('health');
         Route::post('/{term}/health', [EnrollmentController::class, 'storeHealth'])->name('health.store');
 
         // Step 7 — Diagnostic / Admission Test (pre-submission; conditional per
         // the school's "who must take the admission exam" config)
-        Route::get('/{term}/diagnostic',  [EnrollmentController::class, 'showDiagnostic'])->name('diagnostic');
+        Route::get('/{term}/diagnostic', [EnrollmentController::class, 'showDiagnostic'])->name('diagnostic');
         Route::post('/{term}/diagnostic', [EnrollmentController::class, 'storeDiagnostic'])->name('diagnostic.store');
 
         // Step 8 — Financial Assessment (fee review + payment-plan selection)
-        Route::get('/{term}/financial',  [EnrollmentController::class, 'showFinancial'])->name('financial');
+        Route::get('/{term}/financial', [EnrollmentController::class, 'showFinancial'])->name('financial');
         Route::post('/{term}/financial', [EnrollmentController::class, 'storeFinancial'])->name('financial.store');
 
         // Step 9 — Review & Submit
-        Route::get('/{term}/review',  [EnrollmentController::class, 'showReview'])->name('review');
+        Route::get('/{term}/review', [EnrollmentController::class, 'showReview'])->name('review');
         Route::post('/{term}/submit', [EnrollmentController::class, 'submit'])->name('submit');
 
         // Step 10 — Confirmation
@@ -90,7 +90,7 @@ Route::prefix('apply')->name('public.apply.')->middleware('enrollment.open')->gr
             ->name('exam.submit');
 
         // Legacy redirects (old /track funnels into pathway)
-        Route::get('/{term}/track',  [EnrollmentController::class, 'showTrack'])->name('track');
+        Route::get('/{term}/track', [EnrollmentController::class, 'showTrack'])->name('track');
         Route::post('/{term}/track', [EnrollmentController::class, 'storeTrack'])->name('track.store');
 
         /*
@@ -109,12 +109,10 @@ Route::prefix('apply')->name('public.apply.')->middleware('enrollment.open')->gr
 
             // Named-route placeholders so old Blade `route(...)` calls resolve.
             foreach (['step3', 'step4', 'step5', 'step6', 'step7', 'submit'] as $legacyStep) {
-                Route::get("/{term}/legacy/{$legacyTrack}/{$legacyStep}", fn ($term) =>
-                    redirect()->route('public.apply.pathway', $term)
+                Route::get("/{term}/legacy/{$legacyTrack}/{$legacyStep}", fn ($term) => redirect()->route('public.apply.pathway', $term)
                 )->name("{$legacyTrack}.{$legacyStep}");
 
-                Route::post("/{term}/legacy/{$legacyTrack}/{$legacyStep}-store", fn ($term) =>
-                    redirect()->route('public.apply.pathway', $term)
+                Route::post("/{term}/legacy/{$legacyTrack}/{$legacyStep}-store", fn ($term) => redirect()->route('public.apply.pathway', $term)
                 )->name("{$legacyTrack}.{$legacyStep}.store");
             }
         }

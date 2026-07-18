@@ -23,10 +23,10 @@ class CheckoutController extends Controller
 {
     /** Payment methods offered at online checkout. */
     private const METHODS = [
-        'gcash'         => 'GCash',
-        'maya'          => 'Maya',
+        'gcash' => 'GCash',
+        'maya' => 'Maya',
         'bank_transfer' => 'Bank Transfer',
-        'cash'          => 'Cash / Over the Counter',
+        'cash' => 'Cash / Over the Counter',
     ];
 
     public function show(Request $request, Invoice $invoice)
@@ -49,13 +49,13 @@ class CheckoutController extends Controller
             ->first();
 
         return view('checkout.invoice', [
-            'invoice'   => $invoice,
-            'balance'   => $balance,
+            'invoice' => $invoice,
+            'balance' => $balance,
             'systemFee' => $systemFee,
-            'total'     => round($balance + $systemFee, 2),
-            'methods'   => self::METHODS,
-            'qr'        => $this->qrFor((int) $invoice->school_id),
-            'pending'   => $pending,
+            'total' => round($balance + $systemFee, 2),
+            'methods' => self::METHODS,
+            'qr' => $this->qrFor((int) $invoice->school_id),
+            'pending' => $pending,
         ]);
     }
 
@@ -70,13 +70,13 @@ class CheckoutController extends Controller
         }
 
         $data = $request->validate([
-            'payment_method'   => ['required', 'string', 'in:'.implode(',', array_keys(self::METHODS))],
+            'payment_method' => ['required', 'string', 'in:'.implode(',', array_keys(self::METHODS))],
             'reference_number' => ['nullable', 'string', 'max:120'],
-            'proof'            => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
+            'proof' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
         ], [
             'proof.required' => 'Please attach your proof of payment.',
-            'proof.mimes'    => 'Proof must be an image (JPG/PNG/WebP) or a PDF.',
-            'proof.max'      => 'Proof must be 5 MB or smaller.',
+            'proof.mimes' => 'Proof must be an image (JPG/PNG/WebP) or a PDF.',
+            'proof.max' => 'Proof must be 5 MB or smaller.',
         ]);
 
         // One pending submission per invoice — block accidental double-submits so
@@ -93,16 +93,16 @@ class CheckoutController extends Controller
         $path = $request->file('proof')->store('payment-proofs/'.(int) $invoice->school_id, 'public');
 
         PaymentSubmission::create([
-            'school_id'        => (int) $invoice->school_id,
-            'student_id'       => (int) $invoice->student_id,
-            'invoice_id'       => (int) $invoice->id,
-            'amount'           => $balance,
-            'system_fee'       => PlatformSetting::systemFee(),
-            'payment_method'   => $data['payment_method'],
+            'school_id' => (int) $invoice->school_id,
+            'student_id' => (int) $invoice->student_id,
+            'invoice_id' => (int) $invoice->id,
+            'amount' => $balance,
+            'system_fee' => PlatformSetting::systemFee(),
+            'payment_method' => $data['payment_method'],
             'reference_number' => $data['reference_number'] ?? null,
-            'proof_path'       => $path,
-            'status'           => PaymentSubmission::STATUS_PENDING,
-            'submitted_at'     => now(),
+            'proof_path' => $path,
+            'status' => PaymentSubmission::STATUS_PENDING,
+            'submitted_at' => now(),
         ]);
 
         return redirect()
@@ -115,13 +115,12 @@ class CheckoutController extends Controller
     {
         $user = $request->user();
 
-        // Students may only pay their own invoice.
-        if ($user->isStudent()) {
-            abort_unless((int) $invoice->student_id === (int) $user->id, 403);
-        }
-
-        // School isolation (route binding is already school-scoped, but be explicit).
-        abort_unless((int) $invoice->school_id === (int) $user->school_id, 404);
+        // Ownership rule lives in InvoicePolicy::pay (A1). Same-school denials
+        // stay 403 (pre-Policy behavior); cross-school stays 404.
+        abort_unless(
+            $user->can('pay', $invoice),
+            (int) $invoice->school_id === (int) $user->school_id ? 403 : 404
+        );
     }
 
     /** Where to send the payer when there is nothing to check out. */

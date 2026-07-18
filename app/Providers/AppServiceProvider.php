@@ -2,16 +2,16 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\View;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Http\Request;
 use App\Models\ChatMessage;
 use App\Models\Quote;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -65,20 +65,20 @@ class AppServiceProvider extends ServiceProvider
             ]);
         });
 
-
-       /*
-        |--------------------------------------------------------------------------
-        | Global Header Content (Quote or Super Priority)
-        |--------------------------------------------------------------------------
-        */
+        /*
+         |--------------------------------------------------------------------------
+         | Global Header Content (Quote or Super Priority)
+         |--------------------------------------------------------------------------
+         */
         View::composer('*', function ($view) {
 
-            if (!auth()->check()) {
+            if (! auth()->check()) {
                 $view->with([
                     'globalQuote' => null,
                     'superPriority' => null,
                     'superPriorityCount' => 0,
                 ]);
+
                 return;
             }
 
@@ -96,7 +96,7 @@ class AppServiceProvider extends ServiceProvider
             // 🟢 Normal Daily Quote (only if no super priority)
             $globalQuote = null;
 
-            if (!$superPriority) {
+            if (! $superPriority) {
                 $activeQuotes = \App\Models\Quote::where('is_active', true)
                     ->orderBy('id', 'asc')
                     ->get();
@@ -126,7 +126,6 @@ class AppServiceProvider extends ServiceProvider
                 'superPriorityCount' => $superPriorityCount,
             ]);
         });
-
 
         /*
         |--------------------------------------------------------------------------
@@ -165,13 +164,12 @@ class AppServiceProvider extends ServiceProvider
             ));
         });
 
-
         /*
         |--------------------------------------------------------------------------
         | User-Specific Theme Settings
         |--------------------------------------------------------------------------
         */
-        
+
     }
 
     /**
@@ -197,15 +195,15 @@ class AppServiceProvider extends ServiceProvider
             }
 
             config([
-                'mail.default'                       => 'smtp',
-                'mail.mailers.smtp.host'             => $row->smtp_host,
-                'mail.mailers.smtp.port'             => $row->smtp_port ?: 587,
-                'mail.mailers.smtp.username'         => $row->smtp_username,
-                'mail.mailers.smtp.password'         => $row->smtp_password,
-                'mail.mailers.smtp.encryption'       => $row->smtp_encryption ?: null,
-                'mail.from.address'                  => $row->smtp_from_address
+                'mail.default' => 'smtp',
+                'mail.mailers.smtp.host' => $row->smtp_host,
+                'mail.mailers.smtp.port' => $row->smtp_port ?: 587,
+                'mail.mailers.smtp.username' => $row->smtp_username,
+                'mail.mailers.smtp.password' => $row->smtp_password,
+                'mail.mailers.smtp.encryption' => $row->smtp_encryption ?: null,
+                'mail.from.address' => $row->smtp_from_address
                     ?: config('mail.from.address'),
-                'mail.from.name'                     => $row->smtp_from_name
+                'mail.from.name' => $row->smtp_from_name
                     ?: config('mail.from.name'),
             ]);
         } catch (\Throwable $e) {
