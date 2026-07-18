@@ -317,9 +317,23 @@ class SaveBuilderController extends Controller
         } // end testSources
     }
 
-    // Normalizes/canonicalizes the answer for use in the $usedAnswers array
+    /**
+     * The dedup key for $usedAnswers — what makes two questions "the same" when
+     * filling a test from several question types.
+     *
+     * `keyword` is a concept tag the teacher sets, so it is the correct axis: an MCQ
+     * answered "The force of gravity acting on an object" and an identification
+     * answered "Weight" are the SAME concept with different answer text, and keying
+     * on the text alone would put both on one paper. Prefixed so a keyword can never
+     * collide with a raw answer string. Falls back to the answer text (then the
+     * question text) for questions that carry no keyword yet.
+     */
     private function getNormalizedAnswer($question)
     {
+        if (! empty($question->keyword)) {
+            return 'kw:'.strtolower(trim($question->keyword));
+        }
+
         // Use whatever column/relationship gives the "key" answer: adjust as needed!
         // This covers MCQ, TF, identification, etc.
         // Replace with your actual property/relationship/logic as needed.

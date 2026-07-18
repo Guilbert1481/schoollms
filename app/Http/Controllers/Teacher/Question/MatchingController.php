@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Teacher\Question;
 
 use App\Http\Controllers\Controller;
+use App\Models\Question;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\Question;
 
 class MatchingController extends Controller
 {
@@ -23,13 +23,14 @@ class MatchingController extends Controller
     public function index()
     {
         // Make sure the metadata/session setup is correct for matching type
-        if (!$this->hasMetadata() || $this->getQuestionType() !== 'matching') {
+        if (! $this->hasMetadata() || $this->getQuestionType() !== 'matching') {
             return redirect()
                 ->route('teacher.question.metadata')
                 ->withErrors('Please complete question metadata first (and select Matching as the type).');
         }
 
         $meta = session('qb');
+
         return view('teacher.question-bank.question-types.matching', compact('meta'));
     }
 
@@ -39,10 +40,10 @@ class MatchingController extends Controller
     public function saveMatching(Request $request)
     {
         // Ensure proper session/question_type
-        if (!$this->hasMetadata() || $this->getQuestionType() !== 'matching') {
+        if (! $this->hasMetadata() || $this->getQuestionType() !== 'matching') {
             return response()->json([
                 'success' => false,
-                'error'   => 'Metadata session missing or not set to Matching.',
+                'error' => 'Metadata session missing or not set to Matching.',
             ], 422);
         }
 
@@ -53,6 +54,7 @@ class MatchingController extends Controller
             'questions.*.pairs.*' => 'required|array|size:2',
             'questions.*.pairs.*.0' => 'required|string', // prompt
             'questions.*.pairs.*.1' => 'required|string', // answer
+            'questions.*.keyword' => 'nullable|string',
         ]);
 
         $qb = session('qb');
@@ -62,7 +64,7 @@ class MatchingController extends Controller
             foreach ($request->questions as $q) {
                 $schoolId = auth()->check() ? auth()->user()->school_id : null;
 
-                if (!$schoolId) {
+                if (! $schoolId) {
                     throw new \Exception('School ID missing for authenticated user.');
                 }
 
@@ -74,16 +76,20 @@ class MatchingController extends Controller
 
                     // Each prompt/answer is its own question row
                     $question = Question::create([
-                        'school_id'         => $schoolId,
-                        'teacher_id'        => auth()->id(),
-                        'subject_id'        => $qb['subject_id'],
-                        'topic_id'          => $qb['topic_id'],
-                        'lesson_id'         => $qb['lesson_id'],
-                        'competency_id'     => $qb['competency_id'] ?? null,
+                        'school_id' => $schoolId,
+                        'teacher_id' => auth()->id(),
+                        'subject_id' => $qb['subject_id'],
+                        'topic_id' => $qb['topic_id'],
+                        'lesson_id' => $qb['lesson_id'],
+                        'competency_id' => $qb['competency_id'] ?? null,
                         'academic_level_id' => $qb['academic_level_id'],
-                        'question_type'     => 'matching',
-                        'question_text'     => $prompt,
-                        'difficulty'        => $difficulty,
+                        'question_type' => 'matching',
+                        'question_text' => $prompt,
+                        'difficulty' => $difficulty,
+                        // Every other question type persists this; matching used to
+                        // drop it, so matching rows always landed with a NULL keyword
+                        // and could never take part in cross-type dedup.
+                        'keyword' => $q['keyword'] ?? null,
                     ]);
 
                     // Only one answer for this question
@@ -97,7 +103,7 @@ class MatchingController extends Controller
             DB::commit();
 
             return response()->json([
-                'success'  => true,
+                'success' => true,
                 'redirect' => route('teacher.dashboard'),
             ]);
         } catch (\Throwable $e) {
@@ -110,7 +116,7 @@ class MatchingController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error'   => 'Failed to save Matching questions.',
+                'error' => 'Failed to save Matching questions.',
             ], 500);
         }
     }
@@ -121,6 +127,7 @@ class MatchingController extends Controller
     public function clearQuestionSession()
     {
         $this->clearQuestionSessionInternal();
+
         return response()->json(['cleared' => true]);
     }
 
