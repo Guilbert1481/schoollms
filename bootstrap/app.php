@@ -99,6 +99,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             __DIR__.'/../routes/teacher/test-builder.php',
             __DIR__.'/../routes/teacher/test-builder-cascade-dropdown.php',
+            __DIR__.'/../routes/teacher/question-bank.php',
             __DIR__.'/../routes/teacher/test/test-builder/print.php',
             __DIR__.'/../routes/teacher/test/test-builder/answer-key.php',
             __DIR__.'/../routes/teacher/test/test-builder/answer-sheets.php',

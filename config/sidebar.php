@@ -376,7 +376,8 @@ return [
 
                 [
                     'label' => 'Question Bank',
-                    'route' => '#',
+                    'route' => 'teacher.question_bank.index',
+                    'active' => 'teacher.question_bank.index',
                     'icon' => 'database',
                 ],
 
