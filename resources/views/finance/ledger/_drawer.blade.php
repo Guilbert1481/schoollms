@@ -202,6 +202,7 @@
 
             {{-- Payments --}}
             <div x-show="tab === 'payments'" x-cloak>
+                <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-left text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -224,10 +225,12 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
 
             {{-- Invoices --}}
             <div x-show="tab === 'invoices'" x-cloak>
+                <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-left text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -251,6 +254,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
 
             {{-- Documents --}}

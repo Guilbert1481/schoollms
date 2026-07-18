@@ -34,6 +34,7 @@
        id="currentFilter"
        placeholder="Filter..."
        class="border rounded px-3 py-2 mb-3 w-64">
+    <div class="overflow-x-auto">
     <table id="currentTable" class="min-w-full table-fixed text-sm border border-gray-200">
         <thead class="bg-gray-100">
             <tr>
@@ -123,6 +124,7 @@
             @endforeach
         </tbody>
     </table>
+    </div>
 </div>
 
     {{-- HISTORICAL TABLE --}}
@@ -131,6 +133,7 @@
        id="historicalFilter"
        placeholder="Filter..."
        class="border rounded px-3 py-2 mb-3 w-64">
+        <div class="overflow-x-auto">
         <table id="historicalTable" class="min-w-full table-fixed text-sm border border-gray-200">
             <thead class="bg-gray-100">
                 <th class="px-3 py-2 text-left w-[14%]">Email</th>
@@ -160,6 +163,7 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     </div>
 
 </div>

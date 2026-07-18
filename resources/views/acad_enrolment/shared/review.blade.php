@@ -493,6 +493,7 @@
         <div class="p-6">
             <div id="enrolmentPreviewPaper" class="enrolment-paper bg-white shadow-md rounded-md"
                  @if ($bgUrl) style="background-image:url('{{ $bgUrl }}'); background-size:100% auto; background-repeat:no-repeat; background-position:top center; -webkit-print-color-adjust:exact; print-color-adjust:exact;" @endif>
+                <div class="overflow-x-auto">
                 <table class="enrolment-print-table" style="width:100%; border-collapse:collapse;">
 
                     {{-- Repeating header (school branding from School Settings → School tab).
@@ -712,6 +713,7 @@
                             @if ($financialComp && count($financialComp['schedule']))
                             <div class="pp-card" style="margin-bottom:0.8rem;">
                                 <div class="pp-ctitle"><span class="pp-cicon"><svg class="lh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> PAYMENT SCHEDULE</div>
+                                <div class="overflow-x-auto">
                                 <table style="width:100%; border-collapse:collapse; font-size:0.78rem; margin-top:0.4rem;">
                                     <thead><tr style="background:#16223e; color:#fff;">
                                         <th style="text-align:left; padding:0.4rem 0.55rem;">Due Date</th>
@@ -728,6 +730,7 @@
                                         @endforeach
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
                             @endif
 
@@ -770,6 +773,7 @@
 
                     </td></tr></tbody>
                 </table>
+                </div>
             </div>
         </div>
 

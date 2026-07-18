@@ -1,6 +1,7 @@
 <div class="card">
     <h4>Recent Tests</h4>
 
+    <div class="overflow-x-auto">
     <table>
         <thead>
         <tr>
@@ -22,4 +23,5 @@
         </tr>
         </tbody>
     </table>
+    </div>
 </div>

@@ -38,6 +38,7 @@
         </div>
     </div>
 
+    <div class="overflow-x-auto">
     <table class="mt-4 w-full text-sm">
         <thead>
             <tr class="border-b text-left text-xs uppercase text-slate-400">
@@ -60,6 +61,7 @@
             @endforeach
         </tbody>
     </table>
+    </div>
 
     <div class="mt-4 flex justify-end">
         <div class="w-64 space-y-1 text-sm">
@@ -84,6 +86,7 @@
 @if($invoice->payments->isNotEmpty())
     <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 class="mb-3 text-lg font-semibold text-slate-800">Payments</h2>
+        <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
                 <tr class="border-b text-left text-xs uppercase text-slate-400">
@@ -104,5 +107,6 @@
                 @endforeach
             </tbody>
         </table>
+        </div>
     </div>
 @endif

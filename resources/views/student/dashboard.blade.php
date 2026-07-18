@@ -171,6 +171,7 @@
             @if (empty($dash['recent_grades']))
                 <p class="text-sm text-gray-400">No grades posted yet.</p>
             @else
+                <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-left text-xs text-gray-400 uppercase">
@@ -189,6 +190,7 @@
                         @endforeach
                     </tbody>
                 </table>
+                </div>
             @endif
         </div>
 

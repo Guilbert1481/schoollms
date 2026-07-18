@@ -47,6 +47,7 @@
             <div class="rounded-lg bg-indigo-50 p-3"><div class="text-xs text-slate-400">Closing</div><div class="font-bold text-indigo-700">{{ $cur }} {{ number_format((float) $statement->closing_balance, 2) }}</div></div>
         </div>
 
+        <div class="overflow-x-auto">
         <table class="mt-5 w-full text-sm">
             <thead>
                 <tr class="border-b text-left text-xs uppercase text-slate-400">
@@ -73,6 +74,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
 
         <div class="mt-4 flex gap-2">
             <a href="{{ route('finance.statements.pdf', $statement->id) }}" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Download PDF</a>

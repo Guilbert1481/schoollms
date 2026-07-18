@@ -37,6 +37,7 @@
             {{-- RIGHT: TABLE --}}
             <section class="management-table">
 
+                <div class="overflow-x-auto">
                 <table class="test-table">
                     <thead>
                         <tr>
@@ -94,6 +95,7 @@
                     @endforelse
                     </tbody>
                 </table>
+                </div>
 
                 <div class="pagination-wrapper pagination-right">
                     <x-pagination :paginator="$testManagement" />

@@ -87,10 +87,20 @@
         ->count() + count($virtualEnrollments) + count($virtualBilling);
 @endphp
 
-<header class="h-24 flex items-center justify-between px-6 shadow-sm border-b z-30 {{ $bgClass }} {{ $textClass }} {{ $borderClass }}"
+<header class="h-16 md:h-24 flex items-center justify-between px-4 md:px-6 shadow-sm border-b z-30 {{ $bgClass }} {{ $textClass }} {{ $borderClass }}"
         style="background-color: {{ $manualBg }};">
-    
-    <div class="hidden md:flex flex-1 items-center justify-between">
+
+    <div class="flex flex-1 min-w-0 items-center justify-between">
+
+        {{-- ☰ Sidebar toggle (mobile only) --}}
+        <button
+            @click="sidebarOpen = true"
+            type="button"
+            class="md:hidden flex-shrink-0 mr-3 rounded-lg p-2 border transition-all duration-300
+            {{ $superPriority ? 'bg-red-600 border-red-700 animate-flashRed shadow-lg text-white' : 'border-transparent ' . $hoverClass }}"
+        >
+            <i data-lucide="{{ $superPriority ? 'bell-ring' : 'menu' }}" class="h-6 w-6"></i>
+        </button>
 
         {{-- LEFT --}}
         @include('components.header.branding', [
@@ -99,12 +109,12 @@
         ])
 
         {{-- CENTER --}}
-        <div class="flex-1 max-w-xl px-8">
+        <div class="hidden md:block flex-1 max-w-xl px-8">
             @include('components.header.banner')
         </div>
 
         {{-- RIGHT --}}
-        <div class="flex items-center gap-4">
+        <div class="flex flex-shrink-0 items-center gap-2 md:gap-4">
 
             {{-- 🔔 Notifications --}}
             @include('components.header.notifications', [
@@ -113,7 +123,7 @@
                 'hoverClass' => $hoverClass
             ])
 
-            <div class="h-8 w-[1px] bg-current opacity-10 mx-2"></div>
+            <div class="hidden md:block h-8 w-[1px] bg-current opacity-10 mx-2"></div>
 
             {{-- 👤 User Dropdown --}}
             @include('components.header.user-dropdown', [

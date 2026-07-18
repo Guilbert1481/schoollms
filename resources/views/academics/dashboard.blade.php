@@ -122,7 +122,7 @@
         </div>
 
         <!-- Table -->
-        <div class="px-6 pb-6">
+        <div class="px-6 pb-6 overflow-x-auto">
             <table class="w-full text-sm">
                 <tbody class="divide-y divide-gray-100">
 

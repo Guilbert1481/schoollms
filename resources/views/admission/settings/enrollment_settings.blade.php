@@ -50,6 +50,7 @@
                 Upcoming Session
             </h2>
 
+            <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="text-left text-slate-500">
@@ -79,6 +80,7 @@
                     @endforeach
                 </tbody>
             </table>
+            </div>
         </section>
 
 
@@ -88,6 +90,7 @@
                 Enrollment Settings
             </h2>
 
+            <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
                     <tr class="text-left text-slate-500">
@@ -184,6 +187,7 @@
                 @endforelse
                 </tbody>
             </table>
+            </div>
         </section>
 
     </div>

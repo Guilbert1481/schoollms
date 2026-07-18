@@ -131,6 +131,7 @@
                 @endif
             </div>
 
+            <div class="overflow-x-auto">
             <table class="builder-table mb-3">
                 <thead>
                     <tr>
@@ -151,6 +152,7 @@
                     </tr>
                 </tbody>
             </table>
+            </div>
         </div>
 
         <!-- Points Modal -->

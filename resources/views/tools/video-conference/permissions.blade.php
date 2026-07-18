@@ -80,7 +80,7 @@
                     No permissions found yet.
                 </div>
             @else
-                <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
+                <div class="mt-4 overflow-hidden overflow-x-auto rounded-xl border border-slate-200">
                     <table class="min-w-full text-sm">
                         <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                             <tr>

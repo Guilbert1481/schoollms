@@ -25,10 +25,20 @@
         }
     </style>
 </head>
-<body class="bg-[#f4f7fe] h-screen w-full overflow-hidden font-['Plus_Jakarta_Sans']">
+<body class="bg-[#f4f7fe] h-screen w-full overflow-hidden font-['Plus_Jakarta_Sans']" x-data="{ sidebarOpen: false }">
 
-    {{-- 1. Sidebar: Fixed to the left --}}
-    <div class="fixed inset-y-0 left-0 w-72 h-screen z-50 bg-[#1E293B] overflow-y-auto custom-scrollbar">
+    {{-- Mobile sidebar backdrop --}}
+    <div
+        x-show="sidebarOpen"
+        x-cloak
+        @click="sidebarOpen = false"
+        class="fixed inset-0 z-40 bg-black/50 md:hidden"
+    ></div>
+
+    {{-- 1. Sidebar: fixed left — off-canvas drawer on mobile, static on md+ --}}
+    <div class="fixed inset-y-0 left-0 w-72 h-screen z-50 bg-[#1E293B] overflow-y-auto custom-scrollbar transform transition-transform duration-300 -translate-x-full md:translate-x-0"
+         :style="sidebarOpen ? 'transform: translateX(0)' : ''"
+         @keydown.window.escape="sidebarOpen = false">
         <div class="h-full w-full flex flex-col text-white">
 
             {{-- Branding --}}
@@ -49,8 +59,8 @@
         </div>
     </div>
 
-    {{-- 2. Main Container: Added w-full to ensure it occupies all space after ml-72 --}}
-    <div class="flex flex-col h-screen ml-72 w-[calc(100%-18rem)] min-w-0 overflow-hidden">
+    {{-- 2. Main Container: full width on mobile, offset by the sidebar on md+ --}}
+    <div class="flex flex-col h-screen w-full md:ml-72 md:w-[calc(100%-18rem)] min-w-0 overflow-hidden">
         
         {{-- 3. Header: Ensure the container of the include is full width --}}
         <div class="flex-shrink-0 z-40 bg-white shadow-sm w-full">
@@ -58,7 +68,7 @@
         </div>
 
         {{-- 4. Content: Set to w-full without max-width --}}
-        <main class="flex-grow overflow-y-auto p-8 lg:p-12 custom-scrollbar">
+        <main class="flex-grow overflow-y-auto p-4 md:p-8 lg:p-12 custom-scrollbar">
             <div class="w-full"> 
                 @yield('content')
             </div>

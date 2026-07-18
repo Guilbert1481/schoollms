@@ -210,7 +210,7 @@
         <x-modal.view id="recipientAttendanceHistoryModal" title="Recipient Attendance History">
             <p id="recipientAttendanceHistoryTitle" class="mb-3 text-sm text-slate-600"></p>
 
-            <div class="max-h-[50vh] overflow-y-auto rounded-lg border border-slate-200">
+            <div class="max-h-[50vh] overflow-y-auto overflow-x-auto rounded-lg border border-slate-200">
                 <table class="min-w-full text-sm">
                     <thead class="bg-slate-100 text-slate-700">
                         <tr>

@@ -4,6 +4,7 @@
 @section('page-subtitle', 'Manage Questions by Learning Competency')
 
 @section('content')
+<div class="overflow-x-auto">
 <table width="100%">
 <thead>
 <tr>
@@ -27,6 +28,7 @@
 @endforeach
 </tbody>
 </table>
+</div>
 
 {{ $questions->links() }}
 @endsection

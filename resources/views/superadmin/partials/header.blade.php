@@ -1,11 +1,21 @@
-<header class="admin-header bg-white px-[30px] py-[15px] flex justify-between items-center shadow-sm border-b border-slate-100">
-    <div class="header-title">
-        <h3 class="m-0 text-[#1e293b] text-xl font-bold tracking-tight">System Overview</h3>
-        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Global Platform Control</p>
+<header class="admin-header bg-white px-4 md:px-[30px] py-[15px] flex justify-between items-center shadow-sm border-b border-slate-100">
+    <div class="flex items-center gap-3 min-w-0">
+        <button
+            type="button"
+            @click="sidebarOpen = true"
+            class="md:hidden flex-shrink-0 rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 transition"
+        >
+            <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+
+        <div class="header-title min-w-0">
+            <h3 class="m-0 text-[#1e293b] text-xl font-bold tracking-tight truncate">System Overview</h3>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5 truncate">Global Platform Control</p>
+        </div>
     </div>
 
-    <div class="flex items-center gap-5">
-        <div class="text-right border-r pr-5 border-slate-100">
+    <div class="flex items-center gap-5 flex-shrink-0">
+        <div class="text-right border-r pr-5 border-slate-100 hidden sm:block">
             <div class="text-sm font-bold text-[#1e293b] leading-tight">{{ Auth::user()->name }}</div>
             <div class="text-[10px] font-extrabold text-indigo-500 uppercase tracking-tighter">Super Admin</div>
         </div>

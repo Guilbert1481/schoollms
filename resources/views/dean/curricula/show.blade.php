@@ -88,6 +88,7 @@
                                 </span>
                             </div>
 
+                            <div class="overflow-x-auto">
                             <table class="w-full text-sm">
                                 <thead class="text-xs uppercase text-slate-500 bg-white border-b">
                                     <tr>
@@ -116,6 +117,7 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     @endforeach
                 </div>

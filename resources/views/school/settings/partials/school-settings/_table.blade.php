@@ -25,7 +25,7 @@
         </div>
     </div>
 
-    <div class="w-full">
+    <div class="w-full overflow-x-auto">
         <table id="ayTermsTable" class="w-full text-sm table-fixed">
             <thead>
                 <tr class="text-left text-slate-500">

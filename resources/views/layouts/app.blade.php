@@ -55,16 +55,14 @@
 
 <div x-data="{ sidebarOpen: false }" class="flex min-h-screen relative">
 
-    <!-- Sidebar toggle -->
-    <button
-        @click="sidebarOpen = true"
-        class="fixed top-4 left-4 z-40 rounded p-2 border transition-all duration-300
-        {{ $superPriority ? 'bg-red-600 border-red-700 animate-flashRed shadow-lg' : 'bg-white border-slate-200' }}"
-        type="button"
-    >
-        <i data-lucide="{{ $superPriority ? 'bell-ring' : 'menu' }}" 
-        class="h-6 w-6 {{ $superPriority ? 'text-white' : 'text-gray-700' }}"></i>
-    </button>
+    <!-- Mobile sidebar backdrop -->
+    <div
+        x-show="sidebarOpen"
+        x-transition.opacity
+        @click="sidebarOpen = false"
+        class="fixed inset-0 z-40 bg-black/50 md:hidden"
+        style="display: none;"
+    ></div>
 
     <!-- Mobile sidebar -->
     <aside
@@ -95,7 +93,7 @@
             @include('layouts.header')
         </div>
 
-        <div class="flex-1 p-6 overflow-y-auto">
+        <div class="flex-1 p-4 md:p-6 overflow-y-auto">
             @yield('content')
         </div>
     </div>

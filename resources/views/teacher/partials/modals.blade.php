@@ -10,7 +10,7 @@
             <h3 class="text-xl font-bold text-slate-800">Daily Absentees</h3>
             <button @click="openAttendance = false" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
         </div>
-        <div class="p-6 bg-white">
+        <div class="p-6 bg-white overflow-x-auto">
             <table class="w-full text-left">
                 <thead class="text-slate-400 text-xs uppercase tracking-widest border-b">
                     <tr><th class="pb-3">Student Name</th><th class="pb-3">Section</th></tr>
@@ -36,7 +36,7 @@
             <h3 class="text-xl font-bold text-rose-800 uppercase">At-Risk Analysis</h3>
             <button @click="openAtRisk = false" class="text-rose-400 hover:text-rose-600 text-2xl">&times;</button>
         </div>
-        <div class="p-6 bg-white">
+        <div class="p-6 bg-white overflow-x-auto">
             <table class="w-full text-left">
                 <thead class="text-rose-300 text-[10px] uppercase tracking-widest border-b">
                     <tr><th class="pb-3">Student</th><th class="pb-3">Subject</th><th class="pb-3">Risk Factor</th><th class="pb-3">Grade</th></tr>
@@ -81,7 +81,7 @@
             <button @click="openGradeModal = false" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
         </div>
 
-        <div class="p-6 bg-white max-h-[70vh] overflow-y-auto">
+        <div class="p-6 bg-white max-h-[70vh] overflow-y-auto overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead class="text-slate-400 text-xs uppercase tracking-widest border-b">
                     <tr>
