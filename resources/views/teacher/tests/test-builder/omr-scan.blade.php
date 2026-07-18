@@ -1,4 +1,6 @@
-@extends('layouts.app')
+{{-- Renders in the portal shell by default, or the standalone Scanner app shell
+     when reached via /scan (ScannerShell middleware shares $layout). --}}
+@extends($layout ?? 'layouts.app')
 
 @section('page-title', 'Scan OMR (Camera)')
 

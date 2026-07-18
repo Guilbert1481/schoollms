@@ -80,6 +80,11 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/teacher/lessons/lessons.php',
             __DIR__.'/../routes/teacher/lessons/resources.php',
 
+            // Scanner app — a separate installable PWA (public/scanner.webmanifest).
+            // Must stay ahead of routes/website/file.php, whose {schoolSlug}
+            // catch-all would otherwise swallow /scan.
+            __DIR__.'/../routes/scanner.php',
+
             /*
             |--------------------------------------------------------------------------
             | COURSE ARCHITECT MODULES
@@ -262,7 +267,8 @@ return Application::configure(basePath: dirname(__DIR__))
             /* Guidance Counselor routes */
             __DIR__.'/../routes/guidance_counselor/dashboard.php',
 
-            /* Website routes */
+            /* Website routes — NOTE: this ends in a `{schoolSlug}` catch-all, so any
+               fixed top-level path (e.g. /scan) must be registered BEFORE it. */
             __DIR__.'/../routes/website/file.php',
 
         ],
@@ -297,6 +303,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'school.active' => \App\Http\Middleware\EnsureSchoolIsActive::class,
             'enrollment.open' => \App\Http\Middleware\EnsureEnrollmentOpen::class,
             'attendance.device' => \App\Http\Middleware\VerifyAttendanceDevice::class,
+            'scanner.shell' => \App\Http\Middleware\ScannerShell::class,
 
         ]);
 
