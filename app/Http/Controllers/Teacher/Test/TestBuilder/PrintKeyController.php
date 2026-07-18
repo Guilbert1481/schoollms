@@ -28,6 +28,16 @@ class PrintKeyController extends Controller
                 'essay' => 'essay',
                 default => $q->question->question_type,
             };
+
+            // Match the questionnaire + snapshot MCQ choice order so the correct
+            // letter shown here is the same letter the student's sheet was graded on.
+            if ($q->question->question_type === 'multiple_choice') {
+                $q->question->setRelation('choices', \App\Support\TestArrangement::choiceOrder(
+                    $test->print_seed,
+                    $q->question->id,
+                    $q->question->choices
+                ));
+            }
         }
 
         $order = [

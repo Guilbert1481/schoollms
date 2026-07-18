@@ -4,11 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\OmrScanAttempt;
 use App\Models\OmrSheet;
+use App\Models\Question;
 use App\Models\School;
 use App\Models\Test;
 use App\Models\User;
 use App\Services\Tests\OmrSheetSnapshotService;
 use App\Services\Tests\OmrSheetTokenService;
+use App\Support\TestArrangement;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -231,5 +233,101 @@ class OmrGradingTest extends TestCase
         $this->actingAs($this->teacher)
             ->postJson(route('teacher.tests.omr.scan'), $payload)
             ->assertStatus(422);
+    }
+
+    /**
+     * Grade-safety of choice-shuffle: with a print seed set, the snapshot labels
+     * each MCQ's choices in TestArrangement::choiceOrder — the SAME order the
+     * questionnaire and answer-key controllers use — so the frozen correct letter
+     * (and the whole letter→choice_id map) matches what the student's sheet shows.
+     * A one-sided change (e.g. the snapshot dropping choiceOrder) breaks this.
+     */
+    public function test_seeded_snapshot_labels_mcq_choices_in_arrangement_order(): void
+    {
+        $seed = 12345;
+        $test = Test::create([
+            'school_id' => $this->school->id, 'teacher_id' => $this->teacher->id,
+            'title' => 'Exam', 'status' => 'draft', 'print_seed' => $seed,
+        ]);
+        $this->question($test, 1, 'mcq', ['alpha', 'bravo', 'charlie', 'delta'], 2); // correct "charlie"
+        $this->question($test, 2, 'mcq', ['one', 'two', 'three', 'four'], 0);        // correct "one"
+        $this->question($test, 3, 'true_false', ['True', 'False'], 0);               // correct A (unshuffled)
+
+        $sheet = app(OmrSheetSnapshotService::class)->forStudent($test, 901, null);
+
+        foreach ($sheet->answer_key as $entry) {
+            $question = Question::with('choices')->findOrFail($entry['question_id']);
+
+            $ordered = $question->question_type === 'multiple_choice'
+                ? TestArrangement::choiceOrder($seed, $question->id, $question->choices)
+                : $question->choices->sortBy('id')->values();
+
+            // The frozen options are in the arrangement order (letter -> choice_id).
+            $this->assertSame(
+                $ordered->pluck('id')->all(),
+                array_column($entry['options'], 'choice_id'),
+                "Options for question {$question->id} must follow the arrangement order.",
+            );
+
+            // The frozen correct letter is the position of the correct choice in that order.
+            $correctIndex = $ordered->search(fn ($c) => (bool) $c->is_correct);
+            $this->assertSame(chr(65 + $correctIndex), $entry['correct']);
+        }
+
+        // True/False is never shuffled: correct choice stays label A.
+        $tf = collect($sheet->answer_key)->firstWhere('type', 'true_false');
+        $this->assertSame('A', $tf['correct']);
+    }
+
+    /**
+     * A null seed leaves MCQ choices in id order — identical to the pre-shuffle
+     * behaviour — so tests printed before this feature (and their already-frozen
+     * snapshots) are unaffected. (test_snapshot_freezes_the_answer_key covers the
+     * A,B,A,C key end-to-end; this pins the ordering contract directly.)
+     */
+    public function test_null_seed_keeps_choices_in_id_order(): void
+    {
+        $test = Test::create([
+            'school_id' => $this->school->id, 'teacher_id' => $this->teacher->id,
+            'title' => 'Exam', 'status' => 'draft', // print_seed defaults to null
+        ]);
+        $this->question($test, 1, 'mcq', ['alpha', 'bravo', 'charlie', 'delta'], 2);
+
+        $question = Question::with('choices')->firstOrFail();
+        $ordered = TestArrangement::choiceOrder(null, $question->id, $question->choices);
+
+        $this->assertSame(
+            $question->choices->sortBy('id')->pluck('id')->all(),
+            $ordered->pluck('id')->all(),
+        );
+    }
+
+    /**
+     * The seed genuinely permutes choices (not a no-op) and is a faithful
+     * permutation — every choice survives exactly once, so no answer is dropped or
+     * duplicated — and it is deterministic for a given seed.
+     */
+    public function test_seeded_choice_order_is_a_deterministic_permutation(): void
+    {
+        $test = Test::create([
+            'school_id' => $this->school->id, 'teacher_id' => $this->teacher->id,
+            'title' => 'Exam', 'status' => 'draft',
+        ]);
+        $this->question($test, 1, 'mcq', ['a', 'b', 'c', 'd', 'e'], 0);
+        $question = Question::with('choices')->firstOrFail();
+
+        $naturalIds = $question->choices->sortBy('id')->pluck('id')->all();
+
+        // Same members every time (permutation) and stable for a fixed seed.
+        $first = TestArrangement::choiceOrder(2024, $question->id, $question->choices)->pluck('id')->all();
+        $again = TestArrangement::choiceOrder(2024, $question->id, $question->choices)->pluck('id')->all();
+        $this->assertSame($first, $again, 'Same seed must be deterministic.');
+        $this->assertEqualsCanonicalizing($naturalIds, $first, 'Every choice must survive exactly once.');
+
+        // At least one seed in a small range reorders away from natural id order.
+        $reordered = collect(range(1, 40))->contains(
+            fn ($s) => TestArrangement::choiceOrder($s, $question->id, $question->choices)->pluck('id')->all() !== $naturalIds
+        );
+        $this->assertTrue($reordered, 'A seed must be able to change the choice order.');
     }
 }

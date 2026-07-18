@@ -17,7 +17,9 @@ class PrintTestController extends Controller
         // Load all questions & choices
         $questions = $test->testQuestions()->with(['question.choices'])->get();
 
-        // Map types for section grouping
+        // Map types for section grouping, and put each MCQ's choices into the
+        // seed's arrangement order so the printed A–E labels match the answer key
+        // and the frozen OMR snapshot (all three call TestArrangement::choiceOrder).
         foreach ($questions as $q) {
             $q->print_type = match ($q->question->question_type) {
                 'multiple_choice' => 'mcq',
@@ -30,6 +32,14 @@ class PrintTestController extends Controller
                 'essay' => 'essay',
                 default => $q->question->question_type,
             };
+
+            if ($q->question->question_type === 'multiple_choice') {
+                $q->question->setRelation('choices', \App\Support\TestArrangement::choiceOrder(
+                    $test->print_seed,
+                    $q->question->id,
+                    $q->question->choices
+                ));
+            }
         }
 
         $order = [
@@ -110,7 +120,7 @@ class PrintTestController extends Controller
             }
             // --- END SECTION POINTS LOGIC ---
 
-            // For MCQ: **No shuffling** - use original choices order
+            // MCQ choice order was applied above (TestArrangement::choiceOrder).
 
             // Custom handling for matching type
             if ($type === 'matching') {

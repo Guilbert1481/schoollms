@@ -27,7 +27,7 @@ class OmrSheetSnapshotService
         }
 
         $items = $this->orderedItems($test);
-        $key = $this->answerKey($items);
+        $key = $this->answerKey($items, $test->print_seed);
         $written = $this->writtenKey($items);
 
         try {
@@ -77,10 +77,15 @@ class OmrSheetSnapshotService
      * Immutable bubble map: the bubble items (True/False, Multiple Choice) with
      * their frozen item number, question id, labelled choices, and correct label.
      *
+     * Multiple-choice choices are labelled in the seed's arrangement order so the
+     * frozen A–E mapping matches the printed questionnaire (which orders the same
+     * way). True/False keeps id order — its bubble positions are fixed. A null seed
+     * leaves both at id order, so already-frozen snapshots are unaffected.
+     *
      * @param  array<int, array<string, mixed>>  $items
      * @return array<int, array<string, mixed>>
      */
-    private function answerKey(array $items): array
+    private function answerKey(array $items, ?int $seed): array
     {
         $key = [];
         foreach ($items as $item) {
@@ -91,7 +96,11 @@ class OmrSheetSnapshotService
             $options = [];
             $correct = null;
 
-            foreach ($q->choices->sortBy('id')->values() as $ci => $choice) {
+            $ordered = $q->question_type === 'multiple_choice'
+                ? \App\Support\TestArrangement::choiceOrder($seed, $q->id, $q->choices)
+                : $q->choices->sortBy('id')->values();
+
+            foreach ($ordered as $ci => $choice) {
                 if ($ci >= self::OPTION_LETTERS) {
                     break;
                 }
