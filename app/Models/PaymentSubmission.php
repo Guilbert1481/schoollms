@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\Auditable;
 use App\Models\Traits\BelongsToSchool;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
@@ -21,10 +22,12 @@ use Illuminate\Support\Facades\Storage;
  */
 class PaymentSubmission extends Model
 {
-    use BelongsToSchool;
+    use Auditable, BelongsToSchool;
 
-    public const STATUS_PENDING  = 'pending';
+    public const STATUS_PENDING = 'pending';
+
     public const STATUS_VERIFIED = 'verified';
+
     public const STATUS_REJECTED = 'rejected';
 
     protected $fillable = [
@@ -45,10 +48,10 @@ class PaymentSubmission extends Model
     ];
 
     protected $casts = [
-        'amount'       => 'decimal:2',
-        'system_fee'   => 'decimal:2',
+        'amount' => 'decimal:2',
+        'system_fee' => 'decimal:2',
         'submitted_at' => 'datetime',
-        'reviewed_at'  => 'datetime',
+        'reviewed_at' => 'datetime',
     ];
 
     public function scopePending($query)

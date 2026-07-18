@@ -1,12 +1,19 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Superadmin\LogController;
+use Illuminate\Support\Facades\Route;
 
-Route::prefix('superadmin/logs')->name('superadmin.logs.')->group(function () {
-    Route::get('/activity', [LogController::class, 'activity'])->name('activity');
-    Route::get('/errors', [LogController::class, 'errors'])->name('errors');
-    Route::get('/logins', [LogController::class, 'logins'])->name('logins');
-    Route::delete('/clear', [LogController::class, 'clear'])->name('clear');
-    
-});
+/*
+|--------------------------------------------------------------------------
+| Superadmin — Logs (Roadmap Phase 4)
+|--------------------------------------------------------------------------
+| Read-only viewers over append-only logs. The old /activity, /errors and
+| /clear entries were dead references (no controller existed) and were
+| dropped; a clear action will never return — logs are append-only.
+*/
+Route::middleware(['web', 'auth', 'role:superadmin', '2fa'])
+    ->prefix('superadmin/logs')
+    ->name('superadmin.logs.')
+    ->group(function () {
+        Route::get('/logins', [LogController::class, 'logins'])->name('logins');
+    });

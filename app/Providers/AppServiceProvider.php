@@ -37,6 +37,11 @@ class AppServiceProvider extends ServiceProvider
         // Mail::send() uses the school's configured SMTP credentials.
         $this->applyDynamicMailConfig();
 
+        // Phase 4 login logging: App\Listeners\LogAuthenticationActivity is
+        // wired by Laravel's event auto-discovery (handleLogin/handleFailed
+        // type-hints) — do NOT also Event::listen it here or every attempt
+        // gets recorded twice.
+
         /*
         |--------------------------------------------------------------------------
         | Global School Data

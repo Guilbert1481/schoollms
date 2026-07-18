@@ -2,10 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class SystemSetting extends Model
 {
+    use Auditable; // admin-action log (Phase 4)
+
+    /** Secrets stay out of the audit log — only the fact of a change shows. */
+    protected array $auditExclude = ['smtp_password', 'sms_api_key', 'sms_api_secret'];
+
     protected $fillable = [
         'school_id',
         'session_timeout',
@@ -38,8 +44,8 @@ class SystemSetting extends Model
 
     protected $casts = [
         'maintenance_mode' => 'boolean',
-        'sms_enabled'      => 'boolean',
-        'smtp_port'        => 'integer',
+        'sms_enabled' => 'boolean',
+        'smtp_port' => 'integer',
     ];
 
     protected $hidden = [

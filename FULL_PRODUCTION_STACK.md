@@ -190,8 +190,9 @@ never see Student B. **This layer's authority is [`SECURITY_PRINCIPLES.md`](./SE
 - Gated actions (deploys, live-DB migrations, deletions, mass guardian email, auth/role/tenancy
   changes) require explicit human approval — never self-authorized.
 
-**Current status: ✅ / ⚠️** — Phases 0–2.5 done (2026-07-18: intra-school authorization Policies,
-IDOR route sweep, raw-query/mass-assignment sweep all clear); audit log (Phase 3) is the next gap.
+**Current status: ✅ / ⚠️** — Phases 0–3 done (2026-07-18: intra-school authorization Policies + IDOR
+sweep; append-only `audit_logs` + `Auditable` on money/grade/role/AI models; duplicate-payment guard).
+Live DB still needs the `audit_logs` + `login_logs` migrations (operator-gated). Phase 4 logging done.
 
 ### 9. Rate Limiting
 
@@ -262,8 +263,9 @@ path open.
 - A cheap, honest **`/up` health endpoint** stays available for uptime monitoring (Roadmap S5);
   new critical dependencies surface in it.
 
-**Current status: ⚠️ Partial** — file logs only today; login/action logs Phase 4, Sentry S3,
-uptime S5.
+**Current status: ✅ / ⚠️** — Phase 4 done (2026-07-18): append-only `login_logs` + superadmin
+Logins viewer, failed-auth threshold warning, admin-action audit on config models (secrets
+excluded). Still open: Sentry-class error monitor (S3), uptime on `/up` (S5).
 
 ### 13. Availability & Recovery
 

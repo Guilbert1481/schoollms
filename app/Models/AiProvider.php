@@ -2,15 +2,22 @@
 
 namespace App\Models;
 
+use App\Models\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * A configured AI provider (superadmin-managed, platform-wide). The API key is
  * encrypted at rest via the `encrypted` cast — it is never stored or emitted in
  * plaintext. Use hasKey() to check for a stored key without decrypting it.
+ *
+ * Changes are audited (AI2) — api_key values never reach the audit log (the
+ * Auditable trait always excludes them; only the fact of a change is lost,
+ * by design).
  */
 class AiProvider extends Model
 {
+    use Auditable;
+
     protected $fillable = [
         'provider',
         'label',

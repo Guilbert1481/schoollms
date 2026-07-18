@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class EnrollmentSetting extends Model
 {
+    use Auditable; // admin-action log (Phase 4)
+
     protected $fillable = [
         'name',
         'enrollment_type_id',
@@ -24,12 +27,12 @@ class EnrollmentSetting extends Model
         'end_date',
         'is_active',
         'created_by',
-        'updated_by'
+        'updated_by',
     ];
 
     protected $dates = [
         'start_date',
-        'end_date'
+        'end_date',
     ];
 
     public function academicYear()
@@ -61,7 +64,7 @@ class EnrollmentSetting extends Model
     {
         $today = now()->startOfDay();
         $start = \Carbon\Carbon::parse($this->start_date)->startOfDay();
-        $end   = \Carbon\Carbon::parse($this->end_date)->endOfDay();
+        $end = \Carbon\Carbon::parse($this->end_date)->endOfDay();
 
         if ($today->lt($start)) {
             return 'Upcoming';
@@ -73,5 +76,4 @@ class EnrollmentSetting extends Model
 
         return 'Closed';
     }
-
 }

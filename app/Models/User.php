@@ -2,14 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use Auditable, HasFactory, Notifiable;
+
+    /**
+     * Audit privilege changes only (Phase 3 / H2): role, tenant, and
+     * active-status moves. Ordinary profile edits stay out of the audit log.
+     */
+    protected array $auditOnly = ['role', 'school_id', 'status'];
 
     /*
     |--------------------------------------------------------------------------
@@ -239,8 +245,8 @@ class User extends Authenticatable
     public function chatThreads()
     {
         return $this->belongsToMany(ChatThread::class)
-                    ->withPivot('last_read_at')
-                    ->withTimestamps();
+            ->withPivot('last_read_at')
+            ->withTimestamps();
     }
 
     public function deadlineCompletions()
@@ -258,32 +264,31 @@ class User extends Authenticatable
         return $this->hasOne(TeacherProfile::class);
     }
 
-
     public function getRoleBadgeClassAttribute()
     {
         return match ($this->role) {
-            'admin'        => 'bg-indigo-100 text-indigo-600',
+            'admin' => 'bg-indigo-100 text-indigo-600',
             'admission_manager' => 'bg-emerald-100 text-emerald-600',
-            'finance_manager'  => 'bg-violet-100 text-violet-600',
-            'registrar'    => 'bg-sky-100 text-sky-600',
-            'academics'    => 'bg-purple-100 text-purple-600',
-            'teacher'      => 'bg-amber-100 text-amber-600',
-            'student'      => 'bg-slate-100 text-slate-600',
+            'finance_manager' => 'bg-violet-100 text-violet-600',
+            'registrar' => 'bg-sky-100 text-sky-600',
+            'academics' => 'bg-purple-100 text-purple-600',
+            'teacher' => 'bg-amber-100 text-amber-600',
+            'student' => 'bg-slate-100 text-slate-600',
             'program_head' => 'bg-blue-100 text-blue-600',
-            'dean'         => 'bg-rose-100 text-rose-600', // Add this line
-            'principal'    => 'bg-orange-100 text-orange-600',
+            'dean' => 'bg-rose-100 text-rose-600', // Add this line
+            'principal' => 'bg-orange-100 text-orange-600',
             'guidance_counselor' => 'bg-teal-100 text-teal-600',
-            default        => 'bg-gray-100 text-gray-600',
+            default => 'bg-gray-100 text-gray-600',
         };
     }
 
     public function getFullNameAttribute()
     {
         $middle = $this->middle_name
-            ? ' ' . strtoupper(substr($this->middle_name, 0, 1)) . '.'
+            ? ' '.strtoupper(substr($this->middle_name, 0, 1)).'.'
             : '';
 
-        return trim($this->first_name . $middle . ' ' . $this->last_name);
+        return trim($this->first_name.$middle.' '.$this->last_name);
     }
 
     protected $appends = ['full_name'];
@@ -330,14 +335,10 @@ class User extends Authenticatable
 
     public function hasTraining()
     {
-        if (!$this->profile) return false;
+        if (! $this->profile) {
+            return false;
+        }
 
         return \App\Models\TrainingEnrollment::where('trainee_id', $this->profile->id)->exists();
     }
-
-    
-
-
-
-
 }

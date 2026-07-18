@@ -6,11 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\FinanceSetting;
 use App\Models\Invoice;
 use App\Models\LedgerEntry;
-use App\Models\Payment;
 use App\Models\StatementOfAccount;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\Finance\LedgerService;
+use App\Services\Payments\PaymentService;
 use App\Support\EducationLevels;
 use App\Support\EnrollmentStatuses;
 use App\Support\PaymentStatuses;
@@ -39,14 +39,15 @@ class LedgerController extends Controller
      * (canonical titles live in PaymentScheduleService::OPTION_TITLES).
      */
     private const PLAN_LABELS = [
-        'cash'        => 'Cash',
+        'cash' => 'Cash',
         'downpayment' => 'DP + Installment',
         'installment' => 'Full Installment',
     ];
 
-    public function __construct(private readonly LedgerService $ledger)
-    {
-    }
+    public function __construct(
+        private readonly LedgerService $ledger,
+        private readonly PaymentService $payments,
+    ) {}
 
     public function index(Request $request)
     {
@@ -61,16 +62,16 @@ class LedgerController extends Controller
             ->orderBy('order_index')
             ->get(['id', 'name']);
 
-        $nodeToRoot   = $this->buildNodeRootMap();
-        $showTabs     = $levels->count() > 1;
+        $nodeToRoot = $this->buildNodeRootMap();
+        $showTabs = $levels->count() > 1;
         $rootNameById = $levels->pluck('name', 'id')->all();
 
-        $levelParam    = $request->query('level');
-        $showAll       = $levelParam === null || $levelParam === '' || strtolower((string) $levelParam) === 'all';
+        $levelParam = $request->query('level');
+        $showAll = $levelParam === null || $levelParam === '' || strtolower((string) $levelParam) === 'all';
         $activeLevelId = $showAll ? 0 : (int) $levelParam;
 
         // Status filter — payment status (not enrollment status). Defaults to All.
-        $statusFilter  = $request->query('status') ?: 'all';
+        $statusFilter = $request->query('status') ?: 'all';
         $statusOptions = PaymentStatuses::options();
         if ($statusFilter !== 'all' && ! array_key_exists($statusFilter, $statusOptions)) {
             $statusFilter = 'all';
@@ -105,8 +106,8 @@ class LedgerController extends Controller
             ? $items
             : $items->filter(fn ($i) => (int) ($i->root ?? 0) === $activeLevelId)->values();
 
-        $activeLevel    = $levels->firstWhere('id', $activeLevelId);
-        $singleLevel    = $levels->count() === 1 ? $levels->first() : null;
+        $activeLevel = $levels->firstWhere('id', $activeLevelId);
+        $singleLevel = $levels->count() === 1 ? $levels->first() : null;
         $effectiveLevel = $showAll ? $singleLevel : $activeLevel;
         $activeLevelIsBasic = $effectiveLevel
             && str_contains(strtolower((string) $effectiveLevel->name), 'basic');
@@ -178,27 +179,27 @@ class LedgerController extends Controller
         // Per-row action — open the student's full ledger account.
         // No row action — clicking a row opens the resizable student drawer.
         return view('finance.ledger.index', [
-            'columns'            => $columns,
-            'levels'             => $levels,
-            'activeLevelId'      => $activeLevelId,
-            'showAll'            => $showAll,
-            'showTabs'           => $showTabs,
-            'rows'               => $finalRows,
-            'kpi'                => $kpi,
-            'currency'           => $this->currency,
-            'academicYears'      => $academicYears,
-            'yearLevelOptions'   => $yearLevelOptions,
-            'academicYearId'     => $academicYearId,
-            'yearLevel'          => $yearLevelFilter,
+            'columns' => $columns,
+            'levels' => $levels,
+            'activeLevelId' => $activeLevelId,
+            'showAll' => $showAll,
+            'showTabs' => $showTabs,
+            'rows' => $finalRows,
+            'kpi' => $kpi,
+            'currency' => $this->currency,
+            'academicYears' => $academicYears,
+            'yearLevelOptions' => $yearLevelOptions,
+            'academicYearId' => $academicYearId,
+            'yearLevel' => $yearLevelFilter,
             'activeLevelIsBasic' => $activeLevelIsBasic,
-            'programOptions'     => $programOptions,
-            'programId'          => $programId,
-            'showProgramFilter'  => $showProgramFilter,
-            'sectionOptions'     => $sectionOptions,
-            'sectionId'          => $sectionId,
-            'statusOptions'      => $statusOptions,
-            'statusFilter'       => $statusFilter,
-            'tableEmptyMessage'  => $tableEmptyMessage,
+            'programOptions' => $programOptions,
+            'programId' => $programId,
+            'showProgramFilter' => $showProgramFilter,
+            'sectionOptions' => $sectionOptions,
+            'sectionId' => $sectionId,
+            'statusOptions' => $statusOptions,
+            'statusFilter' => $statusFilter,
+            'tableEmptyMessage' => $tableEmptyMessage,
         ]);
     }
 
@@ -212,7 +213,7 @@ class LedgerController extends Controller
         abort_unless((int) $student->school_id === $schoolId && $student->role === 'student', 404);
         $this->currency = $this->currencySymbol($schoolId);
 
-        $uid     = (int) $student->id;
+        $uid = (int) $student->id;
         $profile = Student::query()->where('school_id', $schoolId)->where('user_id', $uid)->first();
 
         // ---- Header (name / photo / status / grade & section) ----------------
@@ -229,42 +230,42 @@ class LedgerController extends Controller
             : null;
 
         $nodeToRoot = $this->buildNodeRootMap();
-        $rootId   = $enr ? ($nodeToRoot[$enr?->education_node_id ?? null] ?? $nodeToRoot[$enr?->program_node_id ?? null] ?? null) : null;
+        $rootId = $enr ? ($nodeToRoot[$enr?->education_node_id ?? null] ?? $nodeToRoot[$enr?->program_node_id ?? null] ?? null) : null;
         $rootName = $rootId ? DB::table('education_nodes')->where('id', $rootId)->value('name') : null;
-        $isBasic  = $rootName && str_contains(strtolower((string) $rootName), 'basic');
+        $isBasic = $rootName && str_contains(strtolower((string) $rootName), 'basic');
 
-        $yearLevel  = $enr?->year_level ?? null;
+        $yearLevel = $enr?->year_level ?? null;
         $gradeLevel = ($yearLevel !== null && $yearLevel !== '')
             ? (is_numeric($yearLevel) ? ($isBasic ? 'Grade ' : 'Year ').(int) $yearLevel : (string) $yearLevel)
             : null;
-        $section      = $enr?->section_name ?? null;
+        $section = $enr?->section_name ?? null;
         $gradeSection = trim(($gradeLevel ?? '').($section ? ' - '.$section : ''), ' -') ?: '—';
 
-        $fn = $profile?->first_name  ?? $student->first_name  ?? '';
+        $fn = $profile?->first_name ?? $student->first_name ?? '';
         $mn = $profile?->middle_name ?? $student->middle_name ?? '';
-        $ln = $profile?->last_name   ?? $student->last_name   ?? '';
+        $ln = $profile?->last_name ?? $student->last_name ?? '';
         $firstMid = trim(implode(' ', array_filter([$fn, $mn])));
         $name = $ln ? $ln.($firstMid !== '' ? ', '.$firstMid : '') : ($firstMid ?: ($profile?->student_number ?? 'Student'));
         $initials = strtoupper(mb_substr((string) $fn, 0, 1).mb_substr((string) $ln, 0, 1)) ?: 'S';
 
-        $rawStatus    = strtolower((string) ($profile?->status ?? $enr?->enrollment_status ?? 'active'));
+        $rawStatus = strtolower((string) ($profile?->status ?? $enr?->enrollment_status ?? 'active'));
         $statusActive = in_array($rawStatus, ['active', 'enrolled'], true);
-        $statusLabel  = ucwords(str_replace('_', ' ', $rawStatus ?: 'active'));
+        $statusLabel = ucwords(str_replace('_', ' ', $rawStatus ?: 'active'));
 
         $header = [
-            'name'          => $name,
-            'initials'      => $initials,
-            'photo'         => $profile?->photo_path ?? null,
-            'student_id'    => $profile?->student_number ?? '—',
-            'lrn'           => $profile?->lrn ?? null,
+            'name' => $name,
+            'initials' => $initials,
+            'photo' => $profile?->photo_path ?? null,
+            'student_id' => $profile?->student_number ?? '—',
+            'lrn' => $profile?->lrn ?? null,
             'grade_section' => $gradeSection,
-            'status_label'  => $statusLabel,
+            'status_label' => $statusLabel,
             'status_active' => $statusActive,
         ];
 
         // ---- Finance figures --------------------------------------------------
         $balance = round((float) $this->ledger->currentBalance($schoolId, $uid), 2);
-        $today   = now()->startOfDay();
+        $today = now()->startOfDay();
 
         $invoices = Invoice::query()
             ->where('school_id', $schoolId)->where('student_id', $uid)
@@ -302,11 +303,11 @@ class LedgerController extends Controller
         }
 
         $summary = [
-            'balance'     => $balance,
-            'as_of'       => now()->format('M d, Y'),
+            'balance' => $balance,
+            'as_of' => now()->format('M d, Y'),
             'current_due' => round($currentDue, 2),
-            'overdue'     => round($overdue, 2),
-            'future'      => 0.0,
+            'overdue' => round($overdue, 2),
+            'future' => 0.0,
         ];
 
         // ---- Ledger entries + other tab data ---------------------------------
@@ -327,15 +328,15 @@ class LedgerController extends Controller
         $lastPay = $payments->first();
         $lastSoa = $statements->first();
         $quick = [
-            'last_payment'   => $lastPay
+            'last_payment' => $lastPay
                 ? Carbon::parse($lastPay->paid_at)->format('M d, Y').' ('.$this->currency.number_format((float) $lastPay->amount, 2).')'
                 : '—',
-            'last_soa'       => $lastSoa
+            'last_soa' => $lastSoa
                 ? Carbon::parse($lastSoa->generated_at ?? $lastSoa->created_at)->format('M d, Y')
                 : '—',
             'account_status' => $statusLabel,
-            'status_active'  => $statusActive,
-            'next_due'       => $nextDue ? $nextDue->format('M d, Y') : '—',
+            'status_active' => $statusActive,
+            'next_due' => $nextDue ? $nextDue->format('M d, Y') : '—',
         ];
 
         // ---- Schedule: every payable (invoice) as a chronological row, from the
@@ -359,37 +360,37 @@ class LedgerController extends Controller
                     $desc = $inv->invoice_number ?? ('Invoice #'.$inv->id);
                 }
 
-                $due       = $inv->due_date ? Carbon::parse($inv->due_date)->startOfDay() : null;
+                $due = $inv->due_date ? Carbon::parse($inv->due_date)->startOfDay() : null;
                 $isOverdue = (float) $inv->balance > 0.005 && $due && $due->lt($today);
 
                 $sortDate = $inv->billing_date ?? $inv->issue_date ?? $inv->created_at;
 
                 return (object) [
-                    'date'           => $inv->issue_date,
-                    'description'    => $desc,
-                    'billing_date'   => $inv->billing_date,
-                    'due_date'       => $inv->due_date,
-                    'status'         => $isOverdue ? 'overdue' : (string) $inv->status,
-                    'invoice_id'     => $inv->id,
+                    'date' => $inv->issue_date,
+                    'description' => $desc,
+                    'billing_date' => $inv->billing_date,
+                    'due_date' => $inv->due_date,
+                    'status' => $isOverdue ? 'overdue' : (string) $inv->status,
+                    'invoice_id' => $inv->id,
                     'invoice_number' => $inv->invoice_number,
-                    '_sort'          => $sortDate ? Carbon::parse($sortDate)->timestamp : 0,
+                    '_sort' => $sortDate ? Carbon::parse($sortDate)->timestamp : 0,
                 ];
             })
             ->sortBy('_sort')
             ->values();
 
         return view('finance.ledger._drawer', [
-            'currency'   => $this->currency,
-            'studentId'  => $uid,
-            'header'     => $header,
-            'summary'    => $summary,
-            'aging'      => $aging,
-            'entries'    => $entries,
-            'payments'   => $payments,
-            'invoices'   => $invoices,
-            'schedule'   => $schedule,
+            'currency' => $this->currency,
+            'studentId' => $uid,
+            'header' => $header,
+            'summary' => $summary,
+            'aging' => $aging,
+            'entries' => $entries,
+            'payments' => $payments,
+            'invoices' => $invoices,
+            'schedule' => $schedule,
             'statements' => $statements,
-            'quick'      => $quick,
+            'quick' => $quick,
         ]);
     }
 
@@ -406,7 +407,7 @@ class LedgerController extends Controller
             ->get(['entry_date', 'type', 'description', 'reference', 'debit', 'credit', 'balance_after']);
 
         return view('finance.ledger._ledger_table', [
-            'entries'  => $entries,
+            'entries' => $entries,
             'currency' => $this->currency,
         ]);
     }
@@ -445,7 +446,7 @@ class LedgerController extends Controller
             ->where('i.student_id', (int) $student->id)
             ->where(function ($w) {
                 $w->where('ii.discount_amount', '>', 0)
-                  ->orWhereNotNull('ii.finance_discount_type_id');
+                    ->orWhereNotNull('ii.finance_discount_type_id');
             })
             ->orderBy('i.id')->orderBy('ii.id')
             ->get(['i.invoice_number', 'ii.description', 'ii.discount_amount', 'fdt.name as discount_name']);
@@ -459,10 +460,10 @@ class LedgerController extends Controller
             ->get(['invoice_number', 'discount_amount', 'notes']);
 
         return view('finance.ledger._discounts', [
-            'enrollment'       => $enrollment,
-            'itemDiscounts'    => $itemDiscounts,
+            'enrollment' => $enrollment,
+            'itemDiscounts' => $itemDiscounts,
             'invoiceDiscounts' => $invoiceDiscounts,
-            'currency'         => $this->currency,
+            'currency' => $this->currency,
         ]);
     }
 
@@ -472,28 +473,29 @@ class LedgerController extends Controller
         $schoolId = (int) auth()->user()->school_id;
 
         $data = $request->validate([
-            'student_id'       => ['required', 'integer'],
-            'amount'           => ['required', 'numeric', 'min:0.01', 'max:9999999.99'],
-            'payment_method'   => ['required', 'string', 'max:50'],
+            'student_id' => ['required', 'integer'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:9999999.99'],
+            'payment_method' => ['required', 'string', 'max:50'],
             'reference_number' => ['nullable', 'string', 'max:120'],
-            'paid_at'          => ['nullable', 'date'],
+            'paid_at' => ['nullable', 'date'],
         ]);
 
         $student = User::query()
             ->where('school_id', $schoolId)->where('role', 'student')
             ->findOrFail((int) $data['student_id']);
 
-        $payment = Payment::create([
-            'school_id'        => $schoolId,
-            'student_id'       => (int) $student->id,
-            'amount'           => round((float) $data['amount'], 2),
-            'payment_method'   => $data['payment_method'],
-            'payment_type'     => 'tuition',
-            'reference_number' => $data['reference_number'] ?? null,
-            'paid_at'          => ! empty($data['paid_at']) ? Carbon::parse($data['paid_at']) : now(),
-        ]);
-
-        $this->ledger->postPaymentCredit($payment, null, (int) auth()->id());
+        // Through PaymentService so every payment shares ONE creation path:
+        // the duplicate-submission guard + ledger credit (Phase 3).
+        $this->payments->recordGeneralPayment(
+            actor: auth()->user(),
+            amount: round((float) $data['amount'], 2),
+            paymentMethod: $data['payment_method'],
+            paymentType: 'tuition',
+            referenceNumber: $data['reference_number'] ?? null,
+            studentId: (int) $student->id,
+            schoolId: $schoolId,
+            paidAt: ! empty($data['paid_at']) ? Carbon::parse($data['paid_at']) : null,
+        );
 
         $name = trim($student->first_name.' '.$student->last_name) ?: 'student';
 
@@ -507,8 +509,8 @@ class LedgerController extends Controller
 
         $data = $request->validate([
             'student_id' => ['required', 'integer'],
-            'channel'    => ['required', 'in:email,sms,portal'],
-            'message'    => ['required', 'string', 'max:1000'],
+            'channel' => ['required', 'in:email,sms,portal'],
+            'message' => ['required', 'string', 'max:1000'],
         ]);
 
         $student = User::query()
@@ -576,7 +578,7 @@ class LedgerController extends Controller
 
         $data = $request->validate([
             'student_id' => ['required', 'integer'],
-            'file'       => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
         ]);
 
         $student = User::query()
@@ -596,6 +598,7 @@ class LedgerController extends Controller
             $line++;
             if ($header === null) {
                 $header = array_map(fn ($h) => strtolower(trim((string) $h)), $row);
+
                 continue;
             }
             if (count(array_filter($row, fn ($c) => trim((string) $c) !== '')) === 0) {
@@ -607,10 +610,11 @@ class LedgerController extends Controller
                 $r[$key] = $row[$i] ?? null;
             }
 
-            $debit  = round((float) ($r['debit'] ?? 0), 2);
+            $debit = round((float) ($r['debit'] ?? 0), 2);
             $credit = round((float) ($r['credit'] ?? 0), 2);
             if ($debit <= 0 && $credit <= 0) {
                 $errors[] = "Line {$line}: needs a debit or credit amount.";
+
                 continue;
             }
 
@@ -620,15 +624,15 @@ class LedgerController extends Controller
                 : ($credit > 0 ? 'payment' : 'charge');
 
             $this->ledger->record([
-                'school_id'   => $schoolId,
-                'student_id'  => (int) $student->id,
-                'entry_date'  => ! empty($r['date']) ? Carbon::parse($r['date'])->toDateString() : now()->toDateString(),
-                'type'        => $type,
+                'school_id' => $schoolId,
+                'student_id' => (int) $student->id,
+                'entry_date' => ! empty($r['date']) ? Carbon::parse($r['date'])->toDateString() : now()->toDateString(),
+                'type' => $type,
                 'description' => trim((string) ($r['description'] ?? '')),
-                'reference'   => trim((string) ($r['reference'] ?? '')) ?: null,
-                'debit'       => $debit,
-                'credit'      => $credit,
-                'created_by'  => (int) auth()->id(),
+                'reference' => trim((string) ($r['reference'] ?? '')) ?: null,
+                'debit' => $debit,
+                'credit' => $credit,
+                'created_by' => (int) auth()->id(),
             ]);
             $imported++;
         }
@@ -647,8 +651,8 @@ class LedgerController extends Controller
         abort_unless((int) $student->school_id === $schoolId && $student->role === 'student', 404);
 
         $data = $request->validate([
-            'direction'   => ['required', 'in:debit,credit'],
-            'amount'      => ['required', 'numeric', 'min:0.01', 'max:9999999.99'],
+            'direction' => ['required', 'in:debit,credit'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:9999999.99'],
             'description' => ['required', 'string', 'max:191'],
         ]);
 
@@ -704,27 +708,27 @@ class LedgerController extends Controller
         $levels = DB::table('education_nodes')
             ->whereNull('parent_id')->where('is_offered', 1)->where('is_active', 1)
             ->orderBy('order_index')->get(['id', 'name']);
-        $nodeToRoot   = $this->buildNodeRootMap();
+        $nodeToRoot = $this->buildNodeRootMap();
         $rootNameById = $levels->pluck('name', 'id')->all();
 
-        $levelParam    = $request->query('level');
-        $showAll       = $levelParam === null || $levelParam === '' || strtolower((string) $levelParam) === 'all';
+        $levelParam = $request->query('level');
+        $showAll = $levelParam === null || $levelParam === '' || strtolower((string) $levelParam) === 'all';
         $activeLevelId = $showAll ? 0 : (int) $levelParam;
-        $activeLevel   = $levels->firstWhere('id', $activeLevelId);
-        $singleLevel   = $levels->count() === 1 ? $levels->first() : null;
-        $effective     = $showAll ? $singleLevel : $activeLevel;
-        $isBasic       = $effective && str_contains(strtolower((string) $effective->name), 'basic');
+        $activeLevel = $levels->firstWhere('id', $activeLevelId);
+        $singleLevel = $levels->count() === 1 ? $levels->first() : null;
+        $effective = $showAll ? $singleLevel : $activeLevel;
+        $isBasic = $effective && str_contains(strtolower((string) $effective->name), 'basic');
 
         $statusFilter = $request->query('status') ?: 'all';
         if ($statusFilter !== 'all' && ! PaymentStatuses::isValid($statusFilter)) {
             $statusFilter = 'all';
         }
 
-        $academicYearId  = $request->integer('academic_year_id') ?: null;
+        $academicYearId = $request->integer('academic_year_id') ?: null;
         $yearLevelFilter = $request->query('year_level');
         $yearLevelFilter = ($yearLevelFilter === null || $yearLevelFilter === '') ? null : (string) $yearLevelFilter;
-        $programId       = $request->integer('program_id') ?: null;
-        $sectionId       = $request->integer('section_id') ?: null;
+        $programId = $request->integer('program_id') ?: null;
+        $sectionId = $request->integer('section_id') ?: null;
 
         $rows = $this->ledgerSelectRows($schoolId)->filter(fn ($r) => $r->user_id)->values();
         $userIds = $rows->pluck('user_id')->map(fn ($v) => (int) $v)->unique()->all();
@@ -797,7 +801,7 @@ class LedgerController extends Controller
      */
     protected function ledgerSelectRows(int $schoolId): \Illuminate\Support\Collection
     {
-        $ledgerEnrollDb  = EnrollmentStatuses::dbValuesForGroup('ledger');
+        $ledgerEnrollDb = EnrollmentStatuses::dbValuesForGroup('ledger');
         $ledgerStudentDb = EnrollmentStatuses::studentDbValuesForGroup('ledger');
 
         return DB::table('students as st')
@@ -812,7 +816,7 @@ class LedgerController extends Controller
             ->where('st.school_id', $schoolId)
             ->where(function ($w) use ($ledgerEnrollDb, $ledgerStudentDb) {
                 $w->whereIn('se.status', $ledgerEnrollDb)
-                  ->orWhereIn('st.status', $ledgerStudentDb);
+                    ->orWhereIn('st.status', $ledgerStudentDb);
             })
             ->orderBy('st.last_name')
             ->orderBy('st.first_name')
@@ -863,7 +867,7 @@ class LedgerController extends Controller
             ? ($isBasic ? 'Grade '.$yearNum : 'Year '.$yearNum)
             : (($r->year_level !== null && $r->year_level !== '') ? (string) $r->year_level : '—');
 
-        $section   = $r->section_name ?: null;
+        $section = $r->section_name ?: null;
         $termClean = $this->stripAcademicYear($r->term_name);
 
         // Basic Ed: "Grade & Section". Higher-ed: "Year Level & Term" (no AY).
@@ -886,29 +890,29 @@ class LedgerController extends Controller
         }
 
         return (object) [
-            'root'               => $rootLevelId,
-            'year_level'         => $r->year_level,
-            'academic_year_id'   => $r->academic_year_id,
+            'root' => $rootLevelId,
+            'year_level' => $r->year_level,
+            'academic_year_id' => $r->academic_year_id,
             'academic_year_name' => $r->academic_year_name,
-            'program_id'         => $r->program_id,
-            'section_id'         => $r->section_id,
+            'program_id' => $r->program_id,
+            'section_id' => $r->section_id,
             'payment_status_key' => $fin['status_key'],
-            'balance'            => (float) $fin['balance'],
-            'plan_label'         => $planLabel,
-            'discount_labels'    => $discountLabels,
-            'display'            => (object) [
-                'id'             => $uid,
-                'full_name'      => $fullName,
-                'student_id'     => $r->student_number ?: '—',
-                'program'        => $r->program_code ?: ($r->program_name ?? '—'),
-                'level'          => ($rootLevelId && isset($rootNameById[$rootLevelId])) ? $rootNameById[$rootLevelId] : '—',
-                'grade_section'  => $gradeSection,
-                'year_term'      => $yearTerm,
-                'payment_plan'   => $planLabel,
-                'discounts'      => $this->discountsCell($uid, $discountLabels),
-                'total_balance'  => $this->balanceCell((float) $fin['balance']),
+            'balance' => (float) $fin['balance'],
+            'plan_label' => $planLabel,
+            'discount_labels' => $discountLabels,
+            'display' => (object) [
+                'id' => $uid,
+                'full_name' => $fullName,
+                'student_id' => $r->student_number ?: '—',
+                'program' => $r->program_code ?: ($r->program_name ?? '—'),
+                'level' => ($rootLevelId && isset($rootNameById[$rootLevelId])) ? $rootNameById[$rootLevelId] : '—',
+                'grade_section' => $gradeSection,
+                'year_term' => $yearTerm,
+                'payment_plan' => $planLabel,
+                'discounts' => $this->discountsCell($uid, $discountLabels),
+                'total_balance' => $this->balanceCell((float) $fin['balance']),
                 'payment_status' => PaymentStatuses::pill($fin['status_key']),
-                'last_payment'   => $fin['last_payment'],
+                'last_payment' => $fin['last_payment'],
             ],
         ];
     }
@@ -934,7 +938,7 @@ class LedgerController extends Controller
 
         // Overdue / due-soon flags from open invoices.
         $today = now()->toDateString();
-        $soon  = now()->addDays(7)->toDateString();
+        $soon = now()->addDays(7)->toDateString();
         $inv = DB::table('invoices')
             ->selectRaw(
                 'student_id,'
@@ -962,14 +966,14 @@ class LedgerController extends Controller
 
         $out = [];
         foreach ($userIds as $uid) {
-            $balance    = round((float) ($balances[$uid]->bal ?? 0), 2);
+            $balance = round((float) ($balances[$uid]->bal ?? 0), 2);
             $hasOverdue = (int) ($inv[$uid]->overdue_cnt ?? 0) > 0;
             $hasDueSoon = (int) ($inv[$uid]->soon_cnt ?? 0) > 0;
-            $lp         = $lastPay[$uid] ?? null;
+            $lp = $lastPay[$uid] ?? null;
 
             $out[$uid] = [
-                'balance'      => $balance,
-                'status_key'   => PaymentStatuses::resolve($balance, $hasOverdue, $hasDueSoon),
+                'balance' => $balance,
+                'status_key' => PaymentStatuses::resolve($balance, $hasOverdue, $hasDueSoon),
                 'last_payment' => $lp
                     ? $this->currency.number_format((float) $lp->amount, 2).' · '.Carbon::parse($lp->paid_at)->format('M d, Y')
                     : '—',
@@ -1012,10 +1016,10 @@ class LedgerController extends Controller
             ->count('student_id');
 
         return [
-            'students'    => $activeStudents,
+            'students' => $activeStudents,
             'outstanding' => round($outstanding, 2),
-            'collection'  => round($collection, 2),
-            'overdue'     => $overdue,
+            'collection' => round($collection, 2),
+            'overdue' => $overdue,
             'month_label' => now()->format('F Y'),
         ];
     }

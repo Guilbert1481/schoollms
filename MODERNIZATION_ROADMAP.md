@@ -117,22 +117,58 @@ owned by the in-flight OMR session remain (choice-shuffle work, unrelated).
 
 ---
 
-## Phase 3 — Finance Auditability
+## Phase 3 — Finance Auditability  ✅ *(completed & verified 2026-07-18; live-DB `php artisan migrate` pending — operator-gated)*
 
-- [ ] **H2** `audit_logs` table + `Auditable` concern; record actor/school/before/after/timestamp on payment, invoice, ledger, discount, penalty, grade, role changes. Append-only, passive (model events).
-- [ ] Idempotency / duplicate-payment guard on `PaymentController` + `LedgerController::recordPayment`.
+- [x] **H2** `audit_logs` table (append-only: INSERT-only, no `updated_at`, indexed plain columns — no FK
+  constraints so pruning users/schools never cascades into history) + `App\Models\Traits\Auditable` concern
+  (model events → actor/school/event/before/after; secrets `password`/`remember_token`/`api_key` always
+  excluded; per-model `$auditOnly`/`$auditExclude`). Attached to: `Payment`, `Invoice`, `LedgerEntry`,
+  `PaymentSubmission` (verify/reject decisions), `StatementOfAccount`, `FinanceDiscountType`,
+  `ReportCardGrade`, `PermanentRecordGrade`, `ComponentScore`, `User` (`$auditOnly` = role/school_id/status —
+  profile edits stay out), and `AiProvider` (**AI2 ✅** — api_key values never reach the log). Audit rows
+  write inside the caller's transaction, so a money change and its audit row commit or roll back together.
+  OMR models untouched (in-flight session). *Completed 2026-07-18.*
+- [x] Idempotency / duplicate-payment guard, centralized in `PaymentService::assertNotDuplicate` — with an
+  external reference: same student+amount+reference blocks at any age; without one: identical
+  student+amount+method(+invoice) inside 2 minutes blocks (double-click). `LedgerController::recordPayment`
+  refactored through `PaymentService::recordGeneralPayment` (custom `paid_at` supported), so ALL payment
+  creation shares the one guarded path (finance store, proof verify, training, manual ledger entry).
+  *Completed 2026-07-18.*
 
 **Safety:** audit is a passive observer; idempotency only blocks exact duplicates.
-**Verify:** payment → audit row; resubmit → blocked; distinct payments unaffected.
+**Verify:** ✅ `FinanceAuditTrailTest` 7/7 (35 assertions): payment → audit rows for Payment + LedgerEntry with
+actor/school; same-reference resubmit → validation error, 1 payment/1 credit; no-reference identical resubmit
+→ blocked; distinct payments (new amount / new reference) → all post; grade edit → before/after audited;
+role change audited while profile rename is not; AiProvider create+update audited with zero api_key leakage.
+Full suite 233 passed (only the 4 in-flight-OMR-session failures remain). **Deploy note:** needs
+`php artisan migrate` on the VPS (creates `audit_logs` only) — operator runs it per the no-self-authorized-
+migrations rule.
 
 ---
 
-## Phase 4 — Logging & Monitoring
+## Phase 4 — Logging & Monitoring  ✅ *(completed & verified 2026-07-18; live-DB `php artisan migrate` pending — operator-gated)*
 
-- [ ] Login success/failure log (backs the existing `/superadmin/logins` route which has no table).
-- [ ] Admin-action log; grade-change log (builds on Phase 3); failed-auth threshold alert.
+- [x] Login success/failure log: append-only `login_logs` (INSERT-only, no FKs) +
+  `App\Listeners\LogAuthenticationActivity` on Laravel's native `Login`/`Failed` auth events (registered via
+  event auto-discovery — NOT also `Event::listen`, which double-fires; test pins exactly-one-row).
+  Discovery finding: `routes/superadmin/logs.php` was DEAD (never registered in bootstrap, controller
+  didn't exist, and it declared no auth middleware). Rebuilt: registered in `bootstrap/app.php`, gated
+  `auth`+`role:superadmin`+`2fa`, new `Superadmin\LogController::logins` (search + outcome filter,
+  paginated) + `superadmin/logs/logins` view; the old dead `/activity`, `/errors`, `/clear` entries were
+  dropped — no clear action by design, logs are append-only. *Completed 2026-07-18.*
+- [x] Admin-action log: `Auditable` (Phase 3) extended to `SchoolSetting`, `SystemSetting`,
+  `FinanceSetting`, `EnrollmentSetting`, `GradingSystem`, with `$auditExclude` keeping
+  `smtp_password`/`imap_password`/`sms_api_key`/`sms_api_secret` out of audit rows. Grade-change log was
+  already delivered by Phase 3 (grade models carry the trait). Failed-auth threshold alert:
+  ≥10 failures from one IP or for one email within 15 min → searchable `Log::warning('auth.failed.threshold')`
+  on every attempt past the threshold (the Phase 0 login throttle does the actual slowing). *Completed 2026-07-18.*
 
-**Safety:** observers only. **Verify:** rows written on login/failed login/grade edit.
+**Safety:** observers only. **Verify:** ✅ `LoginActivityLogTest` 6/6 (24 assertions): success login → exactly
+one row (email/user/school/IP); failed login → failed row, no success row; 10th failure fires the warning;
+superadmin page 200 with data + outcome filter, school admin 403; `GradingSystem` change audited before/after;
+`FinanceSetting.smtp_password` change leaves no secret in any audit row. Full suite **252 passed, 0 failed**
+(the 4 OMR failures were fixed by the in-flight OMR session). **Deploy note:** VPS `php artisan migrate`
+creates `login_logs` (+ `audit_logs` from Phase 3) — operator-run.
 
 ---
 
@@ -159,8 +195,9 @@ owned by the in-flight OMR session remain (choice-shuffle work, unrelated).
 - [x] **AI1** AiProvider hardening at release: `encrypted` cast on `api_key` ✅ (shipped with the
   feature), masked round-trip ✅, routes `role:superadmin`+`2fa` ✅, `base_url` scheme validation
   `url:http,https` ✅ (SSRF — `SECURITY_PRINCIPLES.md` §16/§18). *(Added & completed 2026-07-17.)*
-- [ ] **AI2** Audit AiProvider changes (provider/key/URL/default) once the Phase 3 `audit_logs`
-  table exists — key *changes* are logged, key *values* never.
+- [x] **AI2** Audit AiProvider changes (provider/key/URL/default) — done with Phase 3 (2026-07-18):
+  `Auditable` on `AiProvider`; the trait hard-excludes `api_key`, so key *changes* are visible as
+  events while key *values* never reach the log. Test: `FinanceAuditTrailTest`.
 - [ ] **AI3** AI usage guardrails: attach the ready-made `throttle:ai` limiter (H6) to AI/OCR
   endpoints when that in-flight work lands; prompts carry minimum PII (no government-ID numbers);
   model output treated as untrusted input at every consumer (`SECURITY_PRINCIPLES.md` §18).

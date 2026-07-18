@@ -2,16 +2,22 @@
 
 namespace App\Models;
 
+use App\Models\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class StatementOfAccount extends Model
 {
+    use Auditable;
+
     protected $table = 'statement_of_accounts';
 
-    public const STATUS_DRAFT  = 'draft';
+    public const STATUS_DRAFT = 'draft';
+
     public const STATUS_ISSUED = 'issued';
-    public const STATUS_PAID   = 'paid';
-    public const STATUS_VOID   = 'void';
+
+    public const STATUS_PAID = 'paid';
+
+    public const STATUS_VOID = 'void';
 
     protected $fillable = [
         'soa_number',
@@ -36,15 +42,15 @@ class StatementOfAccount extends Model
     ];
 
     protected $casts = [
-        'period_start'    => 'date',
-        'period_end'      => 'date',
-        'due_date'        => 'date',
+        'period_start' => 'date',
+        'period_end' => 'date',
+        'due_date' => 'date',
         'opening_balance' => 'decimal:2',
-        'total_charges'   => 'decimal:2',
-        'total_credits'   => 'decimal:2',
+        'total_charges' => 'decimal:2',
+        'total_credits' => 'decimal:2',
         'closing_balance' => 'decimal:2',
-        'line_items'      => 'array',
-        'generated_at'    => 'datetime',
+        'line_items' => 'array',
+        'generated_at' => 'datetime',
     ];
 
     public function student()

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class FinanceDiscountType extends Model
 {
+    use Auditable;
+
     public const DISCOUNT_KINDS = [
         'percentage' => 'Percentage',
         'fixed' => 'Fixed Amount',

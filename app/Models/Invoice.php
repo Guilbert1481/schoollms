@@ -2,16 +2,19 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\Auditable;
 use App\Models\Traits\BelongsToSchool;
+use Illuminate\Database\Eloquent\Model;
 
 class Invoice extends Model
 {
-    use BelongsToSchool;
+    use Auditable, BelongsToSchool;
 
-    public const STATUS_PAID    = 'paid';
+    public const STATUS_PAID = 'paid';
+
     public const STATUS_PARTIAL = 'partial';
-    public const STATUS_UNPAID  = 'unpaid';
+
+    public const STATUS_UNPAID = 'unpaid';
 
     protected $fillable = [
         'invoice_number',
@@ -37,12 +40,12 @@ class Invoice extends Model
     protected $casts = [
         'subtotal_amount' => 'decimal:2',
         'discount_amount' => 'decimal:2',
-        'total_amount'    => 'decimal:2',
-        'paid_amount'     => 'decimal:2',
-        'balance'         => 'decimal:2',
-        'due_date'        => 'date',
-        'issue_date'      => 'date',
-        'billing_date'    => 'date',
+        'total_amount' => 'decimal:2',
+        'paid_amount' => 'decimal:2',
+        'balance' => 'decimal:2',
+        'due_date' => 'date',
+        'issue_date' => 'date',
+        'billing_date' => 'date',
     ];
 
     public function student()
@@ -81,13 +84,13 @@ class Invoice extends Model
      */
     public function recomputeTotals(): self
     {
-        $paid  = round((float) $this->payments()->sum('amount'), 2);
+        $paid = round((float) $this->payments()->sum('amount'), 2);
         $total = round((float) $this->total_amount, 2);
 
         // Balance may go negative when a student overpays — that is a credit,
         // not an error, so it must surface rather than clamp to zero.
         $this->paid_amount = $paid;
-        $this->balance     = round($total - $paid, 2);
+        $this->balance = round($total - $paid, 2);
 
         $shortfall = round($total - $paid, 2);
 

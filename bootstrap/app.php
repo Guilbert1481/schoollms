@@ -42,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/superadmin/subscriptions.php',
             __DIR__.'/../routes/superadmin/dashboard.php',
             __DIR__.'/../routes/superadmin/configuration.php',
+            __DIR__.'/../routes/superadmin/logs.php',
 
             /*
             |--------------------------------------------------------------------------

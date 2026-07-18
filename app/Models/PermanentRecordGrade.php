@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class PermanentRecordGrade extends Model
 {
+    use Auditable;
+
     protected $fillable = [
         'school_id',
         'student_id',

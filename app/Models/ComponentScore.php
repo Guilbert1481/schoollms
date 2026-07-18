@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Traits\Auditable;
 use App\Models\Traits\BelongsToSchool;
 use Illuminate\Database\Eloquent\Model;
 
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ComponentScore extends Model
 {
-    use BelongsToSchool;
+    use Auditable, BelongsToSchool;
 
     protected $fillable = [
         'school_id',

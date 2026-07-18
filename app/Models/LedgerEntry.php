@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\Auditable;
 use App\Models\Traits\BelongsToSchool;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * One append-only row in a student's individual ledger.
@@ -14,20 +15,24 @@ use App\Models\Traits\BelongsToSchool;
  */
 class LedgerEntry extends Model
 {
-    use BelongsToSchool;
+    use Auditable, BelongsToSchool;
 
-    public const TYPE_CHARGE     = 'charge';
-    public const TYPE_PAYMENT    = 'payment';
-    public const TYPE_DISCOUNT   = 'discount';
+    public const TYPE_CHARGE = 'charge';
+
+    public const TYPE_PAYMENT = 'payment';
+
+    public const TYPE_DISCOUNT = 'discount';
+
     public const TYPE_ADJUSTMENT = 'adjustment';
-    public const TYPE_REFUND     = 'refund';
+
+    public const TYPE_REFUND = 'refund';
 
     public const TYPES = [
-        self::TYPE_CHARGE     => 'Charge',
-        self::TYPE_PAYMENT    => 'Payment',
-        self::TYPE_DISCOUNT   => 'Discount',
+        self::TYPE_CHARGE => 'Charge',
+        self::TYPE_PAYMENT => 'Payment',
+        self::TYPE_DISCOUNT => 'Discount',
         self::TYPE_ADJUSTMENT => 'Adjustment',
-        self::TYPE_REFUND     => 'Refund',
+        self::TYPE_REFUND => 'Refund',
     ];
 
     protected $fillable = [
@@ -49,9 +54,9 @@ class LedgerEntry extends Model
     ];
 
     protected $casts = [
-        'entry_date'    => 'date',
-        'debit'         => 'decimal:2',
-        'credit'        => 'decimal:2',
+        'entry_date' => 'date',
+        'debit' => 'decimal:2',
+        'credit' => 'decimal:2',
         'balance_after' => 'decimal:2',
     ];
 

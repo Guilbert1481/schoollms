@@ -11,14 +11,14 @@ use App\Services\Finance\LedgerService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PaymentService
 {
     public function __construct(
         private readonly LedgerService $ledger,
         private readonly EnrollmentActivationService $enrollments,
-    ) {
-    }
+    ) {}
 
     public function recordGeneralPayment(
         User $actor,
@@ -28,10 +28,11 @@ class PaymentService
         ?string $referenceNumber = null,
         ?int $studentId = null,
         ?int $schoolId = null,
-        ?int $invoiceId = null
+        ?int $invoiceId = null,
+        ?Carbon $paidAt = null
     ): Payment {
-        return DB::transaction(function () use ($actor, $amount, $paymentMethod, $paymentType, $referenceNumber, $studentId, $schoolId, $invoiceId) {
-            $resolvedSchoolId  = (int) ($schoolId ?? $actor->school_id);
+        return DB::transaction(function () use ($actor, $amount, $paymentMethod, $paymentType, $referenceNumber, $studentId, $schoolId, $invoiceId, $paidAt) {
+            $resolvedSchoolId = (int) ($schoolId ?? $actor->school_id);
             $resolvedStudentId = (int) ($studentId ?? $actor->id);
 
             $payment = $this->createPayment(
@@ -43,7 +44,8 @@ class PaymentService
                 referenceNumber: $referenceNumber,
                 trainingEnrollmentId: null,
                 referencePrefix: 'PAY-',
-                invoiceId: $invoiceId
+                invoiceId: $invoiceId,
+                paidAt: $paidAt
             );
 
             $invoice = $invoiceId ? Invoice::find($invoiceId) : null;
@@ -146,18 +148,63 @@ class PaymentService
         ?string $referenceNumber,
         ?int $trainingEnrollmentId,
         string $referencePrefix,
-        ?int $invoiceId = null
+        ?int $invoiceId = null,
+        ?Carbon $paidAt = null
     ): Payment {
+        $this->assertNotDuplicate($schoolId, $studentId, $amount, $paymentMethod, $referenceNumber, $invoiceId);
+
         return Payment::create([
             'school_id' => $schoolId,
             'student_id' => $studentId,
             'invoice_id' => $invoiceId,
             'training_enrollment_id' => $trainingEnrollmentId,
             'amount' => $amount,
-            'reference_number' => $referenceNumber ?: ($referencePrefix . strtoupper(Str::random(10))),
+            'reference_number' => $referenceNumber ?: ($referencePrefix.strtoupper(Str::random(10))),
             'payment_method' => $paymentMethod,
             'payment_type' => $paymentType,
-            'paid_at' => now(),
+            'paid_at' => $paidAt ?? now(),
         ]);
+    }
+
+    /**
+     * Idempotency guard (Roadmap Phase 3): block EXACT duplicate submissions
+     * before any money posts. Two rules, deliberately narrow so genuinely
+     * distinct payments are never blocked:
+     *
+     * - With an external reference number: same student + amount + reference
+     *   is the same real-world transaction at any age → block.
+     * - Without one: an identical entry (student + amount + method, and
+     *   invoice when given) inside a 2-minute window is a double-click /
+     *   double-submit → block.
+     */
+    private function assertNotDuplicate(
+        int $schoolId,
+        int $studentId,
+        float $amount,
+        string $paymentMethod,
+        ?string $referenceNumber,
+        ?int $invoiceId
+    ): void {
+        $base = Payment::query()
+            ->withoutGlobalScopes()
+            ->where('school_id', $schoolId)
+            ->where('student_id', $studentId)
+            ->where('amount', round($amount, 2));
+
+        $duplicate = $referenceNumber
+            ? (clone $base)->where('reference_number', $referenceNumber)->exists()
+            : (clone $base)
+                ->where('payment_method', $paymentMethod)
+                ->when($invoiceId, fn ($q) => $q->where('invoice_id', $invoiceId))
+                ->where('created_at', '>=', now()->subMinutes(2))
+                ->exists();
+
+        if ($duplicate) {
+            throw ValidationException::withMessages([
+                'amount' => $referenceNumber
+                    ? 'A payment with this exact amount and reference number is already recorded for this student.'
+                    : 'An identical payment for this student was recorded moments ago. If this is a genuinely separate payment, wait a moment or add its reference number.',
+            ]);
+        }
     }
 }

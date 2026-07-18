@@ -2,15 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class FinanceSetting extends Model
 {
+    use Auditable; // admin-action log (Phase 4)
+
+    /** Secrets stay out of the audit log — only the fact of a change shows. */
+    protected array $auditExclude = ['smtp_password', 'imap_password'];
+
     public const FREQUENCIES = [
-        'monthly'   => 'Monthly',
+        'monthly' => 'Monthly',
         'quarterly' => 'Quarterly',
-        'per_term'  => 'Per Term / Semester',
-        'annual'    => 'Annually',
+        'per_term' => 'Per Term / Semester',
+        'annual' => 'Annually',
         'on_demand' => 'On Demand (manual only)',
     ];
 
@@ -40,16 +46,16 @@ class FinanceSetting extends Model
     ];
 
     protected $casts = [
-        'soa_generation_day'      => 'integer',
-        'auto_generate_soa'       => 'boolean',
+        'soa_generation_day' => 'integer',
+        'auto_generate_soa' => 'boolean',
         'auto_invoice_on_billing' => 'boolean',
-        'invoice_due_days'        => 'integer',
-        'last_soa_run_at'         => 'datetime',
-        'smtp_port'               => 'integer',
-        'imap_port'               => 'integer',
-        'smtp_password'           => 'encrypted',
-        'imap_password'           => 'encrypted',
-        'auto_send_invoices'      => 'boolean',
+        'invoice_due_days' => 'integer',
+        'last_soa_run_at' => 'datetime',
+        'smtp_port' => 'integer',
+        'imap_port' => 'integer',
+        'smtp_password' => 'encrypted',
+        'imap_password' => 'encrypted',
+        'auto_send_invoices' => 'boolean',
     ];
 
     public function school()
@@ -66,12 +72,12 @@ class FinanceSetting extends Model
         return static::firstOrCreate(
             ['school_id' => $schoolId],
             [
-                'soa_frequency'           => 'per_term',
-                'soa_generation_day'      => 1,
-                'auto_generate_soa'       => true,
+                'soa_frequency' => 'per_term',
+                'soa_generation_day' => 1,
+                'auto_generate_soa' => true,
                 'auto_invoice_on_billing' => true,
-                'invoice_due_days'        => 7,
-                'currency'                => 'PHP',
+                'invoice_due_days' => 7,
+                'currency' => 'PHP',
             ]
         );
     }

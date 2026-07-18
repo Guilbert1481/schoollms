@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\Auditable;
 use App\Models\Traits\BelongsToSchool;
+use Illuminate\Database\Eloquent\Model;
 
 class Payment extends Model
 {
-    use BelongsToSchool;
+    use Auditable, BelongsToSchool;
 
     public const TYPES = [
         'tuition',
@@ -29,7 +30,7 @@ class Payment extends Model
     ];
 
     protected $casts = [
-        'amount'  => 'decimal:2',
+        'amount' => 'decimal:2',
         'paid_at' => 'datetime',
     ];
 

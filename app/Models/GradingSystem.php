@@ -2,18 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class GradingSystem extends Model
 {
-    use HasFactory;
+    use Auditable, HasFactory; // admin-action log (Phase 4)
 
     protected $fillable = [
         'name',
         'type',
         'passing_mark',
-        'is_default'
+        'is_default',
     ];
 
     /*
