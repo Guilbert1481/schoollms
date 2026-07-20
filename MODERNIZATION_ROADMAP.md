@@ -230,9 +230,24 @@ staff roles (admin/finance/registrar), optional for students.
   `backup.env.example`). **Operator must still:** create `/etc/sophentis-backup.env` (passphrase +
   healthcheck + rclone remote), run a manual backup, run a restore-test, and cron it. Not "done" until a
   restore is proven on the VPS. Still the single most important remaining item — data loss is irreversible.
-- [ ] **D2** Encryption at rest for crown jewels: Laravel `encrypted` casts on government-ID numbers (and
-  similarly sensitive columns); encrypted storage for uploaded ID files (builds on C2). ⚠ Plan together with
-  the P1 key-rotation procedure — `APP_KEY` rotation re-encrypts these.
+- [~] **D2** Encryption at rest for crown jewels. **Column encryption DONE (2026-07-20):** `encrypted` cast on
+  `students.government_id_number` (a minor's government-ID number — the crown-jewel PII), column widened to TEXT
+  (migration `2026_07_20_090000`), idempotent backfill command `students:encrypt-government-ids` (dry-run by
+  default, `--encrypt` to write; reads raw, skips already-ciphertext rows). Verified `StudentIdEncryptionTest`
+  3/3 — ciphertext at rest, plaintext on the model, idempotent backfill. LRN deliberately left plaintext (it is
+  a functional identifier / ID-card barcode source, and encrypted columns can't be queried). ⚠ `APP_KEY`
+  rotation must re-encrypt these — fold into the P1 key-rotation procedure. **Operator (live):** `php artisan
+  migrate` then a backup, then `students:encrypt-government-ids --encrypt`.
+- [x] **D2b** Encryption at rest for uploaded ID **files** — ✅ **DONE (2026-07-20) — ready for commit.**
+  `SecureUpload::storeImage/storeDocument/storeImageOrDocument` gained an `encrypt` flag (wraps bytes in
+  `Crypt::encryptString` before `Storage::put`); wired `encrypt: true` for the government-ID file and
+  registrar-required enrolment documents in `EnrollmentController` (profile avatars stay plaintext — public).
+  `SecureDocumentController::serve` now decrypts on the way out (try-decrypt with legacy-plaintext fallback, so
+  serving stays backward-compatible mid-migration) and sets Content-Type from the extension. Idempotent backfill
+  `documents:encrypt-id-files` (dry-run default, `--encrypt`) covers `students.photo_id` +
+  `enrollment_documents.file_path`. Verified `StudentIdFileEncryptionTest` 4/4 (ciphertext at rest; serve
+  decrypts; legacy plaintext still served; backfill idempotent) + C2 `SecureDocumentAccessTest` 7/7 unchanged.
+  **Operator (live):** after deploy + backup, run `php artisan documents:encrypt-id-files --encrypt`.
 - [ ] **D3** PII retention/deletion policy — how long ID docs and PII of rejected/never-enrolled applicants
   are kept; delete on schedule (minors' data — also an RA 10173 concern, see P3).
 - [ ] **D4** Staff session hardening — shorter lifetime / idle timeout for admin/finance/registrar (currently
@@ -249,9 +264,15 @@ staff roles (admin/finance/registrar), optional for students.
 
 ## Phase 7 — Supply Chain & Monitoring  *(added 2026-07-09)*
 
-- [ ] **S1** `composer audit` + `npm audit` steps in `.github/workflows/ci.yml` (CI currently tests only —
-  known CVEs in dependencies are the most common real-world entry point).
-- [ ] **S2** Enable Dependabot (or Renovate) on the GitHub repo.
+- [x] **S1** `composer audit` + `npm audit` steps — ✅ **DONE (2026-07-20) — ready for commit.** New
+  `security-audit` job in `.github/workflows/ci.yml` (runs `composer audit` + `npm audit --audit-level=high`).
+  Non-blocking (`continue-on-error: true`) to start, matching the code-style/static-analysis jobs — surfaces
+  CVEs on every PR now; drop that line to make a vulnerable dependency block once current advisories are
+  triaged. Note: `composer audit` already flags a real one locally (symfony/yaml CVE-2026-45133) — worth a
+  patch bump. YAML validated.
+- [x] **S2** Dependabot — ✅ **DONE (2026-07-20) — ready for commit.** Added `.github/dependabot.yml`
+  (weekly composer + npm + github-actions updates, grouped so routine bumps are one PR each; GitHub still
+  raises security updates immediately). Activates automatically once merged to the default branch. YAML validated.
 - [ ] **S3** Production error monitoring (Sentry/Flare-class) — probing attempts surface as exceptions first.
 - [ ] **S4** Ship/back up audit logs off the app database so a DB-level attacker can't erase their trail
   (builds on Phase 3 H2 / Phase 4).
