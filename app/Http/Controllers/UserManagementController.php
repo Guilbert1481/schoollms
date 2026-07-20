@@ -420,9 +420,13 @@ class UserManagementController extends Controller
                     'updated_at' => now(),
                 ]);
 
-            if (in_array($validated['role'], self::NON_STAFF_ROLES, true)) {
+            if (in_array(strtolower($validated['role']), self::NON_STAFF_ROLES, true)) {
                 // Non-staff role: retire any stray staff access instead of
                 // syncing one (e.g. a teacher account converted to student).
+                // strtolower() mirrors store() — role keys can arrive capitalized
+                // ('Student'), and NON_STAFF_ROLES is lowercase, so a case-sensitive
+                // compare would misroute a student into the staff-insert branch below
+                // and crash on account_access.person_id (NOT NULL).
                 DB::table('account_access')
                     ->where('user_id', $user->id)
                     ->where('is_active', 1)
@@ -460,20 +464,27 @@ class UserManagementController extends Controller
                             'updated_at' => now(),
                         ]);
                 } else {
+                    // Staff role with no active access row yet — create one, but only
+                    // when a profiles record exists to source person_id (NOT NULL). A
+                    // missing profile means the account was never fully provisioned;
+                    // skip rather than crash on the constraint.
                     $profileId = DB::table('profiles')->where('user_id', $user->id)->value('id');
-                    DB::table('account_access')->insert([
-                        'user_id' => $user->id,
-                        'role_id' => $roleId,
-                        'office_id' => null,
-                        'person_id' => $profileId,
-                        'role_snapshot' => ucfirst(str_replace('_', ' ', $validated['role'])),
-                        'start_date' => now(),
-                        'assigned_by' => auth()->id(),
-                        'remarks' => 'Set via User Management edit',
-                        'is_active' => 1,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+
+                    if ($profileId !== null) {
+                        DB::table('account_access')->insert([
+                            'user_id' => $user->id,
+                            'role_id' => $roleId,
+                            'office_id' => null,
+                            'person_id' => $profileId,
+                            'role_snapshot' => ucfirst(str_replace('_', ' ', $validated['role'])),
+                            'start_date' => now(),
+                            'assigned_by' => auth()->id(),
+                            'remarks' => 'Set via User Management edit',
+                            'is_active' => 1,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
                 }
             }
 
