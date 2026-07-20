@@ -16,6 +16,13 @@ use Illuminate\Validation\Rule;
 class UserManagementController extends Controller
 {
     /**
+     * account_access is staff-only (teachers, executives, other school
+     * workers). These roles must never receive a row — they have no
+     * profiles record, so person_id (NOT NULL) has no source anyway.
+     */
+    private const NON_STAFF_ROLES = ['student', 'parent', 'alumni'];
+
+    /**
      * Store a new role (for modal role creation)
      */
     public function storeRole(Request $request)
@@ -331,20 +338,22 @@ class UserManagementController extends Controller
                 $roleId = $role->id;
             }
 
-            // 5. Create Account Access
-            DB::table('account_access')->insert([
-                'user_id' => $user->id,
-                'role_id' => $roleId,
-                'office_id' => null,
-                'person_id' => $profileId,
-                'role_snapshot' => ucfirst($request->role),
-                'start_date' => now(),
-                'assigned_by' => auth()->id(),
-                'remarks' => 'Initial account holder',
-                'is_active' => 1,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            // 5. Create Account Access (staff only — never students/parents/alumni)
+            if (! in_array(strtolower($request->role), self::NON_STAFF_ROLES, true)) {
+                DB::table('account_access')->insert([
+                    'user_id' => $user->id,
+                    'role_id' => $roleId,
+                    'office_id' => null,
+                    'person_id' => $profileId,
+                    'role_snapshot' => ucfirst($request->role),
+                    'start_date' => now(),
+                    'assigned_by' => auth()->id(),
+                    'remarks' => 'Initial account holder',
+                    'is_active' => 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
 
             DB::commit();
 
@@ -411,48 +420,61 @@ class UserManagementController extends Controller
                     'updated_at' => now(),
                 ]);
 
-            // Resolve (or create) the role row for this school.
-            $role = DB::table('roles')
-                ->where('school_id', $schoolId)
-                ->where('name', $validated['role'])
-                ->first();
-
-            $roleId = $role->id ?? DB::table('roles')->insertGetId([
-                'school_id' => $schoolId,
-                'name' => $validated['role'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            // Upsert account_access so the User Management list shows the role.
-            $access = DB::table('account_access')
-                ->where('user_id', $user->id)
-                ->where('is_active', 1)
-                ->first();
-
-            if ($access) {
+            if (in_array($validated['role'], self::NON_STAFF_ROLES, true)) {
+                // Non-staff role: retire any stray staff access instead of
+                // syncing one (e.g. a teacher account converted to student).
                 DB::table('account_access')
-                    ->where('id', $access->id)
+                    ->where('user_id', $user->id)
+                    ->where('is_active', 1)
                     ->update([
-                        'role_id' => $roleId,
-                        'role_snapshot' => ucfirst(str_replace('_', ' ', $validated['role'])),
+                        'is_active' => 0,
+                        'end_date' => now(),
                         'updated_at' => now(),
                     ]);
             } else {
-                $profileId = DB::table('profiles')->where('user_id', $user->id)->value('id');
-                DB::table('account_access')->insert([
-                    'user_id' => $user->id,
-                    'role_id' => $roleId,
-                    'office_id' => null,
-                    'person_id' => $profileId,
-                    'role_snapshot' => ucfirst(str_replace('_', ' ', $validated['role'])),
-                    'start_date' => now(),
-                    'assigned_by' => auth()->id(),
-                    'remarks' => 'Set via User Management edit',
-                    'is_active' => 1,
+                // Resolve (or create) the role row for this school.
+                $role = DB::table('roles')
+                    ->where('school_id', $schoolId)
+                    ->where('name', $validated['role'])
+                    ->first();
+
+                $roleId = $role->id ?? DB::table('roles')->insertGetId([
+                    'school_id' => $schoolId,
+                    'name' => $validated['role'],
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
+
+                // Upsert account_access so the User Management list shows the role.
+                $access = DB::table('account_access')
+                    ->where('user_id', $user->id)
+                    ->where('is_active', 1)
+                    ->first();
+
+                if ($access) {
+                    DB::table('account_access')
+                        ->where('id', $access->id)
+                        ->update([
+                            'role_id' => $roleId,
+                            'role_snapshot' => ucfirst(str_replace('_', ' ', $validated['role'])),
+                            'updated_at' => now(),
+                        ]);
+                } else {
+                    $profileId = DB::table('profiles')->where('user_id', $user->id)->value('id');
+                    DB::table('account_access')->insert([
+                        'user_id' => $user->id,
+                        'role_id' => $roleId,
+                        'office_id' => null,
+                        'person_id' => $profileId,
+                        'role_snapshot' => ucfirst(str_replace('_', ' ', $validated['role'])),
+                        'start_date' => now(),
+                        'assigned_by' => auth()->id(),
+                        'remarks' => 'Set via User Management edit',
+                        'is_active' => 1,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
             }
 
             DB::commit();
