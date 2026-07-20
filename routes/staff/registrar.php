@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Staff\Registrar\EnrollmentValidationController;
+use App\Http\Controllers\Staff\Registrar\SectionClassesController;
+use App\Http\Controllers\Staff\Registrar\SectioningController;
 use App\Http\Controllers\Staff\Registrar\Settings\DocumentRequirementController;
 use App\Http\Controllers\Staff\Registrar\Settings\ParentPortalSettingController;
 use App\Http\Controllers\Staff\Registrar\Settings\StudentIdSettingController;
@@ -20,6 +22,17 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
         Route::get('teaching-assignments', [TeachingAssignmentController::class, 'index'])->name('teaching-assignments.index');
         Route::post('teaching-assignments', [TeachingAssignmentController::class, 'store'])->name('teaching-assignments.store');
         Route::delete('teaching-assignments/{class}', [TeachingAssignmentController::class, 'destroy'])->name('teaching-assignments.destroy');
+
+        // Section Classes — build a basic-ed section's classes (one per learning
+        // area, each with a teacher) + set the section adviser, in one form.
+        Route::get('sections/{section}/classes', [SectionClassesController::class, 'show'])->name('section-classes.show');
+        Route::post('sections/{section}/classes', [SectionClassesController::class, 'store'])->name('section-classes.store');
+
+        // Sectioning Workbench — place enrolled-but-unsectioned basic-ed
+        // students into their grade's published sections.
+        Route::get('sectioning', [SectioningController::class, 'index'])->name('sectioning.index');
+        Route::post('sectioning/assign', [SectioningController::class, 'assign'])->name('sectioning.assign');
+        Route::post('sectioning/distribute', [SectioningController::class, 'distribute'])->name('sectioning.distribute');
 
         // 1. Validate Enrollment
         Route::get('enrollments', [EnrollmentValidationController::class, 'index'])

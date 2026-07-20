@@ -28,6 +28,11 @@
             {{ session('error') }}
         </div>
     @endif
+    @if($errors->any())
+        <div class="mb-3 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-700">
+            <ul class="list-disc pl-5">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+        </div>
+    @endif
 
     @if($termId)
         <div class="grid grid-cols-2 gap-4 mb-4">
@@ -39,7 +44,8 @@
                 <input type="hidden" name="term_id" value="{{ $termId }}">
                 <h2 class="font-bold mb-2">Auto-generate from Curriculum</h2>
                 <p class="text-xs text-slate-500 mb-3">
-                    Creates one draft section per (program, year level) cohort using active program_subjects.
+                    Creates one draft section per cohort: (program, year level) from active
+                    program_subjects, and one per basic-ed grade level with an active curriculum.
                 </p>
                 <div class="grid grid-cols-2 gap-2 text-sm">
                     <div>
@@ -64,10 +70,13 @@
                 @csrf
                 <input type="hidden" name="term_id" value="{{ $termId }}">
                 <h2 class="font-bold mb-2">Create Section Manually</h2>
+                <p class="text-xs text-slate-500 mb-2">
+                    Pick a Program + Year (higher ed) <span class="font-bold">or</span> a Grade Level (basic ed).
+                </p>
                 <div class="grid grid-cols-3 gap-2 text-sm">
                     <div class="col-span-2">
                         <label class="text-xs font-bold">Program</label>
-                        <select name="program_id" required class="w-full border rounded-lg px-2 py-1.5">
+                        <select name="program_id" class="w-full border rounded-lg px-2 py-1.5">
                             <option value="">—</option>
                             @foreach($programs as $p)
                                 <option value="{{ $p->id }}">{{ $p->code }} — {{ $p->name }}</option>
@@ -76,8 +85,17 @@
                     </div>
                     <div>
                         <label class="text-xs font-bold">Year</label>
-                        <input type="number" min="1" max="8" name="year_level" required
+                        <input type="number" min="1" max="8" name="year_level"
                                class="w-full border rounded-lg px-2 py-1.5">
+                    </div>
+                    <div class="col-span-3">
+                        <label class="text-xs font-bold">Grade Level (Basic Ed)</label>
+                        <select name="education_node_id" class="w-full border rounded-lg px-2 py-1.5">
+                            <option value="">—</option>
+                            @foreach($gradeNodes as $g)
+                                <option value="{{ $g->id }}">{{ $g->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="col-span-2">
                         <label class="text-xs font-bold">Section Name</label>
@@ -123,7 +141,7 @@
         <table class="min-w-full text-sm">
             <thead class="text-left text-slate-500">
                 <tr>
-                    <th class="px-4 py-2">Program</th>
+                    <th class="px-4 py-2">Program / Grade</th>
                     <th class="px-4 py-2">Year</th>
                     <th class="px-4 py-2">Section</th>
                     <th class="px-4 py-2">Capacity</th>
@@ -134,8 +152,10 @@
             <tbody>
                 @forelse($sections as $s)
                     <tr class="border-t">
-                        <td class="px-4 py-2">{{ optional($s->program)->code ?? optional($s->program)->name ?? '—' }}</td>
-                        <td class="px-4 py-2">Y{{ $s->year_level }}</td>
+                        <td class="px-4 py-2">
+                            {{ $s->educationNode?->name ?? optional($s->program)->code ?? optional($s->program)->name ?? '—' }}
+                        </td>
+                        <td class="px-4 py-2">{{ $s->year_level ? 'Y'.$s->year_level : '—' }}</td>
                         <td class="px-4 py-2 font-bold">{{ $s->name }}</td>
                         <td class="px-4 py-2">{{ $s->capacity ?: '—' }}</td>
                         <td class="px-4 py-2">
@@ -148,6 +168,10 @@
                             @endif
                         </td>
                         <td class="px-4 py-2 text-right">
+                            @if($s->education_node_id)
+                                <a href="{{ route('registrar.section-classes.show', $s) }}"
+                                   class="text-xs text-indigo-600 hover:underline mr-2">Classes</a>
+                            @endif
                             @if($s->status === 'published')
                                 <form method="POST" action="{{ route('admission.sections.unpublish', $s) }}" class="inline">
                                     @csrf

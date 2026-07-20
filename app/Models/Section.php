@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Models\Traits\BelongsToSchool;
+use Illuminate\Database\Eloquent\Model;
 
 class Section extends Model
 {
@@ -14,6 +14,7 @@ class Section extends Model
     protected $fillable = [
         'school_id',
         'program_id',
+        'education_node_id',
         'name',
         'code',
         'term_id',
@@ -41,6 +42,12 @@ class Section extends Model
     public function program()
     {
         return $this->belongsTo(Program::class);
+    }
+
+    // Grade level this section belongs to (basic ed — Grade 1, Grade 7, …)
+    public function educationNode(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(EducationNode::class, 'education_node_id');
     }
 
     // Semester this section belongs to (1st Semester, 2nd Semester)
@@ -79,6 +86,4 @@ class Section extends Model
             'teacher_id'    // Local key on classes table
         );
     }
-
-    
 }

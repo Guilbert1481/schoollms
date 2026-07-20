@@ -572,6 +572,14 @@ return [
             'roles' => ['registrar'],
         ],
 
+        'registrar_sectioning' => [
+            'icon' => 'users',
+            'label' => 'Sectioning',
+            'route' => 'registrar.sectioning.index',
+            'active' => 'registrar.sectioning.*',
+            'roles' => ['registrar'],
+        ],
+
         'registrar_subject_credits' => [
             'icon' => 'book-open',
             'label' => 'Subject Credit Evaluation',

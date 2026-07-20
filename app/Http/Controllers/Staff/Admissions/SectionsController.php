@@ -29,7 +29,8 @@ class SectionsController extends Controller
         $sections = Section::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->when($termId, fn ($q) => $q->where('term_id', $termId))
-            ->with(['program:id,name,code'])
+            ->with(['program:id,name,code', 'educationNode:id,name'])
+            ->orderBy('education_node_id')
             ->orderBy('program_id')
             ->orderBy('year_level')
             ->orderBy('name')
@@ -40,15 +41,30 @@ class SectionsController extends Controller
             ->orderBy('code')
             ->get(['id', 'code', 'name']);
 
-        return view('admission.sections.index', compact('sections', 'terms', 'termId', 'programs'));
+        // Basic-ed grade levels that actually have a curriculum for this school.
+        $gradeNodes = DB::table('grade_level_subjects as gls')
+            ->join('subjects as s', 's.id', '=', 'gls.subject_id')
+            ->join('education_nodes as n', 'n.id', '=', 'gls.education_node_id')
+            ->where('gls.is_active', 1)
+            ->when($schoolId, fn ($q) => $q->where('s.school_id', $schoolId))
+            ->where('n.is_active', 1)
+            ->select('n.id', 'n.name')
+            ->groupBy('n.id', 'n.name')
+            ->orderBy('n.id')
+            ->get();
+
+        return view('admission.sections.index', compact('sections', 'terms', 'termId', 'programs', 'gradeNodes'));
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
             'term_id' => 'required|integer|exists:terms,id',
-            'program_id' => 'required|integer|exists:programs,id',
-            'year_level' => 'required|integer|min:1|max:8',
+            // A section belongs to a program cohort (higher ed) OR a grade
+            // level (basic ed) — exactly one of the two.
+            'program_id' => 'nullable|required_without:education_node_id|prohibits:education_node_id|integer|exists:programs,id',
+            'education_node_id' => 'nullable|integer|exists:education_nodes,id',
+            'year_level' => 'nullable|required_with:program_id|integer|min:1|max:8',
             'name' => 'required|string|max:50',
             'capacity' => 'nullable|integer|min:1|max:500',
         ]);
@@ -58,10 +74,11 @@ class SectionsController extends Controller
 
         Section::create([
             'school_id' => $schoolId,
-            'program_id' => $data['program_id'],
+            'program_id' => $data['program_id'] ?? null,
+            'education_node_id' => $data['education_node_id'] ?? null,
             'term_id' => $data['term_id'],
             'name' => $data['name'],
-            'year_level' => $data['year_level'],
+            'year_level' => $data['year_level'] ?? null,
             'capacity' => $data['capacity'] ?? 40,
             'is_active' => 0,
             'status' => 'draft',
