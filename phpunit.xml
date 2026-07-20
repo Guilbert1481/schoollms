@@ -35,6 +35,10 @@
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
+        <!-- M2: mandatory-staff-2FA enforcement is OFF for the suite at large
+             (hundreds of tests act as staff without an authenticator). The
+             dedicated TwoFactorEnforcementTest re-enables it via config(). -->
+        <env name="TWO_FACTOR_ENFORCE" value="false"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>

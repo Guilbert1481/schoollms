@@ -292,6 +292,11 @@ return Application::configure(basePath: dirname(__DIR__))
             // session that performed the change keeps working (hash re-stored
             // after each response).
             \Illuminate\Session\Middleware\AuthenticateSession::class,
+            // Two-factor gate (M2): challenges enrolled users once per session
+            // and locks 2FA-mandatory roles to the setup flow until enrolled.
+            \App\Http\Middleware\TwoFactorMiddleware::class,
+            // Baseline security headers, CSP report-only first (M3).
+            \App\Http\Middleware\SecurityHeaders::class,
         ]);
 
         $middleware->alias([

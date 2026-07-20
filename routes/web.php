@@ -1,22 +1,21 @@
 
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AssignableController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\OnboardingController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\SchoolRegistrationController;
-use App\Http\Controllers\Auth\OnboardingController;
 use App\Http\Controllers\Auth\StudentRegisterController;
-use App\Http\Controllers\SchoolController;
-use App\Http\Controllers\UserThemeController;
-use App\Http\Controllers\QuoteController;
-use App\Http\Controllers\AssignableController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\UserManagementController;
-use App\Http\Controllers\PDFController;
 use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\PDFController;
+use App\Http\Controllers\QuoteController;
+use App\Http\Controllers\SchoolController;
 use App\Http\Controllers\Tenancy\TlsCheckController;
-
+use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\UserThemeController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |-------------------------------------------------------------------------------------------
@@ -50,15 +49,23 @@ Route::post('{slug}/login', [LoginController::class, 'login'])->name('school.log
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
+// Two-Factor (M2) — enrolment, per-session challenge, recovery. Auth-only,
+// deliberately role-free: TwoFactorMiddleware funnels every enrolled or
+// 2FA-mandatory user here. POSTs share the login throttle.
+Route::middleware('auth')->prefix('2fa')->name('2fa.')->group(function () {
+    Route::get('/setup', [\App\Http\Controllers\Auth\TwoFactorController::class, 'setup'])->name('setup');
+    Route::post('/setup', [\App\Http\Controllers\Auth\TwoFactorController::class, 'confirmSetup'])->name('setup.confirm')->middleware('throttle:login');
+    Route::get('/verify', [\App\Http\Controllers\Auth\TwoFactorController::class, 'challenge'])->name('verify');
+    Route::post('/verify', [\App\Http\Controllers\Auth\TwoFactorController::class, 'verify'])->name('verify.post')->middleware('throttle:login');
+    Route::get('/recovery', [\App\Http\Controllers\Auth\TwoFactorController::class, 'recovery'])->name('recovery');
+    Route::post('/recovery', [\App\Http\Controllers\Auth\TwoFactorController::class, 'useRecovery'])->name('recovery.post')->middleware('throttle:login');
+});
+
 // Password Reset (M1 — self-service forgot/reset password; built-in broker)
-Route::get('/forgot-password',        [PasswordResetController::class, 'showLinkRequest'])->name('password.request');
-Route::post('/forgot-password',       [PasswordResetController::class, 'sendLink'])->name('password.email')->middleware('throttle:6,1');
+Route::get('/forgot-password', [PasswordResetController::class, 'showLinkRequest'])->name('password.request');
+Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])->name('password.email')->middleware('throttle:6,1');
 Route::get('/reset-password/{token}', [PasswordResetController::class, 'showReset'])->name('password.reset');
-Route::post('/reset-password',        [PasswordResetController::class, 'reset'])->name('password.update')->middleware('throttle:6,1');
-
-
-
-
+Route::post('/reset-password', [PasswordResetController::class, 'reset'])->name('password.update')->middleware('throttle:6,1');
 
 /*
 |--------------------------------------------------------------------------
@@ -70,15 +77,12 @@ Route::middleware(['auth', 'verified'])
     ->get('/dashboard', [DashboardController::class, 'index'])
     ->name('dashboard');
 
-
-
-
 /*
 |--------------------------------------------------------------------------
 | SETTINGS (Accessible to all authenticated users, but content varies by role)
 |--------------------------------------------------------------------------
 */
-    Route::middleware(['auth'])
+Route::middleware(['auth'])
     ->get('/settings', function () {
         return view('settings.index');
     })
@@ -96,7 +100,6 @@ Route::get('/register-institution', [SchoolRegistrationController::class, 'showR
 Route::post('/register-institution', [SchoolRegistrationController::class, 'register'])
     ->name('register.school.post');
 
-
 /*
 |--------------------------------------------------------------------------
 | ONBOARDING WIZARD
@@ -108,7 +111,6 @@ Route::middleware(['auth'])->prefix('onboarding')->group(function () {
     Route::post('/setup', [OnboardingController::class, 'setupEntity'])->name('onboarding.setup');
     Route::get('/success', [OnboardingController::class, 'showSuccess'])->name('onboarding.success');
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -131,8 +133,6 @@ Route::prefix('settings')
 
     });
 
-
-
 /*
 |--------------------------------------------------------------------------
 | Student Registration Routes
@@ -144,8 +144,6 @@ Route::get('/register/{term}', [StudentRegisterController::class, 'show'])
 
 Route::post('/register/{term}', [StudentRegisterController::class, 'store'])
     ->name('student.register.store');
-
-
 
 /*
 |--------------------------------------------------------------------------
@@ -163,19 +161,16 @@ Route::middleware(['auth', 'role:admin,superadmin'])->group(function () {
 
 });
 
-
 Route::middleware(['auth'])->group(function () {
     Route::get('/settings/theme', [UserThemeController::class, 'edit'])->name('theme.edit');
     Route::post('/settings/theme', [UserThemeController::class, 'update'])->name('theme.update');
 });
-
 
 /*
 |--------------------------------------------------------------------------
 | Admin Quote Management
 |--------------------------------------------------------------------------
 */
-
 
 Route::prefix('admin')
     ->name('admin.')
@@ -192,7 +187,7 @@ Route::prefix('admin')
             ->name('quotes.update-display');
 
         Route::get('/quotes/{quote}/edit', [QuoteController::class, 'edit'])
-         ->name('quotes.edit');
+            ->name('quotes.edit');
 
         Route::put('/quotes/{quote}', [QuoteController::class, 'update'])
             ->name('quotes.update');
@@ -215,28 +210,24 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/assignable-users', function (\Illuminate\Http\Request $request) {
         return \App\Models\User::when($request->search, function ($q) use ($request) {
-                $q->where('name', 'like', '%'.$request->search.'%');
-            })
+            $q->where('name', 'like', '%'.$request->search.'%');
+        })
             ->limit(10)
-            ->select('id','name')
+            ->select('id', 'name')
             ->get();
     });
 
     Route::get('/assignable-groups', function () {
-        return \App\Models\Group::select('id','name')->get();
+        return \App\Models\Group::select('id', 'name')->get();
     });
 
 });
-
-
-
-
 
 /*|--------------------------------------------------------------------------
 | SETTINGS - USER MANAGEMENT (Admin Only)
 |--------------------------------------------------------------------------*/
 
-    Route::prefix('settings')->name('settings.')->middleware(['auth', 'role:admin,superadmin'])->group(function () {
+Route::prefix('settings')->name('settings.')->middleware(['auth', 'role:admin,superadmin'])->group(function () {
 
     Route::get('/users', [UserManagementController::class, 'index'])
         ->name('users.index');
@@ -253,7 +244,6 @@ Route::middleware('auth')->group(function () {
     Route::delete('/users/{user}', [UserManagementController::class, 'delete'])
         ->name('users.delete');
 
-    
     Route::put('/users/{user}', [UserManagementController::class, 'update'])
         ->name('users.update');
 
@@ -270,78 +260,69 @@ Route::prefix('settings')->middleware(['auth', 'role:admin,superadmin'])->group(
         ->name('roles.destroy');
 });
 
-
 /*|--------------------------------------------------------------------------
     | PDF file
     |--------------------------------------------------------------------------*/
-    Route::get('/tests/{test}/pdf', [PDFController::class, 'downloadTestPdf'])
+Route::get('/tests/{test}/pdf', [PDFController::class, 'downloadTestPdf'])
     ->name('tests.pdf');
 
-
-
-    
     /*|--------------------------------------------------------------------------
-    | GLOBAL SEARCH
-    |--------------------------------------------------------------------------*/
-        Route::get('/global-search', [GlobalSearchController::class, 'search'])
-        ->name('global.search');
-    
+| GLOBAL SEARCH
+|--------------------------------------------------------------------------*/
+Route::get('/global-search', [GlobalSearchController::class, 'search'])
+    ->name('global.search');
 
+Route::post('/notifications/{id}/read', function ($id) {
+    $notification = auth()->user()
+        ->notifications()
+        ->where('id', $id)
+        ->firstOrFail();
 
+    $notification->markAsRead();
 
-    Route::post('/notifications/{id}/read', function ($id) {
-        $notification = auth()->user()
-            ->notifications()
-            ->where('id', $id)
-            ->firstOrFail();
+    return response()->json(['success' => true]);
+})->name('notifications.read');
 
-        $notification->markAsRead();
+Route::get('/notifications/feed', function () {
+    $user = auth()->user();
 
-        return response()->json(['success' => true]);
-    })->name('notifications.read');
+    $dbNotifications = \Illuminate\Support\Facades\DB::table('notifications')
+        ->where('notifiable_id', $user->id)
+        ->where('type', '!=', \App\Notifications\EnrollmentOpenNotification::class)
+        ->orderByDesc('created_at')
+        ->limit(10)
+        ->get()
+        ->map(function ($n) {
+            $data = json_decode($n->data);
 
-    Route::get('/notifications/feed', function () {
-        $user = auth()->user();
+            return [
+                'id' => $n->id,
+                'title' => $data->title ?? 'Notification',
+                'message' => $data->message ?? '',
+                'type' => $data->type ?? 'announcement',
+                'reference_id' => $data->reference_id ?? 0,
+                'term_id' => $data->term_id ?? null,
+                'academic_year_id' => $data->academic_year_id ?? null,
+                'read' => ! is_null($n->read_at),
+                'urgent' => false,
+                'days_left' => null,
+                'created_at' => $n->created_at,
+            ];
+        })
+        ->all();
 
-        $dbNotifications = \Illuminate\Support\Facades\DB::table('notifications')
-            ->where('notifiable_id', $user->id)
-            ->where('type', '!=', \App\Notifications\EnrollmentOpenNotification::class)
-            ->orderByDesc('created_at')
-            ->limit(10)
-            ->get()
-            ->map(function ($n) {
-                $data = json_decode($n->data);
-                return [
-                    'id'           => $n->id,
-                    'title'        => $data->title ?? 'Notification',
-                    'message'      => $data->message ?? '',
-                    'type'             => $data->type ?? 'announcement',
-                    'reference_id'     => $data->reference_id ?? 0,
-                    'term_id'          => $data->term_id ?? null,
-                    'academic_year_id' => $data->academic_year_id ?? null,
-                    'read'             => !is_null($n->read_at),
-                    'urgent'       => false,
-                    'days_left'    => null,
-                    'created_at'   => $n->created_at,
-                ];
-            })
-            ->all();
+    $virtual = \App\Support\EnrollmentNotifications::forUser($user);
 
-        $virtual = \App\Support\EnrollmentNotifications::forUser($user);
+    $notifications = array_merge($virtual, $dbNotifications);
 
-        $notifications = array_merge($virtual, $dbNotifications);
+    $count = \Illuminate\Support\Facades\DB::table('notifications')
+        ->where('notifiable_id', $user->id)
+        ->where('type', '!=', \App\Notifications\EnrollmentOpenNotification::class)
+        ->whereNull('read_at')
+        ->count() + count($virtual);
 
-        $count = \Illuminate\Support\Facades\DB::table('notifications')
-            ->where('notifiable_id', $user->id)
-            ->where('type', '!=', \App\Notifications\EnrollmentOpenNotification::class)
-            ->whereNull('read_at')
-            ->count() + count($virtual);
-
-        return response()->json([
-            'count'         => $count,
-            'notifications' => $notifications,
-        ]);
-    })->name('notifications.feed');
-    
-    
-    
+    return response()->json([
+        'count' => $count,
+        'notifications' => $notifications,
+    ]);
+})->name('notifications.feed');

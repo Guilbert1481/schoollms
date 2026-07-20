@@ -174,9 +174,21 @@ creates `login_logs` (+ `audit_logs` from Phase 3) — operator-run.
 
 ## Phase 5 — Production Hardening
 
-- [ ] **M3** Security-header middleware (CSP **report-only first**, `X-Frame-Options`, HSTS, `X-Content-Type-Options`).
-- [ ] **M3** Force `SESSION_SECURE_COOKIE=true` in prod (`config/session.php:172`); add `config/cors.php`.
-- [ ] **M2** Enforce 2FA (`pragmarx/google2fa` already installed) in `LoginController::handlePostLogin`.
+- [x] **M3** `SecurityHeaders` middleware on the `web` group: CSP **report-only** (tolerant of current
+  inline/CDN/ws debt so the report phase measures real violations — flip to enforcing after a clean
+  release), `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`,
+  `Permissions-Policy` (camera=self for OMR/QR), HSTS only on TLS/prod. Test `SecurityHeadersTest`.
+  *Completed 2026-07-20.*
+- [x] **M3** `SESSION_SECURE_COOKIE` now defaults ON in production (`config/session.php` — explicit env
+  still wins); added `config/cors.php` (empty allow-list — same-origin Blade app, nothing cross-origin).
+  *Completed 2026-07-20.*
+- [x] **M2** 2FA enforced via `TwoFactorMiddleware` on the `web` group (not just superadmin): enrolled
+  users of any role face the once-per-session challenge; `security.two_factor_mandatory_roles`
+  (superadmin/admin/finance_manager/registrar) are locked to `/2fa/setup` until enrolled, gated by
+  `security.enforce_2fa` (off for the suite via phpunit, on in prod). New `Auth\TwoFactorController`
+  (setup → confirm w/ 8 single-use recovery keys → challenge → recovery) + `/2fa/*` routes + views;
+  replaced the dead `route('2fa.verify')` the old middleware pointed at with nothing. Test
+  `TwoFactorEnforcementTest` 6/6. *Completed 2026-07-20.*
 
 - [x] **M6** Password-change/reset session eviction — `AuthenticateSession` appended to the `web`
   group (`bootstrap/app.php`) so changing/resetting a password logs out every other session for that

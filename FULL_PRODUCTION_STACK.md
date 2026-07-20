@@ -113,13 +113,14 @@ documents done (Phase 2); tenant coverage still expanding (~15/131 models → al
 - **Coarse:** `role:` middleware (`CheckRole`) on every non-public route group — sidebar hiding is
   never security. **Fine:** Policies for record-level ownership (intra-school IDOR — Roadmap
   Phase 2.5). Canonical snake_case role names; superadmin is exactly `superadmin`.
-- Privileged surfaces (superadmin settings, finance) additionally carry `2fa`; staff 2FA becomes
-  mandatory in Roadmap Phase 5 (M2).
+- Privileged surfaces (superadmin settings, finance) additionally carry `2fa`; staff 2FA is
+  mandatory (Roadmap Phase 5 / M2) — `TwoFactorMiddleware` on the web group locks
+  superadmin/admin/finance_manager/registrar to `/2fa/setup` until enrolled and challenges every
+  enrolled user once per session.
 - Password changes/resets evict other active sessions (`AuthenticateSession` — Roadmap M6).
 
-**Current status: ✅ / ⚠️** — role gating + throttle + reset flow done; record-level ownership
-Policies done (Phase 2.5, 2026-07-18: 8 Policies + route sweep, 3 IDORs fixed); staff-2FA
-enforcement (M2) pending.
+**Current status: ✅** — role gating + throttle + reset flow + record-level ownership Policies
+(Phase 2.5) + mandatory staff 2FA (Phase 5 / M2, 2026-07-20) all done.
 
 ### 5. Hosting & Deployment
 
