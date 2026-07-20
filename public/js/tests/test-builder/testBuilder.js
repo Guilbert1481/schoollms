@@ -269,6 +269,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
 
         addInputValidation();
+
+        // Title follows the deepest rendered source (topic → lesson → competency):
+        // each render refreshes it, but only while it's empty or still holding a
+        // previous auto-fill — a hand-typed title is never overwritten.
+        const titleInput = document.getElementById('test-title');
+        if (titleInput && rows.length &&
+            (!titleInput.value || titleInput.value === titleInput.dataset.autofilled)) {
+            titleInput.value = rows[0].source;
+            titleInput.dataset.autofilled = rows[0].source;
+        }
     });
 
     function renderCell(val, type) {

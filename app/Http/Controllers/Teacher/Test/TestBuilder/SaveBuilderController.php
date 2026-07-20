@@ -41,6 +41,7 @@ class SaveBuilderController extends Controller
         try {
             // Validation
             $validated = $request->validate([
+                'title' => 'nullable|string|max:255',
                 'class_id' => 'nullable|exists:classes,id',
                 'subject_id' => 'required|exists:subjects,id',
                 'topic_id' => 'nullable|exists:topics,id',
@@ -77,7 +78,7 @@ class SaveBuilderController extends Controller
                     'class_id' => $request->class_id ?: null,
                     'difficulty' => $request->difficulty,
                     'academic_levels' => $request->academic_levels,
-                    'title' => 'Untitled Test',
+                    'title' => $this->resolveTitle($request),
                     'status' => 'draft',
                     // Tag that makes this test's OMR scores feed the gradebook.
                     'grade_component_id' => $this->validComponentId($request->input('grade_component_id')),
@@ -212,6 +213,33 @@ class SaveBuilderController extends Controller
                 'message' => 'Error saving test: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * The test's title: whatever the teacher typed, else the name of the first
+     * saved source (the competency when the drill went that deep — the builder
+     * auto-fills the input the same way), else the old placeholder.
+     */
+    private function resolveTitle(Request $request): string
+    {
+        $typed = trim((string) $request->input('title', ''));
+        if ($typed !== '') {
+            return mb_substr($typed, 0, 255);
+        }
+
+        $first = collect($request->input('question_settings', []))->first();
+        $table = match ($first['source_type'] ?? null) {
+            'topic' => 'topics',
+            'lesson' => 'lessons',
+            'competency' => 'competencies',
+            default => null,
+        };
+
+        $name = $table
+            ? DB::table($table)->where('id', (int) ($first['source_id'] ?? 0))->value('name')
+            : null;
+
+        return $name ?: 'Untitled Test';
     }
 
     // NEW

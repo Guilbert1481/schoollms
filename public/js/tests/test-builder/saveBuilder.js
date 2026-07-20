@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const payload = {
             test_id: document.getElementById('testId')?.value || null,
+            title: document.getElementById('test-title')?.value.trim() || null,
             subject_id: document.getElementById('cd-subject')?.value || null,
             class_id: (classVal && classVal !== 'others') ? classVal : null,
             topic_id: document.getElementById('cd-topic')?.value || null,
