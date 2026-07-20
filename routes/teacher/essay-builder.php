@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\Teacher\Question\EssayController;
 
-Route::middleware(['auth', 'role:teacher,course_architect,trainor'])->prefix('teacher/tests')->group(function () {
+Route::middleware(['auth', 'role:teacher,course_architect,subject_coordinator,trainor'])->prefix('teacher/tests')->group(function () {
     Route::get('/essay', [EssayController::class, 'index'])->name('essay.builder');
     Route::post('/essay/save', [EssayController::class, 'saveEssay'])->name('essay.save');
     Route::post('/session/clear', [EssayController::class, 'clearQuestionSession']);

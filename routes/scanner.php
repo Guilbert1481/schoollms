@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('scan')
     ->name('scanner.')
-    ->middleware(['auth', 'role:teacher,course_architect,trainor', 'scanner.shell'])
+    ->middleware(['auth', 'role:teacher,course_architect,subject_coordinator,trainor', 'scanner.shell'])
     ->group(function () {
 
         // App home — pick one of my tests that has printed sheets.

@@ -8,7 +8,7 @@
         <div>
             <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
                 <i data-lucide="gauge" class="w-6 h-6 text-indigo-600"></i>
-                Course Architect Dashboard
+                {{ config('roles.catalog.'.auth()->user()->role.'.label', 'Course Architect') }} Dashboard
             </h1>
             <p class="text-sm text-slate-500 mt-1">Production stats &mdash; competency coverage, pending content, pipeline health.</p>
         </div>

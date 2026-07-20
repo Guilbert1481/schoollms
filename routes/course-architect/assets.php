@@ -1,10 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\CourseArchitect\ResourceVaultController;
 use App\Http\Controllers\CourseArchitect\MediaOptimizerController;
+use App\Http\Controllers\CourseArchitect\ResourceVaultController;
+use Illuminate\Support\Facades\Route;
 
-Route::middleware(['web', 'auth', 'role:course_architect'])
+Route::middleware(['web', 'auth', 'role:course_architect,subject_coordinator'])
     ->prefix('course-architect')
     ->name('course-architect.')
     ->group(function () {

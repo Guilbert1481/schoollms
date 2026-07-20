@@ -1,36 +1,33 @@
     <?php
 
-    use Illuminate\Support\Facades\Route;
-    use App\Http\Controllers\Teacher\Question\McqController;
     use App\Http\Controllers\Teacher\Question\AiQuestionController;
-    
+use App\Http\Controllers\Teacher\Question\McqController;
+use Illuminate\Support\Facades\Route;
 
-    /*
-    |--------------------------------------------------------------------------
-    | MCQ Builder Routes
-    |--------------------------------------------------------------------------
-    */
+/*
+|--------------------------------------------------------------------------
+| MCQ Builder Routes
+|--------------------------------------------------------------------------
+*/
 
-    Route::middleware(['auth', 'role:teacher,course_architect,trainor'])->prefix('teacher/tests')->group(function () {
-        
-        // URL: /teacher/tests/mcq-builder
-        Route::get('/mcq', [McqController::class, 'index'])
-            ->name('mcq.builder');
+Route::middleware(['auth', 'role:teacher,course_architect,subject_coordinator,trainor'])->prefix('teacher/tests')->group(function () {
 
-        // SAVE route (Must match what is in mcq.js)
-        Route::post('/mcq/save', [McqController::class, 'saveMcq'])
-            ->name('mcq.save');
+    // URL: /teacher/tests/mcq-builder
+    Route::get('/mcq', [McqController::class, 'index'])
+        ->name('mcq.builder');
 
-        // AI-assisted generation — fills the builder for the teacher to review.
-        Route::post('/mcq/ai-generate', [AiQuestionController::class, 'generateMcq'])
-            ->name('mcq.ai-generate');
+    // SAVE route (Must match what is in mcq.js)
+    Route::post('/mcq/save', [McqController::class, 'saveMcq'])
+        ->name('mcq.save');
 
-        Route::match(['get'], '/mcq/save', function () {
-            return response('Method Not Allowed', 405);
-        });
+    // AI-assisted generation — fills the builder for the teacher to review.
+    Route::post('/mcq/ai-generate', [AiQuestionController::class, 'generateMcq'])
+        ->name('mcq.ai-generate');
 
-            
-        // Session clear route
-        Route::post('/session/clear', [McqController::class, 'clearQuestionSession']);
+    Route::match(['get'], '/mcq/save', function () {
+        return response('Method Not Allowed', 405);
     });
 
+    // Session clear route
+    Route::post('/session/clear', [McqController::class, 'clearQuestionSession']);
+});

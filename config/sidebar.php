@@ -192,6 +192,20 @@ return [
             'logout',
         ],
 
+        // Basic-ed counterpart of the Course Architect — same module, scoped
+        // to Basic Education via user_education_scopes.
+        'subject_coordinator' => [
+            'ca_workspace',
+            'tests',
+            'ca_construction',
+            'ca_assets',
+            'ca_intelligence',
+            'communication',
+            'tools',
+            'settings',
+            'logout',
+        ],
+
         'guidance_counselor' => [
             'flagged_interventions',
             'communication',
@@ -828,7 +842,7 @@ return [
                     'route' => 'settings.profile',
 
                     'icon' => 'user',
-                    'roles' => ['admin', 'dean', 'principal', 'admission_manager', 'teacher', 'student', 'registrar', 'program_head', 'trainer', 'trainee', 'course_architect', 'guidance_counselor', 'superadmin', 'parent'],
+                    'roles' => ['admin', 'dean', 'principal', 'admission_manager', 'teacher', 'student', 'registrar', 'program_head', 'trainer', 'trainee', 'course_architect', 'subject_coordinator', 'guidance_counselor', 'superadmin', 'parent'],
                 ],
 
                 [

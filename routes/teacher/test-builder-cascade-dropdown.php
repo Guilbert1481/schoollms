@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'role:teacher,course_architect,trainor'])->group(function () {
+Route::middleware(['auth', 'role:teacher,course_architect,subject_coordinator,trainor'])->group(function () {
 
     // LEVEL(S) → SUBJECTS (only subjects with questions at the selected level[s])
     Route::get('/teacher/tests/available-subjects', [TestBuilderController::class, 'getAvailableSubjects'])

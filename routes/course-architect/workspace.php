@@ -1,11 +1,11 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CourseArchitect\DashboardController;
 use App\Http\Controllers\CourseArchitect\PathVisualizerController;
 use App\Http\Controllers\CourseArchitect\PreviewController;
+use Illuminate\Support\Facades\Route;
 
-Route::middleware(['web', 'auth', 'role:course_architect'])
+Route::middleware(['web', 'auth', 'role:course_architect,subject_coordinator'])
     ->prefix('course-architect')
     ->name('course-architect.')
     ->group(function () {

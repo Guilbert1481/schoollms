@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\Dashboard\KPIRegistry;
-use App\Services\Dashboard\ChartRegistry;
 use App\Services\Dashboard\AlertRegistry;
+use App\Services\Dashboard\ChartRegistry;
+use App\Services\Dashboard\KPIRegistry;
 
 class DashboardController extends Controller
 {
@@ -45,9 +45,9 @@ class DashboardController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $cards       = $kpiRegistry->getCards($user, $role);
+        $cards = $kpiRegistry->getCards($user, $role);
         $trendCharts = $chartRegistry->getCharts($user, $role);
-        $riskAlerts  = $alertRegistry->getAlerts($user, $role);
+        $riskAlerts = $alertRegistry->getAlerts($user, $role);
 
         /*
         |--------------------------------------------------------------------------
@@ -61,24 +61,25 @@ class DashboardController extends Controller
 
         // ✅ ROLE → VIEW MAPPING
         $viewMap = [
-            'superadmin'           => 'superadmin.dashboard',
-            'student'               => 'student.dashboard',
-            'teacher'               => 'teacher.dashboard',
-            'admin'                 => 'admin.dashboard',
-            'dean'                  => 'dean.dashboard',
-            'principal'             => 'principal.dashboard',
-            'trainee'               => 'training.trainee.dashboard',
-            'trainor'               => 'training.trainor.dashboard',
-            'admission_manager'     => 'admission.dashboard',
-            'admission_manager'     => 'admission.dashboard',
-            'program_head'          => 'program_head.dashboard',
+            'superadmin' => 'superadmin.dashboard',
+            'student' => 'student.dashboard',
+            'teacher' => 'teacher.dashboard',
+            'admin' => 'admin.dashboard',
+            'dean' => 'dean.dashboard',
+            'principal' => 'principal.dashboard',
+            'trainee' => 'training.trainee.dashboard',
+            'trainor' => 'training.trainor.dashboard',
+            'admission_manager' => 'admission.dashboard',
+            'admission_manager' => 'admission.dashboard',
+            'program_head' => 'program_head.dashboard',
             'training_program_head' => 'training.program_head.dashboard',
-            'course_architect'      => 'course-architect.dashboard',
-            'registrar'             => 'registrar.dashboard',
-            'finance_manager'       => 'finance.dashboard',
-            'counselor'             => 'counselor.dashboard',
-            'guidance_counselor'    => 'guidance_counselor.dashboard',
-            'staff'                 => 'staff.dashboard',
+            'course_architect' => 'course-architect.dashboard',
+            'subject_coordinator' => 'course-architect.dashboard',
+            'registrar' => 'registrar.dashboard',
+            'finance_manager' => 'finance.dashboard',
+            'counselor' => 'counselor.dashboard',
+            'guidance_counselor' => 'guidance_counselor.dashboard',
+            'staff' => 'staff.dashboard',
         ];
 
         // fallback if role not mapped

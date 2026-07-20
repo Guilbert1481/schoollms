@@ -44,7 +44,7 @@ return [
 
         // Basic Education (K-12, incl. Senior High).
         'principal' => ['label' => 'Principal', 'segment' => 'Basic Education'],
-        'subject_coordinator' => ['label' => 'Subject Coordinator (SHS)', 'segment' => 'Basic Education'],
+        'subject_coordinator' => ['label' => 'Subject Coordinator', 'segment' => 'Basic Education'],
 
         // Higher Education (college / university).
         'academics' => ['label' => 'VP Academics', 'segment' => 'Higher Education'],
