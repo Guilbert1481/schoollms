@@ -141,6 +141,9 @@ class TestManagementController extends Controller
                 : '<span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-600">'.e(ucfirst((string) $t->status)).'</span>');
 
         $actions = '<div class="flex items-center gap-1">'
+            .'<a href="'.e(route('teacher.tests.print-hub', $t->id)).'" title="Preview" target="_blank" rel="noopener"'
+            .' class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-600 hover:bg-sky-100">'
+            .'<i data-lucide="eye" class="h-4 w-4"></i></a>'
             .'<a href="'.e(route('teacher.tests.edit', $t->id)).'" title="Edit"'
             .' class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100">'
             .'<i data-lucide="pencil" class="h-4 w-4"></i></a>';
