@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Models\Traits\BelongsToSchool;
+use Illuminate\Database\Eloquent\Model;
 
 class Student extends Model
 {
@@ -50,6 +50,20 @@ class Student extends Model
         'zip_code',
     ];
 
+    /**
+     * Encryption at rest for crown-jewel PII (Roadmap D2). A minor's
+     * government-ID NUMBER is stored ciphertext via Laravel's `encrypted`
+     * cast — a DB-level leak yields no usable IDs. Safe to encrypt because
+     * the column is only ever written and displayed, never queried by value.
+     * NOTE: encrypted with APP_KEY, so APP_KEY rotation must re-encrypt these
+     * (P1 key-rotation procedure); existing rows are migrated by
+     * `students:encrypt-government-ids`. LRN is deliberately NOT encrypted —
+     * it is a functional identifier (ID-card barcode source, lookups).
+     */
+    protected $casts = [
+        'government_id_number' => 'encrypted',
+    ];
+
     public function school()
     {
         return $this->belongsTo(School::class);
@@ -64,7 +78,7 @@ class Student extends Model
     {
         return $this->hasMany(Application::class);
     }
-    
+
     /**
      * Helper to get full name in "Linear" style dashboards
      */
@@ -107,5 +121,4 @@ class Student extends Model
     {
         return $this->hasMany(StudentEnrollment::class);
     }
-
 }
