@@ -5,6 +5,7 @@
      x-data="{
          search: '',
          mode: '{{ session('mode', 'default') }}',
+         subjectId: {{ $groups->isNotEmpty() ? $groups->first()['id'] : 'null' }},
          openCreate: {{ $errors->any() ? 'true' : 'false' }},
          showHidden: false,
          viewC: null,
@@ -22,8 +23,8 @@
                  || (l.topic || '').toLowerCase().includes(q)
                  || l.competencies.some(c => (c.name || '').toLowerCase().includes(q) || (c.code || '').toLowerCase().includes(q));
          },
-         subjectCount(subject) {
-             return subject.lessons.filter(l => this.lessonMatches(l)).length;
+         currentSubject() {
+             return this.groups.find(s => s.id == this.subjectId) || null;
          },
          topicsOf(subject) {
              const map = {};
@@ -123,12 +124,24 @@
         </div>
     @endif
 
-    {{-- Control row: search (¼ width) on the left; Default/Mine filter + New Lesson on the right. --}}
+    {{-- Control row: search + subject picker on the left; Default/Mine filter + New Lesson on the right. --}}
     <div class="flex items-center justify-between gap-3">
-        <input type="text"
-               x-model="search"
-               placeholder="Search lessons..."
-               class="w-1/4 min-w-[180px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500" />
+        <div class="flex flex-wrap items-center gap-2">
+            <input type="text"
+                   x-model="search"
+                   placeholder="Search lessons..."
+                   class="w-56 min-w-[160px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500" />
+
+            @if($subjects->isNotEmpty())
+                {{-- Pick the subject whose Topic → Lesson tree is shown below. --}}
+                <select x-model="subjectId"
+                        class="min-w-[160px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <template x-for="subject in groups" :key="subject.id">
+                        <option :value="subject.id" x-text="subject.name"></option>
+                    </template>
+                </select>
+            @endif
+        </div>
 
         <div class="flex items-center gap-2">
             <label class="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer select-none mr-1">
@@ -157,137 +170,150 @@
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-10 text-center text-slate-400">
             <p class="text-sm">You have no subjects assigned yet. Ask your registrar to assign your teaching subjects.</p>
         </div>
-    @endif
+    @else
+        {{-- The selected subject's Topic → Lesson → Competency tree. Topics and
+             lessons are accordions, collapsed by default; an active search
+             auto-opens the topics and lessons that contain matches. --}}
+        <template x-if="currentSubject()">
+            <div class="space-y-3">
 
-    {{-- Subjects — collapsed by default (accordion). Click a subject to reveal its
-         Topic → Lesson → Competency tree; a search auto-opens matching subjects. --}}
-    <template x-for="subject in groups" :key="subject.id">
-        <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
-                 x-data="{ open: false }">
-
-            {{-- Accordion header --}}
-            <button type="button" @click="open = ! open"
-                    class="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left hover:bg-slate-50">
-                <h2 class="font-semibold text-slate-800" x-text="subject.name"></h2>
-                <div class="flex items-center gap-2 shrink-0">
-                    <span class="text-xs text-slate-500"
-                          x-text="subjectCount(subject) + (subjectCount(subject) === 1 ? ' lesson' : ' lessons')"></span>
-                    <svg class="w-4 h-4 text-slate-400 transition-transform duration-200"
-                         :class="(open || (search && subjectCount(subject) > 0)) && 'rotate-180'"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                    </svg>
-                </div>
-            </button>
-
-            {{-- Body: opens on click, and auto-opens while a search has matches. --}}
-            <div x-show="open || (search && subjectCount(subject) > 0)" x-collapse style="display: none;">
-                <div class="border-t border-slate-100 px-5 py-4 space-y-4">
-
-                    {{-- Empty state for the current mode / search --}}
-                    <template x-if="topicsOf(subject).length === 0">
+                {{-- Empty state for the current subject / mode / search --}}
+                <template x-if="topicsOf(currentSubject()).length === 0">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-10 text-center">
                         <p class="text-sm text-slate-400"
                            x-text="search ? 'No lessons match your search.'
                                           : (mode === 'mine' ? 'You haven\'t created any lessons here yet — click “New Lesson”.'
                                                              : 'No lessons yet.')"></p>
-                    </template>
+                    </div>
+                </template>
 
-                    {{-- TOPIC · time · competency count --}}
-                    <template x-for="topic in topicsOf(subject)" :key="topic.name">
-                        <div>
-                            <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                {{-- TOPIC accordion --}}
+                <template x-for="topic in topicsOf(currentSubject())" :key="topic.name">
+                    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
+                             x-data="{ open: false }">
+
+                        {{-- Topic header --}}
+                        <button type="button" @click="open = ! open"
+                                class="w-full flex items-center justify-between gap-3 px-5 py-3.5 text-left hover:bg-slate-50">
+                            <div class="flex items-center gap-2 min-w-0">
                                 <svg class="w-4 h-4 text-indigo-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
                                 </svg>
-                                <span class="text-sm font-semibold text-slate-800" x-text="topic.name"></span>
-                                <span class="text-xs text-slate-400"
-                                      x-text="'· ' + topic.updated + ' · ' + topic.competencyCount + (topic.competencyCount === 1 ? ' competency' : ' competencies')"></span>
+                                <span class="font-semibold text-slate-800 truncate" x-text="topic.name"></span>
                             </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="text-xs text-slate-400"
+                                      x-text="topic.updated + ' · ' + topic.competencyCount + (topic.competencyCount === 1 ? ' competency' : ' competencies')"></span>
+                                <svg class="w-4 h-4 text-slate-400 transition-transform duration-200"
+                                     :class="(open || search) && 'rotate-180'"
+                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </div>
+                        </button>
 
-                            {{-- LESSON (indented under the topic) --}}
-                            <div class="mt-2 ml-2 space-y-2 border-l border-slate-200 pl-4">
+                        {{-- Topic body: opens on click, auto-opens while a search has matches. --}}
+                        <div x-show="open || !!search" x-collapse style="display: none;">
+                            <div class="border-t border-slate-100 px-4 py-3 space-y-2">
+
+                                {{-- LESSON accordion (nested under the topic) --}}
                                 <template x-for="lesson in topic.lessons" :key="lesson.id">
-                                    <div>
-                                        <div class="flex items-center justify-between gap-2">
+                                    <div class="rounded-xl border border-slate-200 overflow-hidden"
+                                         x-data="{ lopen: false }">
+
+                                        {{-- Lesson header --}}
+                                        <button type="button" @click="lopen = ! lopen"
+                                                class="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left hover:bg-slate-50">
                                             <div class="flex items-center gap-2 min-w-0">
                                                 <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                                                 </svg>
                                                 <span class="text-sm font-medium text-slate-800 truncate" x-text="lesson.name"></span>
                                             </div>
-                                            <span class="text-[11px] px-2 py-0.5 rounded-full shrink-0"
-                                                  :class="lesson.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'"
-                                                  x-text="lesson.is_active ? 'Active' : 'Inactive'"></span>
-                                        </div>
+                                            <div class="flex items-center gap-2 shrink-0">
+                                                <span class="text-[11px] px-2 py-0.5 rounded-full"
+                                                      :class="lesson.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'"
+                                                      x-text="lesson.is_active ? 'Active' : 'Inactive'"></span>
+                                                <svg class="w-4 h-4 text-slate-400 transition-transform duration-200"
+                                                     :class="(lopen || search) && 'rotate-180'"
+                                                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                                </svg>
+                                            </div>
+                                        </button>
 
-                                        {{-- COMPETENCY (indented under the lesson) --}}
-                                        <div class="mt-1 ml-1.5 border-l border-slate-100 pl-4">
-                                            <template x-if="visibleComps(lesson).length === 0">
-                                                <p class="text-xs italic text-slate-400 py-0.5">No competencies.</p>
-                                            </template>
-                                            <template x-for="c in lesson.competencies" :key="c.id">
-                                                <div x-show="showHidden || ! c.hidden"
-                                                     class="flex items-start justify-between gap-2 py-0.5">
-                                                    {{-- Click the row to open the view modal. --}}
-                                                    <button type="button" @click="openView(c)"
-                                                            class="flex items-start gap-2 min-w-0 text-left flex-1">
-                                                        <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
-                                                              :class="c.hidden ? 'bg-slate-300' : 'bg-indigo-400'"></span>
-                                                        <span class="min-w-0 text-sm" :class="c.hidden && 'opacity-50'">
-                                                            <span x-show="c.code" class="mr-1 font-mono text-[11px] text-indigo-600" x-text="c.code"></span>
-                                                            <span class="text-slate-700" x-text="c.name"></span>
-                                                            <span x-show="c.bloom"
-                                                                  class="ml-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-slate-500"
-                                                                  x-text="c.bloom"></span>
-                                                            <span x-show="c.resources && c.resources.length" class="ml-1 text-[10px] text-slate-400">▦ media</span>
-                                                            <span x-show="c.mine" class="ml-1 text-[10px] text-emerald-600">• yours</span>
-                                                        </span>
-                                                    </button>
+                                        {{-- Lesson body: competencies + Add competency. --}}
+                                        <div x-show="lopen || !!search" x-collapse style="display: none;">
+                                            <div class="border-t border-slate-100 px-4 py-3">
 
-                                                    {{-- Kebab: View / Hide / Unhide / Delete --}}
-                                                    <div class="relative shrink-0" x-data="{ menu: false }" @click.outside="menu = false">
-                                                        <button type="button" @click="menu = ! menu"
-                                                                class="p-1 rounded hover:bg-slate-100 text-slate-400" aria-label="Actions">
-                                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                                <path d="M10 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 5.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 5.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/>
-                                                            </svg>
+                                                {{-- COMPETENCY list --}}
+                                                <template x-if="visibleComps(lesson).length === 0">
+                                                    <p class="text-xs italic text-slate-400 py-0.5">No competencies.</p>
+                                                </template>
+                                                <template x-for="c in lesson.competencies" :key="c.id">
+                                                    <div x-show="showHidden || ! c.hidden"
+                                                         class="flex items-start justify-between gap-2 py-0.5">
+                                                        {{-- Click the row to open the view modal. --}}
+                                                        <button type="button" @click="openView(c)"
+                                                                class="flex items-start gap-2 min-w-0 text-left flex-1">
+                                                            <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                                                                  :class="c.hidden ? 'bg-slate-300' : 'bg-indigo-400'"></span>
+                                                            <span class="min-w-0 text-sm" :class="c.hidden && 'opacity-50'">
+                                                                <span x-show="c.code" class="mr-1 font-mono text-[11px] text-indigo-600" x-text="c.code"></span>
+                                                                <span class="text-slate-700" x-text="c.name"></span>
+                                                                <span x-show="c.bloom"
+                                                                      class="ml-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-slate-500"
+                                                                      x-text="c.bloom"></span>
+                                                                <span x-show="c.resources && c.resources.length" class="ml-1 text-[10px] text-slate-400">▦ media</span>
+                                                                <span x-show="c.mine" class="ml-1 text-[10px] text-emerald-600">• yours</span>
+                                                            </span>
                                                         </button>
-                                                        <div x-show="menu" x-transition style="display:none;"
-                                                             class="absolute right-0 z-20 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-lg">
-                                                            <a :href="questionUrl(c)"
-                                                               class="block w-full px-3 py-1.5 text-left font-medium text-indigo-700 hover:bg-indigo-50">Create question</a>
-                                                            <button type="button" x-show="c.resources && c.resources.length"
-                                                                    @click="openView(c); menu = false"
-                                                                    class="block w-full px-3 py-1.5 text-left hover:bg-slate-50">View</button>
-                                                            <button type="button" x-show="! c.mine && ! c.hidden"
-                                                                    @click="hide(c); menu = false"
-                                                                    class="block w-full px-3 py-1.5 text-left hover:bg-slate-50">Hide</button>
-                                                            <button type="button" x-show="! c.mine && c.hidden"
-                                                                    @click="unhide(c); menu = false"
-                                                                    class="block w-full px-3 py-1.5 text-left hover:bg-slate-50">Unhide</button>
-                                                            <button type="button" x-show="c.mine"
-                                                                    @click="del(lesson, c); menu = false"
-                                                                    class="block w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50">Delete</button>
+
+                                                        {{-- Kebab: View / Hide / Unhide / Delete --}}
+                                                        <div class="relative shrink-0" x-data="{ menu: false }" @click.outside="menu = false">
+                                                            <button type="button" @click="menu = ! menu"
+                                                                    class="p-1 rounded hover:bg-slate-100 text-slate-400" aria-label="Actions">
+                                                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path d="M10 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 5.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 5.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/>
+                                                                </svg>
+                                                            </button>
+                                                            <div x-show="menu" x-transition style="display:none;"
+                                                                 class="absolute right-0 z-20 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 text-sm shadow-lg">
+                                                                <a :href="questionUrl(c)"
+                                                                   class="block w-full px-3 py-1.5 text-left font-medium text-indigo-700 hover:bg-indigo-50">Create question</a>
+                                                                <button type="button" x-show="c.resources && c.resources.length"
+                                                                        @click="openView(c); menu = false"
+                                                                        class="block w-full px-3 py-1.5 text-left hover:bg-slate-50">View</button>
+                                                                <button type="button" x-show="! c.mine && ! c.hidden"
+                                                                        @click="hide(c); menu = false"
+                                                                        class="block w-full px-3 py-1.5 text-left hover:bg-slate-50">Hide</button>
+                                                                <button type="button" x-show="! c.mine && c.hidden"
+                                                                        @click="unhide(c); menu = false"
+                                                                        class="block w-full px-3 py-1.5 text-left hover:bg-slate-50">Unhide</button>
+                                                                <button type="button" x-show="c.mine"
+                                                                        @click="del(lesson, c); menu = false"
+                                                                        class="block w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50">Delete</button>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </template>
+                                                </template>
 
-                                            {{-- Author your own competency under this lesson. --}}
-                                            <button type="button" @click="openAdd(lesson)"
-                                                    class="mt-1 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700">
-                                                <span class="text-sm leading-none">+</span> Add competency
-                                            </button>
+                                                {{-- Author your own competency under this lesson. --}}
+                                                <button type="button" @click="openAdd(lesson)"
+                                                        class="mt-1 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700">
+                                                    <span class="text-sm leading-none">+</span> Add competency
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </template>
                             </div>
                         </div>
-                    </template>
-                </div>
+                    </section>
+                </template>
             </div>
-        </section>
-    </template>
+        </template>
+    @endif
 
     {{-- Create Modal --}}
     <div x-show="openCreate"
