@@ -8,19 +8,20 @@ use App\Models\Test;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Rolls OMR-scanned test scores into the gradebook automatically — the test-side
- * twin of {@see HomeworkComponentFeed}. When a test is tagged with a grade
- * component, this recomputes each student's score for that component as
+ * Rolls test scores into the gradebook automatically — the test-side twin of
+ * {@see HomeworkComponentFeed}. When a test is tagged with a grade component, this
+ * recomputes each student's score for that component as
  *
  *     Σ(raw_score) ÷ Σ(max_score) × 100
  *
- * over every graded test they have sat for that component, and writes it into
- * component_scores — the same table the gradebook reads — so a scanned answer sheet
- * turns into a grade with no re-keying.
+ * over every test they have sat for that component, and writes it into
+ * component_scores — the same table the gradebook reads.
  *
- * Scores come from omr_results (one per sheet, and a re-scan overwrites its result
- * in place), so a corrected scan is picked up on the next sync. A component the
- * teacher drives with tests should not also be entered by hand; the last write wins.
+ * Both delivery modes feed the SAME grade, from their own source: F2F from
+ * omr_results (per sheet), online from test_attempts (the student's latest submitted
+ * attempt per test). A given test is only ever one mode, so summing both is safe —
+ * one source is empty. Online attempts count while still provisional (essays
+ * pending), so the entry re-fires and finalises when the teacher grades them.
  */
 class TestComponentFeed
 {
@@ -77,22 +78,38 @@ class TestComponentFeed
         }
 
         foreach ($studentIds as $studentId) {
-            $totals = DB::table('omr_results as r')
+            // F2F: sum the OMR results for this student's sheets.
+            $omr = DB::table('omr_results as r')
                 ->join('omr_sheets as s', 's.id', '=', 'r.omr_sheet_id')
                 ->whereIn('s.test_id', $testIds)
                 ->where('s.student_id', $studentId)
                 ->selectRaw('COALESCE(SUM(r.raw_score), 0) AS earned, COALESCE(SUM(r.max_score), 0) AS possible')
                 ->first();
 
-            $possible = (float) ($totals->possible ?? 0);
+            // Online: the student's LATEST submitted attempt per test (retakes → last one).
+            $latestAttemptIds = DB::table('test_attempts')
+                ->whereIn('test_id', $testIds)
+                ->where('student_id', $studentId)
+                ->whereIn('status', ['submitted', 'graded'])
+                ->groupBy('test_id')
+                ->selectRaw('MAX(id) AS id')
+                ->pluck('id');
+
+            $online = DB::table('test_attempts')
+                ->whereIn('id', $latestAttemptIds)
+                ->selectRaw('COALESCE(SUM(raw_score), 0) AS earned, COALESCE(SUM(max_score), 0) AS possible')
+                ->first();
+
+            $earned = (float) $omr->earned + (float) $online->earned;
+            $possible = (float) $omr->possible + (float) $online->possible;
 
             if ($possible <= 0) {
-                continue; // nothing scanned for this student yet
+                continue; // nothing taken by this student yet
             }
 
             ComponentScore::updateOrCreate($key((int) $studentId), [
                 'school_id' => (int) $class->school_id,
-                'score' => round((float) $totals->earned / $possible * 100, 2),
+                'score' => round($earned / $possible * 100, 2),
             ]);
         }
     }

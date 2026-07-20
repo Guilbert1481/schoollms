@@ -22,6 +22,8 @@ class TestSetting extends Model
         'shuffle_mcq_choices',
         'start_at',
         'end_at',
+        'availability_mode',
+        'duration_minutes',
         'mode',
         'term',
         'assessment_type',
@@ -32,6 +34,9 @@ class TestSetting extends Model
         'shuffle_mcq_choices' => 'boolean',
         'start_at' => 'datetime',
         'end_at' => 'datetime',
+        'duration_minutes' => 'integer',
+        'timer_minutes' => 'integer',
+        'attempts_allowed' => 'integer',
         'term' => 'string',
     ];
 
