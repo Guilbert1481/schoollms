@@ -59,7 +59,7 @@ jobs:
       # Feature tests that render Blade views need the Vite manifest — build
       # assets first.
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: npm
@@ -168,7 +168,7 @@ jobs:
         run: composer audit --no-interaction
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: npm
