@@ -213,11 +213,13 @@ class EnrollmentController extends Controller
 
         if ($request->hasFile('id_file') && blank($student->photo_id)) {
             // Government ID: validated + re-encoded if an image (H3), on the
-            // PRIVATE disk, served only via documents.student-id (C2).
+            // PRIVATE disk, served only via documents.student-id (C2), and
+            // ENCRYPTED at rest (D2b — crown-jewel minor PII).
             $student->photo_id = $secureUpload->storeImageOrDocument(
                 $request->file('id_file'),
                 'id_documents',
                 'local',
+                encrypt: true,
             );
         }
 
@@ -752,11 +754,13 @@ class EnrollmentController extends Controller
                     $documents[$doc['key']] = [
                         'label' => $doc['label'],
                         // Validated + re-encoded if image (H3); private disk,
-                        // served via documents.enrollment (C2).
+                        // served via documents.enrollment (C2); encrypted at
+                        // rest (D2b — registrar-required PII documents).
                         'path' => $secureUpload->storeImageOrDocument(
                             $file,
                             'enrollment-documents/'.(int) $term->school_id,
                             'local',
+                            encrypt: true,
                         ),
                     ];
                 }

@@ -3,6 +3,7 @@
 namespace App\Services\Uploads;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\ImageManager;
@@ -33,6 +34,10 @@ class SecureUpload
      * (relative to the disk), or null when no file was provided.
      *
      * @param  string  $format  Output format to normalize to (jpg|png|webp).
+     * @param  bool  $encrypt  Encrypt the stored bytes at rest (D2b — for
+     *                         crown-jewel files like government IDs). Serving
+     *                         code (SecureDocumentController) transparently
+     *                         decrypts.
      */
     public function storeImage(
         ?UploadedFile $file,
@@ -40,6 +45,7 @@ class SecureUpload
         string $disk = 'public',
         string $format = 'jpg',
         ?int $maxWidth = 2000,
+        bool $encrypt = false,
     ): ?string {
         if (! $file) {
             return null;
@@ -54,14 +60,14 @@ class SecureUpload
             $image->scaleDown(width: $maxWidth);
         }
 
-        $encoded = match ($format) {
+        $encoded = (string) match ($format) {
             'png' => $image->toPng(),
             'webp' => $image->toWebp(quality: 85),
             default => $image->toJpeg(quality: 85),
         };
 
         $path = rtrim($directory, '/').'/'.Str::random(40).'.'.$format;
-        Storage::disk($disk)->put($path, (string) $encoded);
+        Storage::disk($disk)->put($path, $encrypt ? Crypt::encryptString($encoded) : $encoded);
 
         return $path;
     }
@@ -75,6 +81,7 @@ class SecureUpload
         string $directory,
         string $disk = 'local',
         array $allowed = self::DOCUMENT_MIMES,
+        bool $encrypt = false,
     ): ?string {
         if (! $file) {
             return null;
@@ -84,11 +91,18 @@ class SecureUpload
 
         $ext = strtolower($file->getClientOriginalExtension());
         $path = rtrim($directory, '/').'/'.Str::random(40).'.'.$ext;
-        Storage::disk($disk)->putFileAs(
-            rtrim($directory, '/'),
-            $file,
-            basename($path),
-        );
+
+        if ($encrypt) {
+            // Encrypt-at-rest (D2b): read the validated bytes and store
+            // ciphertext instead of the raw file.
+            Storage::disk($disk)->put($path, Crypt::encryptString((string) file_get_contents($file->getRealPath())));
+        } else {
+            Storage::disk($disk)->putFileAs(
+                rtrim($directory, '/'),
+                $file,
+                basename($path),
+            );
+        }
 
         return $path;
     }
@@ -101,6 +115,7 @@ class SecureUpload
         ?UploadedFile $file,
         string $directory,
         string $disk = 'local',
+        bool $encrypt = false,
     ): ?string {
         if (! $file) {
             return null;
@@ -111,8 +126,8 @@ class SecureUpload
         $ext = strtolower($file->getClientOriginalExtension());
 
         return in_array($ext, self::DOCUMENT_MIMES, true)
-            ? $this->storeDocument($file, $directory, $disk)
-            : $this->storeImage($file, $directory, $disk);
+            ? $this->storeDocument($file, $directory, $disk, self::DOCUMENT_MIMES, $encrypt)
+            : $this->storeImage($file, $directory, $disk, encrypt: $encrypt);
     }
 
     /**

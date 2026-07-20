@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Documents;
 use App\Http\Controllers\Controller;
 use App\Models\EnrollmentDocument;
 use App\Models\Student;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -41,6 +43,11 @@ class SecureDocumentController extends Controller
     /**
      * Stream the file from the private disk; fall back to the legacy public
      * location for files not yet moved by `documents:relocate-private`.
+     *
+     * Files stored after D2b are encrypted at rest, so the bytes are decrypted
+     * on the way out. Legacy plaintext files (pre-D2b, not yet run through the
+     * `documents:encrypt-id-files` backfill) fail the decrypt and are streamed
+     * as-is — so serving stays backward-compatible during the migration.
      */
     private function serve(?string $path): Response
     {
@@ -48,10 +55,33 @@ class SecureDocumentController extends Controller
 
         foreach (['local', 'public'] as $disk) {
             if (Storage::disk($disk)->exists($path)) {
-                return Storage::disk($disk)->response($path);
+                $bytes = $this->maybeDecrypt(Storage::disk($disk)->get($path));
+
+                return response($bytes, 200, ['Content-Type' => $this->mimeFor($path)]);
             }
         }
 
         abort(404);
+    }
+
+    /** Decrypt D2b ciphertext; pass legacy plaintext through untouched. */
+    private function maybeDecrypt(string $raw): string
+    {
+        try {
+            return Crypt::decryptString($raw);
+        } catch (DecryptException) {
+            return $raw;
+        }
+    }
+
+    private function mimeFor(string $path): string
+    {
+        return match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
+            'pdf' => 'application/pdf',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            default => 'image/jpeg',
+        };
     }
 }
