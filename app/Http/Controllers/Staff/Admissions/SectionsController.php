@@ -131,7 +131,9 @@ class SectionsController extends Controller
         $count = Section::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->where('term_id', $request->integer('term_id'))
-            ->where('status', 'draft')
+            // Same predicate the page renders as "Draft": anything neither
+            // published nor archived, so stray legacy statuses get swept too.
+            ->whereNotIn('status', ['published', 'archived'])
             ->update(['status' => 'published', 'is_active' => 1, 'updated_at' => now()]);
 
         return back()->with('success', "Published {$count} draft section(s).");

@@ -12,10 +12,10 @@ use App\Models\User;
 use App\Support\EducationLevels;
 use App\Support\EnrollmentStatuses;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -40,14 +40,14 @@ class StudentLedgerController extends Controller
             ->get(['id', 'name']);
 
         $nodeToRoot = $this->buildNodeRootMap();
-        $showTabs   = $levels->count() > 1;
+        $showTabs = $levels->count() > 1;
 
         // Lookup of root-level id => name so we can detect Basic Education
         // rows in O(1) when formatting the Year/Term cell.
         $rootNameById = $levels->pluck('name', 'id')->all();
 
-        $levelParam    = $request->query('level');
-        $showAll       = $levelParam === null
+        $levelParam = $request->query('level');
+        $showAll = $levelParam === null
             || $levelParam === ''
             || strtolower((string) $levelParam) === 'all';
         $activeLevelId = $showAll ? 0 : (int) $levelParam;
@@ -55,7 +55,7 @@ class StudentLedgerController extends Controller
         // Status filter (taxonomy). Defaults to "Enrolled" so the page keeps its
         // historical behaviour; the dropdown lets the registrar switch to any
         // ledger-group status (Graduated, On Leave, Dropped, …) or "All".
-        $statusFilter  = $request->query('status') ?: 'enrolled';
+        $statusFilter = $request->query('status') ?: 'enrolled';
         $statusOptions = EnrollmentStatuses::options('ledger');
         if ($statusFilter !== 'all' && ! array_key_exists($statusFilter, $statusOptions)) {
             $statusFilter = 'enrolled';
@@ -95,8 +95,8 @@ class StudentLedgerController extends Controller
 
         // "Basic Education" view: either the active tab is basic, or the school
         // offers only one level and it is basic.
-        $activeLevel    = $levels->firstWhere('id', $activeLevelId);
-        $singleLevel    = $levels->count() === 1 ? $levels->first() : null;
+        $activeLevel = $levels->firstWhere('id', $activeLevelId);
+        $singleLevel = $levels->count() === 1 ? $levels->first() : null;
         $effectiveLevel = $showAll ? $singleLevel : $activeLevel;
         $activeLevelIsBasic = $effectiveLevel
             && str_contains(strtolower((string) $effectiveLevel->name), 'basic');
@@ -163,12 +163,12 @@ class StudentLedgerController extends Controller
         // Per-row action — opens the Change Status modal so the registrar can move
         // a student to Graduated / On Leave / Dropped / etc.
         $actions = [[
-            'type'    => 'js',
-            'name'    => 'change-status',
-            'label'   => 'Change Status',
+            'type' => 'js',
+            'name' => 'change-status',
+            'label' => 'Change Status',
             'handler' => 'openChangeStatusModal',
-            'icon'    => 'refresh-cw',
-            'class'   => 'text-indigo-600 hover:bg-indigo-50',
+            'icon' => 'refresh-cw',
+            'class' => 'text-indigo-600 hover:bg-indigo-50',
         ]];
 
         // Columns. Basic Education uses a dedicated set (Student ID, Full Name,
@@ -194,7 +194,7 @@ class StudentLedgerController extends Controller
             if ($showAll) {
                 $columns = array_map(function ($c) {
                     if (($c['key'] ?? null) === 'program') {
-                        $c['key']   = 'level';
+                        $c['key'] = 'level';
                         $c['label'] = 'Level';
                     }
 
@@ -264,34 +264,34 @@ class StudentLedgerController extends Controller
             ->contains(fn ($l) => ! str_contains(strtolower((string) $l->name), 'basic'));
 
         return view('registrar.student_ledgers.index', [
-            'columns'            => $columns,
-            'levels'             => $levels,
-            'activeLevelId'      => $activeLevelId,
-            'showAll'            => $showAll,
-            'showTabs'           => $showTabs,
-            'levelTitle'         => $levelTitle,
-            'rows'               => $finalRows,
-            'counts'             => $counts,
-            'total'              => $items->count(),
-            'importTerms'        => $importTerms,
-            'academicYears'      => $academicYears,
-            'yearLevelOptions'   => $yearLevelOptions,
-            'academicYearId'     => $academicYearId,
-            'yearLevel'          => $yearLevelFilter,
+            'columns' => $columns,
+            'levels' => $levels,
+            'activeLevelId' => $activeLevelId,
+            'showAll' => $showAll,
+            'showTabs' => $showTabs,
+            'levelTitle' => $levelTitle,
+            'rows' => $finalRows,
+            'counts' => $counts,
+            'total' => $items->count(),
+            'importTerms' => $importTerms,
+            'academicYears' => $academicYears,
+            'yearLevelOptions' => $yearLevelOptions,
+            'academicYearId' => $academicYearId,
+            'yearLevel' => $yearLevelFilter,
             'activeLevelIsBasic' => $activeLevelIsBasic,
-            'programOptions'     => $programOptions,
-            'programId'          => $programId,
-            'showProgramFilter'  => $showProgramFilter,
-            'sectionOptions'     => $sectionOptions,
-            'sectionId'          => $sectionId,
-            'statusOptions'      => $statusOptions,
-            'statusFilter'       => $statusFilter,
-            'actions'            => $actions,
-            'ledgerStudents'     => $ledgerStudents,
-            'tableEmptyMessage'  => $tableEmptyMessage,
-            'importAcademicYears'  => $importAcademicYears,
+            'programOptions' => $programOptions,
+            'programId' => $programId,
+            'showProgramFilter' => $showProgramFilter,
+            'sectionOptions' => $sectionOptions,
+            'sectionId' => $sectionId,
+            'statusOptions' => $statusOptions,
+            'statusFilter' => $statusFilter,
+            'actions' => $actions,
+            'ledgerStudents' => $ledgerStudents,
+            'tableEmptyMessage' => $tableEmptyMessage,
+            'importAcademicYears' => $importAcademicYears,
             'showImportTermNumber' => $showImportTermNumber,
-            'importGradeOptions'   => EducationLevels::basicGradeOptions(),
+            'importGradeOptions' => EducationLevels::basicGradeOptions(),
         ]);
     }
 
@@ -326,12 +326,12 @@ class StudentLedgerController extends Controller
 
         // "Current Grade Level": Grade N for Basic Education, else Year N.
         $nodeToRoot = $this->buildNodeRootMap();
-        $rootId     = $enr
+        $rootId = $enr
             ? ($nodeToRoot[$enr->education_node_id ?? null] ?? $nodeToRoot[$enr->program_node_id ?? null] ?? null)
             : null;
-        $rootName   = $rootId ? DB::table('education_nodes')->where('id', $rootId)->value('name') : null;
-        $isBasic    = $rootName && str_contains(strtolower((string) $rootName), 'basic');
-        $yearLevel  = $enr->year_level ?? null;
+        $rootName = $rootId ? DB::table('education_nodes')->where('id', $rootId)->value('name') : null;
+        $isBasic = $rootName && str_contains(strtolower((string) $rootName), 'basic');
+        $yearLevel = $enr->year_level ?? null;
         $gradeLevel = ($yearLevel !== null && $yearLevel !== '')
             ? (is_numeric($yearLevel) ? ($isBasic ? 'Grade ' : 'Year ').(int) $yearLevel : (string) $yearLevel)
             : '—';
@@ -347,29 +347,29 @@ class StudentLedgerController extends Controller
 
         // Name as "Last, First Middle".
         $firstMid = trim(implode(' ', array_filter([$student->first_name, $student->middle_name])));
-        $name     = $student->last_name
+        $name = $student->last_name
             ? $student->last_name.($firstMid !== '' ? ', '.$firstMid : '')
             : ($firstMid !== '' ? $firstMid : ($student->student_number ?? 'Student'));
 
         $dash = fn ($v) => ($v !== null && $v !== '') ? $v : '—';
 
         $header = [
-            'name'          => $name,
-            'photo'         => $student->photo_path ?: null,
-            'is_basic'      => (bool) $isBasic,
-            'status_key'    => EnrollmentStatuses::resolveKey($student->status ?? null, $enr->enrollment_status ?? null),
-            'student_id'    => $dash($student->student_number),
-            'lrn'           => $dash($student->lrn),
+            'name' => $name,
+            'photo' => $student->photo_path ?: null,
+            'is_basic' => (bool) $isBasic,
+            'status_key' => EnrollmentStatuses::resolveKey($student->status ?? null, $enr->enrollment_status ?? null),
+            'student_id' => $dash($student->student_number),
+            'lrn' => $dash($student->lrn),
             'date_of_birth' => $student->date_of_birth ? \Carbon\Carbon::parse($student->date_of_birth)->format('M d, Y') : '—',
-            'gender'        => $dash($student->gender ? ucfirst((string) $student->gender) : null),
-            'grade_level'   => $gradeLevel,
-            'section'       => $dash($enr->section_name ?? null),
+            'gender' => $dash($student->gender ? ucfirst((string) $student->gender) : null),
+            'grade_level' => $gradeLevel,
+            'section' => $dash($enr->section_name ?? null),
             'academic_year' => $dash($enr->academic_year_name ?? null),
-            'term'          => $enr->term_name ?? null,
+            'term' => $enr->term_name ?? null,
         ];
 
         // ---- Profile tab data -------------------------------------------------
-        $schoolId   = (int) auth()->user()->school_id;
+        $schoolId = (int) auth()->user()->school_id;
         $idSettings = StudentIdSetting::forSchool($schoolId);
 
         // Guardians: parents (non-emergency) and the emergency contact.
@@ -381,19 +381,19 @@ class StudentLedgerController extends Controller
             $parentRows = $guardians->values();
         }
         $parents = $parentRows->map(fn ($g) => (object) [
-            'name'         => $gname($g),
+            'name' => $gname($g),
             'relationship' => $g->relationship ?: ($g->type ?: '—'),
-            'contact'      => $g->mobile_number ?: ($g->landline_number ?: '—'),
-            'email'        => $g->email ?: '—',
-            'occupation'   => $g->occupation ?: '—',
+            'contact' => $g->mobile_number ?: ($g->landline_number ?: '—'),
+            'email' => $g->email ?: '—',
+            'occupation' => $g->occupation ?: '—',
         ]);
 
         $emg = $guardians->firstWhere('is_emergency_contact', 1) ?: $guardians->firstWhere('is_primary', 1);
         $emergency = $emg ? (object) [
-            'name'         => $gname($emg),
+            'name' => $gname($emg),
             'relationship' => $emg->relationship ?: '—',
-            'contact'      => $emg->mobile_number ?: ($emg->landline_number ?: '—'),
-            'email'        => $emg->email ?: '—',
+            'contact' => $emg->mobile_number ?: ($emg->landline_number ?: '—'),
+            'email' => $emg->email ?: '—',
         ] : null;
 
         $homeAddress = trim(implode(', ', array_filter([
@@ -415,34 +415,34 @@ class StudentLedgerController extends Controller
             ->whereNotNull('year_level')->distinct()->count('year_level');
 
         $profile = [
-            'full_name'            => $header['name'],
-            'date_of_birth'        => $header['date_of_birth'],
-            'place_of_birth'       => $dash($student->place_of_birth),
-            'gender'               => $header['gender'],
-            'nationality'          => $dash($student->nationality),
-            'religion'             => $dash($student->religion),
-            'blood_type'           => $dash($student->blood_type),
-            'email'                => $dash($student->email),
-            'lrn'                  => $header['lrn'],
-            'student_id'           => $header['student_id'],
-            'grade_level'          => $header['grade_level'],
-            'section'              => $header['section'],
-            'program'              => $dash($programLabel),
-            'academic_year'        => $header['academic_year'],
-            'term'                 => $termClean,
-            'status'               => $statusLabel,
+            'full_name' => $header['name'],
+            'date_of_birth' => $header['date_of_birth'],
+            'place_of_birth' => $dash($student->place_of_birth),
+            'gender' => $header['gender'],
+            'nationality' => $dash($student->nationality),
+            'religion' => $dash($student->religion),
+            'blood_type' => $dash($student->blood_type),
+            'email' => $dash($student->email),
+            'lrn' => $header['lrn'],
+            'student_id' => $header['student_id'],
+            'grade_level' => $header['grade_level'],
+            'section' => $header['section'],
+            'program' => $dash($programLabel),
+            'academic_year' => $header['academic_year'],
+            'term' => $termClean,
+            'status' => $statusLabel,
             'date_of_registration' => $student->created_at ? \Carbon\Carbon::parse($student->created_at)->format('M d, Y') : '—',
-            'home_address'         => $homeAddress !== '' ? $homeAddress : '—',
-            'phone'                => $dash($student->mobile_number ?: $student->phone),
-            'alternate'            => $dash($student->landline_number),
+            'home_address' => $homeAddress !== '' ? $homeAddress : '—',
+            'phone' => $dash($student->mobile_number ?: $student->phone),
+            'alternate' => $dash($student->landline_number),
         ];
 
         $quick = [
-            'age'               => $student->date_of_birth ? \Carbon\Carbon::parse($student->date_of_birth)->age.' years old' : '—',
-            'current_status'    => $statusLabel,
+            'age' => $student->date_of_birth ? \Carbon\Carbon::parse($student->date_of_birth)->age.' years old' : '—',
+            'current_status' => $statusLabel,
             'total_enrollments' => $totalEnrollments,
-            'promotions'        => max(0, $distinctYears - 1),
-            'last_updated'      => $student->updated_at ? \Carbon\Carbon::parse($student->updated_at)->format('M d, Y g:i A') : '—',
+            'promotions' => max(0, $distinctYears - 1),
+            'last_updated' => $student->updated_at ? \Carbon\Carbon::parse($student->updated_at)->format('M d, Y g:i A') : '—',
         ];
 
         $barcode = $idSettings->barcode_source === 'student_number'
@@ -450,25 +450,25 @@ class StudentLedgerController extends Controller
             : ($student->lrn ?: $student->student_number ?: '');
 
         $idCard = [
-            'orientation'   => $idSettings->orientation,
-            'show_back'     => (bool) $idSettings->show_back,
-            'school_name'   => DB::table('schools')->where('id', $schoolId)->value('school_name') ?: 'School',
-            'photo'         => $header['photo'],
-            'name'          => $header['name'],
-            'student_id'    => $header['student_id'],
+            'orientation' => $idSettings->orientation,
+            'show_back' => (bool) $idSettings->show_back,
+            'school_name' => DB::table('schools')->where('id', $schoolId)->value('school_name') ?: 'School',
+            'photo' => $header['photo'],
+            'name' => $header['name'],
+            'student_id' => $header['student_id'],
             'grade_section' => trim(($header['grade_level'] !== '—' ? $header['grade_level'] : '')
                                 .($header['section'] !== '—' ? ' - '.$header['section'] : ''), ' -') ?: '—',
-            'barcode'       => $barcode ?: '—',
+            'barcode' => $barcode ?: '—',
         ];
 
         return view('registrar.student_ledgers.show', [
-            'student'   => $student,
-            'header'    => $header,
-            'profile'   => $profile,
-            'parents'   => $parents,
+            'student' => $student,
+            'header' => $header,
+            'profile' => $profile,
+            'parents' => $parents,
             'emergency' => $emergency,
-            'quick'     => $quick,
-            'idCard'    => $idCard,
+            'quick' => $quick,
+            'idCard' => $idCard,
         ]);
     }
 
@@ -479,7 +479,7 @@ class StudentLedgerController extends Controller
      */
     protected function ledgerSelectRows(int $schoolId): \Illuminate\Support\Collection
     {
-        $ledgerEnrollDb  = EnrollmentStatuses::dbValuesForGroup('ledger');
+        $ledgerEnrollDb = EnrollmentStatuses::dbValuesForGroup('ledger');
         $ledgerStudentDb = EnrollmentStatuses::studentDbValuesForGroup('ledger');
 
         return DB::table('students as st')
@@ -493,7 +493,7 @@ class StudentLedgerController extends Controller
             ->where('st.school_id', $schoolId)
             ->where(function ($w) use ($ledgerEnrollDb, $ledgerStudentDb) {
                 $w->whereIn('se.status', $ledgerEnrollDb)
-                  ->orWhereIn('st.status', $ledgerStudentDb);
+                    ->orWhereIn('st.status', $ledgerStudentDb);
             })
             ->orderBy('st.last_name')
             ->orderBy('st.first_name')
@@ -541,29 +541,29 @@ class StudentLedgerController extends Controller
         ) ?? 'enrolled';
 
         return (object) [
-            'root'               => $rootLevelId,
-            'year_level'         => $r->year_level,
-            'academic_year_id'   => $r->academic_year_id,
+            'root' => $rootLevelId,
+            'year_level' => $r->year_level,
+            'academic_year_id' => $r->academic_year_id,
             'academic_year_name' => $r->academic_year_name,
-            'program_id'         => $r->program_id,
-            'section_id'         => $r->section_id,
-            'status_key'         => $statusKey,
-            'display'            => (object) [
-                'id'            => $r->student_id,
-                'full_name'     => $fullName,
-                'student_id'    => $r->student_number ?? '—',
-                'lrn'           => $r->lrn ?: '—',
-                'email'         => $r->email ?? '—',
-                'year_term'     => $this->formatYearTerm($r->year_level, $r->term_name, $rootLevelId, $rootNameById),
-                'section'       => $r->section_name ?: '—',
-                'program'       => $r->program_code ?: ($r->program_name ?? '—'),
-                'level'         => ($rootLevelId && isset($rootNameById[$rootLevelId])) ? $rootNameById[$rootLevelId] : '—',
+            'program_id' => $r->program_id,
+            'section_id' => $r->section_id,
+            'status_key' => $statusKey,
+            'display' => (object) [
+                'id' => $r->student_id,
+                'full_name' => $fullName,
+                'student_id' => $r->student_number ?? '—',
+                'lrn' => $r->lrn ?: '—',
+                'email' => $r->email ?? '—',
+                'year_term' => $this->formatYearTerm($r->year_level, $r->term_name, $rootLevelId, $rootNameById),
+                'section' => $r->section_name ?: '—',
+                'program' => $r->program_code ?: ($r->program_name ?? '—'),
+                'level' => ($rootLevelId && isset($rootNameById[$rootLevelId])) ? $rootNameById[$rootLevelId] : '—',
                 'academic_year' => $r->academic_year_name ?: '—',
-                'enrolled_at'   => $r->enrolled_at
+                'enrolled_at' => $r->enrolled_at
                     ? \Carbon\Carbon::parse($r->enrolled_at)->format('M d, Y')
                     : '—',
-                'status'        => EnrollmentStatuses::pill($statusKey),
-                'status_key'    => $statusKey,
+                'status' => EnrollmentStatuses::pill($statusKey),
+                'status_key' => $statusKey,
             ],
         ];
     }
@@ -606,16 +606,16 @@ class StudentLedgerController extends Controller
         $levels = DB::table('education_nodes')
             ->whereNull('parent_id')->where('is_offered', 1)->where('is_active', 1)
             ->orderBy('order_index')->get(['id', 'name']);
-        $nodeToRoot   = $this->buildNodeRootMap();
+        $nodeToRoot = $this->buildNodeRootMap();
         $rootNameById = $levels->pluck('name', 'id')->all();
 
-        $levelParam    = $request->query('level');
-        $showAll       = $levelParam === null || $levelParam === '' || strtolower((string) $levelParam) === 'all';
+        $levelParam = $request->query('level');
+        $showAll = $levelParam === null || $levelParam === '' || strtolower((string) $levelParam) === 'all';
         $activeLevelId = $showAll ? 0 : (int) $levelParam;
-        $activeLevel   = $levels->firstWhere('id', $activeLevelId);
-        $singleLevel   = $levels->count() === 1 ? $levels->first() : null;
-        $effective     = $showAll ? $singleLevel : $activeLevel;
-        $isBasic       = $effective && str_contains(strtolower((string) $effective->name), 'basic');
+        $activeLevel = $levels->firstWhere('id', $activeLevelId);
+        $singleLevel = $levels->count() === 1 ? $levels->first() : null;
+        $effective = $showAll ? $singleLevel : $activeLevel;
+        $isBasic = $effective && str_contains(strtolower((string) $effective->name), 'basic');
 
         $statusFilter = $request->query('status') ?: 'enrolled';
         $statusLabels = EnrollmentStatuses::options('ledger');
@@ -623,11 +623,11 @@ class StudentLedgerController extends Controller
             $statusFilter = 'enrolled';
         }
 
-        $academicYearId  = $request->integer('academic_year_id') ?: null;
+        $academicYearId = $request->integer('academic_year_id') ?: null;
         $yearLevelFilter = $request->query('year_level');
         $yearLevelFilter = ($yearLevelFilter === null || $yearLevelFilter === '') ? null : (string) $yearLevelFilter;
-        $programId       = $request->integer('program_id') ?: null;
-        $sectionId       = $request->integer('section_id') ?: null;
+        $programId = $request->integer('program_id') ?: null;
+        $sectionId = $request->integer('section_id') ?: null;
 
         $items = $this->ledgerSelectRows($schoolId)
             ->map(fn ($r) => $this->ledgerItemFrom($r, $nodeToRoot, $rootNameById));
@@ -772,7 +772,7 @@ class StudentLedgerController extends Controller
             .'</Relationships>';
 
         $tmp = tempnam(sys_get_temp_dir(), 'xlsx');
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         $zip->open($tmp, \ZipArchive::OVERWRITE);
         $zip->addFromString('[Content_Types].xml', $contentTypes);
         $zip->addFromString('_rels/.rels', $rels);
@@ -834,9 +834,9 @@ class StudentLedgerController extends Controller
         $format = strtolower((string) $request->query('format')) === 'xlsx' ? 'xlsx' : 'csv';
 
         // Template adapts to the level being imported into.
-        $levelId   = (int) $request->query('level');
+        $levelId = (int) $request->query('level');
         $levelName = $levelId ? DB::table('education_nodes')->where('id', $levelId)->value('name') : null;
-        $isBasic   = $levelName && str_contains(strtolower((string) $levelName), 'basic');
+        $isBasic = $levelName && str_contains(strtolower((string) $levelName), 'basic');
 
         if ($isBasic) {
             $headers = $this->basicImportHeaders();
@@ -915,19 +915,19 @@ class StudentLedgerController extends Controller
         $schoolId = (int) auth()->user()->school_id;
 
         $request->validate([
-            'level'         => ['required', 'integer'],
+            'level' => ['required', 'integer'],
             'academic_year' => ['required', 'string', 'max:255'],
-            'file'          => ['required', 'file', 'max:5120'],
-            'year_level'    => ['nullable', 'integer'],
-            'term_number'   => ['nullable', 'in:1,2,3'],
+            'file' => ['required', 'file', 'max:5120'],
+            'year_level' => ['nullable', 'integer'],
+            'term_number' => ['nullable', 'in:1,2,3'],
         ]);
 
         // The education level being imported into (locked to the active tab, or
         // chosen on the All Levels tab). Used as the enrollment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int) $request->input('level');
-        $levelName   = DB::table('education_nodes')->where('id', $levelNodeId)->value('name');
-        $isBasic     = $levelName && str_contains(strtolower((string) $levelName), 'basic');
+        $levelName = DB::table('education_nodes')->where('id', $levelNodeId)->value('name');
+        $isBasic = $levelName && str_contains(strtolower((string) $levelName), 'basic');
 
         // Basic Education enrols by Grade Level (no semester); higher-ed by Term.
         $defaultYearLevel = null;
@@ -952,7 +952,7 @@ class StudentLedgerController extends Controller
         }
 
         $file = $request->file('file');
-        $ext  = strtolower($file->getClientOriginalExtension());
+        $ext = strtolower($file->getClientOriginalExtension());
         if (! in_array($ext, ['csv', 'txt', 'xlsx'], true)) {
             return back()->with('error', 'Please upload a CSV or Excel (.xlsx) file.');
         }
@@ -963,7 +963,7 @@ class StudentLedgerController extends Controller
         $created = 0;
         $updated = 0;
         $skipped = 0;
-        $errors  = $parseErrors;
+        $errors = $parseErrors;
 
         foreach ($rows as $index => $row) {
             $line = $index + 2;
@@ -1016,40 +1016,40 @@ class StudentLedgerController extends Controller
         if ($termNumber) {
             return Term::firstOrCreate(
                 [
-                    'school_id'        => $schoolId,
+                    'school_id' => $schoolId,
                     'academic_year_id' => $ay->id,
-                    'term'             => 'Term '.$termNumber,
+                    'term' => 'Term '.$termNumber,
                 ],
                 [
                     'education_level' => 'higher_ed',
                     'enrollment_type' => 'regular',
-                    'academic_year'   => mb_substr($name, 0, 20),
-                    'name'            => 'Term '.$termNumber.' ('.$name.')',
-                    'title'           => 'Term '.$termNumber,
-                    'start_date'      => $ay->start_date ?? $startDate,
-                    'end_date'        => $ay->end_date ?? $endDate,
-                    'status'          => 'active',
-                    'is_active'       => 1,
+                    'academic_year' => mb_substr($name, 0, 20),
+                    'name' => 'Term '.$termNumber.' ('.$name.')',
+                    'title' => 'Term '.$termNumber,
+                    'start_date' => $ay->start_date ?? $startDate,
+                    'end_date' => $ay->end_date ?? $endDate,
+                    'status' => 'active',
+                    'is_active' => 1,
                 ]
             );
         }
 
         return Term::firstOrCreate(
             [
-                'school_id'        => $schoolId,
+                'school_id' => $schoolId,
                 'academic_year_id' => $ay->id,
-                'term'             => 'Enrollment',
+                'term' => 'Enrollment',
             ],
             [
                 'education_level' => 'basic_ed',
                 'enrollment_type' => 'regular',
-                'academic_year'   => mb_substr($name, 0, 20),
-                'name'            => 'Basic Ed ('.$name.')',
-                'title'           => 'Basic Ed',
-                'start_date'      => $ay->start_date ?? $startDate,
-                'end_date'        => $ay->end_date ?? $endDate,
-                'status'          => 'active',
-                'is_active'       => 1,
+                'academic_year' => mb_substr($name, 0, 20),
+                'name' => 'Basic Ed ('.$name.')',
+                'title' => 'Basic Ed',
+                'start_date' => $ay->start_date ?? $startDate,
+                'end_date' => $ay->end_date ?? $endDate,
+                'status' => 'active',
+                'is_active' => 1,
             ]
         );
     }
@@ -1103,6 +1103,7 @@ class StudentLedgerController extends Controller
         if ($termPart !== '') {
             return $termPart;
         }
+
         return '—';
     }
 
@@ -1118,13 +1119,14 @@ class StudentLedgerController extends Controller
             }
             $rootOf[$id] = $cur?->id;
         }
+
         return $rootOf;
     }
 
     protected function importStudentRow(array $row, int $schoolId, Term $defaultTerm, ?int $fallbackNodeId = null, ?int $defaultYearLevel = null): string
     {
         $firstName = trim((string) ($row['first_name'] ?? ''));
-        $lastName  = trim((string) ($row['last_name'] ?? ''));
+        $lastName = trim((string) ($row['last_name'] ?? ''));
 
         if ($firstName === '' || $lastName === '') {
             throw new \RuntimeException('First name and last name are required.');
@@ -1165,21 +1167,21 @@ class StudentLedgerController extends Controller
 
         if (! $user && $email) {
             $user = User::create([
-                'first_name'  => $firstName,
+                'first_name' => $firstName,
                 'middle_name' => $this->clean($row['middle_name'] ?? null),
-                'last_name'   => $lastName,
-                'email'       => $email,
-                'password'    => Hash::make($firstName.'123456789'),
-                'role'        => 'student',
-                'school_id'   => $schoolId,
-                'phone'       => $this->clean($row['phone'] ?? $row['mobile_number'] ?? null),
+                'last_name' => $lastName,
+                'email' => $email,
+                'password' => Hash::make($firstName.'123456789'),
+                'role' => 'student',
+                'school_id' => $schoolId,
+                'phone' => $this->clean($row['phone'] ?? $row['mobile_number'] ?? null),
             ]);
         } elseif ($user) {
             $user->fill([
-                'first_name'  => $firstName,
+                'first_name' => $firstName,
                 'middle_name' => $this->clean($row['middle_name'] ?? null),
-                'last_name'   => $lastName,
-                'phone'       => $this->clean($row['phone'] ?? $row['mobile_number'] ?? $user->phone),
+                'last_name' => $lastName,
+                'phone' => $this->clean($row['phone'] ?? $row['mobile_number'] ?? $user->phone),
             ])->save();
         }
 
@@ -1217,42 +1219,42 @@ class StudentLedgerController extends Controller
             $user = User::where('email', $loginEmail)->first();
             if (! $user) {
                 $user = User::create([
-                    'first_name'  => $firstName,
+                    'first_name' => $firstName,
                     'middle_name' => $this->clean($row['middle_name'] ?? null),
-                    'last_name'   => $lastName,
-                    'email'       => $loginEmail,
-                    'password'    => Hash::make($firstName.'123456789'),
-                    'role'        => 'student',
-                    'school_id'   => $schoolId,
-                    'phone'       => $this->clean($row['phone'] ?? $row['mobile_number'] ?? null),
+                    'last_name' => $lastName,
+                    'email' => $loginEmail,
+                    'password' => Hash::make($firstName.'123456789'),
+                    'role' => 'student',
+                    'school_id' => $schoolId,
+                    'phone' => $this->clean($row['phone'] ?? $row['mobile_number'] ?? null),
                 ]);
             }
         }
 
         $studentData = [
-            'school_id'            => $schoolId,
-            'user_id'              => $user?->id,
-            'student_number'       => $studentNumber,
-            'lrn'                  => $this->normalizeNumericId($row['lrn'] ?? null),
-            'first_name'           => $firstName,
-            'middle_name'          => $this->clean($row['middle_name'] ?? null),
-            'last_name'            => $lastName,
-            'email'                => $email,
-            'phone'                => $this->clean($row['phone'] ?? null),
-            'mobile_number'        => $this->clean($row['mobile_number'] ?? $row['phone'] ?? null),
-            'gender'               => $this->clean($row['gender'] ?? null),
-            'date_of_birth'        => $this->parseDate($row['date_of_birth'] ?? $row['birthdate'] ?? null),
-            'place_of_birth'       => $this->clean($row['place_of_birth'] ?? null),
-            'blood_type'           => $this->clean($row['blood_type'] ?? null),
-            'religion'             => $this->clean($row['religion'] ?? null),
-            'nationality'          => $this->clean($row['nationality'] ?? null),
-            'barangay'             => $this->clean($row['barangay'] ?? null),
-            'city_municipality'    => $this->clean($row['city_municipality'] ?? $row['city'] ?? null),
-            'province'             => $this->clean($row['province'] ?? null),
-            'region'               => $this->clean($row['region'] ?? null),
-            'zip_code'             => $this->clean($row['zip_code'] ?? null),
-            'address_line_1'       => $this->clean($row['address_line_1'] ?? $row['address'] ?? null),
-            'address_line_2'       => $this->clean($row['address_line_2'] ?? null),
+            'school_id' => $schoolId,
+            'user_id' => $user?->id,
+            'student_number' => $studentNumber,
+            'lrn' => $this->normalizeNumericId($row['lrn'] ?? null),
+            'first_name' => $firstName,
+            'middle_name' => $this->clean($row['middle_name'] ?? null),
+            'last_name' => $lastName,
+            'email' => $email,
+            'phone' => $this->clean($row['phone'] ?? null),
+            'mobile_number' => $this->clean($row['mobile_number'] ?? $row['phone'] ?? null),
+            'gender' => $this->clean($row['gender'] ?? null),
+            'date_of_birth' => $this->parseDate($row['date_of_birth'] ?? $row['birthdate'] ?? null),
+            'place_of_birth' => $this->clean($row['place_of_birth'] ?? null),
+            'blood_type' => $this->clean($row['blood_type'] ?? null),
+            'religion' => $this->clean($row['religion'] ?? null),
+            'nationality' => $this->clean($row['nationality'] ?? null),
+            'barangay' => $this->clean($row['barangay'] ?? null),
+            'city_municipality' => $this->clean($row['city_municipality'] ?? $row['city'] ?? null),
+            'province' => $this->clean($row['province'] ?? null),
+            'region' => $this->clean($row['region'] ?? null),
+            'zip_code' => $this->clean($row['zip_code'] ?? null),
+            'address_line_1' => $this->clean($row['address_line_1'] ?? $row['address'] ?? null),
+            'address_line_2' => $this->clean($row['address_line_2'] ?? null),
         ];
 
         $studentData = $this->filterColumns('students', $studentData);
@@ -1303,23 +1305,23 @@ class StudentLedgerController extends Controller
             ->first();
 
         $enrollmentData = [
-            'school_id'          => $schoolId,
-            'student_id'         => $student->id,
-            'academic_year_id'   => $term->academic_year_id,
-            'term_id'            => $term->id,
-            'program_id'         => $program?->id,
-            'education_node_id'  => (int) ($row['education_node_id'] ?? 0)
+            'school_id' => $schoolId,
+            'student_id' => $student->id,
+            'academic_year_id' => $term->academic_year_id,
+            'term_id' => $term->id,
+            'program_id' => $program?->id,
+            'education_node_id' => (int) ($row['education_node_id'] ?? 0)
                 ?: ($program?->education_node_id ?: $fallbackNodeId),
-            'year_level'         => (int) ($row['year_level'] ?? 0) ?: $defaultYearLevel,
-            'student_type'       => $this->clean($row['student_type'] ?? null) ?: 'continuing',
-            'enrollee_type'      => $this->clean($row['enrollee_type'] ?? null) ?: 'continuing',
-            'program_type'       => $this->clean($row['program_type'] ?? null) ?: 'regular',
-            'education_level'    => $this->clean($row['education_level'] ?? null),
-            'status'             => StudentEnrollment::STATUS_ENROLLED,
-            'approval_level'     => 'import',
-            'approved_by'        => auth()->id(),
-            'approved_at'        => now(),
-            'remarks'            => 'Imported as enrolled student profile.',
+            'year_level' => (int) ($row['year_level'] ?? 0) ?: $defaultYearLevel,
+            'student_type' => $this->clean($row['student_type'] ?? null) ?: 'continuing',
+            'enrollee_type' => $this->clean($row['enrollee_type'] ?? null) ?: 'continuing',
+            'program_type' => $this->clean($row['program_type'] ?? null) ?: 'regular',
+            'education_level' => $this->clean($row['education_level'] ?? null),
+            'status' => StudentEnrollment::STATUS_ENROLLED,
+            'approval_level' => 'import',
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+            'remarks' => 'Imported as enrolled student profile.',
         ];
 
         // Only override the section when one was provided/resolved (don't wipe an
@@ -1349,6 +1351,7 @@ class StudentLedgerController extends Controller
         $header = fgetcsv($handle);
         if (! $header) {
             fclose($handle);
+
             return [[], ['The CSV file is empty.']];
         }
 
@@ -1386,7 +1389,7 @@ class StudentLedgerController extends Controller
             return [[], ['Excel import is not supported on this server.']];
         }
 
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         if ($zip->open($path) !== true) {
             return [[], ['Could not open the Excel file.']];
         }
@@ -1428,9 +1431,9 @@ class StudentLedgerController extends Controller
         foreach ($sx->sheetData->row as $rowEl) {
             $cells = [];
             foreach ($rowEl->c as $c) {
-                $ref     = (string) $c['r'];                       // e.g. "B3"
-                $colIdx  = $this->letterToIndex(preg_replace('/\d+/', '', $ref));
-                $type    = (string) $c['t'];
+                $ref = (string) $c['r'];                       // e.g. "B3"
+                $colIdx = $this->letterToIndex(preg_replace('/\d+/', '', $ref));
+                $type = (string) $c['t'];
                 if ($type === 's') {
                     $cells[$colIdx] = $shared[(int) $c->v] ?? '';
                 } elseif ($type === 'inlineStr') {
@@ -1518,14 +1521,17 @@ class StudentLedgerController extends Controller
         }
 
         return (int) DB::table('sections')->insertGetId($this->filterColumns('sections', [
-            'school_id'  => $schoolId,
+            'school_id' => $schoolId,
             'program_id' => $program?->id,
-            'term_id'    => $term->id,
-            'name'       => $name,
+            'term_id' => $term->id,
+            'name' => $name,
             'year_level' => $yearLevel,
-            'capacity'   => 0,
-            'is_active'  => 1,
-            'status'     => 'active',
+            'capacity' => 0,
+            'is_active' => 1,
+            // 'published', not 'active': students are being imported into this
+            // section right now, and SectionPublishedValidator blocks enrolment
+            // into anything that isn't exactly 'published'.
+            'status' => 'published',
             'created_at' => now(),
             'updated_at' => now(),
         ]));
@@ -1573,23 +1579,23 @@ class StudentLedgerController extends Controller
     {
         $profile = DB::table('profiles')->where('user_id', $user->id)->first();
         $profileData = $this->filterColumns('profiles', [
-            'user_id'      => $user->id,
-            'school_id'    => $schoolId,
+            'user_id' => $user->id,
+            'school_id' => $schoolId,
             'profile_type' => 'student',
             'profile_code' => $student->student_number,
-            'first_name'   => $student->first_name,
-            'middle_name'  => $student->middle_name,
-            'last_name'    => $student->last_name,
-            'gender'       => $student->gender,
-            'birthday'     => $student->date_of_birth,
+            'first_name' => $student->first_name,
+            'middle_name' => $student->middle_name,
+            'last_name' => $student->last_name,
+            'gender' => $student->gender,
+            'birthday' => $student->date_of_birth,
             'contact_number' => $student->mobile_number ?: $student->phone,
-            'address'      => $student->address_line_1,
-            'city'         => $student->city_municipality,
-            'province'     => $student->province,
-            'country'      => $student->country,
-            'nationality'  => $student->nationality,
-            'status'       => 'active',
-            'updated_at'   => now(),
+            'address' => $student->address_line_1,
+            'city' => $student->city_municipality,
+            'province' => $student->province,
+            'country' => $student->country,
+            'nationality' => $student->nationality,
+            'status' => 'active',
+            'updated_at' => now(),
         ]);
 
         if ($profile) {
@@ -1602,16 +1608,16 @@ class StudentLedgerController extends Controller
 
         $roleId = $this->ensureStudentRole($schoolId);
         $accessData = $this->filterColumns('account_access', [
-            'user_id'       => $user->id,
-            'role_id'       => $roleId,
-            'person_id'     => $profileId,
-            'office_id'     => null,
+            'user_id' => $user->id,
+            'role_id' => $roleId,
+            'person_id' => $profileId,
+            'office_id' => null,
             'role_snapshot' => 'student',
-            'start_date'    => now()->toDateString(),
-            'assigned_by'   => auth()->id(),
-            'remarks'       => 'Imported enrolled student profile',
-            'is_active'     => 1,
-            'updated_at'    => now(),
+            'start_date' => now()->toDateString(),
+            'assigned_by' => auth()->id(),
+            'remarks' => 'Imported enrolled student profile',
+            'is_active' => 1,
+            'updated_at' => now(),
         ]);
 
         $existingAccess = DB::table('account_access')
@@ -1639,8 +1645,8 @@ class StudentLedgerController extends Controller
         }
 
         $data = [
-            'school_id'  => $schoolId,
-            'name'       => 'student',
+            'school_id' => $schoolId,
+            'name' => 'student',
             'created_at' => now(),
             'updated_at' => now(),
         ];
@@ -1743,12 +1749,12 @@ class StudentLedgerController extends Controller
         [$first, $last] = $this->splitName($name);
 
         $fields = $this->filterColumns('guardians', [
-            'last_name'     => $last,
-            'relationship'  => $this->firstRowValue($row, [$prefix.'_relationship', $prefix.'_relation']),
+            'last_name' => $last,
+            'relationship' => $this->firstRowValue($row, [$prefix.'_relationship', $prefix.'_relation']),
             'mobile_number' => $this->firstRowValue($row, [$prefix.'_contact', $prefix.'_contact_number', $prefix.'_mobile', $prefix.'_phone']),
-            'email'         => $this->firstRowValue($row, [$prefix.'_email', $prefix.'_email_address']),
-            'occupation'    => $isEmergency ? null : $this->firstRowValue($row, [$prefix.'_occupation']),
-            'updated_at'    => now(),
+            'email' => $this->firstRowValue($row, [$prefix.'_email', $prefix.'_email_address']),
+            'occupation' => $isEmergency ? null : $this->firstRowValue($row, [$prefix.'_occupation']),
+            'updated_at' => now(),
         ]);
 
         $match = ['student_id' => $studentId, 'first_name' => $first, 'is_emergency_contact' => $isEmergency ? 1 : 0];

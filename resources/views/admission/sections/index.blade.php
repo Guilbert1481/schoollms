@@ -99,13 +99,15 @@
 
     <div class="rounded-2xl border bg-white">
         <div class="flex items-center justify-between px-4 py-3 border-b">
+            {{-- "Draft" here must match the row badge below: anything neither published nor archived. --}}
+            @php($draftCount = $sections->whereNotIn('status', ['published', 'archived'])->count())
             <p class="text-sm text-slate-600">
-                {{ $sections->where('status', 'draft')->count() }} draft •
+                {{ $draftCount }} draft •
                 {{ $sections->where('status', 'published')->count() }} published •
                 {{ $sections->count() }} total
             </p>
 
-            @if($termId && $sections->where('status', 'draft')->count())
+            @if($termId && $draftCount)
                 <form method="POST" action="{{ route('admission.sections.publish-all') }}"
                       onsubmit="return confirm('Publish all draft sections for this term?');">
                     @csrf
