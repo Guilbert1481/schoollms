@@ -27,6 +27,44 @@ class AssessmentController extends Controller
         private TestAvailability $availability,
     ) {}
 
+    /** The student's online tests, bucketed by state: open now / upcoming / submitted / missed. */
+    public function index()
+    {
+        $student = Student::where('user_id', Auth::id())->first();
+        abort_unless($student, 403);
+
+        $tests = Test::whereIn('class_id', $this->classIds($student))
+            ->where('status', 'published')
+            ->whereHas('settings', fn ($q) => $q->where('mode', 'online'))
+            ->with(['settings', 'subject'])
+            ->orderByDesc('id')
+            ->get();
+
+        $buckets = ['open' => [], 'upcoming' => [], 'submitted' => [], 'missed' => []];
+        foreach ($tests as $test) {
+            $attempt = TestAttempt::where('test_id', $test->id)->where('student_id', $student->id)->latest('id')->first();
+            $status = $this->availability->status($test);
+            $submitted = $attempt && $attempt->isSubmitted();
+
+            $bucket = match (true) {
+                $submitted => 'submitted',
+                $status === TestAvailability::UPCOMING => 'upcoming',
+                $status === TestAvailability::OPEN => 'open',
+                default => 'missed',
+            };
+
+            $buckets[$bucket][] = [
+                'test' => $test,
+                'opensAt' => $this->availability->opensAt($test),
+                'closesAt' => $this->availability->closesAt($test),
+                'hasActive' => (bool) ($attempt && $attempt->isOpen()),
+                'attempt' => $attempt,
+            ];
+        }
+
+        return view('student.assessments.index', ['buckets' => $buckets]);
+    }
+
     /** Pre-test start page: what the student is about to take, then a Start/Resume button. */
     public function start(Test $test)
     {
@@ -192,7 +230,7 @@ class AssessmentController extends Controller
     }
 
     /** Every class the student belongs to — higher-ed via subject enrolments, basic ed via section. */
-    private function enrolledIn(Student $student, int $classId): bool
+    private function classIds(Student $student): array
     {
         $higher = DB::table('student_enrollment_subjects as ses')
             ->join('student_enrollments as e', 'e.id', '=', 'ses.student_enrollment_id')
@@ -204,6 +242,11 @@ class AssessmentController extends Controller
             ->pluck('section_id')->filter();
         $basic = DB::table('classes')->whereIn('section_id', $sectionIds)->pluck('id');
 
-        return $higher->merge($basic)->map(fn ($i) => (int) $i)->contains($classId);
+        return $higher->merge($basic)->map(fn ($i) => (int) $i)->unique()->values()->all();
+    }
+
+    private function enrolledIn(Student $student, int $classId): bool
+    {
+        return in_array($classId, $this->classIds($student), true);
     }
 }

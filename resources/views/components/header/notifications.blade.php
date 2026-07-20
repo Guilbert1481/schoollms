@@ -181,6 +181,13 @@ window.notificationBell = function(initialCount, initialList) {
                 return;
             }
 
+            // Virtual "test open" bell (no DB row): sticky until the student submits.
+            // Just open the start page — the row clears itself once submitted.
+            if (notif.type === 'assessment_open') {
+                window.location.href = "{{ url('/student/assessments') }}" + '/' + notif.reference_id + '/start';
+                return;
+            }
+
             fetch(`/notifications/${notif.id}/read`, {
                 method: 'POST',
                 headers: {

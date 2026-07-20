@@ -78,14 +78,15 @@
     $virtualEnrollments = \App\Support\EnrollmentNotifications::forUser($user);
     $virtualBilling     = \App\Support\BillingNotifications::forUser($user);
     $virtualSecurity    = \App\Support\SecurityNotifications::forUser($user);
+    $virtualAssessments = \App\Support\AssessmentNotifications::forUser($user);
 
-    $notifications = collect(array_merge($virtualSecurity, $virtualBilling, $virtualEnrollments, $dbNotifications));
+    $notifications = collect(array_merge($virtualAssessments, $virtualSecurity, $virtualBilling, $virtualEnrollments, $dbNotifications));
 
     $notifCount = DB::table('notifications')
         ->where('notifiable_id', $user->id)
         ->where('type', '!=', \App\Notifications\EnrollmentOpenNotification::class)
         ->whereNull('read_at')
-        ->count() + count($virtualEnrollments) + count($virtualBilling) + count($virtualSecurity);
+        ->count() + count($virtualEnrollments) + count($virtualBilling) + count($virtualSecurity) + count($virtualAssessments);
 @endphp
 
 <header class="h-16 md:h-24 flex items-center justify-between px-4 md:px-6 shadow-sm border-b z-30 {{ $bgClass }} {{ $textClass }} {{ $borderClass }}"

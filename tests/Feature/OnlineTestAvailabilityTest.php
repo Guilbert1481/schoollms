@@ -37,18 +37,12 @@ class OnlineTestAvailabilityTest extends TestCase
     {
         $test = Test::create([
             'school_id' => $this->school->id, 'teacher_id' => $this->teacher->id,
-            'title' => 'Exam', 'status' => 'draft',
+            'title' => 'Exam', 'status' => $published ? 'published' : 'draft',
         ]);
         TestSetting::create(array_merge([
             'test_id' => $test->id, 'mode' => 'online', 'availability_mode' => 'duration',
             'duration_minutes' => 30, 'attempts_allowed' => 1,
         ], $settings));
-        if ($published !== null) {
-            DB::table('test_availabilities')->insert([
-                'test_id' => $test->id, 'is_published' => $published ? 1 : 0,
-                'created_at' => now(), 'updated_at' => now(),
-            ]);
-        }
 
         return $test->fresh('settings');
     }

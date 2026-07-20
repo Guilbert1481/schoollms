@@ -16,6 +16,7 @@ Route::middleware(['web', 'auth', 'role:student'])
     ->prefix('student/assessments')
     ->name('student.assessments.')
     ->group(function () {
+        Route::get('/', [AssessmentController::class, 'index'])->name('index');
         Route::get('{test}/start', [AssessmentController::class, 'start'])->name('start');
         Route::post('{test}/begin', [AssessmentController::class, 'begin'])->name('begin');
         Route::get('{test}/take', [AssessmentController::class, 'take'])->name('take');

@@ -4,7 +4,6 @@ namespace App\Services\Tests;
 
 use App\Models\Test;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Answers "can this online test be taken right now, and until when?" — the single
@@ -35,7 +34,10 @@ class TestAvailability
 
     public function isPublished(Test $test): bool
     {
-        return (bool) DB::table('test_availabilities')->where('test_id', $test->id)->value('is_published');
+        // A test is released to students when the teacher publishes it in Test
+        // Management (tests.status = 'published'). The legacy test_availabilities
+        // .is_published flag is never actually set, so this is the real signal.
+        return $test->status === 'published';
     }
 
     /** When the window opens: start_at for schedule; null (open-on-publish) for duration. */

@@ -77,9 +77,8 @@ class OnlineTestTakeTest extends TestCase
 
     private function makeTest(string $mode = 'online', bool $published = true, array $settings = []): Test
     {
-        $test = Test::create(['school_id' => $this->school->id, 'class_id' => $this->classId, 'subject_id' => $this->subjectId, 'teacher_id' => $this->teacher->id, 'title' => 'Quiz', 'status' => 'draft']);
+        $test = Test::create(['school_id' => $this->school->id, 'class_id' => $this->classId, 'subject_id' => $this->subjectId, 'teacher_id' => $this->teacher->id, 'title' => 'Quiz', 'status' => $published ? 'published' : 'draft']);
         TestSetting::create(array_merge(['test_id' => $test->id, 'mode' => $mode, 'availability_mode' => 'duration', 'duration_minutes' => 30, 'attempts_allowed' => 1, 'show_results' => 'immediate'], $settings));
-        DB::table('test_availabilities')->insert(['test_id' => $test->id, 'is_published' => $published ? 1 : 0, 'created_at' => now(), 'updated_at' => now()]);
 
         return $test;
     }

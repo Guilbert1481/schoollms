@@ -1210,6 +1210,12 @@ return [
                     'icon' => 'clipboard-list',
                 ],
                 [
+                    'label' => 'Assessments',
+                    'route' => 'student.assessments.index',
+                    'active' => 'student.assessments.*',
+                    'icon' => 'file-check',
+                ],
+                [
                     'label' => 'Attendance',
                     'route' => '#',
                     'icon' => 'user-check',
