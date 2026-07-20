@@ -143,3 +143,37 @@ jobs:
 
       - name: Run Larastan
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+  security-audit:
+    name: Dependency audit (composer + npm)
+    runs-on: ubuntu-latest
+    # NOTE: non-blocking for now (Roadmap S1) — known CVEs in dependencies are
+    # the most common real-world entry point, so surface them on every PR
+    # first. Once the current advisories are triaged/patched, delete this line
+    # to make a vulnerable dependency a blocking failure.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Audit Composer dependencies
+        run: composer audit --no-interaction
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Audit npm dependencies
+        run: |
+          npm ci
+          npm audit --audit-level=high
