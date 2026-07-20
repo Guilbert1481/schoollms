@@ -149,6 +149,70 @@
                     Update Password
                 </button>
             </form>
+
+            {{-- =============================== TWO-FACTOR AUTHENTICATION =============================== --}}
+            <div class="mt-10 pt-8 border-t border-slate-200 max-w-xl">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="shield-check" class="w-4 h-4 text-indigo-600"></i>
+                            Two-Factor Authentication
+                        </h3>
+                        <p class="text-sm text-slate-500 mt-1">
+                            Protect your account with a one-time code from Google Authenticator (or any TOTP app)
+                            in addition to your password.
+                        </p>
+                    </div>
+
+                    @if ($twoFactorEnabled)
+                        <span class="shrink-0 inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> On
+                        </span>
+                    @elseif ($twoFactorMandatory)
+                        <span class="shrink-0 inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
+                            <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Required
+                        </span>
+                    @else
+                        <span class="shrink-0 inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500">
+                            Off
+                        </span>
+                    @endif
+                </div>
+
+                @error('two_factor')
+                    <p class="mt-3 text-sm text-red-600">{{ $message }}</p>
+                @enderror
+
+                <div class="mt-5">
+                    @if (! $twoFactorEnabled)
+                        {{-- Enabling always runs the QR + confirm flow. --}}
+                        <a href="{{ route('2fa.setup') }}"
+                           class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 shadow-sm">
+                            <i data-lucide="shield-plus" class="w-4 h-4"></i>
+                            Enable Two-Factor Authentication
+                        </a>
+                    @elseif ($twoFactorMandatory)
+                        <p class="text-sm text-slate-500">
+                            Two-factor authentication is <strong>required for your role</strong> and cannot be turned off.
+                        </p>
+                    @else
+                        {{-- Optional roles may turn it off after re-entering their password. --}}
+                        <form method="POST" action="{{ route('settings.profile.2fa.disable') }}" class="space-y-3">
+                            @csrf
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Confirm current password to turn off</label>
+                            <input type="password" name="current_password" required
+                                class="w-full max-w-sm px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <div>
+                                <button type="submit"
+                                    class="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-red-300 text-red-600 rounded-lg font-bold text-sm hover:bg-red-50">
+                                    <i data-lucide="shield-off" class="w-4 h-4"></i>
+                                    Turn Off Two-Factor Authentication
+                                </button>
+                            </div>
+                        </form>
+                    @endif
+                </div>
+            </div>
         </section>
 
         @if ($isAdmin)

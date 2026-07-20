@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,16 +34,19 @@ Route::middleware(['auth'])
         Route::post('/profile/password', [ProfileController::class, 'updatePassword'])
             ->name('profile.password');
 
+        // Turn off the user's own 2FA (enabling goes through the /2fa/setup flow).
+        Route::post('/profile/2fa/disable', [ProfileController::class, 'disableTwoFactor'])
+            ->name('profile.2fa.disable');
+
         // Admin-only mail / SMS configuration. Authorization is enforced
         // inside the controller (so the routes themselves can sit beside
         // the public profile endpoints).
-        Route::post('/profile/smtp',           [ProfileController::class, 'updateSmtp'])->name('profile.smtp');
-        Route::post('/profile/sms',            [ProfileController::class, 'updateSms'])->name('profile.sms');
-        Route::post('/profile/smtp/test',      [ProfileController::class, 'sendTestEmail'])->name('profile.smtp.test');
+        Route::post('/profile/smtp', [ProfileController::class, 'updateSmtp'])->name('profile.smtp');
+        Route::post('/profile/sms', [ProfileController::class, 'updateSms'])->name('profile.sms');
+        Route::post('/profile/smtp/test', [ProfileController::class, 'sendTestEmail'])->name('profile.smtp.test');
 
         // 👉 ADD MORE "ALL USERS" SETTINGS BELOW
         // Route::get('/notifications', ...)->name('notifications');
-
 
         /*
         |--------------------------------------------------------------------------
@@ -67,7 +70,6 @@ Route::middleware(['auth'])
 
         });
 
-
         /*
         |--------------------------------------------------------------------------
         | 3️⃣  ADMIN + DEAN SETTINGS
@@ -84,7 +86,6 @@ Route::middleware(['auth'])
 
         });
 
-
         /*
         |--------------------------------------------------------------------------
         | 4️⃣  DEAN ONLY SETTINGS
@@ -99,7 +100,6 @@ Route::middleware(['auth'])
             // 👉 ADD MORE DEAN SETTINGS BELOW
 
         });
-
 
         /*
         |--------------------------------------------------------------------------

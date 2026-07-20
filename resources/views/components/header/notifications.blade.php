@@ -175,6 +175,12 @@ window.notificationBell = function(initialCount, initialList) {
                 return;
             }
 
+            // Virtual 2FA nudge (no DB row): deep-link to the Security tab.
+            if (notif.type === 'security_2fa') {
+                window.location.href = "{{ route('settings.profile') }}" + '#security';
+                return;
+            }
+
             fetch(`/notifications/${notif.id}/read`, {
                 method: 'POST',
                 headers: {

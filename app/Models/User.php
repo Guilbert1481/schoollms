@@ -176,6 +176,29 @@ class User extends Authenticatable
 
     /*
     |--------------------------------------------------------------------------
+    | TWO-FACTOR (Google Authenticator) HELPERS
+    |--------------------------------------------------------------------------
+    */
+
+    /** True once the user has enrolled an authenticator (2FA is ON). */
+    public function twoFactorEnabled(): bool
+    {
+        return ! empty($this->google2fa_secret);
+    }
+
+    /**
+     * True when 2FA cannot be turned off for this account: enforcement is on
+     * AND the role is in the mandatory list (M2). Such users may enable but
+     * never disable their second factor from the profile toggle.
+     */
+    public function twoFactorMandatory(): bool
+    {
+        return (bool) config('security.enforce_2fa', true)
+            && in_array($this->role, (array) config('security.two_factor_mandatory_roles', []), true);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | ENROLLMENT RELATIONSHIPS
     |--------------------------------------------------------------------------
     */

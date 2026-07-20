@@ -16,14 +16,55 @@ class ProfileController extends Controller
      */
     public function index()
     {
-        $user     = Auth::user();
+        $user = Auth::user();
         $settings = $this->loadSystemSettings($user);
 
         return view('settings.profile', [
-            'user'     => $user,
+            'user' => $user,
             'settings' => $settings,
-            'isAdmin'  => in_array($user->role, ['admin', 'superadmin', 'admission_manager'], true),
+            'isAdmin' => in_array($user->role, ['admin', 'superadmin', 'admission_manager'], true),
+            'twoFactorEnabled' => $user->twoFactorEnabled(),
+            'twoFactorMandatory' => $user->twoFactorMandatory(),
         ]);
+    }
+
+    /**
+     * Turn OFF the user's own two-factor authentication (Security tab toggle).
+     *
+     * Guards:
+     *  - Mandatory-role users (M2) cannot disable it — 2FA is required.
+     *  - Requires the current password, so a hijacked session cannot silently
+     *    strip the second factor.
+     * Wipes the authenticator secret + recovery codes and clears the
+     * once-per-session verified flag.
+     */
+    public function disableTwoFactor(Request $request)
+    {
+        $user = Auth::user();
+
+        if (! $user->twoFactorEnabled()) {
+            return back()->with('status', 'Two-factor authentication is already off.');
+        }
+
+        if ($user->twoFactorMandatory()) {
+            return back()->withErrors([
+                'two_factor' => 'Two-factor authentication is required for your role and cannot be turned off.',
+            ]);
+        }
+
+        $request->validate(['current_password' => 'required']);
+
+        if (! Hash::check($request->current_password, $user->password)) {
+            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+        }
+
+        $user->google2fa_secret = null;
+        $user->recovery_codes = null;
+        $user->save();
+
+        $request->session()->forget('2fa_verified');
+
+        return back()->with('status', 'Two-factor authentication has been turned off.');
     }
 
     /**
@@ -34,11 +75,11 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         $data = $request->validate([
-            'first_name'    => 'required|string|max:100',
-            'middle_name'   => 'nullable|string|max:100',
-            'last_name'     => 'required|string|max:100',
-            'email'         => ['required', 'email', 'max:191', Rule::unique('users', 'email')->ignore($user->id)],
-            'phone'         => 'nullable|string|max:32',
+            'first_name' => 'required|string|max:100',
+            'middle_name' => 'nullable|string|max:100',
+            'last_name' => 'required|string|max:100',
+            'email' => ['required', 'email', 'max:191', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => 'nullable|string|max:32',
             'profile_photo' => 'nullable|image|max:5120',
         ]);
 
@@ -78,7 +119,7 @@ class ProfileController extends Controller
 
         $request->validate([
             'current_password' => 'required',
-            'password'         => 'required|string|min:8|confirmed',
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
         if (! Hash::check($request->current_password, $user->password)) {
@@ -102,13 +143,13 @@ class ProfileController extends Controller
         $this->abortUnlessAdmin();
 
         $data = $request->validate([
-            'smtp_host'         => 'nullable|string|max:191',
-            'smtp_port'         => 'nullable|integer|min:1|max:65535',
-            'smtp_username'     => 'nullable|string|max:191',
-            'smtp_password'     => 'nullable|string|max:500',
-            'smtp_encryption'   => 'nullable|in:tls,ssl,none',
+            'smtp_host' => 'nullable|string|max:191',
+            'smtp_port' => 'nullable|integer|min:1|max:65535',
+            'smtp_username' => 'nullable|string|max:191',
+            'smtp_password' => 'nullable|string|max:500',
+            'smtp_encryption' => 'nullable|in:tls,ssl,none',
             'smtp_from_address' => 'nullable|email|max:191',
-            'smtp_from_name'    => 'nullable|string|max:191',
+            'smtp_from_name' => 'nullable|string|max:191',
         ]);
 
         if (($data['smtp_encryption'] ?? null) === 'none') {
@@ -135,10 +176,10 @@ class ProfileController extends Controller
         $this->abortUnlessAdmin();
 
         $data = $request->validate([
-            'sms_enabled'     => 'nullable|boolean',
-            'sms_provider'    => 'nullable|string|max:64',
-            'sms_api_key'     => 'nullable|string|max:500',
-            'sms_api_secret'  => 'nullable|string|max:500',
+            'sms_enabled' => 'nullable|boolean',
+            'sms_provider' => 'nullable|string|max:64',
+            'sms_api_key' => 'nullable|string|max:500',
+            'sms_api_secret' => 'nullable|string|max:500',
             'sms_sender_name' => 'nullable|string|max:64',
             'sms_from_number' => 'nullable|string|max:32',
         ]);
@@ -147,8 +188,12 @@ class ProfileController extends Controller
 
         $settings = $this->resolveOrCreateSettings();
 
-        if (empty($data['sms_api_key']))    unset($data['sms_api_key']);
-        if (empty($data['sms_api_secret'])) unset($data['sms_api_secret']);
+        if (empty($data['sms_api_key'])) {
+            unset($data['sms_api_key']);
+        }
+        if (empty($data['sms_api_secret'])) {
+            unset($data['sms_api_secret']);
+        }
 
         $settings->fill($data)->save();
 
@@ -188,7 +233,9 @@ class ProfileController extends Controller
 
     protected function loadSystemSettings($user): ?SystemSetting
     {
-        if (! $user) return null;
+        if (! $user) {
+            return null;
+        }
 
         return SystemSetting::query()
             ->when($user->school_id, fn ($q) => $q->where('school_id', $user->school_id))
