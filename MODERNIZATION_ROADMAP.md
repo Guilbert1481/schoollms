@@ -224,9 +224,12 @@ staff roles (admin/finance/registrar), optional for students.
 
 ## Phase 6 — Data Protection  *(added 2026-07-09 — "assume breach" layer)*
 
-- [ ] **D1** Backups: automated, **encrypted, off-site, restore-tested**. Nothing exists today. The single
-  most important addition in Phases 6–8 — ransomware/disk failure is a bigger practical risk than any attacker,
-  and data loss is irreversible.
+- [~] **D1** Backups: automated, **encrypted, off-site, restore-tested**. **Scripts drafted 2026-07-20**
+  (`scripts/backup/db-backup.sh` — mysqldump → gzip → AES-256, local rotation, off-site rclone, reads DB
+  creds from `.env`; `db-restore.sh` — scratch-DB by default, explicit confirm to overwrite live;
+  `backup.env.example`). **Operator must still:** create `/etc/sophentis-backup.env` (passphrase +
+  healthcheck + rclone remote), run a manual backup, run a restore-test, and cron it. Not "done" until a
+  restore is proven on the VPS. Still the single most important remaining item — data loss is irreversible.
 - [ ] **D2** Encryption at rest for crown jewels: Laravel `encrypted` casts on government-ID numbers (and
   similarly sensitive columns); encrypted storage for uploaded ID files (builds on C2). ⚠ Plan together with
   the P1 key-rotation procedure — `APP_KEY` rotation re-encrypts these.
@@ -234,9 +237,10 @@ staff roles (admin/finance/registrar), optional for students.
   are kept; delete on schedule (minors' data — also an RA 10173 concern, see P3).
 - [ ] **D4** Staff session hardening — shorter lifetime / idle timeout for admin/finance/registrar (currently
   480 min, `config/session.php:35`); `expire_on_close` for shared school computers.
-- [ ] **D5** Backup dead-man switch — the D1 backup job pings a monitor (healthchecks.io-class) on
-  success; a **missed** backup alerts the operator. A silent backup failure discovered at restore
-  time is the disaster scenario. *(Added 2026-07-17, Argo-parity — proven pattern there.)*
+- [~] **D5** Backup dead-man switch — **built into `db-backup.sh` (2026-07-20)**: pings `HEALTHCHECK_URL`
+  only after a fully successful run, and pings `/fail` on error, so a missed/failed backup alerts the
+  operator. Inert until the operator sets `HEALTHCHECK_URL` (healthchecks.io-class) in the backup env.
+  *(Added 2026-07-17, Argo-parity — proven pattern there.)*
 
 **Safety:** casts are per-column and reversible; backups/retention are additive jobs.
 **Verify:** DB dump shows ciphertext for ID columns; a backup restore is actually performed on a scratch DB; expired staff session forces re-login.
@@ -271,7 +275,11 @@ staff roles (admin/finance/registrar), optional for students.
   Phases 3–4 logs to know what leaked).
 - [ ] **P4** External penetration test — the graduation exam, after Phases 2–6 are done and before
   multi-school SaaS is marketed as production-grade.
-- [ ] **P5** DR runbook — extend `docs/deploy/` with: what is backed up and where, encryption keys
+- [x] **P5** DR runbook — **drafted 2026-07-20**: `docs/deploy/disaster-recovery-runbook.md` (what's
+  backed up + where, RPO/RTO targets, prerequisites-off-server, DB-rollback + full-host-rebuild scenarios,
+  quarterly restore-drill procedure + log, known gaps: uploaded files + `.env` not yet auto-backed-up).
+  Superseded line below kept for provenance.
+- [ ] **P5 (original)** DR runbook — extend `docs/deploy/` with: what is backed up and where, encryption keys
   (⚠ `APP_KEY` ↔ D2 casts), RTO/RPO targets, exact restore commands, VPS rebuild-from-zero path.
   Kept accurate: any change adding a stateful store updates it in the same change
   (`FULL_PRODUCTION_STACK.md` layer 13). *(Added 2026-07-17.)*
