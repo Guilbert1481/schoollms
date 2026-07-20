@@ -128,6 +128,69 @@ class TestBuilderEditHydrationTest extends TestCase
         $response->assertDontSee('window.EDIT_TEST', false);
     }
 
+    public function test_save_derives_title_from_the_competency_when_none_typed(): void
+    {
+        $this->assignSubjectToTeacher();
+
+        $response = $this->actingAs($this->teacher)
+            ->postJson(route('teacher.tests.builder.save'), $this->savePayload(['title' => null]));
+
+        $response->assertOk()->assertJson(['success' => true]);
+        $this->assertSame(
+            'Explain weight vs mass',
+            DB::table('tests')->where('id', $this->testId)->value('title')
+        );
+    }
+
+    public function test_save_keeps_a_typed_title(): void
+    {
+        $this->assignSubjectToTeacher();
+
+        $response = $this->actingAs($this->teacher)
+            ->postJson(route('teacher.tests.builder.save'), $this->savePayload(['title' => 'Weight vs Mass Long Test']));
+
+        $response->assertOk()->assertJson(['success' => true]);
+        $this->assertSame(
+            'Weight vs Mass Long Test',
+            DB::table('tests')->where('id', $this->testId)->value('title')
+        );
+    }
+
+    private function assignSubjectToTeacher(): void
+    {
+        $profileId = DB::table('teacher_profiles')->insertGetId([
+            'user_id' => $this->teacher->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('teacher_subjects')->insert([
+            'teacher_id' => $profileId,
+            'subject_id' => DB::table('tests')->where('id', $this->testId)->value('subject_id'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function savePayload(array $overrides = []): array
+    {
+        return array_merge([
+            'test_id' => $this->testId,
+            'subject_id' => DB::table('tests')->where('id', $this->testId)->value('subject_id'),
+            'difficulty' => ['average'],
+            'academic_levels' => ['1'],
+            'mode' => 'f2f',
+            'question_settings' => [[
+                'source_type' => 'competency',
+                'source_id' => $this->competencyId,
+                'mcq' => 2,
+            ]],
+        ], $overrides);
+    }
+
     public function test_edit_page_is_tenant_guarded(): void
     {
         $foreignTeacher = User::factory()->create([
