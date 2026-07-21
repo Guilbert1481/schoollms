@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\EncryptedTolerant;
 use App\Models\Traits\BelongsToSchool;
 use Illuminate\Database\Eloquent\Model;
 
@@ -59,9 +60,15 @@ class Student extends Model
      * (P1 key-rotation procedure); existing rows are migrated by
      * `students:encrypt-government-ids`. LRN is deliberately NOT encrypted —
      * it is a functional identifier (ID-card barcode source, lookups).
+     *
+     * Uses EncryptedTolerant (not the vanilla `encrypted` cast) so a legacy
+     * plaintext row — one not yet run through the backfill — reads back as
+     * plaintext instead of throwing DecryptException. This makes the D2 deploy
+     * order-independent: the backfill hardens data at rest but is no longer a
+     * prerequisite for the app to serve. See {@see EncryptedTolerant}.
      */
     protected $casts = [
-        'government_id_number' => 'encrypted',
+        'government_id_number' => EncryptedTolerant::class,
     ];
 
     public function school()
@@ -120,5 +127,10 @@ class Student extends Model
     public function studentEnrollments()
     {
         return $this->hasMany(StudentEnrollment::class);
+    }
+
+    public function drafts()
+    {
+        return $this->hasMany(EnrollmentDraft::class);
     }
 }

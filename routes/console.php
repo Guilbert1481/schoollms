@@ -23,3 +23,8 @@ Schedule::command('finance:generate-soas')->dailyAt('01:00');
 // Per-school opt-in via finance_settings.auto_send_invoices; idempotent
 // (invoices.emailed_at), so a re-run never double-sends.
 Schedule::command('finance:send-due-invoices')->dailyAt('07:00');
+
+// Roadmap D3 — erase never-enrolled applicants' PII past the retention window.
+// MANUAL-FIRST: run `php artisan pii:purge-applicants` (dry run), review, then
+// `--purge` by hand. Once the counts are trusted, uncomment to run monthly.
+// Schedule::command('pii:purge-applicants --purge')->monthlyOn(1, '02:00');
