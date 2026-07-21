@@ -1182,7 +1182,7 @@ return [
         'schedules_student' => [
             'icon' => 'book',
             'label' => 'My Schedule',
-            'route' => '#',
+            'route' => 'student.schedule.index',
         ],
 
         'academics_student' => [

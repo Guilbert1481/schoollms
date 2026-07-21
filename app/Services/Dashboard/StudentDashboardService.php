@@ -26,6 +26,9 @@ class StudentDashboardService
     /** Philippine passing threshold; grades below this mark a subject at risk. */
     public const PASSING_GRADE = 75.0;
 
+    /** Attendance rate (%) below which attendance is flagged as a risk factor. */
+    public const ATTENDANCE_AT_RISK = 80;
+
     private array $memo = [];
 
     /* ------------------------------------------------------------------
@@ -130,6 +133,207 @@ class StudentDashboardService
             'calendar'        => $this->calendar($user),
             'snapshot'        => $this->snapshot($user),
         ];
+    }
+
+    /* ------------------------------------------------------------------
+     |  My Schedule (weekly timetable page)
+     * -----------------------------------------------------------------*/
+
+    /**
+     * The student's weekly class timetable, grouped by weekday, from the recurring
+     * class_schedules pattern for every class they're in this term (higher-ed
+     * subject enrolments + basic-ed section classes).
+     *
+     * @return array{days: array<string, array<int, array<string, mixed>>>, has_any: bool}
+     */
+    public function weeklySchedule(User $user): array
+    {
+        $order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        $days = array_fill_keys($order, []);
+
+        $classIds = $this->currentClassIds($user);
+        if (empty($classIds)) {
+            return ['days' => $days, 'has_any' => false];
+        }
+
+        $rows = DB::table('class_schedules as sch')
+            ->join('classes as c', 'c.id', '=', 'sch.class_id')
+            ->join('subjects as s', 's.id', '=', 'c.subject_id')
+            ->leftJoin('users as t', 't.id', '=', 'c.teacher_id')
+            ->whereIn('sch.class_id', $classIds)
+            ->orderBy('sch.start_time')
+            ->get([
+                'sch.day_of_week', 'sch.start_time', 'sch.end_time', 'c.room',
+                's.name as subject_name', 's.code as subject_code',
+                't.first_name', 't.last_name',
+            ]);
+
+        $todayName = now()->format('l');
+        $nowTime = now()->format('H:i:s');
+
+        foreach ($rows as $r) {
+            if (! array_key_exists($r->day_of_week, $days)) {
+                continue;
+            }
+            $days[$r->day_of_week][] = [
+                'time'    => Carbon::parse($r->start_time)->format('g:i A'),
+                'end'     => Carbon::parse($r->end_time)->format('g:i A'),
+                'subject' => $r->subject_name,
+                'code'    => $r->subject_code,
+                'room'    => $r->room ?: '—',
+                'teacher' => trim(($r->first_name ?? '').' '.($r->last_name ?? '')) ?: '—',
+                'now'     => $r->day_of_week === $todayName
+                              && $r->start_time <= $nowTime && $nowTime < $r->end_time,
+            ];
+        }
+
+        return ['days' => $days, 'has_any' => collect($days)->flatten(1)->isNotEmpty()];
+    }
+
+    /** Class ids the student is in for the active enrolment (higher-ed subjects + basic-ed section). */
+    private function currentClassIds(User $user): array
+    {
+        return $this->remember($user, 'current_class_ids', function () use ($user) {
+            $enrollment = $this->enrollment($user);
+            if (! $enrollment) {
+                return [];
+            }
+
+            $higher = $this->subjectRows($user)->pluck('class_id')->filter();
+
+            $basic = $enrollment->section_id
+                ? DB::table('classes')->where('section_id', $enrollment->section_id)->pluck('id')
+                : collect();
+
+            return $higher->merge($basic)->map(fn ($i) => (int) $i)->unique()->values()->all();
+        });
+    }
+
+    /* ------------------------------------------------------------------
+     |  Subjects at Risk (multi-factor modal)
+     * -----------------------------------------------------------------*/
+
+    /**
+     * At-risk subjects (posted grade below passing) enriched with multi-factor
+     * reasons — grade, attendance rate, and failed online quizzes/tests — plus a
+     * short recommendation to at least pass. Drives the dashboard modal.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function subjectsAtRisk(User $user): array
+    {
+        $subjects = $this->subjectRows($user)
+            ->filter(fn ($s) => $s->posted_grade !== null && (float) $s->posted_grade < self::PASSING_GRADE)
+            ->values();
+
+        if ($subjects->isEmpty()) {
+            return [];
+        }
+
+        $student = Student::where('user_id', $user->id)->where('school_id', $user->school_id)->first();
+        $attendance = $this->attendanceByClass($student);   // [class_id => pct]
+        $failed = $this->failedTestsByClass($student);       // [class_id => count]
+
+        return $subjects->map(function ($s) use ($attendance, $failed) {
+            $avg  = round((float) $s->posted_grade, 2);
+            $att  = $s->class_id ? ($attendance[(int) $s->class_id] ?? null) : null;
+            $fail = $s->class_id ? ($failed[(int) $s->class_id] ?? 0) : 0;
+
+            $reasons = ['Average '.number_format($avg, 2).' — below passing ('.(int) self::PASSING_GRADE.')'];
+            if ($att !== null && $att < self::ATTENDANCE_AT_RISK) {
+                $reasons[] = 'Attendance '.$att.'% — frequent absences';
+            }
+            if ($fail > 0) {
+                $reasons[] = $fail.' failed quiz/long test'.($fail > 1 ? 's' : '');
+            }
+
+            return [
+                'subject'        => $s->subject_name,
+                'code'           => $s->subject_code,
+                'average'        => number_format($avg, 2),
+                'attendance'     => $att,
+                'failed_tests'   => $fail,
+                'reasons'        => $reasons,
+                'recommendation' => $this->recommendation($avg, $att, $fail),
+            ];
+        })->all();
+    }
+
+    /**
+     * Attendance rate (%) per class from attendance_records (session scope);
+     * present/late/excused count as attended.
+     *
+     * @return array<int, int> class_id => percent
+     */
+    private function attendanceByClass(?Student $student): array
+    {
+        if (! $student) {
+            return [];
+        }
+
+        $out = [];
+        DB::table('attendance_records')
+            ->where('student_id', $student->id)
+            ->whereNotNull('class_id')
+            ->get(['class_id', 'status'])
+            ->groupBy('class_id')
+            ->each(function ($group, $classId) use (&$out) {
+                $total = $group->count();
+                $attended = $group->whereIn('status', ['present', 'late', 'excused'])->count();
+                $out[(int) $classId] = (int) round($attended / $total * 100);
+            });
+
+        return $out;
+    }
+
+    /**
+     * Number of distinct failed online tests per class — the student's LATEST
+     * graded/submitted attempt per test scoring below passing.
+     *
+     * @return array<int, int> class_id => failed count
+     */
+    private function failedTestsByClass(?Student $student): array
+    {
+        if (! $student) {
+            return [];
+        }
+
+        $latestPerTest = DB::table('test_attempts as ta')
+            ->join('tests as t', 't.id', '=', 'ta.test_id')
+            ->where('ta.student_id', $student->id)
+            ->whereIn('ta.status', ['submitted', 'graded'])
+            ->whereNotNull('ta.percentage')
+            ->whereNotNull('t.class_id')
+            ->orderBy('ta.id')
+            ->get(['ta.test_id', 't.class_id', 'ta.percentage'])
+            ->groupBy('test_id')
+            ->map(fn ($g) => $g->last());   // last = highest id = latest attempt
+
+        return $latestPerTest
+            ->filter(fn ($r) => (float) $r->percentage < self::PASSING_GRADE)
+            ->groupBy('class_id')
+            ->map->count()
+            ->mapWithKeys(fn ($c, $k) => [(int) $k => (int) $c])
+            ->all();
+    }
+
+    /** A short, encouraging "how to at least pass" line from the risk factors. */
+    private function recommendation(float $avg, ?int $attendance, int $failed): string
+    {
+        $gap = (int) ceil(max(0, self::PASSING_GRADE - $avg));
+        $tips = [$gap > 0
+            ? 'Raise your average by ~'.$gap.' point'.($gap > 1 ? 's' : '').' to reach passing.'
+            : 'Hold your average above passing.'];
+
+        if ($failed > 0) {
+            $tips[] = 'Review and, where allowed, retake the failed test'.($failed > 1 ? 's' : '').'.';
+        }
+        if ($attendance !== null && $attendance < self::ATTENDANCE_AT_RISK) {
+            $tips[] = 'Attend every remaining class.';
+        }
+        $tips[] = 'Ask your teacher about remedial work or a consultation.';
+
+        return implode(' ', $tips);
     }
 
     /* ------------------------------------------------------------------

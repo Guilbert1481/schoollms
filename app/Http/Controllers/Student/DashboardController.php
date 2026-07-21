@@ -22,6 +22,7 @@ class DashboardController extends Controller
             'activeModality' => $activeModality,
             'cards'          => $kpis->getCards($user, 'student'),
             'dash'           => $dashboard->widgets($user),
+            'atRisk'         => $dashboard->subjectsAtRisk($user),
         ]);
     }
 

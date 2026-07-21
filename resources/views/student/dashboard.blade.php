@@ -43,17 +43,97 @@
          Desktop columns = actual card count so the strip always spans the full
          width with no empty column on the right (basic-ed hides one KPI). --}}
     @php $kpiCount = max(1, count($cards)); @endphp
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 kpi-strip">
-        @foreach ($cards as $card)
-            <x-kpi-row.kpi-shell
-                :title="$card['title']"
-                :icon="$card['icon']"
-                :accent="$card['accent'] ?? null"
-                :subtitle="$card['subtitle'] ?? null"
-                size="compact">
-                {{ $card['value'] }}
-            </x-kpi-row.kpi-shell>
-        @endforeach
+    <div x-data="{ riskOpen: false }">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 kpi-strip">
+            @foreach ($cards as $card)
+                @if (($card['key'] ?? null) === 'subject_at_risk' && ! empty($atRisk))
+                    {{-- Clickable when there are at-risk subjects: opens the breakdown modal. --}}
+                    <button type="button" @click="riskOpen = true" title="View subjects at risk"
+                            class="w-full text-left cursor-pointer rounded-2xl focus:outline-none focus:ring-2 focus:ring-rose-300">
+                        <x-kpi-row.kpi-shell
+                            :title="$card['title']"
+                            :icon="$card['icon']"
+                            :accent="$card['accent'] ?? null"
+                            :subtitle="$card['subtitle'] ?? null"
+                            size="compact">
+                            {{ $card['value'] }}
+                        </x-kpi-row.kpi-shell>
+                    </button>
+                @else
+                    <x-kpi-row.kpi-shell
+                        :title="$card['title']"
+                        :icon="$card['icon']"
+                        :accent="$card['accent'] ?? null"
+                        :subtitle="$card['subtitle'] ?? null"
+                        size="compact">
+                        {{ $card['value'] }}
+                    </x-kpi-row.kpi-shell>
+                @endif
+            @endforeach
+        </div>
+
+        {{-- Subjects at Risk — breakdown modal (opens from the KPI tile above) --}}
+        <div x-show="riskOpen" @keydown.escape.window="riskOpen = false"
+             class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display:none">
+            <div class="absolute inset-0 bg-black/40" @click="riskOpen = false"></div>
+
+            <div class="relative flex w-full max-w-3xl flex-col rounded-2xl bg-white dark:bg-gray-800 shadow-2xl" style="max-height:85vh">
+                <div class="flex items-start justify-between gap-3 border-b border-gray-100 dark:border-gray-700 p-5">
+                    <div>
+                        <h3 class="flex items-center gap-2 text-lg font-black text-gray-900 dark:text-white">
+                            <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-500"></i> Subjects at Risk
+                        </h3>
+                        <p class="mt-0.5 text-xs text-gray-500">
+                            Below the passing mark ({{ (int) \App\Services\Dashboard\StudentDashboardService::PASSING_GRADE }}) — why, and how to at least pass.
+                        </p>
+                    </div>
+                    <button @click="riskOpen = false" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <div class="overflow-auto">
+                    <table class="w-full text-sm" style="min-width:680px">
+                        <thead class="sticky top-0 bg-gray-50 dark:bg-gray-900/40 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            <tr>
+                                <th class="px-5 py-3">Subject</th>
+                                <th class="px-5 py-3 text-center">Average</th>
+                                <th class="px-5 py-3">Why at risk</th>
+                                <th class="px-5 py-3">Recommendation</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                            @foreach ($atRisk as $r)
+                                <tr class="align-top">
+                                    <td class="px-5 py-3">
+                                        <div class="font-semibold text-gray-800 dark:text-gray-100">{{ $r['subject'] }}</div>
+                                        @if ($r['code'])<div class="text-xs text-gray-400">{{ $r['code'] }}</div>@endif
+                                    </td>
+                                    <td class="px-5 py-3 text-center">
+                                        <span class="inline-flex rounded-full bg-rose-50 px-2.5 py-0.5 text-sm font-bold text-rose-600 ring-1 ring-inset ring-rose-200">{{ $r['average'] }}</span>
+                                    </td>
+                                    <td class="px-5 py-3">
+                                        <ul class="space-y-1">
+                                            @foreach ($r['reasons'] as $reason)
+                                                <li class="flex items-start gap-1.5 text-gray-600 dark:text-gray-300">
+                                                    <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400"></span>
+                                                    <span>{{ $reason }}</span>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </td>
+                                    <td class="px-5 py-3 text-gray-600 dark:text-gray-300">{{ $r['recommendation'] }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="border-t border-gray-100 dark:border-gray-700 p-4 text-right">
+                    <button @click="riskOpen = false" class="rounded-lg bg-gray-100 dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
     <style>
         @media (min-width: 1280px) {

@@ -37,6 +37,7 @@ class KPIRegistry
             }
 
             $card = $definitions[$cardKey];
+            $card['key'] = $cardKey;   // let views target a specific tile (e.g. the at-risk modal)
             $card['value'] = $this->resolveValue($cardKey, $user);
 
             $subtitle = $this->resolveSubtitle($cardKey, $user);
