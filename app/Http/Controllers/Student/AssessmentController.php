@@ -27,7 +27,11 @@ class AssessmentController extends Controller
         private TestAvailability $availability,
     ) {}
 
-    /** The student's online tests, bucketed by state: open now / upcoming / submitted / missed. */
+    /**
+     * The student's online tests as one table row per assigned test: title +
+     * competency, lesson, item count, start/end window, and this student's
+     * status (pending / completed, with upcoming / missed as edge states).
+     */
     public function index()
     {
         $student = Student::where('user_id', Auth::id())->first();
@@ -37,32 +41,103 @@ class AssessmentController extends Controller
             ->where('status', 'published')
             ->whereHas('settings', fn ($q) => $q->where('mode', 'online'))
             ->with(['settings', 'subject'])
+            ->withCount('testQuestions')
             ->orderByDesc('id')
             ->get();
 
-        $buckets = ['open' => [], 'upcoming' => [], 'submitted' => [], 'missed' => []];
-        foreach ($tests as $test) {
+        $meta = $this->competencyLessonMeta($tests->pluck('id')->all());
+
+        $rows = $tests->map(function (Test $test) use ($student, $meta) {
             $attempt = TestAttempt::where('test_id', $test->id)->where('student_id', $student->id)->latest('id')->first();
             $status = $this->availability->status($test);
             $submitted = $attempt && $attempt->isSubmitted();
 
-            $bucket = match (true) {
-                $submitted => 'submitted',
+            // pending = open & not yet submitted; completed = submitted.
+            // upcoming / missed are shown so the table is honest, but aren't takeable.
+            $state = match (true) {
+                $submitted => 'completed',
                 $status === TestAvailability::UPCOMING => 'upcoming',
-                $status === TestAvailability::OPEN => 'open',
+                $status === TestAvailability::OPEN => 'pending',
                 default => 'missed',
             };
 
-            $buckets[$bucket][] = [
-                'test' => $test,
+            return [
+                'id' => $test->id,
+                'title' => $test->title,
+                'competency' => $meta[$test->id]['competency'] ?? null,
+                'lesson' => $meta[$test->id]['lesson'] ?? null,
+                'subject' => $test->subject?->name,
+                'items' => (int) $test->test_questions_count,
                 'opensAt' => $this->availability->opensAt($test),
                 'closesAt' => $this->availability->closesAt($test),
+                'state' => $state,
                 'hasActive' => (bool) ($attempt && $attempt->isOpen()),
-                'attempt' => $attempt,
+                'needsManual' => (bool) ($attempt?->needs_manual),
             ];
+        })->values();
+
+        return view('student.assessments.index', ['rows' => $rows]);
+    }
+
+    /**
+     * Competency + lesson display labels per test, resolved from test_sources
+     * (the drill-down position isn't stored on tests). A 'competency' source names
+     * the competency and, via its lesson_id, the lesson; a 'lesson' source names the
+     * lesson directly. A test can reference several, so labels are de-duplicated and
+     * truncated to a short "A, B +N more".
+     *
+     * @param  int[]  $testIds
+     * @return array<int, array{competency: ?string, lesson: ?string}>
+     */
+    private function competencyLessonMeta(array $testIds): array
+    {
+        if (empty($testIds)) {
+            return [];
         }
 
-        return view('student.assessments.index', ['buckets' => $buckets]);
+        $sources = DB::table('test_sources')->whereIn('test_id', $testIds)
+            ->get(['test_id', 'source_type', 'source_id']);
+
+        $competencies = DB::table('competencies')
+            ->whereIn('id', $sources->where('source_type', 'competency')->pluck('source_id')->unique()->all() ?: [0])
+            ->get(['id', 'name', 'lesson_id'])->keyBy('id');
+
+        $lessonIds = $sources->where('source_type', 'lesson')->pluck('source_id')
+            ->merge($competencies->pluck('lesson_id')->filter())
+            ->unique()->all();
+        $lessons = DB::table('lessons')->whereIn('id', $lessonIds ?: [0])
+            ->get(['id', 'name'])->keyBy('id');
+
+        $acc = [];
+        foreach ($sources as $s) {
+            $acc[$s->test_id] ??= ['competency' => [], 'lesson' => []];
+            if ($s->source_type === 'competency' && ($c = $competencies[$s->source_id] ?? null)) {
+                $acc[$s->test_id]['competency'][] = $c->name;
+                if ($c->lesson_id && ($l = $lessons[$c->lesson_id] ?? null)) {
+                    $acc[$s->test_id]['lesson'][] = $l->name;
+                }
+            } elseif ($s->source_type === 'lesson' && ($l = $lessons[$s->source_id] ?? null)) {
+                $acc[$s->test_id]['lesson'][] = $l->name;
+            }
+        }
+
+        return collect($acc)->map(fn ($v) => [
+            'competency' => $this->joinLabels($v['competency']),
+            'lesson' => $this->joinLabels($v['lesson']),
+        ])->all();
+    }
+
+    /** De-duplicate, drop blanks, and shorten a set of labels to "A, B +N more". */
+    private function joinLabels(array $labels): ?string
+    {
+        $labels = array_values(array_unique(array_filter($labels)));
+        if (empty($labels)) {
+            return null;
+        }
+
+        return count($labels) <= 2
+            ? implode(', ', $labels)
+            : $labels[0].', '.$labels[1].' +'.(count($labels) - 2).' more';
     }
 
     /** Pre-test start page: what the student is about to take, then a Start/Resume button. */

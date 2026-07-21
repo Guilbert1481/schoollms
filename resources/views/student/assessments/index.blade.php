@@ -7,89 +7,124 @@
 
     <div>
         <h1 class="text-2xl font-bold text-slate-800">Assessments</h1>
-        <p class="text-sm text-slate-500">Your online tests across all your classes.</p>
+        <p class="text-sm text-slate-500">Every online test assigned to your classes.</p>
     </div>
 
     @php
-        $groups = [
-            ['key' => 'open',      'label' => 'Open now',  'tone' => 'sky',    'empty' => 'Nothing to take right now.'],
-            ['key' => 'upcoming',  'label' => 'Upcoming',  'tone' => 'amber',  'empty' => 'No upcoming tests.'],
-            ['key' => 'submitted', 'label' => 'Submitted', 'tone' => 'emerald','empty' => 'Nothing submitted yet.'],
-            ['key' => 'missed',    'label' => 'Missed',    'tone' => 'rose',    'empty' => null],
+        $badge = [
+            'pending'   => ['label' => 'Pending',      'class' => 'bg-sky-50 text-sky-700 ring-sky-200'],
+            'completed' => ['label' => 'Completed',    'class' => 'bg-emerald-50 text-emerald-700 ring-emerald-200'],
+            'grading'   => ['label' => 'Being graded', 'class' => 'bg-amber-50 text-amber-700 ring-amber-200'],
+            'upcoming'  => ['label' => 'Upcoming',     'class' => 'bg-slate-50 text-slate-500 ring-slate-200'],
+            'missed'    => ['label' => 'Missed',        'class' => 'bg-rose-50 text-rose-700 ring-rose-200'],
         ];
-        $tone = fn ($t) => [
-            'sky'     => 'border-sky-200 bg-sky-50 text-sky-700',
-            'amber'   => 'border-amber-200 bg-amber-50 text-amber-700',
-            'emerald' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
-            'rose'    => 'border-rose-200 bg-rose-50 text-rose-700',
-        ][$t];
     @endphp
 
-    @php $anything = collect($buckets)->flatten(1)->isNotEmpty(); @endphp
-
-    @unless ($anything)
+    @if ($rows->isEmpty())
         <div class="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-12 text-center text-slate-500">
             You have no online tests yet. When a teacher publishes one for your class, it appears here.
         </div>
-    @endunless
+    @else
+        <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table class="min-w-[880px] w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <th class="px-4 py-3">Title</th>
+                        <th class="px-4 py-3">Lesson</th>
+                        <th class="px-4 py-3 text-center">Items</th>
+                        <th class="px-4 py-3">Start Date</th>
+                        <th class="px-4 py-3">End Date</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @foreach ($rows as $row)
+                        @php
+                            $state = $row['state'];
+                            $isPending   = $state === 'pending';
+                            $isCompleted = $state === 'completed';
+                            $badgeKey = ($isCompleted && $row['needsManual']) ? 'grading' : $state;
 
-    @foreach ($groups as $g)
-        @php $items = $buckets[$g['key']] ?? []; @endphp
-        @continue (count($items) === 0 && ($g['key'] === 'missed' || ! $anything))
+                            $rowUrl = $isPending
+                                ? route('student.assessments.start', $row['id'])
+                                : ($isCompleted ? route('student.assessments.result', $row['id']) : null);
+                        @endphp
+                        <tr class="{{ $rowUrl ? 'cursor-pointer hover:bg-slate-50' : '' }} transition"
+                            @if ($rowUrl) onclick="window.location='{{ $rowUrl }}'" @endif>
 
-        <section class="space-y-3">
-            <div class="flex items-center gap-2">
-                <h2 class="text-sm font-bold uppercase tracking-wide text-slate-500">{{ $g['label'] }}</h2>
-                <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold {{ $tone($g['tone']) }}">{{ count($items) }}</span>
-            </div>
-
-            @if (count($items) === 0)
-                <p class="text-sm text-slate-400">{{ $g['empty'] }}</p>
-            @else
-                <div class="grid gap-3 sm:grid-cols-2">
-                    @foreach ($items as $row)
-                        @php $test = $row['test']; @endphp
-                        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <div class="font-semibold text-slate-800">{{ $test->title }}</div>
-                                    <div class="text-xs text-slate-500">{{ $test->subject?->name ?? 'Assessment' }}</div>
+                            {{-- Title + competency --}}
+                            <td class="px-4 py-3 align-top">
+                                <div class="font-semibold text-slate-800">{{ $row['title'] }}</div>
+                                <div class="text-xs text-slate-500">
+                                    {{ $row['competency'] ?? $row['subject'] ?? 'Assessment' }}
                                 </div>
-                                @if ($test->settings?->duration_minutes ?? $test->settings?->timer_minutes)
-                                    <span class="whitespace-nowrap text-xs text-slate-400">{{ $test->settings->duration_minutes ?? $test->settings->timer_minutes }} min</span>
-                                @endif
-                            </div>
+                            </td>
 
-                            <div class="mt-3 flex items-center justify-between gap-2">
-                                @if ($g['key'] === 'open')
-                                    <span class="text-xs text-slate-500">
-                                        @if ($row['closesAt']) Closes {{ $row['closesAt']->format('M j, g:i A') }} @else Open @endif
-                                    </span>
-                                    <a href="{{ route('student.assessments.start', $test) }}"
-                                       class="inline-flex rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700">
-                                        {{ $row['hasActive'] ? 'Resume' : 'Take test' }}
+                            {{-- Lesson --}}
+                            <td class="px-4 py-3 align-top text-slate-600">
+                                {{ $row['lesson'] ?? '—' }}
+                            </td>
+
+                            {{-- Items --}}
+                            <td class="px-4 py-3 align-top text-center font-medium text-slate-700">
+                                {{ $row['items'] }}
+                            </td>
+
+                            {{-- Start Date --}}
+                            <td class="px-4 py-3 align-top">
+                                @if ($row['opensAt'])
+                                    <div class="text-slate-700">{{ $row['opensAt']->format('M j, Y') }}</div>
+                                    <div class="text-xs text-slate-400">{{ $row['opensAt']->format('g:i A') }}</div>
+                                @else
+                                    <span class="text-xs text-slate-400">On publish</span>
+                                @endif
+                            </td>
+
+                            {{-- End Date --}}
+                            <td class="px-4 py-3 align-top">
+                                @if ($row['closesAt'])
+                                    <div class="text-slate-700">{{ $row['closesAt']->format('M j, Y') }}</div>
+                                    <div class="text-xs text-slate-400">{{ $row['closesAt']->format('g:i A') }}</div>
+                                @else
+                                    <span class="text-xs text-slate-400">—</span>
+                                @endif
+                            </td>
+
+                            {{-- Status --}}
+                            <td class="px-4 py-3 align-top">
+                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $badge[$badgeKey]['class'] }}">
+                                    {{ $badge[$badgeKey]['label'] }}
+                                </span>
+                            </td>
+
+                            {{-- Action --}}
+                            <td class="px-4 py-3 align-top text-right">
+                                @if ($isPending)
+                                    <a href="{{ route('student.assessments.start', $row['id']) }}"
+                                       onclick="event.stopPropagation()"
+                                       class="inline-flex rounded-lg bg-sky-600 px-4 py-1.5 text-sm font-bold text-white hover:bg-sky-700">
+                                        {{ $row['hasActive'] ? 'Resume' : 'Start' }}
                                     </a>
-                                @elseif ($g['key'] === 'upcoming')
-                                    <span class="text-xs text-amber-700">Opens {{ $row['opensAt']?->format('M j, Y · g:i A') }}</span>
-                                    <span class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400">Not open yet</span>
-                                @elseif ($g['key'] === 'submitted')
-                                    <span class="text-xs text-slate-500">
-                                        @if ($row['attempt']?->needs_manual) Being graded @else Done @endif
-                                    </span>
-                                    <a href="{{ route('student.assessments.result', $test) }}"
-                                       class="inline-flex rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                                @elseif ($isCompleted)
+                                    <a href="{{ route('student.assessments.result', $row['id']) }}"
+                                       onclick="event.stopPropagation()"
+                                       class="inline-flex rounded-lg border border-slate-200 px-4 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                                         View result
                                     </a>
+                                @elseif ($state === 'upcoming')
+                                    <span class="text-xs text-slate-400">Not open yet</span>
                                 @else
-                                    <span class="text-xs text-rose-600">Closed {{ $row['closesAt']?->format('M j, g:i A') }}</span>
-                                    <span class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-400">Missed</span>
+                                    <span class="text-xs text-slate-400">—</span>
                                 @endif
-                            </div>
-                        </div>
+                            </td>
+                        </tr>
                     @endforeach
-                </div>
-            @endif
-        </section>
-    @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        <p class="text-xs text-slate-400">Tip: click a pending row to start the test.</p>
+    @endif
 </div>
 @endsection
