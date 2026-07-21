@@ -248,8 +248,22 @@ staff roles (admin/finance/registrar), optional for students.
   `enrollment_documents.file_path`. Verified `StudentIdFileEncryptionTest` 4/4 (ciphertext at rest; serve
   decrypts; legacy plaintext still served; backfill idempotent) + C2 `SecureDocumentAccessTest` 7/7 unchanged.
   **Operator (live):** after deploy + backup, run `php artisan documents:encrypt-id-files --encrypt`.
-- [ ] **D3** PII retention/deletion policy — how long ID docs and PII of rejected/never-enrolled applicants
-  are kept; delete on schedule (minors' data — also an RA 10173 concern, see P3).
+- [x] **D3** PII retention/deletion policy — ✅ **DONE (2026-07-21) — ready for commit.** New
+  `config/privacy.php` holds the policy knobs (env-overridable, DPO-tunable): decided applications kept
+  `applicant_retention_months`=12, never-submitted drafts `abandoned_draft_days`=90, `purge_depth`=hard,
+  `delete_applicant_user`=true, plus the protected/decided status lists. `App\Services\Privacy\ApplicantPurger`
+  finds never-enrolled applicants (no enrollment ever reached a protected status, not in any class, is a real
+  applicant with an enrollment or draft, last activity past the window) and erases the whole footprint —
+  `students` + `enrollment_drafts` + `enrollment_documents` (+ private-disk files) + `student_health_records` +
+  `student_academic_backgrounds` + `guardians` + `parent_student` pivot + the dead-end `student_enrollments`,
+  then the `Student` and (in hard mode) the applicant `User` when it's a plain unshared student login. Each
+  purge runs in a transaction and writes one `pii_purge` line to the S4 off-DB audit trail (RA 10173
+  accountability). Command `php artisan pii:purge-applicants` is **dry-run by default** (`--purge` to act,
+  `--limit=N` to cap); scheduled **manual-first** (commented monthly line in `routes/console.php`). Scrub mode
+  keeps a PII-nulled skeleton (`status=archived`) instead of deleting. Verified `PiiRetentionPurgeTest` 6/6
+  (full purge + files + user + audit; under-window kept; ever-enrolled never touched; 90-day draft clock; scrub
+  skeleton; dry-run deletes nothing) + full suite **346 passed, 0 failed**. **Operator (live):** take a backup,
+  run the dry-run, review, then `--purge`; uncomment the scheduler once the counts are trusted.
 - [ ] **D4** Staff session hardening — shorter lifetime / idle timeout for admin/finance/registrar (currently
   480 min, `config/session.php:35`); `expire_on_close` for shared school computers.
 - [~] **D5** Backup dead-man switch — **built into `db-backup.sh` (2026-07-20)**: pings `HEALTHCHECK_URL`
@@ -274,8 +288,19 @@ staff roles (admin/finance/registrar), optional for students.
   (weekly composer + npm + github-actions updates, grouped so routine bumps are one PR each; GitHub still
   raises security updates immediately). Activates automatically once merged to the default branch. YAML validated.
 - [ ] **S3** Production error monitoring (Sentry/Flare-class) — probing attempts surface as exceptions first.
-- [ ] **S4** Ship/back up audit logs off the app database so a DB-level attacker can't erase their trail
-  (builds on Phase 3 H2 / Phase 4).
+- [x] **S4** Ship/back up audit logs off the app database so a DB-level attacker can't erase their trail
+  (builds on Phase 3 H2 / Phase 4) — ✅ **DONE (2026-07-21) — ready for commit.** New
+  `App\Support\AuditTrail::record()` mirrors every `audit_logs` row (via `Auditable`) and every
+  `login_logs` row (via `LogAuthenticationActivity`) to a dedicated append-only `audit` log channel
+  (`config/logging.php` — JSON `daily` file at `storage/logs/audit/`, 365-day retention; operator ships
+  it off-box, or points `AUDIT_LOG_CHANNEL` at syslog/papertrail for true off-host). The model-audit
+  mirror fires via `DB::afterCommit`, so a rolled-back money/grade change leaves **no** phantom line —
+  the file stays in lockstep with the table. Mirror failures are swallowed to the default channel
+  (the DB row is the source of truth; the backup never breaks the mutation). Verified
+  `AuditTrailOffDatabaseTest` 4/4 (mirror on audited mutation; login success+fail mirrored; rolled-back
+  change absent; trail survives a table wipe) + `FinanceAuditTrailTest`/`LoginActivityLogTest` 13/13
+  unchanged. **Operator:** nothing required to activate (defaults on); to harden, set `AUDIT_LOG_CHANNEL`
+  and add `storage/logs/audit/` to the off-site backup/rotation.
 - [ ] **S5** External uptime monitoring on the framework `/up` health endpoint for
   `sophentis.philceb.ph` (+ one school host), alerting the operator — downtime is noticed by us,
   not by a school. *(Added 2026-07-17.)*
@@ -287,8 +312,18 @@ staff roles (admin/finance/registrar), optional for students.
 
 ## Phase 8 — Process & Compliance  *(added 2026-07-09 — people layer)*
 
-- [ ] **P1** One-page incident-response plan: who is called, mass force-logout procedure, key/credential
-  rotation runbook (coordinate with D2), school notification steps.
+- [x] **P1** Incident-response plan — ✅ **DONE (2026-07-21) — ready for commit.**
+  `docs/security/incident-response-plan.md`: roles/contacts (incl. the still-unnamed DPO), detection sources
+  (the S4 off-DB trail, `login_logs`/Logins page, `auth.failed.threshold`, pending S3/S5), SEV-1/2/3
+  classification, a first-60-minutes triage that **preserves the off-DB audit trail before any cleanup**,
+  containment (`php artisan down --secret`, mass force-logout by wiping the file-driver
+  `storage/framework/sessions/*`, single-account lockout via password-reset + session-wipe), a credential/key
+  rotation runbook, the RA 10173 **72-hour** NPC/data-subject notification (§P3), recovery (→ DR runbook P5),
+  and post-incident. **Surfaced two real gaps, now documented + flagged:** (1) no user-deactivation flag → the
+  interim lockout is a manual password reset (this is exactly Roadmap **P2**); (2) rotating `APP_KEY` does NOT
+  re-key data at rest — the D2/D2b backfills skip anything already decryptable (incl. old-key data via
+  `APP_PREVIOUS_KEYS`), so a purpose-built `key:rotate` (decrypt-old→encrypt-new) command is needed before the
+  old key can ever be retired. Doc-only; no code/tests.
 - [ ] **P2** Offboarding/account lifecycle: staff deactivation procedure that also **kills active sessions**;
   periodic least-privilege role review (readable via the Phase 3 audit log).
 - [ ] **P3** RA 10173 (PH Data Privacy Act) items: designated DPO, privacy notice + consent (enrollment
