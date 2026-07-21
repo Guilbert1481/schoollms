@@ -330,10 +330,14 @@ class ChatController extends Controller
             'flag_level' => $flagLevel,
         ], $attachmentData));
 
-        // 🚨 Notify Based on Severity Level
+        // 🚨 Notify Based on Severity Level — only staff of the sender's own
+        // school (User has no BelongsToSchool scope, so filter explicitly;
+        // flagged content must never cross tenant boundaries).
         if ($isFlagged && $flagLevel) {
-            $rolesToNotify = config("chat.notify_roles.$flagLevel");
-            $recipients = User::whereIn('role', $rolesToNotify)->get();
+            $rolesToNotify = config("chat.notify_roles.$flagLevel", []);
+            $recipients = User::whereIn('role', $rolesToNotify)
+                ->where('school_id', $message->school_id)
+                ->get();
             foreach ($recipients as $user) {
                 $user->notify(new FlaggedChatNotification($message));
             }
