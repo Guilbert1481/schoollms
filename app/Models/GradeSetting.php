@@ -11,17 +11,22 @@ use Illuminate\Database\Eloquent\Model;
  */
 class GradeSetting extends Model
 {
-    public const RULE_AVERAGE        = 'average';
+    public const RULE_AVERAGE = 'average';
+
     public const RULE_ALL_AREAS_PASS = 'all_areas_pass';
 
     protected $fillable = [
         'school_id',
         'passing_threshold',
         'promotion_rule',
+        'show_student_grades',
+        'show_student_form137',
     ];
 
     protected $casts = [
         'passing_threshold' => 'decimal:2',
+        'show_student_grades' => 'boolean',
+        'show_student_form137' => 'boolean',
     ];
 
     /** Get (or create with sensible defaults) the settings row for a school. */
@@ -29,7 +34,13 @@ class GradeSetting extends Model
     {
         return static::firstOrCreate(
             ['school_id' => $schoolId],
-            ['passing_threshold' => 75.00, 'promotion_rule' => self::RULE_AVERAGE]
+            [
+                'passing_threshold' => 75.00,
+                'promotion_rule' => self::RULE_AVERAGE,
+                // Student grade views are hidden until the Principal enables them.
+                'show_student_grades' => false,
+                'show_student_form137' => false,
+            ]
         );
     }
 }

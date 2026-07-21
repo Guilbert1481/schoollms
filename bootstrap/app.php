@@ -317,6 +317,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'enrollment.open' => \App\Http\Middleware\EnsureEnrollmentOpen::class,
             'attendance.device' => \App\Http\Middleware\VerifyAttendanceDevice::class,
             'scanner.shell' => \App\Http\Middleware\ScannerShell::class,
+            // Gates a student grade-view route behind the Principal's per-school
+            // toggle (Settings → Grades → Student Grade). Param: grades | form137.
+            'student.grade-view' => \App\Http\Middleware\EnsureStudentGradeViewEnabled::class,
 
         ]);
 

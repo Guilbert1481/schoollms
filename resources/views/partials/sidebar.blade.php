@@ -29,6 +29,13 @@
     $isBasicEdStudent = ($role === 'student' && $user)
         ? app(\App\Services\Dashboard\StudentDashboardService::class)->isBasicEd($user)
         : false;
+
+    // Principal → Settings → Grades → Student Grade: per-school switches that
+    // hide the student "Grades" (report card) and "Form 137" (transcript) items.
+    // Read-only lookup; a missing row means both are off (the default).
+    $studentGradeView = $isBasicEdStudent
+        ? \App\Models\GradeSetting::where('school_id', (int) ($user->school_id ?? 0))->first()
+        : null;
 @endphp
 
 <nav x-data="{ open: '{{ $activeSection }}' }" class="px-4 py-6 space-y-2 text-sm">
@@ -74,6 +81,18 @@
                                 ->filter(function ($child) use ($role) {
                                     return !isset($child['roles']) ||
                                         in_array($role, array_map('strtolower', $child['roles']));
+                                })
+                                // Basic-ed student grade-view toggles (Principal →
+                                // Grades → Student Grade): drop the item when off.
+                                ->reject(function ($child) use ($isBasicEdStudent, $studentGradeView) {
+                                    if (! $isBasicEdStudent) {
+                                        return false;
+                                    }
+                                    return match ($child['route'] ?? '') {
+                                        'student.report-card'     => ! ($studentGradeView->show_student_grades ?? false),
+                                        'student.transcript.index' => ! ($studentGradeView->show_student_form137 ?? false),
+                                        default => false,
+                                    };
                                 })
                                 ->values();
                         @endphp
