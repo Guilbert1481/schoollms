@@ -58,9 +58,12 @@
         @endif
 
         @if (! $context['has_scheme'])
+            @php($owner = $context['track'] === 'basic' ? 'Principal' : 'Dean')
             <div class="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-6 text-sm text-amber-800">
-                No grading scheme is configured for this class's level yet. It needs to be set up under
-                <span class="font-semibold">Settings → Grading Scheme</span> before entering grades.
+                No grading scheme is configured for this class's level yet, so grades can't be entered.
+                This is set by the <span class="font-semibold">{{ $owner }}</span> under
+                <span class="font-semibold">Settings → Grading Scheme</span> — that page is in the
+                {{ $owner }} portal, not the teacher portal.
             </div>
         @elseif ($context['roster']->isEmpty())
             <div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
