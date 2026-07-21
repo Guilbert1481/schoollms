@@ -82,7 +82,14 @@
                                 <option value="{{ $c->id }}">{{ $c->name }}</option>
                             @endforeach
                         </select>
-                        <p class="mt-1 text-[11px] text-slate-400">Graded homework in a component auto-feeds that component of the gradebook.</p>
+                        @if ($context['components']->isEmpty())
+                            <p class="mt-1 text-[11px] text-amber-600">
+                                No grade components are set up for this class's level yet, so homework can only post as practice.
+                                Once a grading scheme with components exists for this level, they'll appear here automatically.
+                            </p>
+                        @else
+                            <p class="mt-1 text-[11px] text-slate-400">Graded homework in a component auto-feeds that component of the gradebook.</p>
+                        @endif
                     </div>
                     @if ($context['track'] === 'basic')
                         <div>

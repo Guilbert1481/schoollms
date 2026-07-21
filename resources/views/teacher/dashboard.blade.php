@@ -14,10 +14,11 @@
     <!-- ========================= -->
     <!-- ROW 1: KPI CARDS -->
     <!-- ========================= -->
-    <div class="w-full grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    {{-- 2 KPIs per row on mobile (matches student dashboard), 5 across on xl. --}}
+    <div class="w-full grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-5">
 
         <!-- Total Classes -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
             <div class="p-2 bg-purple-50 w-fit rounded-lg text-purple-600 mb-3">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
                      viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -30,7 +31,7 @@
         </div>
 
         <!-- Avg Grade -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
             <div class="p-2 bg-blue-50 w-fit rounded-lg text-blue-600 mb-3">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
                      viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -44,7 +45,7 @@
 
         <!-- Attendance -->
         <div @click="openAttendance = true"
-             class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-400 cursor-pointer transition-all group">
+             class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-400 cursor-pointer transition-all group">
             <div class="flex justify-between items-start mb-3">
                 <div class="p-2 bg-emerald-50 rounded-lg text-emerald-600 group-hover:bg-emerald-100">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
@@ -60,7 +61,7 @@
         </div>
 
         <!-- Pending Grading -->
-        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+        <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
             <div class="p-2 bg-amber-50 w-fit rounded-lg text-amber-600 mb-3">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"
                      viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -74,7 +75,7 @@
 
         <!-- At Risk -->
         <div @click="openAtRisk = true"
-             class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:border-rose-400 cursor-pointer transition-all group">
+             class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 hover:border-rose-400 cursor-pointer transition-all group">
             <div class="flex justify-between items-start mb-3">
                 <div class="p-2 bg-rose-50 rounded-lg text-rose-600 group-hover:bg-rose-100">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none"

@@ -75,6 +75,8 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/teacher/metadata.php',
             __DIR__.'/../routes/teacher/mcq-builder.php',
             __DIR__.'/../routes/teacher/dashboard.php',
+            __DIR__.'/../routes/teacher/classes.php',
+            __DIR__.'/../routes/teacher/students.php',
             __DIR__.'/../routes/teacher/attendance.php',
             __DIR__.'/../routes/teacher/grades.php',
             __DIR__.'/../routes/teacher/homework.php',

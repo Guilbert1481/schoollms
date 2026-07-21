@@ -346,7 +346,8 @@ return [
 
                 [
                     'label' => 'Class List',
-                    'route' => '#',
+                    'route' => 'teacher.classes.index',
+                    'active' => 'teacher.classes.*',
                     'icon' => 'list',
                 ],
 
@@ -370,7 +371,8 @@ return [
 
                 [
                     'label' => 'Students',
-                    'route' => '#',
+                    'route' => 'teacher.students.index',
+                    'active' => 'teacher.students.*',
                     'icon' => 'users',
                 ],
 
