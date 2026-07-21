@@ -87,68 +87,152 @@ class LessonStudioController extends Controller
         $levelCounts = [];
 
         if ($level === 0) {
-            $gradeLevels = EducationLevels::offeredRootsFor($request->user()->id);
-            $requested = $request->query('level');
-            if ($requested !== null && $requested !== 'all'
-                && $gradeLevels->contains(fn ($g) => (int) $g->id === (int) $requested)) {
-                $activeLevelId = (int) $requested;
-                $showAll = false;
-            }
+            // subject_coordinator is Basic-Ed ONLY, but this page is shared with
+            // higher-ed course architects — so gate the stage-group tabs on the role,
+            // not the page. EDUCATION_LEVEL_TABS_PATTERN.md §3: making these tabs
+            // global once made undergraduate material unreachable for the architect.
+            $basicOnly = $request->user()->role === 'subject_coordinator';
 
-            $activeRoot = $gradeLevels->firstWhere('id', $activeLevelId);
-            $activeRootIsBasic = $activeRoot && EducationLevels::isBasic($activeRoot->name);
-
-            // Filter row adapts to the active tab (house convention): grade options
-            // on Basic Ed, year level + program on a higher-ed tab.
-            if (! $showAll && $activeRootIsBasic) {
-                $gradeOptions = collect(EducationLevels::basicGradeOptions())->values();
-                $g = trim((string) $request->query('grade', ''));
-                if ($g !== '' && $gradeOptions->contains($g)) {
-                    $activeGrade = $g;
-                }
-            } elseif (! $showAll) {
-                $gradeOptions = collect(EducationLevels::yearLevelOptions($activeLevelId))->values();
-                $g = trim((string) $request->query('grade', ''));
-                if ($g !== '' && $gradeOptions->contains($g)) {
-                    $activeGrade = $g;
+            if ($basicOnly) {
+                // Tabs = the offered Basic-Ed stage groups (Preschool / Elementary /
+                // Junior High / Senior High); the list never leaves Basic Education.
+                $gradeLevels = EducationLevels::basicStageGroups();
+                $requested = $request->query('level');
+                if ($requested !== null && $requested !== 'all'
+                    && $gradeLevels->contains(fn ($g) => (int) $g->id === (int) $requested)) {
+                    $activeLevelId = (int) $requested;
+                    $showAll = false;
                 }
 
-                $programOptions = DB::table('programs')
+                // Every tab is Basic Education, so the filter row is always the grade
+                // dropdown — scoped to the grades inside the active stage group.
+                $activeRootIsBasic = true;
+                $gradeNodeIds = [];
+                if (! $showAll) {
+                    $stageGrades = EducationLevels::stageDescendants($activeLevelId);
+                    $gradeOptions = $stageGrades->pluck('name')->unique()->values();
+                    $g = trim((string) $request->query('grade', ''));
+                    if ($g !== '' && $gradeOptions->contains($g)) {
+                        $activeGrade = $g;
+                    }
+
+                    // Nodes the subjects must map to: the whole stage subtree, or
+                    // just the chosen grade's nodes within it.
+                    $gradeNodeIds = $activeGrade !== ''
+                        ? $stageGrades->where('name', $activeGrade)
+                            ->flatMap(fn ($n) => EducationLevels::descendantIds((int) $n->id))
+                            ->unique()->values()->all()
+                        : EducationLevels::descendantIds($activeLevelId);
+                }
+
+                $folders = DB::table('subjects')
                     ->where('school_id', $schoolId)
-                    ->whereIn('education_node_id', EducationLevels::descendantIds($activeLevelId))
+                    ->where('is_basic_ed', 1)
+                    ->when(! $showAll, fn ($q) => $q->whereExists(fn ($sub) => $sub
+                        ->selectRaw('1')
+                        ->from('grade_level_subjects')
+                        ->whereColumn('grade_level_subjects.subject_id', 'subjects.id')
+                        ->whereIn('grade_level_subjects.education_node_id', $gradeNodeIds ?: [0])
+                        ->where('grade_level_subjects.is_active', 1)))
                     ->orderBy('name')
-                    ->get(['id', 'name']);
-                $p = trim((string) $request->query('program', ''));
-                if ($p !== '' && $programOptions->contains(fn ($x) => (string) $x->id === $p)) {
-                    $activeProgram = $p;
+                    ->get(['id', 'name', 'code'])
+                    ->map(fn ($s) => [
+                        'id' => $s->id,
+                        'name' => $s->name,
+                        'subtitle' => $s->code,
+                        'count' => DB::table('topics')->where('subject_id', $s->id)->count(),
+                        'url' => route('course-architect.lesson-studio.subject', $s->id),
+                    ])->values()->all();
+
+                // Per-tab badge counts: basic-ed subjects mapped anywhere in each
+                // stage group's subtree (unaffected by the grade dropdown).
+                foreach ($gradeLevels as $group) {
+                    $nodeIds = EducationLevels::descendantIds((int) $group->id);
+                    $levelCounts[(int) $group->id] = DB::table('subjects')
+                        ->where('school_id', $schoolId)
+                        ->where('is_basic_ed', 1)
+                        ->whereExists(fn ($sub) => $sub
+                            ->selectRaw('1')
+                            ->from('grade_level_subjects')
+                            ->whereColumn('grade_level_subjects.subject_id', 'subjects.id')
+                            ->whereIn('grade_level_subjects.education_node_id', $nodeIds ?: [0])
+                            ->where('grade_level_subjects.is_active', 1))
+                        ->count();
+                }
+            } else {
+                $gradeLevels = EducationLevels::offeredRootsFor($request->user()->id);
+                $requested = $request->query('level');
+                if ($requested !== null && $requested !== 'all'
+                    && $gradeLevels->contains(fn ($g) => (int) $g->id === (int) $requested)) {
+                    $activeLevelId = (int) $requested;
+                    $showAll = false;
+                }
+
+                $activeRoot = $gradeLevels->firstWhere('id', $activeLevelId);
+                $activeRootIsBasic = $activeRoot && EducationLevels::isBasic($activeRoot->name);
+
+                // Filter row adapts to the active tab (house convention): grade options
+                // on Basic Ed, year level + program on a higher-ed tab.
+                if (! $showAll && $activeRootIsBasic) {
+                    $gradeOptions = collect(EducationLevels::basicGradeOptions())->values();
+                    $g = trim((string) $request->query('grade', ''));
+                    if ($g !== '' && $gradeOptions->contains($g)) {
+                        $activeGrade = $g;
+                    }
+                } elseif (! $showAll) {
+                    $gradeOptions = collect(EducationLevels::yearLevelOptions($activeLevelId))->values();
+                    $g = trim((string) $request->query('grade', ''));
+                    if ($g !== '' && $gradeOptions->contains($g)) {
+                        $activeGrade = $g;
+                    }
+
+                    $programOptions = DB::table('programs')
+                        ->where('school_id', $schoolId)
+                        ->whereIn('education_node_id', EducationLevels::descendantIds($activeLevelId))
+                        ->orderBy('name')
+                        ->get(['id', 'name']);
+                    $p = trim((string) $request->query('program', ''));
+                    if ($p !== '' && $programOptions->contains(fn ($x) => (string) $x->id === $p)) {
+                        $activeProgram = $p;
+                    }
+                }
+
+                // "All Levels" spans only the roots this architect may see.
+                $matchRoots = $showAll ? $gradeLevels : $gradeLevels->where('id', $activeLevelId);
+
+                $folders = DB::table('subjects')
+                    ->where('school_id', $schoolId)
+                    ->where(function ($outer) use ($matchRoots, $schoolId, $activeGrade, $activeProgram) {
+                        if ($matchRoots->isEmpty()) {
+                            $outer->whereRaw('1 = 0'); // scoped to nothing → show nothing
+                        }
+                        foreach ($matchRoots as $root) {
+                            $outer->orWhere(fn ($q) => $this->subjectsInRoot(
+                                $q, $root, $schoolId, $activeGrade, $activeProgram
+                            ));
+                        }
+                    })
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'code'])
+                    ->map(fn ($s) => [
+                        'id' => $s->id,
+                        'name' => $s->name,
+                        'subtitle' => $s->code,
+                        'count' => DB::table('topics')->where('subject_id', $s->id)->count(),
+                        'url' => route('course-architect.lesson-studio.subject', $s->id),
+                    ])->values()->all();
+
+                // Per-tab badge counts — unfiltered by the grade/program row, so a tab
+                // always advertises how much it holds, not how much the current filter left.
+                foreach ($gradeLevels as $root) {
+                    $levelCounts[(int) $root->id] = DB::table('subjects')
+                        ->where('school_id', $schoolId)
+                        ->where(fn ($q) => $this->subjectsInRoot($q, $root, $schoolId, '', ''))
+                        ->count();
                 }
             }
 
-            // "All Levels" spans only the roots this architect may see.
-            $matchRoots = $showAll ? $gradeLevels : $gradeLevels->where('id', $activeLevelId);
-
-            $folders = DB::table('subjects')
-                ->where('school_id', $schoolId)
-                ->where(function ($outer) use ($matchRoots, $schoolId, $activeGrade, $activeProgram) {
-                    if ($matchRoots->isEmpty()) {
-                        $outer->whereRaw('1 = 0'); // scoped to nothing → show nothing
-                    }
-                    foreach ($matchRoots as $root) {
-                        $outer->orWhere(fn ($q) => $this->subjectsInRoot(
-                            $q, $root, $schoolId, $activeGrade, $activeProgram
-                        ));
-                    }
-                })
-                ->orderBy('name')
-                ->get(['id', 'name', 'code'])
-                ->map(fn ($s) => [
-                    'id' => $s->id,
-                    'name' => $s->name,
-                    'subtitle' => $s->code,
-                    'count' => DB::table('topics')->where('subject_id', $s->id)->count(),
-                    'url' => route('course-architect.lesson-studio.subject', $s->id),
-                ])->values()->all();
-
+            // Shared subjects list table (identical for both tab styles).
             $listTableKey = 'lesson_studio_subjects';
             $listColumns = [
                 ['key' => 'name',         'label' => 'Subject Name', 'raw' => true],
@@ -164,15 +248,6 @@ class LessonStudioController extends Controller
                 'topics_count' => $f['count'],
                 '_url' => $f['url'],
             ]);
-
-            // Per-tab badge counts — unfiltered by the grade/program row, so a tab
-            // always advertises how much it holds, not how much the current filter left.
-            foreach ($gradeLevels as $root) {
-                $levelCounts[(int) $root->id] = DB::table('subjects')
-                    ->where('school_id', $schoolId)
-                    ->where(fn ($q) => $this->subjectsInRoot($q, $root, $schoolId, '', ''))
-                    ->count();
-            }
         } elseif ($level === 1) {
             $folders = DB::table('topics')
                 ->where('subject_id', $subjectModel->id)
