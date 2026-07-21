@@ -128,6 +128,31 @@ class StudentEnrollment extends Model
         ];
     }
 
+    /** Same basic-ed test financeContext() uses, exposed for feature gating. */
+    public function isBasicEd(): bool
+    {
+        return in_array(strtolower((string) $this->education_level), ['kinder', 'elementary', 'junior_high', 'senior_high', 'basic', 'basic_ed'], true)
+            || (empty($this->program_id) && ! empty($this->education_node_id));
+    }
+
+    /**
+     * The official enrollment date: when the enrollment was approved, falling
+     * back to row creation for legacy rows that predate approved_at.
+     */
+    public function officialEnrollmentDate(): ?\Illuminate\Support\Carbon
+    {
+        return $this->approved_at ?? $this->created_at;
+    }
+
+    /**
+     * Modality change requests are accepted only for a short window at the
+     * start of the term: 2 weeks from the official enrollment date.
+     */
+    public function modalityRequestDeadline(): ?\Illuminate\Support\Carbon
+    {
+        return $this->officialEnrollmentDate()?->copy()->addDays(14);
+    }
+
     public function academicYear()
     {
         return $this->belongsTo(AcademicYear::class);

@@ -95,6 +95,28 @@ class GradebookTrackResolutionTest extends TestCase
         $this->assertSame('higher', app(GradebookService::class)->classTrack($class));
     }
 
+    public function test_section_tagged_with_an_education_node_resolves_basic_with_no_roster(): void
+    {
+        // A published Grade 5 section that carries its grade level directly on
+        // sections.education_node_id, but nobody is enrolled yet. The roster probe
+        // alone used to return 'higher' here (and hide the basic scheme); the
+        // authoritative section tag now keeps it on the basic track.
+        $nodeId = DB::table('education_nodes')->insertGetId(['name' => 'Grade 5', 'parent_id' => null, 'node_type' => 'stage', 'order_index' => 0, 'is_offered' => 1, 'is_active' => 1]);
+        $sectionId = DB::table('sections')->insertGetId(['school_id' => $this->school->id, 'term_id' => $this->termId, 'name' => 'Patient', 'year_level' => 5, 'education_node_id' => $nodeId]);
+        $class = $this->class($sectionId);
+
+        $this->assertSame('basic', app(GradebookService::class)->classTrack($class));
+    }
+
+    public function test_untagged_section_with_no_roster_defaults_to_higher(): void
+    {
+        // No section tag and no roster signal at all → higher ed (the default).
+        $sectionId = DB::table('sections')->insertGetId(['school_id' => $this->school->id, 'term_id' => $this->termId, 'name' => 'BSIT-1A', 'year_level' => 1]);
+        $class = $this->class($sectionId);
+
+        $this->assertSame('higher', app(GradebookService::class)->classTrack($class));
+    }
+
     public function test_gradebook_finds_the_basic_scheme_for_the_class(): void
     {
         $sectionId = DB::table('sections')->insertGetId(['school_id' => $this->school->id, 'term_id' => $this->termId, 'name' => 'Patient', 'year_level' => 5]);

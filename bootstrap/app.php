@@ -111,6 +111,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/teacher/test/test-builder/print.php',
             __DIR__.'/../routes/teacher/test/test-builder/answer-key.php',
             __DIR__.'/../routes/teacher/test/test-builder/answer-sheets.php',
+            __DIR__.'/../routes/teacher/test/grading.php',
 
             /*
             |--------------------------------------------------------------------------
@@ -131,6 +132,7 @@ return Application::configure(basePath: dirname(__DIR__))
             __DIR__.'/../routes/student/assessments.php',
             __DIR__.'/../routes/student/subjects.php',
             __DIR__.'/../routes/student/transcript.php',
+            __DIR__.'/../routes/student/services.php',
             __DIR__.'/../routes/student/applications.php',
             __DIR__.'/../routes/student/training/training.php',
             __DIR__.'/../routes/address.php',

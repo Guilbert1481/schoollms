@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Controllers\Staff\Registrar\ClearanceQueueController;
 use App\Http\Controllers\Staff\Registrar\EnrollmentValidationController;
 use App\Http\Controllers\Staff\Registrar\SectionClassesController;
 use App\Http\Controllers\Staff\Registrar\SectioningController;
+use App\Http\Controllers\Staff\Registrar\Settings\ClearanceSignatoryController;
 use App\Http\Controllers\Staff\Registrar\Settings\DocumentRequirementController;
+use App\Http\Controllers\Staff\Registrar\StudentRequestsController;
 use App\Http\Controllers\Staff\Registrar\Settings\ParentPortalSettingController;
 use App\Http\Controllers\Staff\Registrar\Settings\StudentIdSettingController;
 use App\Http\Controllers\Staff\Registrar\StudentLedgerController;
@@ -115,4 +118,31 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
             ->name('settings.documents.update');
         Route::delete('settings/documents/{requirement}', [DocumentRequirementController::class, 'destroy'])
             ->name('settings.documents.destroy');
+
+        // 8. Student Requests — modality changes + document requests, one
+        //    tabbed queue. Approving a modality request updates the enrollment.
+        Route::get('requests', [StudentRequestsController::class, 'index'])
+            ->name('requests.index');
+        Route::put('requests/modality/{modalityRequest}', [StudentRequestsController::class, 'decideModality'])
+            ->name('requests.modality.decide');
+        Route::put('requests/documents/{documentRequest}', [StudentRequestsController::class, 'transitionDocument'])
+            ->name('requests.documents.transition');
+
+        // 9. Clearances — open-clearance queue + per-item sign-off.
+        Route::get('clearances', [ClearanceQueueController::class, 'index'])
+            ->name('clearances.index');
+        Route::get('clearances/{clearance}', [ClearanceQueueController::class, 'show'])
+            ->name('clearances.show');
+        Route::put('clearances/{clearance}/items/{item}', [ClearanceQueueController::class, 'updateItem'])
+            ->name('clearances.items.update');
+
+        // 10. Settings → Clearance Signatories (per-school sign-off list).
+        Route::get('settings/clearance-signatories', [ClearanceSignatoryController::class, 'index'])
+            ->name('settings.clearance-signatories.index');
+        Route::post('settings/clearance-signatories', [ClearanceSignatoryController::class, 'store'])
+            ->name('settings.clearance-signatories.store');
+        Route::put('settings/clearance-signatories/{signatory}', [ClearanceSignatoryController::class, 'update'])
+            ->name('settings.clearance-signatories.update');
+        Route::delete('settings/clearance-signatories/{signatory}', [ClearanceSignatoryController::class, 'destroy'])
+            ->name('settings.clearance-signatories.destroy');
     });

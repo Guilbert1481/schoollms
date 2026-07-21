@@ -672,6 +672,32 @@ class StudentDashboardService
     }
 
     /**
+     * The student's active enrollment, publicly exposed for feature gating
+     * (student services pages share the dashboard's resolution + memo).
+     */
+    public function activeEnrollment(User $user): ?StudentEnrollment
+    {
+        return $this->enrollment($user);
+    }
+
+    /**
+     * Can this student currently file a modality request? Non-basic-ed only,
+     * and only within 2 weeks of the official enrollment date. Drives both
+     * the sidebar item's visibility and the server-side guard on submit.
+     */
+    public function modalityWindowOpen(User $user): bool
+    {
+        $enrollment = $this->enrollment($user);
+        if (! $enrollment || $this->isBasicEd($user)) {
+            return false;
+        }
+
+        $deadline = $enrollment->modalityRequestDeadline();
+
+        return $deadline !== null && now()->lte($deadline);
+    }
+
+    /**
      * Is the student's active enrollment in basic education? Drives level-aware
      * copy (Term vs Semester) and KPI visibility (units are higher-ed only).
      */

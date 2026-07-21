@@ -127,6 +127,7 @@ class TestManagementService
                 'program_id' => $class?->program_id ? (int) $class->program_id : null,
                 'program_label' => (string) ($class?->program_id ? ($class->program_code ?: $class->program_name) : '—'),
                 'items' => (int) ($itemCounts[$test->id] ?? 0),
+                'mode' => $setting?->mode,
                 'mode_label' => $this->modeLabel($setting?->mode),
                 'schedule_label' => $this->scheduleLabel($setting),
                 'created_label' => $test->created_at ? Carbon::parse($test->created_at)->format('M j, Y') : '—',

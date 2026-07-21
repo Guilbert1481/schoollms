@@ -80,6 +80,8 @@
     #otRoot .ot-legend .sw{ width:13px;height:13px;border-radius:4px }
     #otRoot .ot-submit{ margin-top:14px;width:100%;background:var(--ot-answered);color:#fff;padding:12px }
     #otRoot .ot-save{ font-size:12px;color:var(--ot-muted) }
+    #otRoot .ot-warn{ background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;
+        padding:8px 14px;font-size:13px;margin:10px 0 0 }
 </style>
 
     <div class="ot-top">
@@ -95,6 +97,7 @@
     <div class="ot-tabs" id="otTabs"></div>
     <div class="ot-note">A section tab is <b style="color:var(--ot-answered)">green</b> while it has an unanswered
         question and turns <b style="color:var(--ot-accent)">blue</b> when complete. <span class="ot-save" id="otSave"></span></div>
+    <div class="ot-warn" id="otWarn" style="display:none"></div>
 
     <div class="ot-body">
         <div class="ot-panel">
@@ -131,6 +134,7 @@
 window.OT = {
     csrf: @json(csrf_token()),
     answerUrl: @json(route('student.assessments.answer', $attempt)),
+    eventUrl: @json(route('student.assessments.event', $attempt)),
     remaining: @json($remainingSeconds),
     sections: @json($sections),
 };
@@ -297,6 +301,30 @@ window.OT = {
             left--; setTimeout(tick,1000);
         })();
     }
+
+    // ---- soft proctoring: log tab-blur / hidden / fullscreen exit ----
+    // The browser can't be truly locked down, so this is an audit trail for the
+    // teacher, not a block. Server-stamps each event; the client only labels it.
+    (function(){
+        let leaves = 0, last = 0;
+        function send(type){
+            fetch(OT.eventUrl, { method:'POST', keepalive:true, credentials:'include',
+                headers:{ 'Content-Type':'application/json','X-CSRF-TOKEN':OT.csrf,'Accept':'application/json' },
+                body: JSON.stringify({ type }) }).catch(()=>{});
+        }
+        function leave(type){
+            const now = Date.now();
+            if (now - last < 800) return;   // blur + visibilitychange often fire together — count once
+            last = now;
+            leaves++; send(type);
+            const w = el('otWarn');
+            w.style.display = 'block';
+            w.textContent = 'You left the test '+leaves+' time'+(leaves>1?'s':'')+'. This is recorded for your teacher.';
+        }
+        document.addEventListener('visibilitychange', ()=>{ if (document.hidden) leave('hidden'); });
+        window.addEventListener('blur', ()=> leave('blur'));
+        document.addEventListener('fullscreenchange', ()=>{ if (!document.fullscreenElement) send('fullscreen_exit'); });
+    })();
 
     function esc(s){ return (s==null?'':''+s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     render();

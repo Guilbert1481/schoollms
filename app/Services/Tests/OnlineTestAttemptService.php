@@ -34,6 +34,12 @@ class OnlineTestAttemptService
 
     private const BUBBLE = ['multiple_choice', 'true_false', 'mtf'];
 
+    /** Integrity signals the take screen may report; anything else is bucketed as 'other'. */
+    public const PROCTOR_TYPES = ['blur', 'hidden', 'fullscreen_exit', 'return'];
+
+    /** Keep only the most recent N raw events per attempt; aggregate counts are unbounded. */
+    private const PROCTOR_MAX_EVENTS = 100;
+
     public function __construct(private TestAvailability $availability) {}
 
     public function activeAttempt(Test $test, int $studentId): ?TestAttempt
@@ -62,7 +68,14 @@ class OnlineTestAttemptService
 
         return DB::transaction(function () use ($test, $studentId, $schoolId) {
             $settings = $test->settings;
-            $seed = ($settings && $settings->shuffle_questions) ? random_int(1, 2_000_000_000) : null;
+            $shuffleQuestions = (bool) ($settings?->shuffle_questions);
+            $shuffleChoices = (bool) ($settings?->shuffle_mcq_choices);
+
+            // One frozen seed drives both axes; it exists whenever EITHER flag is on
+            // so the shuffle is reproducible across resumes. The effective flags are
+            // frozen onto the attempt too, so editing the test's settings mid-window
+            // can't change an in-flight sitting (same guarantee as the frozen question set).
+            $seed = ($shuffleQuestions || $shuffleChoices) ? random_int(1, 2_000_000_000) : null;
             $started = now();
 
             $attempt = TestAttempt::create([
@@ -74,6 +87,7 @@ class OnlineTestAttemptService
                 'print_seed' => $seed,
                 'started_at' => $started,
                 'deadline_at' => $this->availability->deadlineFor($test, $started),
+                'meta' => ['shuffle' => ['questions' => $shuffleQuestions, 'choices' => $shuffleChoices]],
             ]);
 
             foreach ($test->testQuestions()->with('question')->orderBy('order')->get() as $tq) {
@@ -102,6 +116,14 @@ class OnlineTestAttemptService
     public function sections(TestAttempt $attempt): array
     {
         $seed = $attempt->print_seed;
+
+        // Per-axis seeds from the flags frozen at start. Back-compat: attempts begun
+        // before the flags were frozen (meta null) fall back to the old single-seed
+        // rule, where a non-null seed shuffled both questions and MCQ choices.
+        $frozen = $attempt->meta['shuffle'] ?? null;
+        $questionSeed = ($frozen['questions'] ?? ($seed !== null)) ? $seed : null;
+        $choiceSeed = ($frozen['choices'] ?? ($seed !== null)) ? $seed : null;
+
         $saved = $attempt->answers()->get()->keyBy('question_id');
 
         $tqs = $attempt->test->testQuestions()->with('question.choices')->get()
@@ -119,7 +141,7 @@ class OnlineTestAttemptService
             }
 
             $ordered = collect($byType[$type])
-                ->sortBy(fn ($tq) => TestArrangement::orderKey($seed, (int) $tq->order))
+                ->sortBy(fn ($tq) => TestArrangement::orderKey($questionSeed, (int) $tq->order))
                 ->values();
 
             $questions = [];
@@ -131,7 +153,7 @@ class OnlineTestAttemptService
                 $choices = [];
                 if (in_array($type, self::BUBBLE, true)) {
                     $co = $type === 'multiple_choice'
-                        ? TestArrangement::choiceOrder($seed, $q->id, $q->choices)
+                        ? TestArrangement::choiceOrder($choiceSeed, $q->id, $q->choices)
                         : $q->choices->sortBy('id')->values();
                     foreach ($co as $c) {
                         $choices[] = ['id' => $c->id, 'text' => $c->choice_text];
@@ -168,5 +190,34 @@ class OnlineTestAttemptService
         }
 
         return $out;
+    }
+
+    /**
+     * Append one integrity signal (tab-blur, tab-hidden, fullscreen exit, …) to the
+     * attempt's meta.proctor log. Server-stamped; the client is trusted only for the
+     * type label, which is whitelisted. Keeps a bounded ring of the most recent raw
+     * events plus unbounded per-type counts and a total, so the teacher-side summary
+     * is O(1) to read. A no-op once the attempt is no longer in progress.
+     */
+    public function recordProctorEvent(TestAttempt $attempt, string $type): void
+    {
+        if (! $attempt->isOpen()) {
+            return;
+        }
+
+        $type = in_array($type, self::PROCTOR_TYPES, true) ? $type : 'other';
+
+        $meta = $attempt->meta ?? [];
+        $proctor = $meta['proctor'] ?? ['events' => [], 'counts' => [], 'total' => 0];
+
+        $proctor['events'][] = ['type' => $type, 'at' => now()->toIso8601String()];
+        if (count($proctor['events']) > self::PROCTOR_MAX_EVENTS) {
+            $proctor['events'] = array_slice($proctor['events'], -self::PROCTOR_MAX_EVENTS);
+        }
+        $proctor['counts'][$type] = ($proctor['counts'][$type] ?? 0) + 1;
+        $proctor['total'] = ($proctor['total'] ?? 0) + 1;
+
+        $meta['proctor'] = $proctor;
+        $attempt->update(['meta' => $meta]);
     }
 }

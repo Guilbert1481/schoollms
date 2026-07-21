@@ -23,5 +23,6 @@ Route::middleware(['web', 'auth', 'role:student'])
         Route::get('{test}/result', [AssessmentController::class, 'result'])->name('result');
 
         Route::post('attempt/{attempt}/answer', [AssessmentController::class, 'answer'])->name('answer');
+        Route::post('attempt/{attempt}/event', [AssessmentController::class, 'event'])->name('event');
         Route::post('attempt/{attempt}/submit', [AssessmentController::class, 'submit'])->name('submit');
     });

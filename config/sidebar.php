@@ -51,6 +51,8 @@ return [
             'registrar_teaching_assignments',
             'registrar_subject_credits',
             'registrar_transcripts',
+            'registrar_student_requests',
+            'registrar_clearances',
             'communication',
             'tools',
             'settings',
@@ -604,6 +606,22 @@ return [
             'roles' => ['registrar'],
         ],
 
+        'registrar_student_requests' => [
+            'icon' => 'inbox',
+            'label' => 'Student Requests',
+            'route' => 'registrar.requests.index',
+            'active' => 'registrar.requests.*',
+            'roles' => ['registrar'],
+        ],
+
+        'registrar_clearances' => [
+            'icon' => 'check-circle',
+            'label' => 'Clearances',
+            'route' => 'registrar.clearances.index',
+            'active' => 'registrar.clearances.*',
+            'roles' => ['registrar'],
+        ],
+
         'registrar_transcripts' => [
             'icon' => 'scroll-text',
             'label' => 'Transcript of Records',
@@ -796,6 +814,14 @@ return [
                     'route' => 'registrar.settings.parent-portal.index',
                     'active' => 'registrar.settings.parent-portal.*',
                     'icon' => 'users',
+                    'roles' => ['registrar'],
+                ],
+
+                [
+                    'label' => 'Clearance Signatories',
+                    'route' => 'registrar.settings.clearance-signatories.index',
+                    'active' => 'registrar.settings.clearance-signatories.*',
+                    'icon' => 'check-circle',
                     'roles' => ['registrar'],
                 ],
 
@@ -1256,18 +1282,23 @@ return [
             'label' => 'Services',
             'children' => [
                 [
+                    // Non-basic-ed only, and only while the 2-week request
+                    // window is open — enforced in partials/sidebar.blade.php.
                     'label' => 'Modality Request',
-                    'route' => '#',
+                    'route' => 'student.services.modality.index',
+                    'active' => 'student.services.modality.*',
                     'icon' => 'refresh-cw',
                 ],
                 [
                     'label' => 'Document Request',
-                    'route' => '#',
+                    'route' => 'student.services.documents.index',
+                    'active' => 'student.services.documents.*',
                     'icon' => 'file-plus',
                 ],
                 [
-                    'label' => 'Clearance Status',
-                    'route' => '#',
+                    'label' => 'Clearance',
+                    'route' => 'student.services.clearance.index',
+                    'active' => 'student.services.clearance.*',
                     'icon' => 'check-circle',
                 ],
             ],

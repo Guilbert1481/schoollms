@@ -228,6 +228,25 @@ class AssessmentController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Record one integrity signal (tab-blur, tab-hidden, fullscreen exit) reported by
+     * the take screen. Soft proctoring: the browser can't be truly locked down, so this
+     * is an audit trail for the teacher, not a block. Always returns ok — a failed log
+     * must never interrupt a student mid-test.
+     */
+    public function event(Request $request, TestAttempt $attempt): JsonResponse
+    {
+        $this->guardAttempt($attempt);
+
+        $data = $request->validate([
+            'type' => ['required', 'string', 'max:32'],
+        ]);
+
+        $this->attempts->recordProctorEvent($attempt, $data['type']);
+
+        return response()->json(['ok' => true]);
+    }
+
     /** Submit the attempt for grading. */
     public function submit(TestAttempt $attempt)
     {

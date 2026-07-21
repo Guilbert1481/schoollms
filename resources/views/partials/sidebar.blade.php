@@ -36,6 +36,13 @@
     $studentGradeView = $isBasicEdStudent
         ? \App\Models\GradeSetting::where('school_id', (int) ($user->school_id ?? 0))->first()
         : null;
+
+    // Modality Request is non-basic-ed only and only while the 2-week
+    // post-enrollment window is open (same rule the controller enforces).
+    $modalityItemVisible = ($role === 'student' && $user)
+        ? (! $isBasicEdStudent
+            && app(\App\Services\Dashboard\StudentDashboardService::class)->modalityWindowOpen($user))
+        : true;
 @endphp
 
 <nav x-data="{ open: '{{ $activeSection }}' }" class="px-4 py-6 space-y-2 text-sm">
@@ -94,6 +101,10 @@
                                         default => false,
                                     };
                                 })
+                                // Modality Request: basic ed never sees it; others
+                                // only while the 2-week request window is open.
+                                ->reject(fn ($child) => ($child['route'] ?? '') === 'student.services.modality.index'
+                                    && ! $modalityItemVisible)
                                 ->values();
                         @endphp
 

@@ -148,6 +148,13 @@ class TestManagementController extends Controller
             .' class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100">'
             .'<i data-lucide="pencil" class="h-4 w-4"></i></a>';
 
+        // Online tests can have essay answers to score by hand → grading screen.
+        if (($t->mode ?? null) === 'online') {
+            $actions .= '<a href="'.e(route('teacher.tests.grade', $t->id)).'" title="Grade essays"'
+                .' class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-600 hover:bg-violet-100">'
+                .'<i data-lucide="clipboard-check" class="h-4 w-4"></i></a>';
+        }
+
         if ($t->status === 'draft') {
             $actions .= '<form method="POST" action="'.e(route('teacher.tests.publish', $t->id)).'" class="m-0 inline-flex"'
                 .' onsubmit="return confirm(\'Publish this test?\')">'

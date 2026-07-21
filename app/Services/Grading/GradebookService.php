@@ -248,32 +248,36 @@ class GradebookService
     /* ------------------------------------- Basic ed, per section (a class) */
 
     /**
-     * Which track a class grades on. Basic ed is authoritative: a section whose
-     * active roster carries an education node IS a basic-ed grade level, and that
-     * wins over the higher-ed subject-enrolment marker. Higher ed materialises
-     * subject enrolments (student_enrollment_subjects) and its students carry no
-     * education node; basic ed is the reverse. Checking the education node first
-     * means a stray student_enrollment_subjects row (e.g. a basic student wrongly
-     * materialised into one) can't misroute the class to higher ed and hide the
-     * basic grading scheme. Defaults to higher when neither signal is present.
+     * Which track a class grades on. Basic ed is authoritative: a basic-ed
+     * section carries its grade level directly on sections.education_node_id
+     * (higher-ed sections use program_id instead — "exactly one of the two is
+     * set", per the 2026-07-20 migration). When that tag is present we trust it,
+     * so a section that is between rosters (no active enrolments yet) still
+     * grades on the basic track instead of silently falling through to higher ed.
+     *
+     * When the tag is absent (legacy sections the column never backfilled) we
+     * fall back to the roster: any active student here enrolled under an
+     * education node means a basic-ed grade level. That still wins over a stray
+     * higher-ed student_enrollment_subjects row, so a basic student wrongly
+     * materialised into one can't misroute the class and hide its grading scheme.
+     * Defaults to higher when no signal is present.
      */
     public function classTrack(ClassModel $class): string
     {
+        // Authoritative tag on the section itself.
+        $sectionNode = DB::table('sections')->where('id', $class->section_id)->value('education_node_id');
+        if ($sectionNode !== null) {
+            return 'basic';
+        }
+
+        // Fallback: infer from the active roster.
         $basic = DB::table('student_enrollments')
             ->where('section_id', $class->section_id)
             ->whereNotNull('education_node_id')
             ->whereIn('status', ['enrolled', 'provisionally_enrolled'])
             ->exists();
 
-        if ($basic) {
-            return 'basic';
-        }
-
-        if (DB::table('student_enrollment_subjects')->where('class_id', $class->id)->exists()) {
-            return 'higher';
-        }
-
-        return 'higher';
+        return $basic ? 'basic' : 'higher';
     }
 
     /**

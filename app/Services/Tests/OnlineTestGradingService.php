@@ -96,6 +96,42 @@ class OnlineTestGradingService
         $this->recompute($answer->attempt, $by);
     }
 
+    /**
+     * Score several manual (essay) answers in one shot, then re-total + re-feed ONCE.
+     * Each entry is [answerId => points]. Only answers that belong to $attempt and are
+     * a manual type are touched (an auto item's id is ignored, so it can't be hijacked),
+     * and points are clamped to 0..points_possible. Returns how many were scored.
+     */
+    public function gradeManualBatch(TestAttempt $attempt, array $scores, ?int $by = null): int
+    {
+        return DB::transaction(function () use ($attempt, $scores, $by) {
+            $answers = $attempt->answers()->whereIn('id', array_keys($scores))->get()->keyBy('id');
+            $scored = 0;
+
+            foreach ($scores as $answerId => $points) {
+                $answer = $answers->get((int) $answerId);
+                if (! $answer || ! in_array($answer->question_type, self::MANUAL_TYPES, true)) {
+                    continue;
+                }
+
+                $possible = (float) $answer->points_possible;
+                $earned = max(0.0, min((float) $points, $possible));
+                $answer->update([
+                    'points_earned' => $earned,
+                    'is_correct' => $earned >= $possible,
+                    'needs_manual' => false,
+                ]);
+                $scored++;
+            }
+
+            if ($scored > 0) {
+                $this->recompute($attempt, $by);
+            }
+
+            return $scored;
+        });
+    }
+
     /** Re-total an attempt from its answers (after a manual grade) and re-feed. */
     public function recompute(TestAttempt $attempt, ?int $by = null): void
     {
