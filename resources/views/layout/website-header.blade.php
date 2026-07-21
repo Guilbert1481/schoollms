@@ -2,11 +2,10 @@
     <div class="w-full px-[10px] flex items-center gap-4 justify-between">
         <div class="flex items-center gap-3 min-w-0 flex-1">
             @if(!empty($schoolLogo))
-                {{-- Mobile: contained logo. lg+: oversized logo intentionally overflowing the bar. --}}
-                <div class="h-10 w-12 lg:w-40 flex items-center justify-center shrink-0 overflow-visible">
-                    <img src="{{ $schoolLogo }}" alt="{{ $schoolName }} logo"
-                         class="h-12 w-12 lg:h-40 lg:w-40 object-contain max-w-none">
-                </div>
+                {{-- Logo stays inside the bar, keeps its aspect ratio, and is capped
+                     so tall/wide uploads can't blow the header out. --}}
+                <img src="{{ $schoolLogo }}" alt="{{ $schoolName }} logo"
+                     class="h-10 lg:h-12 w-auto max-w-[150px] object-contain shrink-0">
             @else
                 <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
                     {{ strtoupper(substr($schoolName, 0, 1)) }}
