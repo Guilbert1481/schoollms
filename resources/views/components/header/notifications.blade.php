@@ -43,7 +43,9 @@
         </button>
 
         <div x-show="open"
-            class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border z-50 text-slate-700"
+            class="fixed inset-x-3 top-16 mx-auto w-auto max-w-sm
+                   sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:mx-0 sm:w-80 sm:max-w-none
+                   bg-white rounded-xl shadow-xl border z-50 text-slate-700"
             style="display:none">
 
             <div class="p-3 border-b font-bold text-sm flex items-center justify-between">
