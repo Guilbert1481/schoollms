@@ -60,10 +60,13 @@ class SecureUpload
             $image->scaleDown(width: $maxWidth);
         }
 
+        // High re-encode quality: the client already ships a right-sized image
+        // (see public/js/uploads/image-compress.js), so this security re-encode
+        // is the only lossy pass — keep it near-lossless to preserve quality.
         $encoded = (string) match ($format) {
             'png' => $image->toPng(),
-            'webp' => $image->toWebp(quality: 85),
-            default => $image->toJpeg(quality: 85),
+            'webp' => $image->toWebp(quality: 92),
+            default => $image->toJpeg(quality: 92),
         };
 
         $path = rtrim($directory, '/').'/'.Str::random(40).'.'.$format;

@@ -196,6 +196,10 @@ document.addEventListener("DOMContentLoaded", function () {
 <script src="{{ asset('js/table/table-resize.js') }}?v={{ filemtime(public_path('js/table/table-resize.js')) }}"></script>
 <script src="{{ asset('js/modal/modal.js') }}"></script>
 
+{{-- Auto-shrink oversized image uploads in the browser before they are sent,
+     so large logos / banners / documents don't hit the server's 413 limit. --}}
+<script src="{{ asset('js/uploads/image-compress.js') }}?v={{ filemtime(public_path('js/uploads/image-compress.js')) }}"></script>
+
 
 </body>
 </html>
