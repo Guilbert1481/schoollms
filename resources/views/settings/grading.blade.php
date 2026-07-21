@@ -83,7 +83,8 @@
                     {{-- Body: collapsed by default (display:none avoids a flash before Alpine boots). --}}
                     <div x-show="open" x-collapse style="display: none;">
                         <div class="space-y-4 border-t border-slate-100 px-5 pb-5 pt-4">
-                            <div class="grid gap-4 md:grid-cols-3">
+                            {{-- Level rules: apply to the whole grade level, not to any one component. --}}
+                            <div class="grid gap-4 md:grid-cols-2">
                                 <div>
                                     <label class="mb-1 block text-xs font-medium text-slate-600">Scale</label>
                                     <select name="settings[{{ $level->id }}][scale_type]"
@@ -102,19 +103,14 @@
                                         value="{{ rtrim(rtrim(number_format((float) $s->passing_mark, 2, '.', ''), '0'), '.') }}"
                                         class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
                                 </div>
-                                <div>
-                                    <label class="mb-1 block text-xs font-medium text-slate-600">Attendance weight (%)</label>
-                                    <input type="number" step="0.01" min="0" max="100"
-                                        name="settings[{{ $level->id }}][attendance_weight]"
-                                        x-model="attendance"
-                                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                                </div>
                             </div>
 
-                            {{-- Weighted components --}}
+                            {{-- Grade weighting: attendance + components share one 100% pool. --}}
                             <div class="border-t border-slate-100 pt-4">
                                 <div class="mb-2 flex items-center justify-between">
-                                    <span class="text-xs font-medium text-slate-600">Weighted components</span>
+                                    <span class="text-xs font-medium text-slate-600">Grade weighting
+                                        <span class="font-normal text-slate-400">— attendance + components should total 100%</span>
+                                    </span>
                                     <button type="button" @click="add()"
                                         class="rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
                                         + Add component
@@ -122,6 +118,20 @@
                                 </div>
 
                                 <div class="space-y-2">
+                                    {{-- Attendance is a fixed weight row: always present, not removable. --}}
+                                    <div class="flex items-center gap-2">
+                                        <div class="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700"
+                                             style="background-color:#f8fafc">
+                                            Attendance
+                                        </div>
+                                        <input type="number" step="0.01" min="0" max="100" placeholder="%"
+                                            name="settings[{{ $level->id }}][attendance_weight]"
+                                            x-model="attendance"
+                                            class="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                                        {{-- Spacer aligns the weight inputs with the removable component rows below. --}}
+                                        <span class="px-2 py-1 text-sm" style="visibility:hidden" aria-hidden="true">✕</span>
+                                    </div>
+
                                     <template x-for="(c, i) in components" :key="i">
                                         <div class="flex items-center gap-2">
                                             <input type="text" placeholder="e.g. Written Work"
