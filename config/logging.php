@@ -38,6 +38,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Security Audit Trail Channel  (Roadmap S4)
+    |--------------------------------------------------------------------------
+    |
+    | The channel App\Support\AuditTrail mirrors every audit_logs and
+    | login_logs row to, so the trail survives a DB-level compromise
+    | (an attacker who can TRUNCATE the tables can't reach this file).
+    | Point AUDIT_LOG_CHANNEL at 'syslog'/'papertrail' to ship off-host.
+    |
+    */
+
+    'audit_channel' => env('AUDIT_LOG_CHANNEL', 'audit'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Log Channels
     |--------------------------------------------------------------------------
     |
@@ -125,6 +139,20 @@ return [
 
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
+        ],
+
+        // Roadmap S4 — the off-database security trail. A separate, append-only
+        // JSON file so audit/login events survive even if the DB tables are
+        // wiped; the operator ships logs/audit/ off-box (rclone/rsync/syslog).
+        // Kept for a long window locally since it is the tamper-evident backup.
+        'audit' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/audit/audit.log'),
+            'level' => 'info',
+            'days' => env('AUDIT_LOG_DAYS', 365),
+            'formatter' => \Monolog\Formatter\JsonFormatter::class,
+            'permission' => 0640,
+            'replace_placeholders' => false,
         ],
 
     ],

@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Models\LoginLog;
+use App\Support\AuditTrail;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Log;
@@ -39,13 +40,27 @@ class LogAuthenticationActivity
 
     private function record(string $outcome, string $email, $user): void
     {
+        $ip = request()?->ip();
+        $userAgent = substr((string) request()?->userAgent(), 0, 255);
+
         LoginLog::create([
             'email' => $email,
             'user_id' => $user?->id,
             'school_id' => $user?->school_id,
             'event' => $outcome,
-            'ip' => request()?->ip(),
-            'user_agent' => substr((string) request()?->userAgent(), 0, 255),
+            'ip' => $ip,
+            'user_agent' => $userAgent,
+        ]);
+
+        // S4 — mirror to the off-database trail. Auth events fire outside any
+        // DB transaction, so this records immediately.
+        AuditTrail::record('auth', [
+            'email' => $email,
+            'user_id' => $user?->id,
+            'school_id' => $user?->school_id,
+            'event' => $outcome,
+            'ip' => $ip,
+            'user_agent' => $userAgent,
         ]);
     }
 

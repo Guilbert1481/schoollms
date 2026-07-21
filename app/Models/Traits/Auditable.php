@@ -3,7 +3,9 @@
 namespace App\Models\Traits;
 
 use App\Models\AuditLog;
+use App\Support\AuditTrail;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Passive audit observer (Roadmap Phase 3 / H2): models using this trait get
@@ -46,7 +48,7 @@ trait Auditable
 
     protected function writeAudit(string $event, ?array $before, ?array $after): void
     {
-        AuditLog::create([
+        $row = AuditLog::create([
             'school_id' => $this->getAttribute('school_id') ?? Auth::user()?->school_id,
             'actor_id' => Auth::id(),
             'event' => $event,
@@ -55,6 +57,23 @@ trait Auditable
             'before' => $before,
             'after' => $after,
         ]);
+
+        // S4 — mirror to the off-database trail, but only once the caller's
+        // transaction actually commits. The audit row lives inside that same
+        // transaction (Phase 3), so if a money change rolls back, this callback
+        // is dropped and the mirror stays in lockstep with the table. Outside a
+        // transaction, afterCommit() runs the callback immediately.
+        DB::afterCommit(fn () => AuditTrail::record('data', [
+            'id' => $row->getKey(),
+            'school_id' => $row->school_id,
+            'actor_id' => $row->actor_id,
+            'event' => $row->event,
+            'auditable_type' => $row->auditable_type,
+            'auditable_id' => $row->auditable_id,
+            'before' => $before,
+            'after' => $after,
+            'at' => optional($row->created_at)->toIso8601String(),
+        ]));
     }
 
     /** Filter an attribute set down to what this model audits. */
