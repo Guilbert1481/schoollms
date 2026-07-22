@@ -266,28 +266,84 @@ class GamesController extends Controller
 
         $limit = min(max((int) $request->query('limit', 15), 1), 30);
 
-        // Scope filters from the hamburger: subject > topic > lesson >
-        // competency (each narrower), plus the auto-captured year level.
-        // Note: the grading TERM is display/lock context only — questions are
-        // not term-tagged (see ADR-0006 discussion), so it is not filtered here.
-        $rows = DB::table('questions')
+        // Difficulty tier. The question bank stores 'average' | 'advanced' (see
+        // McqController / AiQuestionController); legacy rows may hold 'easy'/etc.
+        // 'average' / 'advanced' filter to that tier; 'mixed' climbs average-first
+        // then advanced (~50/50, backfilling from whichever tier has supply);
+        // anything else (incl. absent, e.g. the Hangman game) = no tier constraint.
+        $difficulty = (string) $request->query('difficulty', '');
+
+        // A fresh base query per pull — query builders are single-use. Scope
+        // filters from the hamburger: subject > topic > lesson > competency (each
+        // narrower), plus the auto-captured year level. The grading TERM is
+        // display/lock context only (ADR-0006) — questions are not term-tagged.
+        $base = fn () => DB::table('questions')
             ->where('school_id', $schoolId)
             ->whereIn('question_type', $types)
             ->when($request->filled('subject_id'), fn ($q) => $q->where('subject_id', (int) $request->query('subject_id')))
             ->when($request->filled('topic_id'), fn ($q) => $q->where('topic_id', (int) $request->query('topic_id')))
             ->when($request->filled('lesson_id'), fn ($q) => $q->where('lesson_id', (int) $request->query('lesson_id')))
             ->when($request->filled('competency_id'), fn ($q) => $q->where('competency_id', (int) $request->query('competency_id')))
-            ->when($request->filled('academic_level_id'), fn ($q) => $q->where('academic_level_id', (int) $request->query('academic_level_id')))
-            ->inRandomOrder()
-            ->limit($limit * 2)   // headroom: malformed rows are filtered below
-            ->get(['id', 'question_text', 'explanation', 'difficulty']);
+            ->when($request->filled('academic_level_id'), fn ($q) => $q->where('academic_level_id', (int) $request->query('academic_level_id')));
 
+        // Pull up to $want *valid* questions of an optional difficulty tier.
+        $pull = function (?string $tier, int $want) use ($base, $type) {
+            if ($want <= 0) {
+                return collect();
+            }
+
+            $rows = $base()
+                ->when($tier !== null, fn ($q) => $q->where('difficulty', $tier))
+                ->inRandomOrder()
+                ->limit($want * 2)   // headroom: malformed rows are filtered below
+                ->get(['id', 'question_text', 'explanation', 'difficulty']);
+
+            return $this->buildQuestions($rows, $type)->take($want)->values();
+        };
+
+        if ($difficulty === 'average' || $difficulty === 'advanced') {
+            $questions = $pull($difficulty, $limit);
+        } elseif ($difficulty === 'mixed') {
+            // Average block first, advanced fills the rest — then top up from
+            // whichever tier still has leftovers so a thin tier never short-changes
+            // the run (e.g. no 'advanced' authored yet → falls back to average).
+            $avgPool = $pull('average', $limit);
+            $advPool = $pull('advanced', $limit);
+            $half    = (int) ceil($limit / 2);
+
+            $avg = $avgPool->take($half);
+            $adv = $advPool->take($limit - $avg->count());
+            $questions = $avg->concat($adv)->values();
+
+            if ($questions->count() < $limit) {
+                $usedIds = $questions->pluck('id')->all();
+                $leftover = $avgPool->concat($advPool)
+                    ->reject(fn ($q) => in_array($q['id'], $usedIds, true));
+                $questions = $questions->concat($leftover)->take($limit)->values();
+            }
+        } else {
+            $questions = $pull(null, $limit);
+        }
+
+        return response()->json(['questions' => $questions]);
+    }
+
+    /**
+     * Shape raw question rows into the game payload, dropping malformed items
+     * (identification with no stored answer; MCQ without >= 2 options and exactly
+     * one correct). MCQ choices are shuffled and the answer index re-derived.
+     *
+     * @param  \Illuminate\Support\Collection  $rows
+     * @return \Illuminate\Support\Collection
+     */
+    private function buildQuestions($rows, string $type)
+    {
         $choicesByQuestion = DB::table('choices')
             ->whereIn('question_id', $rows->pluck('id'))
             ->get(['question_id', 'choice_text', 'is_correct'])
             ->groupBy('question_id');
 
-        $questions = $rows->map(function ($row) use ($type, $choicesByQuestion) {
+        return $rows->map(function ($row) use ($type, $choicesByQuestion) {
             $choices = ($choicesByQuestion[$row->id] ?? collect())->values();
 
             if ($type === 'identification') {
@@ -318,8 +374,6 @@ class GamesController extends Controller
                 'answer'      => $shuffled->search(fn ($c) => (int) $c->is_correct === 1),
                 'explanation' => $row->explanation,
             ];
-        })->filter()->take($limit)->values();
-
-        return response()->json(['questions' => $questions]);
+        })->filter()->values();
     }
 }
