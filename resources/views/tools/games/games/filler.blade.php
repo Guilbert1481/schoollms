@@ -167,6 +167,15 @@
     ["swim","swam","swum"],["sing","sang","sung"],["drive","drove","driven"],["ride","rode","ridden"],
     ["speak","spoke","spoken"],["break","broke","broken"],["choose","chose","chosen"],["fly","flew","flown"],
     ["grow","grew","grown"],["throw","threw","thrown"],["wear","wore","worn"],["get","got","got / gotten"],
+    // Lesson 2 textbook charts — irregular verbs that change their spelling.
+    ["become","became","become"],["bite","bit","bitten"],["catch","caught","caught"],["do","did","done"],
+    ["freeze","froze","frozen"],["lose","lost","lost"],["rise","rose","risen"],["sit","sat","sat"],
+    ["meet","met","met"],["creep","crept","crept"],
+    // Lesson 2 textbook charts — irregular verbs that retain their spelling.
+    ["beat","beat","beat"],["burst","burst","burst"],["cost","cost","cost"],["cut","cut","cut"],
+    ["hit","hit","hit"],["hurt","hurt","hurt"],["let","let","let"],["put","put","put"],
+    ["quit","quit","quit"],["read","read","read"],["rid","rid","rid"],["set","set","set"],
+    ["shut","shut","shut"],["split","split","split"],["bet","bet","bet"],["spread","spread","spread"],
     ["",""],["",""]];
   var rowsEl=document.getElementById('flRows'), countEl=document.getElementById('flCount');
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
