@@ -229,22 +229,42 @@
   document.getElementById('flAdd').onclick=function(){ pg=1e9; addRow(); };
 
   var scrim=document.getElementById('flScrim'), play=document.getElementById('flPlay');
-  var pool=[], per=10, roundStart=0, roundList=[], idx=0, score=0, streak=0, results=[];
+  var order=[], perNum=10, perRaw='10', currentRound=0, roundList=[], idx=0, score=0, streak=0, results=[];
+  var completed=new Set(), lastSig='', STORE='filler.progress.v1';
+  function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)),t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function setArr(s){ var a=[]; s.forEach(function(x){ a.push(x); }); return a; }
+  function sigOf(p){ return JSON.stringify(p); }
+  function loadState(){ try{ return JSON.parse(localStorage.getItem(STORE)); }catch(e){ return null; } }
+  function persist(){ if(!order.length) return; try{ localStorage.setItem(STORE, JSON.stringify({ sig:lastSig, per:perRaw, order:order, completed:setArr(completed) })); }catch(e){} }
+  function firstUnfinished(){ for(var k=0;k<totalRounds();k++){ if(!completed.has(k)) return k; } return 0; }
   function norm(x){ return x.trim().toLowerCase().replace(/\s+/g,' '); }
   function accepts(cell,val){ return cell.split('/').map(norm).indexOf(norm(val))!==-1; }
-  function totalRounds(){ return Math.max(1,Math.ceil(pool.length/per)); }
-  function roundNo(){ return Math.floor(roundStart/per)+1; }
+  function totalRounds(){ return Math.max(1,Math.ceil(order.length/perNum)); }
+  function roundNo(){ return currentRound+1; }
 
   function open(){
-    pool=verbs();
+    var pool=verbs();
     if(pool.length<1){ alert('Add at least one verb (all three forms) to start.'); return; }
-    var sel=document.getElementById('flPer').value;
-    per = sel==='all' ? pool.length : parseInt(sel,10);
-    roundStart=0; score=0; streak=0;
-    startRound(pool.slice(0,per));
+    perRaw=document.getElementById('flPer').value;
+    perNum = perRaw==='all' ? pool.length : parseInt(perRaw,10);
+    score=0; streak=0;
+    lastSig=sigOf(pool);
+    var st=loadState();
+    if(st && st.sig===lastSig && st.per===perRaw && st.order && st.order.length===pool.length){
+      order=st.order; completed=new Set(st.completed||[]);   // resume this cycle
+    } else {
+      order=shuffle(pool.slice()); completed=new Set();       // new cycle (fresh list / size)
+    }
+    if(completed.size>=totalRounds()){ order=shuffle(pool.slice()); completed=new Set(); } // every round done -> fresh mix
+    persist();
+    playRound(firstUnfinished());
     scrim.classList.add('fl-open');
   }
-  function close(){ scrim.classList.remove('fl-open'); }
+  function close(){ persist(); scrim.classList.remove('fl-open'); }
+  // Round membership is fixed within a cycle (a slice of the shuffled pool); the
+  // display order is reshuffled every time the round is actually played.
+  function playRound(k){ currentRound=k; startRound(shuffle(order.slice(k*perNum, k*perNum+perNum))); }
+  function newCycle(){ order=shuffle(order.slice()); completed=new Set(); score=0; streak=0; persist(); playRound(0); }
   function startRound(list){ roundList=list; idx=0; results=new Array(list.length).fill(null); render(); }
 
   function dots(){
@@ -297,20 +317,23 @@
     var right=0, misses=[];
     for(var i=0;i<roundList.length;i++){ if(results[i]) right++; else misses.push(roundList[i]); }
     var total=roundList.length, pct=Math.round(right/Math.max(1,total)*100);
-    var hasNext = roundStart+per < pool.length;
+    completed.add(currentRound); persist();            // round counts as done (score doesn't matter)
+    var allDone = completed.size>=totalRounds();
     var b='<button type="button" class="fl-btn fl-primary" id="flReplay">Replay this round</button>';
     if(misses.length) b+='<button type="button" class="fl-btn fl-danger" id="flRetry">Retry mistakes ('+misses.length+')</button>';
-    if(hasNext) b+='<button type="button" class="fl-btn" id="flNext">Next round →</button>';
+    if(allDone) b+='<button type="button" class="fl-btn" id="flNew">Shuffle &amp; play again &#8635;</button>';
+    else b+='<button type="button" class="fl-btn" id="flNext">Next round &rarr;</button>';
     b+='<button type="button" class="fl-btn" id="flBack">Back to list</button>';
     play.innerHTML='<div class="fl-done"><div class="fl-ring" style="--fl-pct:'+pct+'%"><div class="fl-in">'+right+'/'+total+'<small>this round</small></div></div>'+
-      '<p class="fl-big">'+(pct===100?'Mastered!':pct>=70?'Nice work.':'Keep going.')+'</p>'+
+      '<p class="fl-big">'+(allDone?'All rounds done!':pct===100?'Mastered!':pct>=70?'Nice work.':'Keep going.')+'</p>'+
       '<p class="fl-sub">Round '+roundNo()+' of '+totalRounds()+' &middot; '+right+' correct &middot; score '+score+
-        (misses.length?'<br>Replay to lock it in, or retry just the '+misses.length+' you missed.':'')+'</p>'+
+        (allDone?'<br>Every round is complete — shuffle for a fresh mix.':'<br>Next time you open Filler it resumes at Round '+(firstUnfinished()+1)+'.')+'</p>'+
       '<div class="fl-pfoot" style="padding:22px 0 0">'+b+'</div></div>';
     document.getElementById('flBack').onclick=close;
-    document.getElementById('flReplay').onclick=function(){ streak=0; startRound(roundList); };
-    if(misses.length) document.getElementById('flRetry').onclick=function(){ streak=0; startRound(misses); };
-    if(hasNext) document.getElementById('flNext').onclick=function(){ roundStart+=per; streak=0; startRound(pool.slice(roundStart,roundStart+per)); };
+    document.getElementById('flReplay').onclick=function(){ streak=0; playRound(currentRound); };
+    if(misses.length) document.getElementById('flRetry').onclick=function(){ streak=0; startRound(shuffle(misses.slice())); };
+    if(allDone) document.getElementById('flNew').onclick=function(){ newCycle(); };
+    else document.getElementById('flNext').onclick=function(){ streak=0; playRound(firstUnfinished()); };
   }
   document.getElementById('flStart').onclick=open;
   scrim.addEventListener('click',function(e){ if(e.target===scrim) close(); });
