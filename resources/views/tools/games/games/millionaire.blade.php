@@ -3,9 +3,9 @@
      question bank; see GamesController::questions). Grades client-side —
      practice play, not an exam.
 
-     Presentation is a build-independent scoped theme (all styling lives in the
-     @verbatim <style> below, under [data-game="millionaire"] with ml- prefixed
-     classes) so it never depends on the shared Tailwind build. --}}
+     Presentation is a build-independent scoped theme: all styling lives in the
+     scoped style block below, under [data-game="millionaire"] with ml- prefixed
+     classes, so it never depends on the shared Tailwind build. --}}
 <div data-game="millionaire" class="ml-root">
 
 @verbatim

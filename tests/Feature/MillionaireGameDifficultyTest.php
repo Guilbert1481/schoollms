@@ -103,6 +103,26 @@ class MillionaireGameDifficultyTest extends TestCase
         $this->assertSame([], $stems, 'a strict advanced request must not silently borrow average items');
     }
 
+    public function test_play_page_renders_the_scoped_style_theme_and_difficulty_selector(): void
+    {
+        // Guards two things through the real HTTP + view stack:
+        // 1) the scoped @verbatim <style> theme must survive Blade compilation —
+        //    a top-of-file Blade comment that literally contained the @verbatim
+        //    directive name once swallowed the entire CSS block, shipping an
+        //    unstyled game with every screen stacked on top of each other;
+        // 2) the new Difficulty selector and its tiers are present.
+        $res = $this->actingAs($this->player)
+            ->get(route('tools.games.play', ['slug' => 'millionaire']))
+            ->assertOk();
+
+        $res->assertSee('radial-gradient', false)   // a property that only lives inside the <style>
+            ->assertSee('.ml-stage', false);        // a scoped rule from the theme
+
+        $res->assertSee('id="mlDiff"', false)
+            ->assertSee('Advanced')
+            ->assertSee('Mixed (average', false);
+    }
+
     // --- helpers ------------------------------------------------------------
 
     /**
