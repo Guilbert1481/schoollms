@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Admin\School\Settings\Assignments;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\User;
 use App\Models\College;
-use App\Models\Program;
 use App\Models\Office;
+use App\Models\Program;
+use App\Models\User;
+use Illuminate\Http\Request;
 
 class AssignmentManagementController extends Controller
 {
@@ -52,7 +52,7 @@ class AssignmentManagementController extends Controller
     {
         $request->validate([
             'college_id' => 'required|exists:colleges,id',
-            'dean_id' => 'nullable|exists:users,id'
+            'dean_id' => 'nullable|exists:users,id',
         ]);
 
         $college = College::findOrFail($request->college_id);
@@ -74,7 +74,7 @@ class AssignmentManagementController extends Controller
     {
         $request->validate([
             'program_id' => 'required|exists:programs,id',
-            'program_head_id' => 'nullable|exists:users,id'
+            'program_head_id' => 'nullable|exists:users,id',
         ]);
 
         $program = Program::findOrFail($request->program_id);
@@ -96,7 +96,7 @@ class AssignmentManagementController extends Controller
     {
         $request->validate([
             'office_id' => 'required|exists:offices,id',
-            'office_head_id' => 'nullable|exists:users,id'
+            'office_head_id' => 'nullable|exists:users,id',
         ]);
 
         $office = Office::findOrFail($request->office_id);

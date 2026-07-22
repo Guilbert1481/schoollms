@@ -1,16 +1,16 @@
 <?php
 
-namespace App\Http\Controllers\Teacher;
+namespace App\Http\Controllers\Teacher\Test\TestBuilder;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Test;
 use App\Traits\BuildsTestSections;
+use Illuminate\Http\Request;
 
 class PreviewTestController extends Controller
 {
     use BuildsTestSections;
-    
+
     public function preview(Request $request, $testId)
     {
         // Load test WITH questions and choices (ordered properly)
@@ -18,7 +18,7 @@ class PreviewTestController extends Controller
             'questions' => function ($q) {
                 $q->orderBy('order');
             },
-            'questions.choices'
+            'questions.choices',
         ])->findOrFail($testId);
 
         return view('teacher.tests.previewTest', [
@@ -26,12 +26,12 @@ class PreviewTestController extends Controller
 
             // Header data (safe defaults so preview never breaks)
             'header' => [
-                'school'  => $request->input('school', 'SCHOOL LETTERHEAD WITH LOGO'),
-                'dept'    => $request->input('dept', ''),
+                'school' => $request->input('school', 'SCHOOL LETTERHEAD WITH LOGO'),
+                'dept' => $request->input('dept', ''),
                 'subject' => $request->input('subject', $test->subject->name ?? ''),
                 'teacher' => $request->input('teacher', auth()->user()->name ?? ''),
-                'year'    => $request->input('year', ''),
-            ]
+                'year' => $request->input('year', ''),
+            ],
         ]);
     }
 }
