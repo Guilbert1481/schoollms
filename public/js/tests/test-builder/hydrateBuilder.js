@@ -55,6 +55,7 @@
         setValue('show-correct-answers', settings.show_correct_answers);
         setChecked('shuffle-questions', settings.shuffle_questions);
         setChecked('shuffle-mcq-choices', settings.shuffle_mcq_choices);
+        setChecked('require-fullscreen', settings.require_fullscreen);
         setValue('mode-select', settings.mode, true);
 
         // A saved test can be previewed/printed straight away.

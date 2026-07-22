@@ -20,6 +20,7 @@ class TestSetting extends Model
         'show_correct_answers',
         'shuffle_questions',
         'shuffle_mcq_choices',
+        'require_fullscreen',
         'start_at',
         'end_at',
         'availability_mode',
@@ -32,6 +33,7 @@ class TestSetting extends Model
     protected $casts = [
         'shuffle_questions' => 'boolean',
         'shuffle_mcq_choices' => 'boolean',
+        'require_fullscreen' => 'boolean',
         'start_at' => 'datetime',
         'end_at' => 'datetime',
         'duration_minutes' => 'integer',

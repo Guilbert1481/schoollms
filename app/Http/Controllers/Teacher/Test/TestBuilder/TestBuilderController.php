@@ -167,6 +167,7 @@ class TestBuilderController extends Controller
                 'show_correct_answers' => $s->show_correct_answers,
                 'shuffle_questions' => (bool) $s->shuffle_questions,
                 'shuffle_mcq_choices' => (bool) $s->shuffle_mcq_choices,
+                'require_fullscreen' => (bool) $s->require_fullscreen,
                 // datetime-local format, so the inputs accept them as-is.
                 'start_at' => $s->start_at?->format('Y-m-d\TH:i'),
                 'end_at' => $s->end_at?->format('Y-m-d\TH:i'),
@@ -241,6 +242,7 @@ class TestBuilderController extends Controller
                 'show_correct_answers' => $test->testSettings->show_correct_answers,
                 'shuffle_questions' => $test->testSettings->shuffle_questions,
                 'shuffle_mcq_choices' => $test->testSettings->shuffle_mcq_choices,
+                'require_fullscreen' => $test->testSettings->require_fullscreen,
                 'start_at' => $test->testSettings->start_at,
                 'end_at' => $test->testSettings->end_at,
                 'mode' => $test->testSettings->mode,

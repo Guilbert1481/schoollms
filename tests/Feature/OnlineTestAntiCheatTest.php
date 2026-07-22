@@ -252,6 +252,25 @@ class OnlineTestAntiCheatTest extends TestCase
         $this->assertNull(Arr::get($attempt->fresh()->meta ?? [], 'proctor'), 'a submitted attempt must not accept new signals');
     }
 
+    public function test_take_screen_gates_on_fullscreen_only_when_the_test_requires_it(): void
+    {
+        $on = $this->makeTest(['require_fullscreen' => true]);
+        $this->question($on->id, 1, 'multiple_choice', ['A' => true, 'B' => false]);
+        $this->actingAs($this->studentUser)->post(route('student.assessments.begin', $on));
+        $this->get(route('student.assessments.take', $on))
+            ->assertOk()
+            ->assertSee('Fullscreen required')
+            ->assertSee('requireFullscreen: true', false);
+
+        $off = $this->makeTest(['require_fullscreen' => false]);
+        $this->question($off->id, 1, 'multiple_choice', ['A' => true, 'B' => false]);
+        $this->post(route('student.assessments.begin', $off));
+        $this->get(route('student.assessments.take', $off))
+            ->assertOk()
+            ->assertDontSee('Fullscreen required')
+            ->assertSee('requireFullscreen: false', false);
+    }
+
     public function test_a_student_cannot_log_events_on_another_students_attempt(): void
     {
         $test = $this->makeTest();

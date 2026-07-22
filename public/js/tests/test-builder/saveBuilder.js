@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
             end_at: document.getElementById('end-datetime')?.value || null,
             shuffle_questions: document.getElementById('shuffle-questions')?.checked ? 1 : 0,
             shuffle_mcq_choices: document.getElementById('shuffle-mcq-choices')?.checked ? 1 : 0,
+            require_fullscreen: document.getElementById('require-fullscreen')?.checked ? 1 : 0,
             show_results: document.getElementById('show-results')?.value || null,
             show_correct_answers: document.getElementById('show-correct-answers')?.value || 'after_exam',
             sections: selectedSections,

@@ -55,6 +55,7 @@ class SaveBuilderController extends Controller
                 'end_at' => 'nullable',
                 'shuffle_questions' => 'boolean',
                 'shuffle_mcq_choices' => 'boolean',
+                'require_fullscreen' => 'boolean',
                 'attempts_allowed' => 'nullable|integer',
                 'passing_score' => 'nullable|integer|min:0|max:100',
                 'show_results' => 'nullable|string',
@@ -109,6 +110,7 @@ class SaveBuilderController extends Controller
                         ? $request->input('show_correct_answers') : null,
                     'shuffle_questions' => $isOnline && $request->boolean('shuffle_questions'),
                     'shuffle_mcq_choices' => $isOnline && $request->boolean('shuffle_mcq_choices'),
+                    'require_fullscreen' => $isOnline && $request->boolean('require_fullscreen'),
                     'term' => $request->input('term') !== '' ? $request->input('term') : null,
                     'assessment_type' => $request->input('assessment_type') !== '' ? $request->input('assessment_type') : null,
                 ]

@@ -198,6 +198,7 @@ class AssessmentController extends Controller
             'attempt' => $attempt,
             'sections' => $this->attempts->sections($attempt),
             'remainingSeconds' => $remaining,
+            'requireFullscreen' => (bool) ($test->settings->require_fullscreen ?? false),
         ]);
     }
 

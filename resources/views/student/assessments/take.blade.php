@@ -82,6 +82,13 @@
     #otRoot .ot-save{ font-size:12px;color:var(--ot-muted) }
     #otRoot .ot-warn{ background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;
         padding:8px 14px;font-size:13px;margin:10px 0 0 }
+    #otRoot .ot-fsgate{ position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.94);
+        display:flex;align-items:center;justify-content:center;padding:20px }
+    #otRoot .ot-fsbox{ background:#fff;border-radius:16px;padding:30px 28px;max-width:430px;text-align:center;
+        box-shadow:0 20px 60px rgba(0,0,0,.4) }
+    #otRoot .ot-fsicon{ font-size:40px;line-height:1 }
+    #otRoot .ot-fstitle{ font-size:20px;font-weight:800;color:var(--ot-ink);margin-top:10px }
+    #otRoot .ot-fstext{ font-size:14px;color:var(--ot-muted);margin:8px 0 20px;line-height:1.5 }
 </style>
 
     <div class="ot-top">
@@ -128,6 +135,17 @@
     </div>
 
     <form id="otSubmitForm" method="POST" action="{{ route('student.assessments.submit', $attempt) }}" style="display:none">@csrf</form>
+
+    @if ($requireFullscreen)
+        <div class="ot-fsgate" id="otFsGate" style="display:none">
+            <div class="ot-fsbox">
+                <div class="ot-fsicon">⛶</div>
+                <div class="ot-fstitle">Fullscreen required</div>
+                <div class="ot-fstext">This test must be taken in fullscreen. Leaving fullscreen is recorded for your teacher.</div>
+                <button type="button" class="ot-btn ot-btn-primary" id="otFsBtn">Enter fullscreen</button>
+            </div>
+        </div>
+    @endif
 </div>
 
 <script>
@@ -136,6 +154,7 @@ window.OT = {
     answerUrl: @json(route('student.assessments.answer', $attempt)),
     eventUrl: @json(route('student.assessments.event', $attempt)),
     remaining: @json($remainingSeconds),
+    requireFullscreen: @json($requireFullscreen),
     sections: @json($sections),
 };
 (function(){
@@ -325,6 +344,20 @@ window.OT = {
         window.addEventListener('blur', ()=> leave('blur'));
         document.addEventListener('fullscreenchange', ()=>{ if (!document.fullscreenElement) send('fullscreen_exit'); });
     })();
+
+    // ---- fullscreen lockdown (Phase 5 Part C, per-test) ----
+    // A deterrent, not a cage: gate the test behind fullscreen and re-gate on exit.
+    // Exits are already logged by the proctoring block above.
+    if (OT.requireFullscreen) {
+        const gate = el('otFsGate'), btn = el('otFsBtn');
+        const inFull = () => !!document.fullscreenElement;
+        const enter = () => { const d = document.documentElement;
+            if (d.requestFullscreen) { try { d.requestFullscreen().catch(()=>{}); } catch(e){} } };
+        const sync = () => { if (gate) gate.style.display = inFull() ? 'none' : 'flex'; };
+        if (btn) btn.onclick = enter;
+        document.addEventListener('fullscreenchange', sync);
+        sync(); // show the gate until the student enters fullscreen
+    }
 
     function esc(s){ return (s==null?'':''+s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     render();

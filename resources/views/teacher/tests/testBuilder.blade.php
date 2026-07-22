@@ -331,6 +331,11 @@
                             <input type="checkbox" id="shuffle-mcq-choices" name="shuffle_mcq_choices">
                             Shuffle MCQ Choices
                         </label>
+
+                        <label class="ts-checkbox">
+                            <input type="checkbox" id="require-fullscreen" name="require_fullscreen">
+                            Require Fullscreen
+                        </label>
                     </div>
                     </div>
 
