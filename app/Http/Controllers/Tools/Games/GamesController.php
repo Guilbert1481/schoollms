@@ -21,6 +21,7 @@ class GamesController extends Controller
      * Adding a new game = add an entry here and a matching partial.
      */
     public const GAMES = [
+        ['slug' => 'filler',               'title' => 'Filler',                         'icon' => 'languages',      'color' => 'from-cyan-700 via-sky-800 to-blue-900',        'description' => "Fill in each verb's past simple and past participle — one at a time, in short rounds you can replay for mastery."],
         ['slug' => 'millionaire',          'title' => 'Who Wants to Be a Millionaire?', 'icon' => 'crown',          'color' => 'from-amber-700 via-orange-800 to-red-900',     'description' => 'Climb the ladder of escalating questions with lifelines and a dramatic reveal.'],
         ['slug' => 'speed-dash',           'title' => 'The Endless Runner / Speed Dash','icon' => 'zap',            'color' => 'from-cyan-700 via-sky-800 to-blue-900',        'description' => 'Sprint through obstacles by answering correctly under increasing time pressure.'],
         ['slug' => 'tower-defense',        'title' => 'Tower Defense / Base Builder',   'icon' => 'shield',         'color' => 'from-emerald-700 via-teal-800 to-cyan-900',    'description' => 'Defend the base by answering questions to deploy towers and counter waves.'],
