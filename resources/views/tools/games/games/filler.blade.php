@@ -45,6 +45,13 @@
 [data-game="filler"] .fl-add .fl-p{font-size:17px;line-height:1;margin-top:-1px}
 [data-game="filler"] .fl-per{display:inline-flex;align-items:center;gap:8px;background:var(--fl-bg2);border:1px solid var(--fl-line);border-radius:11px;padding:5px 8px 5px 12px;font-size:12.5px;color:var(--fl-muted)}
 [data-game="filler"] .fl-per select{border:1px solid var(--fl-line2);background:var(--fl-card);color:var(--fl-ink);font:inherit;font-size:13px;font-weight:600;border-radius:8px;padding:6px 8px;cursor:pointer}
+[data-game="filler"] .fl-pag{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 18px;border-top:1px solid var(--fl-line);background:var(--fl-bg2)}
+[data-game="filler"] .fl-nav{display:inline-flex;align-items:center;gap:6px}
+[data-game="filler"] .fl-pbtn{border:1px solid var(--fl-line2);background:var(--fl-card);color:var(--fl-muted);width:32px;height:32px;border-radius:9px;cursor:pointer;display:grid;place-items:center;font-size:16px;line-height:1}
+[data-game="filler"] .fl-pbtn:hover:not(:disabled){border-color:var(--fl-brand);color:var(--fl-brand)}
+[data-game="filler"] .fl-pbtn:disabled{opacity:.4;cursor:default}
+[data-game="filler"] .fl-pgno{font-size:12.5px;color:var(--fl-muted);font-variant-numeric:tabular-nums;min-width:84px;text-align:center}
+[data-game="filler"] .fl-pgno b{color:var(--fl-ink);font-weight:600}
 [data-game="filler"] .fl-go{display:flex;align-items:center;gap:14px}
 [data-game="filler"] .fl-count{font-size:13px;color:var(--fl-muted)}
 [data-game="filler"] .fl-count b{color:var(--fl-ink);font-variant-numeric:tabular-nums}
@@ -120,6 +127,18 @@
       <tbody id="flRows"></tbody>
     </table>
   </div>
+  <div class="fl-pag">
+    <span class="fl-per">Rows per page
+      <select id="flRpp" aria-label="Rows per page">
+        <option selected>10</option><option>25</option><option>50</option><option value="all">All</option>
+      </select>
+    </span>
+    <div class="fl-nav">
+      <button type="button" class="fl-pbtn" id="flPrev" aria-label="Previous page">&lsaquo;</button>
+      <span class="fl-pgno" id="flRange">&ndash;</span>
+      <button type="button" class="fl-pbtn" id="flNextPg" aria-label="Next page">&rsaquo;</button>
+    </div>
+  </div>
   <div class="fl-f">
     <div class="fl-left">
       <button type="button" class="fl-add" id="flAdd"><span class="fl-p">+</span> Add verb</button>
@@ -159,7 +178,7 @@
       '<td><input class="fl-cell fl-ans" placeholder="begun" value="'+esc(pp)+'"></td>'+
       '<td><button type="button" class="fl-del" aria-label="Remove verb" title="Remove">&times;</button></td></tr>';
   }
-  function renumber(){ var t=rowsEl.children; for(var i=0;i<t.length;i++) t[i].querySelector('.fl-idx').textContent=i+1; }
+  function renumber(){ var t=rowsEl.children; for(var i=0;i<t.length;i++) t[i].querySelector('.fl-idx').textContent=i+1; paginate(); }
   function addRow(b,p,pp){
     rowsEl.insertAdjacentHTML('beforeend',rowHTML(rowsEl.children.length+1,b||'',p||'',pp||''));
     wire(); renumber(); recount();
@@ -178,8 +197,27 @@
     } return out;
   }
   function recount(){ countEl.textContent=verbs().length; }
+
+  // Pagination hides off-page rows instead of re-rendering, so typed values survive page flips.
+  var rppEl=document.getElementById('flRpp'), rangeEl=document.getElementById('flRange');
+  var prevEl=document.getElementById('flPrev'), nextPgEl=document.getElementById('flNextPg');
+  var pg=0;
+  function paginate(){
+    var trs=rowsEl.children, n=trs.length;
+    var size = rppEl.value==='all' ? (n||1) : parseInt(rppEl.value,10);
+    var pages=Math.max(1,Math.ceil(n/size));
+    if(pg>pages-1) pg=pages-1; if(pg<0) pg=0;
+    var from=pg*size, to=Math.min(n,from+size);
+    for(var i=0;i<n;i++) trs[i].style.display=(i>=from&&i<to)?'':'none';
+    rangeEl.innerHTML = n ? '<b>'+(from+1)+'&ndash;'+to+'</b> of '+n : '0 of 0';
+    prevEl.disabled = pg<=0; nextPgEl.disabled = pg>=pages-1;
+  }
+  rppEl.onchange=function(){ pg=0; paginate(); };
+  prevEl.onclick=function(){ pg--; paginate(); };
+  nextPgEl.onclick=function(){ pg++; paginate(); };
+
   for(var s=0;s<SEED.length;s++) addRow(SEED[s][0],SEED[s][1],SEED[s][2]);
-  document.getElementById('flAdd').onclick=function(){ addRow(); };
+  document.getElementById('flAdd').onclick=function(){ pg=1e9; addRow(); };
 
   var scrim=document.getElementById('flScrim'), play=document.getElementById('flPlay');
   var pool=[], per=10, roundStart=0, roundList=[], idx=0, score=0, streak=0, results=[];

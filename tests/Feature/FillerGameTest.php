@@ -40,4 +40,16 @@ class FillerGameTest extends TestCase
             ->assertSee('Your verb list')
             ->assertSee('Base form');
     }
+
+    public function test_filler_play_page_renders_the_table_pagination_controls(): void
+    {
+        $this->actingAs($this->authUser())
+            ->get(route('tools.games.play', ['slug' => 'filler']))
+            ->assertOk()
+            ->assertSee('Rows per page')
+            ->assertSee('id="flRpp"', false)
+            ->assertSee('id="flPrev"', false)
+            ->assertSee('id="flNextPg"', false)
+            ->assertSee('id="flRange"', false);
+    }
 }
