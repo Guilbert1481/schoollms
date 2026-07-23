@@ -85,6 +85,24 @@
     [data-game="tug-of-war"] .tug-node.a{ background:var(--tug-blue); }
     [data-game="tug-of-war"] .tug-node.b{ background:var(--tug-orange); }
     [data-game="tug-of-war"] .tug-knot{ position:absolute; top:50%; width:20px; height:26px; border-radius:5px; background:#0f2545; border:2px solid #ffd86b; transform:translate(-50%,-50%); transition:left .5s cubic-bezier(.3,1.2,.5,1); z-index:2; box-shadow:0 3px 8px rgba(0,0,0,.3); }
+    /* Flag on the knot so the rope position reads at a glance: a pole with a
+       gold tip (::before) and a waving red pennant (::after). Pure CSS — it
+       rides the knot's left transition, so every pull visibly marches the flag. */
+    [data-game="tug-of-war"] .tug-knot::before{ content:''; position:absolute; left:50%; bottom:100%; width:3px; height:32px; transform:translateX(-50%); background:linear-gradient(180deg,#ffd86b 0 5px,#8a5a2b 5px,#5d3a15); border-radius:2px; box-shadow:0 1px 2px rgba(0,0,0,.25); }
+    [data-game="tug-of-war"] .tug-knot::after{ content:''; position:absolute; left:calc(50% + 1px); bottom:calc(100% + 13px); width:24px; height:17px; background:linear-gradient(180deg,#ff5252,#d81f1f); clip-path:polygon(0 0, 100% 50%, 0 100%); filter:drop-shadow(0 1px 2px rgba(0,0,0,.35)); transform-origin:left center; animation:tug-flag-wave 1.1s ease-in-out infinite; }
+    @keyframes tug-flag-wave{ 0%,100%{ transform:scaleX(1) skewY(0deg); } 50%{ transform:scaleX(.8) skewY(5deg); } }
+    @media (prefers-reduced-motion: reduce){ [data-game="tug-of-war"] .tug-knot::after{ animation:none; } }
+    /* Team pullers hauling each end of the rope, rocking as they strain. The
+       pivot sits on the hands (the rope grip) so the body leans, not the grip. */
+    [data-game="tug-of-war"] .tug-puller{ position:absolute; top:50%; width:52px; height:52px; z-index:3; filter:drop-shadow(0 3px 4px rgba(15,37,69,.25)); pointer-events:none; }
+    [data-game="tug-of-war"] .tug-puller.a{ left:-6px; transform-origin:92% 52%; animation:tug-strain-a 1.3s ease-in-out infinite; }
+    [data-game="tug-of-war"] .tug-puller.b{ right:-6px; transform-origin:92% 52%; animation:tug-strain-b 1.3s ease-in-out .65s infinite; }
+    @keyframes tug-strain-a{ 0%,100%{ transform:translateY(-52%) rotate(-8deg); } 50%{ transform:translateY(-52%) rotate(-16deg); } }
+    @keyframes tug-strain-b{ 0%,100%{ transform:translateY(-52%) scaleX(-1) rotate(-8deg); } 50%{ transform:translateY(-52%) scaleX(-1) rotate(-16deg); } }
+    @media (prefers-reduced-motion: reduce){
+        [data-game="tug-of-war"] .tug-puller.a{ animation:none; transform:translateY(-52%) rotate(-10deg); }
+        [data-game="tug-of-war"] .tug-puller.b{ animation:none; transform:translateY(-52%) scaleX(-1) rotate(-10deg); }
+    }
     [data-game="tug-of-war"] .tug-finish{ display:flex; justify-content:space-between; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; margin-top:6px; }
     [data-game="tug-of-war"] .tug-finish .a{ color:var(--tug-blue-deep); }
     [data-game="tug-of-war"] .tug-finish .b{ color:var(--tug-orange-deep); }
@@ -249,6 +267,37 @@
 
             <div>
                 <div class="tug-rope">
+                    {{-- Team mascots hauling the rope from each end — pure inline
+                         SVG (project-drawn, no third-party art). The B puller is
+                         the same figure mirrored via CSS. --}}
+                    <svg class="tug-puller a" viewBox="0 0 64 64" aria-hidden="true">
+                        <path d="M20 50 L10 60" stroke="#0f2545" stroke-width="5" stroke-linecap="round"/>
+                        <path d="M28 53 L24 62" stroke="#0f2545" stroke-width="5" stroke-linecap="round"/>
+                        <path d="M40 30 Q54 29 63 31" stroke="#0f2545" stroke-width="6" stroke-linecap="round" fill="none"/>
+                        <path d="M40 40 Q54 37 63 35" stroke="#0f2545" stroke-width="6" stroke-linecap="round" fill="none"/>
+                        <circle cx="26" cy="34" r="19" fill="var(--tug-blue)" stroke="#fff" stroke-width="2.5"/>
+                        <path d="M12 20 L18 26 M40 20 L34 26" stroke="var(--tug-blue)" stroke-width="7" stroke-linecap="round"/>
+                        <ellipse cx="30" cy="42" rx="9" ry="6" fill="rgba(255,255,255,.35)"/>
+                        <circle cx="29" cy="29" r="4" fill="#fff"/><circle cx="30.5" cy="29" r="2" fill="#12203a"/>
+                        <circle cx="39" cy="29" r="4" fill="#fff"/><circle cx="40.5" cy="29" r="2" fill="#12203a"/>
+                        <path d="M31 37 Q35 40 39 37" stroke="#12203a" stroke-width="2" fill="none" stroke-linecap="round"/>
+                        <circle cx="60" cy="31" r="4.5" fill="#0f2545" stroke="#ffd86b" stroke-width="1.5"/>
+                        <circle cx="60" cy="35" r="4.5" fill="#0f2545" stroke="#ffd86b" stroke-width="1.5"/>
+                    </svg>
+                    <svg class="tug-puller b" viewBox="0 0 64 64" aria-hidden="true">
+                        <path d="M20 50 L10 60" stroke="#7a3d10" stroke-width="5" stroke-linecap="round"/>
+                        <path d="M28 53 L24 62" stroke="#7a3d10" stroke-width="5" stroke-linecap="round"/>
+                        <path d="M40 30 Q54 29 63 31" stroke="#7a3d10" stroke-width="6" stroke-linecap="round" fill="none"/>
+                        <path d="M40 40 Q54 37 63 35" stroke="#7a3d10" stroke-width="6" stroke-linecap="round" fill="none"/>
+                        <circle cx="26" cy="34" r="19" fill="var(--tug-orange)" stroke="#fff" stroke-width="2.5"/>
+                        <path d="M12 20 L18 26 M40 20 L34 26" stroke="var(--tug-orange)" stroke-width="7" stroke-linecap="round"/>
+                        <ellipse cx="30" cy="42" rx="9" ry="6" fill="rgba(255,255,255,.35)"/>
+                        <circle cx="29" cy="29" r="4" fill="#fff"/><circle cx="30.5" cy="29" r="2" fill="#3a1c08"/>
+                        <circle cx="39" cy="29" r="4" fill="#fff"/><circle cx="40.5" cy="29" r="2" fill="#3a1c08"/>
+                        <path d="M31 37 Q35 40 39 37" stroke="#3a1c08" stroke-width="2" fill="none" stroke-linecap="round"/>
+                        <circle cx="60" cy="31" r="4.5" fill="#7a3d10" stroke="#ffd86b" stroke-width="1.5"/>
+                        <circle cx="60" cy="35" r="4.5" fill="#7a3d10" stroke="#ffd86b" stroke-width="1.5"/>
+                    </svg>
                     <div class="tug-rope-line"></div>
                     <div id="tugNodes" class="tug-nodes"></div>
                     <div id="tugKnot" class="tug-knot" style="left:50%;"></div>
