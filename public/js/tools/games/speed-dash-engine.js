@@ -299,7 +299,11 @@
             '<div class="sd-br" data-sd="positions"></div>';
         root.appendChild(hud);
 
-        var choicesEl = h('div', 'sd-choices'); root.appendChild(choicesEl);
+        // The answer cards live inside the top-center column, directly below the
+        // question panel and above the gates, so question → choices → gates read
+        // as one stack.
+        var choicesEl = h('div', 'sd-choices');
+        hud.querySelector('.sd-tc').appendChild(choicesEl);
         var confirmBtn = h('button', 'sd-confirm', 'CONFIRM &#10148;');
         confirmBtn.type = 'button';
         root.appendChild(confirmBtn);
@@ -447,12 +451,27 @@
                 }
             });
             choicesEl.classList.toggle('sd-open', longAnswers || mobile);
+            alignGates();
 
             runner.style.left = '50%';
             runner.classList.remove('sd-stumble');
             scatterStars();
             renderProgress();
         }
+
+        // With the answer cards stacked under the question, keep the gates row
+        // clear of the stack: anchor it just below the top-center column when
+        // the cards are open (desktop/tablet; mobile keeps its bottom anchor).
+        function alignGates() {
+            if (window.innerWidth <= 640 || !choicesEl.classList.contains('sd-open')) {
+                gates.style.top = '';
+                return;
+            }
+            var stackBottom = hud.querySelector('.sd-tc').getBoundingClientRect().bottom - root.getBoundingClientRect().top;
+            var min = root.clientHeight * 0.30, max = root.clientHeight * 0.58;
+            gates.style.top = Math.round(Math.min(Math.max(stackBottom + 10, min), max)) + 'px';
+        }
+        window.addEventListener('resize', alignGates);
 
         function gateFor(choiceId) {
             return gates.querySelector('[data-choice="' + choiceId + '"]');

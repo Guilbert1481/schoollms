@@ -125,14 +125,14 @@
 
 /* ------------------------------------------------------------------ gates */
 .sd-gates {
-    position: absolute; left: 50%; top: 26%;
-    width: min(92vw, 1080px);
+    position: absolute; left: 50%; top: 30%;
+    width: min(94vw, 1080px);
     transform: translateX(-50%);
     display: flex; justify-content: center; gap: 2.2%;
     z-index: 6;
 }
 .sd-gate {
-    flex: 1 1 0; max-width: 300px; min-width: 0;
+    flex: 1 1 0; max-width: 340px; min-width: 0;
     cursor: pointer; border: 0; background: none; padding: 0;
     -webkit-tap-highlight-color: transparent;
     transition: transform .15s ease, filter .15s ease;
@@ -279,10 +279,10 @@
     border-radius: 999px; font-size: clamp(10px, 1.2vw, 14px); font-weight: 800;
 }
 
-/* top-center: question */
+/* top-center: question (+ the answer cards flow right below it, above the gates) */
 .sd-tc {
     position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-    width: min(92vw, 640px); text-align: center; z-index: 11;
+    width: min(94vw, 1080px); text-align: center; z-index: 11;
 }
 .sd-qcount {
     display: inline-block; padding: 5px 16px; border-radius: 12px 12px 0 0;
@@ -294,7 +294,8 @@
     box-shadow: 0 10px 26px rgba(9, 34, 66, .35);
     padding: clamp(10px, 2vw, 22px) clamp(14px, 2.4vw, 28px);
     font-weight: 900; font-size: clamp(15px, 2.2vw, 26px); line-height: 1.25;
-    max-height: 26vh; overflow-y: auto;
+    max-height: 22vh; overflow-y: auto;
+    max-width: 680px; margin: 0 auto;
 }
 
 /* top-right: score, hearts, pause */
@@ -380,10 +381,11 @@
 .sd-pos-score { font-weight: 1000; font-size: clamp(11px, 1.3vw, 16px); color: #fff; font-variant-numeric: tabular-nums; }
 .sd-pos-name { font-size: 10px; font-weight: 700; color: #9fc3ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* --------------------------------------------------------- choices (long) */
+/* ------------------------------------------------- choices (long answers) */
+/* Flows inside .sd-tc, directly below the question panel and above the
+   gates — full width of the tc column so it lines up with the gates row. */
 .sd-choices {
-    position: absolute; left: 50%; bottom: clamp(64px, 10vh, 92px); transform: translateX(-50%);
-    width: min(94vw, 720px); z-index: 11;
+    width: 100%; margin-top: 10px; text-align: left;
     display: none; grid-template-columns: 1fr 1fr; gap: 8px;
 }
 .sd-choices.sd-open { display: grid; }
@@ -485,7 +487,7 @@
 @media (max-width: 900px) {
     .sd-streak { width: 48px; }
     .sd-br { display: none; }               /* collapse leaderboard on tablets */
-    .sd-choices { grid-template-columns: 1fr; }
+    .sd-choices { grid-template-columns: 1fr; max-height: 34vh; overflow-y: auto; }
 }
 @media (max-width: 640px) {
     .sd-tl .sd-logo { font-size: 15px; }
@@ -497,7 +499,7 @@
     .sd-track { width: 88vw; }
     .sd-gates { top: auto; bottom: 34%; }
     .sd-gate-label { font-size: 11px; }
-    .sd-choices { bottom: 84px; max-height: 34vh; overflow-y: auto; }
+    .sd-choices { max-height: 30vh; overflow-y: auto; }
     .sd-qpanel { font-size: 15px; }
 }
 @media (prefers-reduced-motion: reduce) {
