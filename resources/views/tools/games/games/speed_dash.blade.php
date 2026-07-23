@@ -10,7 +10,7 @@
      + public/css/tools/games/speed-dash.css (plain CSS — no build step).
      ========================================================================== --}}
 
-<link rel="stylesheet" href="{{ asset('css/tools/games/speed-dash.css') }}">
+<link rel="stylesheet" href="{{ asset('css/tools/games/speed-dash.css').'?v=2' }}">
 
 <div data-game="speed-dash">
 
@@ -70,7 +70,7 @@
     <div id="sdGameRoot"></div>
 </div>
 
-<script src="{{ asset('js/tools/games/speed-dash-engine.js') }}"></script>
+<script src="{{ asset('js/tools/games/speed-dash-engine.js').'?v=2' }}"></script>
 <script>
 (function () {
     'use strict';

@@ -34,31 +34,39 @@
 .sd-sky {
     position: absolute; inset: 0;
     background:
-        radial-gradient(1200px 500px at 50% -10%, #d9efff 0%, rgba(217, 239, 255, 0) 60%),
-        linear-gradient(180deg, #6db5ea 0%, #8fd0f5 34%, #bfe6fa 52%, #9fd6f2 60%);
+        radial-gradient(1000px 460px at 50% -8%, rgba(255, 255, 255, .85) 0%, rgba(255, 255, 255, 0) 60%),
+        linear-gradient(180deg, #3f97e0 0%, #63b5ec 30%, #9ad7f7 52%, #cfeefb 64%, #a4dbf3 76%, #8fd0ef 100%);
 }
-/* Campus silhouettes on both sides */
-.sd-buildings {
-    position: absolute; left: 0; right: 0; top: 0; height: 62%;
-    background:
-        linear-gradient(0deg, rgba(38, 84, 138, .38), rgba(38, 84, 138, .38)),
-        repeating-linear-gradient(90deg,
-            rgba(255, 255, 255, .16) 0 4px, rgba(255, 255, 255, 0) 4px 26px);
-    -webkit-mask: linear-gradient(90deg, #000 0 26%, transparent 30% 70%, #000 74% 100%);
-    mask: linear-gradient(90deg, #000 0 26%, transparent 30% 70%, #000 74% 100%);
-    clip-path: polygon(0 18%, 8% 18%, 8% 6%, 16% 6%, 16% 22%, 24% 22%, 24% 12%, 32% 12%, 32% 100%,
-                       68% 100%, 68% 10%, 76% 10%, 76% 20%, 84% 20%, 84% 4%, 92% 4%, 92% 16%, 100% 16%,
-                       100% 100%, 0 100%);
-    opacity: .85;
+/* Sun rays streaming from the top */
+.sd-sky::before {
+    content: ''; position: absolute; inset: -20% -10%;
+    background: repeating-linear-gradient(115deg,
+        rgba(255, 255, 255, .16) 0 22px, rgba(255, 255, 255, 0) 22px 120px);
+    -webkit-mask: linear-gradient(180deg, #000 0%, transparent 58%);
+    mask: linear-gradient(180deg, #000 0%, transparent 58%);
 }
+/* Detailed campus (inline SVG clusters + floating props, built by the engine) */
+.sd-scenery { position: absolute; inset: 0; pointer-events: none; }
+.sd-city { position: absolute; top: 0; height: 66%; width: 33%; opacity: .96; }
+.sd-city.left { left: 0; }
+.sd-city.right { right: 0; }
+.sd-city svg { width: 100%; height: 100%; display: block; }
+.sd-prop { position: absolute; opacity: .9; filter: drop-shadow(0 2px 4px rgba(20, 60, 110, .25)); }
+.sd-motion .sd-prop { animation: sd-float 4.5s ease-in-out infinite alternate; }
+.sd-prop.p2 { animation-delay: 1.1s; }
+.sd-prop.p3 { animation-delay: 2.2s; }
+.sd-prop.p4 { animation-delay: .6s; }
+@keyframes sd-float { from { transform: translateY(0) rotate(-3deg); } to { transform: translateY(-14px) rotate(4deg); } }
 .sd-greenery {
-    position: absolute; left: 0; right: 0; top: 52%; height: 14%;
+    position: absolute; left: 0; right: 0; top: 52%; height: 16%;
     background:
-        radial-gradient(60px 34px at 12% 60%, #3f9b53 60%, transparent 61%),
-        radial-gradient(80px 40px at 22% 76%, #55b269 60%, transparent 61%),
-        radial-gradient(70px 36px at 82% 62%, #3f9b53 60%, transparent 61%),
-        radial-gradient(90px 44px at 91% 80%, #55b269 60%, transparent 61%),
-        linear-gradient(180deg, transparent 40%, rgba(70, 140, 88, .5) 100%);
+        radial-gradient(60px 34px at 10% 58%, #3f9b53 60%, transparent 61%),
+        radial-gradient(80px 40px at 20% 74%, #55b269 60%, transparent 61%),
+        radial-gradient(50px 30px at 28% 60%, #6cc47f 60%, transparent 61%),
+        radial-gradient(70px 36px at 80% 60%, #3f9b53 60%, transparent 61%),
+        radial-gradient(90px 44px at 90% 78%, #55b269 60%, transparent 61%),
+        radial-gradient(52px 30px at 72% 72%, #6cc47f 60%, transparent 61%),
+        linear-gradient(180deg, transparent 40%, rgba(88, 168, 106, .55) 100%);
 }
 
 /* ------------------------------------------------------------------ track */
@@ -73,20 +81,33 @@
     transform-origin: 50% 100%;
     border-radius: 18px 18px 0 0;
     background:
+        /* light-speed streaks */
         repeating-linear-gradient(180deg,
-            rgba(255, 255, 255, .10) 0 3px, rgba(255, 255, 255, 0) 3px 88px),
+            rgba(255, 255, 255, .35) 0 4px, rgba(255, 255, 255, 0) 4px 150px),
+        /* dashed lane dividers at thirds */
+        repeating-linear-gradient(180deg, rgba(255, 255, 255, .55) 0 28px, rgba(255, 255, 255, 0) 28px 64px),
+        repeating-linear-gradient(180deg, rgba(255, 255, 255, .55) 0 28px, rgba(255, 255, 255, 0) 28px 64px),
+        /* cross ties */
+        repeating-linear-gradient(180deg,
+            rgba(255, 255, 255, .12) 0 3px, rgba(255, 255, 255, 0) 3px 88px),
+        /* neon center glow */
         linear-gradient(90deg,
-            rgba(11, 205, 226, 0) 0%, rgba(11, 205, 226, .35) 18%,
-            rgba(60, 230, 250, .55) 50%,
-            rgba(11, 205, 226, .35) 82%, rgba(11, 205, 226, 0) 100%),
-        linear-gradient(180deg, #1f7f97 0%, #2fa9bd 45%, #57cfe0 100%);
-    box-shadow: 0 0 60px rgba(34, 211, 238, .45), inset 0 0 46px rgba(255, 255, 255, .22);
-    background-size: 100% 176px, 100% 100%, 100% 100%;
+            rgba(11, 205, 226, 0) 0%, rgba(11, 205, 226, .4) 16%,
+            rgba(120, 245, 255, .65) 50%,
+            rgba(11, 205, 226, .4) 84%, rgba(11, 205, 226, 0) 100%),
+        linear-gradient(180deg, #1e8fae 0%, #37b7cd 40%, #6fdcec 100%);
+    box-shadow: 0 0 70px rgba(34, 211, 238, .55), inset 0 0 46px rgba(255, 255, 255, .25);
+    background-size: 100% 150px, 3px 64px, 3px 64px, 100% 176px, 100% 100%, 100% 100%;
+    background-position: 0 0, 33.3% 0, 66.6% 0, 0 0, 0 0, 0 0;
+    background-repeat: repeat, repeat-y, repeat-y, repeat, no-repeat, no-repeat;
 }
 .sd-motion .sd-track { animation: sd-road 1.1s linear infinite; }
 .sd-track.sd-boosted { animation-duration: .55s; }
 .sd-track.sd-slowed  { animation-duration: 2.2s; }
-@keyframes sd-road { from { background-position-y: 0, 0, 0; } to { background-position-y: 176px, 0, 0; } }
+@keyframes sd-road {
+    from { background-position: 0 0, 33.3% 0, 66.6% 0, 0 0, 0 0, 0 0; }
+    to   { background-position: 0 300px, 33.3% 128px, 66.6% 128px, 0 176px, 0 0, 0 0; }
+}
 
 /* Lane divider chevrons on the side lanes */
 .sd-lane-arrows {
@@ -180,9 +201,20 @@
     transition: left .5s cubic-bezier(.4, .1, .3, 1);
     filter: drop-shadow(0 14px 10px rgba(9, 34, 66, .35));
 }
-.sd-motion .sd-runner-svg { animation: sd-bob .5s ease-in-out infinite alternate; }
-.sd-runner.sd-slowed .sd-runner-svg { animation-duration: 1s; }
+.sd-motion .sd-runner-svg { animation: sd-bob .42s ease-in-out infinite alternate; }
+.sd-runner.sd-slowed .sd-runner-svg { animation-duration: .9s; }
 @keyframes sd-bob { from { transform: translateY(0) } to { transform: translateY(-7px) } }
+/* Articulated run cycle: arms and legs pump in opposite phase, pivoting at
+   the shoulder/hip joints (transform-origin in viewBox units). */
+.sd-runner-svg .rn-limb { transform-box: view-box; }
+.sd-motion .rn-armL { transform-origin: 33px 60px; animation: rn-swing .42s ease-in-out infinite alternate; }
+.sd-motion .rn-armR { transform-origin: 67px 60px; animation: rn-swing .42s ease-in-out infinite alternate-reverse; }
+.sd-motion .rn-legL { transform-origin: 42px 92px; animation: rn-kick .42s ease-in-out infinite alternate-reverse; }
+.sd-motion .rn-legR { transform-origin: 58px 92px; animation: rn-kick .42s ease-in-out infinite alternate; }
+@keyframes rn-swing { from { transform: rotate(30deg); } to { transform: rotate(-30deg); } }
+@keyframes rn-kick  { from { transform: rotate(24deg); } to { transform: rotate(-24deg); } }
+.sd-runner.sd-slowed .rn-limb { animation-duration: .9s; }
+.sd-runner.sd-boosted .rn-limb, .sd-runner.sd-boosted .sd-runner-svg { animation-duration: .28s; }
 .sd-runner-shadow {
     width: 62%; height: 10px; margin: -4px auto 0; border-radius: 999px;
     background: rgba(9, 34, 66, .35); filter: blur(2px);
@@ -428,7 +460,7 @@
 
 /* ------------------------------------------------- reduced-motion fallback */
 .sd-progress-track { display: none; }
-.sd-reduced .sd-world, .sd-reduced .sd-buildings, .sd-reduced .sd-greenery,
+.sd-reduced .sd-world, .sd-reduced .sd-scenery, .sd-reduced .sd-greenery,
 .sd-reduced .sd-star, .sd-reduced .sd-runner { display: none; }
 .sd-reduced .sd-progress-track {
     display: block; position: absolute; left: 50%; bottom: 20%;
@@ -470,5 +502,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
     .sd-motion .sd-track, .sd-motion .sd-runner-svg, .sd-motion .sd-star,
-    .sd-motion .sd-count, .sd-pop.sd-show { animation: none !important; }
+    .sd-motion .rn-armL, .sd-motion .rn-armR, .sd-motion .rn-legL, .sd-motion .rn-legR,
+    .sd-motion .sd-prop, .sd-motion .sd-count, .sd-pop.sd-show { animation: none !important; }
 }

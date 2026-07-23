@@ -7,7 +7,7 @@
      engine only ever receives question text + choice ids/text; correctness
      comes back from the server per answer (SpeedDashController@answer). --}}
 
-<link rel="stylesheet" href="{{ asset('css/tools/games/speed-dash.css') }}">
+<link rel="stylesheet" href="{{ asset('css/tools/games/speed-dash.css').'?v=2' }}">
 
 <div id="sdGame" role="application" aria-label="Quiz Speed Dash game"></div>
 
@@ -18,7 +18,7 @@
 </form>
 
 @push('scripts')
-<script src="{{ asset('js/tools/games/speed-dash-engine.js') }}"></script>
+<script src="{{ asset('js/tools/games/speed-dash-engine.js').'?v=2' }}"></script>
 <script>
 (function () {
     var PAYLOAD = @json($payload);

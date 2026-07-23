@@ -79,6 +79,95 @@
         };
     }
 
+    // Campus scenery matching the game's key art: window-grid buildings, campus
+    // banners, a chalkboard, trees, stacked books, and floating academic props.
+    // All project-drawn inline SVG — detailed enough to read as the mockup,
+    // cheap enough for school hardware (static shapes, a few float loops).
+    function buildScenery() {
+        var win = function (x, y, cols, rows, w, hgt, fill) {
+            var out = '';
+            for (var r = 0; r < rows; r++) {
+                for (var c = 0; c < cols; c++) {
+                    out += '<rect x="' + (x + c * (w + 9)) + '" y="' + (y + r * (hgt + 11)) + '" width="' + w + '" height="' + hgt + '" rx="2" fill="' + (((r * 7 + c * 3) % 9 === 0) ? '#ffe9a8' : fill) + '"/>';
+                }
+            }
+            return out;
+        };
+        var tree = function (x, y, s) {
+            return '<rect x="' + (x - 3 * s) + '" y="' + y + '" width="' + 6 * s + '" height="' + 18 * s + '" rx="2" fill="#7a5230"/>' +
+                '<circle cx="' + x + '" cy="' + (y - 8 * s) + '" r="' + 16 * s + '" fill="#3f9b53"/>' +
+                '<circle cx="' + (x - 11 * s) + '" cy="' + (y + 1 * s) + '" r="' + 11 * s + '" fill="#55b269"/>' +
+                '<circle cx="' + (x + 11 * s) + '" cy="' + (y + 1 * s) + '" r="' + 11 * s + '" fill="#4aa85e"/>';
+        };
+
+        var scen = h('div', 'sd-scenery');
+
+        var left = h('div', 'sd-city left');
+        left.innerHTML =
+            '<svg viewBox="0 0 360 600" preserveAspectRatio="xMinYMax meet" aria-hidden="true">' +
+            '<rect x="118" y="60" width="112" height="540" rx="6" fill="#4f86c0"/>' +
+            '<rect x="118" y="60" width="112" height="14" fill="#3a6ba3"/>' +
+            win(128, 90, 4, 12, 17, 24, 'rgba(220,240,255,.85)') +
+            '<rect x="6" y="170" width="106" height="430" rx="6" fill="#6ea9d8"/>' +
+            win(16, 190, 4, 9, 15, 26, 'rgba(235,248,255,.9)') +
+            '<rect x="236" y="200" width="118" height="400" rx="6" fill="#7fb7e3"/>' +
+            win(246, 222, 4, 8, 18, 26, 'rgba(240,250,255,.9)') +
+            '<line x1="174" y1="60" x2="174" y2="28" stroke="#3a6ba3" stroke-width="4"/><circle cx="174" cy="26" r="4" fill="#ffd257"/>' +
+            '<rect x="140" y="120" width="70" height="170" rx="9" fill="#16305e" stroke="#7fb2ff" stroke-width="2"/>' +
+            '<text x="175" y="165" text-anchor="middle" font-family="inherit" font-size="17" font-weight="800" fill="#fff">LEARN</text>' +
+            '<text x="175" y="195" text-anchor="middle" font-size="17" font-weight="800" fill="#fff">EXPLORE</text>' +
+            '<text x="175" y="225" text-anchor="middle" font-size="17" font-weight="800" fill="#fff">GROW</text>' +
+            '<rect x="12" y="96" width="96" height="66" rx="6" fill="#1c5a44" stroke="#8a5a2b" stroke-width="5"/>' +
+            '<text x="60" y="136" text-anchor="middle" font-size="24" font-style="italic" font-weight="700" fill="#f2f7ef">E=mc&#178;</text>' +
+            tree(300, 540, 1.4) + tree(60, 556, 1.1) +
+            '</svg>';
+        scen.appendChild(left);
+
+        var right = h('div', 'sd-city right');
+        right.innerHTML =
+            '<svg viewBox="0 0 360 600" preserveAspectRatio="xMaxYMax meet" aria-hidden="true">' +
+            '<rect x="130" y="70" width="112" height="530" rx="6" fill="#4f86c0"/>' +
+            '<rect x="130" y="70" width="112" height="14" fill="#3a6ba3"/>' +
+            win(140, 100, 4, 11, 17, 24, 'rgba(220,240,255,.85)') +
+            '<rect x="248" y="150" width="106" height="450" rx="6" fill="#6ea9d8"/>' +
+            win(258, 172, 4, 9, 15, 26, 'rgba(235,248,255,.9)') +
+            '<rect x="10" y="210" width="112" height="390" rx="6" fill="#7fb7e3"/>' +
+            win(20, 232, 4, 7, 18, 26, 'rgba(240,250,255,.9)') +
+            '<rect x="150" y="130" width="74" height="200" rx="9" fill="#16305e" stroke="#7fb2ff" stroke-width="2"/>' +
+            '<path d="M167 158 L187 150 L207 158 L187 166 Z" fill="#0d1e3e" stroke="#ffd257" stroke-width="2"/>' +
+            '<line x1="205" y1="160" x2="205" y2="172" stroke="#ffd257" stroke-width="2"/><circle cx="205" cy="174" r="2.5" fill="#ffd257"/>' +
+            '<text x="187" y="200" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">KNOWLEDGE</text>' +
+            '<text x="187" y="222" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">IS YOUR</text>' +
+            '<text x="187" y="244" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">SUPERPOWER</text>' +
+            '<g transform="rotate(-4 300 560)">' +
+            '<rect x="248" y="548" width="104" height="22" rx="4" fill="#1c5a44"/><text x="300" y="564" text-anchor="middle" font-size="13" font-weight="800" fill="#e8f3ec">SCIENCE</text>' +
+            '<rect x="254" y="524" width="96" height="22" rx="4" fill="#8a3b2a"/><text x="302" y="540" text-anchor="middle" font-size="12" font-weight="800" fill="#ffe4d8">ASTRONOMY</text>' +
+            '<rect x="250" y="500" width="100" height="22" rx="4" fill="#274d80"/><text x="300" y="516" text-anchor="middle" font-size="11" font-weight="800" fill="#dcebff">EARTH &amp; SPACE</text>' +
+            '</g>' +
+            tree(60, 560, 1.3) +
+            '</svg>';
+        scen.appendChild(right);
+
+        var props = [
+            ['p1', 'left:23%;top:15%;width:56px',
+                '<svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="6" fill="#ffd257"/><ellipse cx="30" cy="30" rx="24" ry="10" fill="none" stroke="#e8f4ff" stroke-width="3"/><ellipse cx="30" cy="30" rx="24" ry="10" fill="none" stroke="#bfe3ff" stroke-width="3" transform="rotate(60 30 30)"/><ellipse cx="30" cy="30" rx="24" ry="10" fill="none" stroke="#9fd4ff" stroke-width="3" transform="rotate(120 30 30)"/></svg>'],
+            ['p2', 'right:22%;top:11%;width:74px',
+                '<svg viewBox="0 0 80 60"><circle cx="40" cy="30" r="17" fill="#d9a066"/><path d="M40 13 A17 17 0 0 1 40 47 Z" fill="#c08447"/><ellipse cx="40" cy="32" rx="34" ry="9" fill="none" stroke="#f0cfa0" stroke-width="4"/></svg>'],
+            ['p3', 'right:31%;top:30%;width:48px',
+                '<svg viewBox="0 0 50 50"><line x1="12" y1="14" x2="34" y2="24" stroke="#4f86c0" stroke-width="3"/><line x1="34" y1="24" x2="18" y2="40" stroke="#4f86c0" stroke-width="3"/><circle cx="12" cy="14" r="7" fill="#2fa9bd"/><circle cx="34" cy="24" r="9" fill="#1f5fd0"/><circle cx="18" cy="40" r="6" fill="#7ac142"/></svg>'],
+            ['p4', 'left:31%;top:33%;width:34px',
+                '<svg viewBox="0 0 40 40"><path d="M20 2l4.6 10.1L36 13.4l-8.2 7.6L30 32 20 26.4 10 32l2.2-11L4 13.4l11.4-1.3z" fill="#ffd257" stroke="#a87a00"/></svg>'],
+        ];
+        props.forEach(function (p) {
+            var el = h('div', 'sd-prop ' + p[0]);
+            el.style.cssText = p[1];
+            el.innerHTML = p[2];
+            scen.appendChild(el);
+        });
+
+        return scen;
+    }
+
     function SpeedDash(opts) {
         var root = opts.root;
         var adapter = opts.adapter;
@@ -113,7 +202,7 @@
 
         root.innerHTML = '';
         var sky = h('div', 'sd-sky'); root.appendChild(sky);
-        root.appendChild(h('div', 'sd-buildings'));
+        root.appendChild(buildScenery());
         root.appendChild(h('div', 'sd-greenery'));
 
         var world = h('div', 'sd-world');
@@ -125,23 +214,43 @@
 
         var gates = h('div', 'sd-gates'); root.appendChild(gates);
 
+        // Back-view runner with an articulated run cycle: arm and leg groups
+        // (.rn-limb) pivot at shoulder/hip via CSS keyframes in opposite phase.
         var runner = h('div', 'sd-runner');
         runner.innerHTML =
             '<div class="sd-shield-ring"></div>' +
-            '<svg class="sd-runner-svg" viewBox="0 0 90 120" aria-hidden="true">' +
-            '<ellipse cx="45" cy="30" rx="14" ry="15" fill="#f3c69f"/>' +
-            '<path d="M31 24 Q39 8 56 16 Q62 19 59 27 Q52 20 44 22 Q36 23 31 24Z" fill="#6b4423"/>' +
-            '<circle cx="41" cy="29" r="1.8" fill="#222"/><circle cx="50" cy="29" r="1.8" fill="#222"/>' +
-            '<path d="M42 36 Q45 39 49 36" stroke="#a05a2c" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
-            '<path d="M30 52 Q45 42 60 52 L58 84 Q45 90 32 84 Z" fill="#2251a8"/>' +
-            '<path d="M33 55 L28 74 Q27 79 32 80 L36 80" fill="none" stroke="#2251a8" stroke-width="9" stroke-linecap="round"/>' +
-            '<path d="M57 55 L66 68 Q69 72 65 75 L60 78" fill="none" stroke="#1c4590" stroke-width="9" stroke-linecap="round"/>' +
-            '<rect x="30" y="50" width="30" height="26" rx="8" fill="#1a3d7c"/>' +
-            '<rect x="35" y="55" width="20" height="14" rx="4" fill="#2f66c4"/>' +
-            '<circle cx="45" cy="62" r="4.5" fill="#9fdcff"/>' +
-            '<path d="M38 84 L34 104 Q33 109 38 110 L44 110" fill="none" stroke="#233043" stroke-width="10" stroke-linecap="round"/>' +
-            '<path d="M52 84 L58 98 Q60 103 56 106 L50 108" fill="none" stroke="#17202e" stroke-width="10" stroke-linecap="round"/>' +
-            '<ellipse cx="42" cy="112" rx="9" ry="5" fill="#e8eef7"/><ellipse cx="55" cy="108" rx="9" ry="5" fill="#dfe7f2"/>' +
+            '<svg class="sd-runner-svg" viewBox="0 0 100 132" aria-hidden="true">' +
+            '<g class="rn-limb rn-legL">' +
+            '<path d="M42 92 Q39 106 42 116" fill="none" stroke="#233043" stroke-width="11" stroke-linecap="round"/>' +
+            '<ellipse cx="42" cy="121" rx="10" ry="5.5" fill="#eef3fa"/><path d="M33 121 h18" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>' +
+            '</g>' +
+            '<g class="rn-limb rn-legR">' +
+            '<path d="M58 92 Q61 106 58 116" fill="none" stroke="#17202e" stroke-width="11" stroke-linecap="round"/>' +
+            '<ellipse cx="58" cy="121" rx="10" ry="5.5" fill="#dfe7f2"/><path d="M49 121 h18" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>' +
+            '</g>' +
+            '<g class="rn-limb rn-armL">' +
+            '<path d="M33 60 Q24 72 27 84" fill="none" stroke="#2b57b0" stroke-width="9" stroke-linecap="round"/>' +
+            '<circle cx="27" cy="87" r="5" fill="#f3c69f"/>' +
+            '</g>' +
+            '<g class="rn-limb rn-armR">' +
+            '<path d="M67 60 Q76 72 73 84" fill="none" stroke="#204a9c" stroke-width="9" stroke-linecap="round"/>' +
+            '<circle cx="73" cy="87" r="5" fill="#f3c69f"/>' +
+            '</g>' +
+            '<path d="M32 56 Q50 46 68 56 L66 94 Q50 102 34 94 Z" fill="#2b57b0"/>' +
+            '<path d="M35 57 Q50 66 65 57 Q60 49 50 49 Q40 49 35 57Z" fill="#9fb6dd"/>' +
+            '<rect x="33" y="58" width="34" height="32" rx="10" fill="#1a3d7c"/>' +
+            '<rect x="38" y="63" width="24" height="18" rx="5" fill="#2f66c4"/>' +
+            '<path d="M37 58 L36 90 M63 58 L64 90" stroke="#0f2545" stroke-width="4" stroke-linecap="round"/>' +
+            '<circle cx="50" cy="72" r="6.5" fill="#0d2952"/>' +
+            '<circle cx="50" cy="72" r="1.8" fill="#9fdcff"/>' +
+            '<ellipse cx="50" cy="72" rx="6" ry="2.4" fill="none" stroke="#9fdcff" stroke-width="1.2"/>' +
+            '<ellipse cx="50" cy="72" rx="6" ry="2.4" fill="none" stroke="#9fdcff" stroke-width="1.2" transform="rotate(64 50 72)"/>' +
+            '<rect x="45" y="40" width="10" height="8" fill="#f3c69f"/>' +
+            '<circle cx="50" cy="28" r="14" fill="#f3c69f"/>' +
+            '<path d="M36 30 Q34 12 50 11 Q66 12 64 30 Q64 20 50 19 Q36 20 36 30Z" fill="#6b4423"/>' +
+            '<path d="M36 29 Q35 17 44 14 Q37 22 38 31 Z M64 29 Q65 17 56 14 Q63 22 62 31 Z" fill="#7d5230"/>' +
+            '<path d="M37 25 Q40 14 50 13 Q60 14 63 25 Q57 17 50 17 Q43 17 37 25Z" fill="#5d3a1e"/>' +
+            '<circle cx="36" cy="30" r="3.4" fill="#f3c69f"/><circle cx="64" cy="30" r="3.4" fill="#f3c69f"/>' +
             '</svg>' +
             '<div class="sd-runner-shadow"></div>';
         root.appendChild(runner);
@@ -228,6 +337,7 @@
             runner.classList.toggle('sd-shielded', !!g.shield);
             track.classList.toggle('sd-boosted', g.streak >= 3 && !g.recovery);
             track.classList.toggle('sd-slowed', !!g.recovery);
+            runner.classList.toggle('sd-boosted', g.streak >= 3 && !g.recovery);
             runner.classList.toggle('sd-slowed', !!g.recovery);
         }
         function renderProgress() {
