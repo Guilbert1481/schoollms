@@ -29,6 +29,14 @@
             </div>
         </div>
 
+        @if ($isGame ?? false)
+            <div class="rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-sm text-cyan-900 leading-relaxed">
+                <b>🎮 Quiz Speed Dash!</b> Your teacher set this test to play as a runner game — answer by
+                choosing gates (tap, click, or keys A–E / 1–5). Hearts, streaks, and game points are just for
+                fun: your <b>official score counts correct answers only</b>, same as a normal quiz.
+            </div>
+        @endif
+
         <div class="rounded-xl bg-sky-50 border border-sky-100 p-4 text-sm text-sky-900 leading-relaxed">
             <b>Before you start:</b> the timer runs on the server and keeps going even if you close the tab —
             your answers save as you go, so you can resume where you left off. When you're done, press

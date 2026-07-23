@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Student\AssessmentController;
+use App\Http\Controllers\Student\SpeedDashController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -25,4 +26,10 @@ Route::middleware(['web', 'auth', 'role:student'])
         Route::post('attempt/{attempt}/answer', [AssessmentController::class, 'answer'])->name('answer');
         Route::post('attempt/{attempt}/event', [AssessmentController::class, 'event'])->name('event');
         Route::post('attempt/{attempt}/submit', [AssessmentController::class, 'submit'])->name('submit');
+
+        // Quiz Speed Dash — the GAME delivery of the same attempt/grading
+        // pipeline. Same guards, same tables, same grader.
+        Route::get('{test}/play', [SpeedDashController::class, 'play'])->name('play');
+        Route::post('attempt/{attempt}/game-answer', [SpeedDashController::class, 'answer'])->name('game-answer');
+        Route::post('attempt/{attempt}/game-finish', [SpeedDashController::class, 'finish'])->name('game-finish');
     });

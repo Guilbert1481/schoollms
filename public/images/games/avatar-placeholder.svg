@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <!-- Project-drawn placeholder student avatar: used wherever a real student
+       photo is not on file yet. No copyrighted material. -->
+  <defs>
+    <clipPath id="c"><circle cx="48" cy="48" r="48"/></clipPath>
+  </defs>
+  <g clip-path="url(#c)">
+    <rect width="96" height="96" fill="#bfdcf7"/>
+    <circle cx="48" cy="40" r="19" fill="#f3c69f"/>
+    <path d="M28 36 Q34 14 58 20 Q70 24 66 38 Q62 26 50 27 Q36 28 33 40 Z" fill="#6b4423"/>
+    <circle cx="41" cy="40" r="2.4" fill="#26303f"/>
+    <circle cx="55" cy="40" r="2.4" fill="#26303f"/>
+    <path d="M41 49 Q48 55 55 49" stroke="#a05a2c" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <path d="M20 96 Q22 66 48 66 Q74 66 76 96 Z" fill="#2251a8"/>
+    <path d="M40 68 L48 78 L56 68 Q52 64 48 64 Q44 64 40 68 Z" fill="#fff"/>
+  </g>
+</svg>

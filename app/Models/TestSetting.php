@@ -26,11 +26,14 @@ class TestSetting extends Model
         'availability_mode',
         'duration_minutes',
         'mode',
+        'play_mode',
+        'game_settings',
         'term',
         'assessment_type',
     ];
 
     protected $casts = [
+        'game_settings' => 'array',
         'shuffle_questions' => 'boolean',
         'shuffle_mcq_choices' => 'boolean',
         'require_fullscreen' => 'boolean',

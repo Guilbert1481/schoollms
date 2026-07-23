@@ -43,6 +43,34 @@
                     (essay) items.
                 </div>
             @endif
+
+            {{-- Speed Dash run summary — game meters only; the academic score above
+                 is the official one and is computed exactly like a standard quiz. --}}
+            @if (is_array($attempt->meta['game'] ?? null))
+                @php $g = $attempt->meta['game']; @endphp
+                <div class="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+                    <div class="mb-2 text-xs font-bold uppercase tracking-wide text-cyan-700">🎮 Quiz Speed Dash run</div>
+                    <div class="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
+                        <div>
+                            <div class="text-xl font-extrabold text-cyan-800 tabular-nums">{{ (int) ($g['score'] ?? 0) }}</div>
+                            <div class="text-xs text-slate-500">Game score</div>
+                        </div>
+                        <div>
+                            <div class="text-xl font-extrabold text-cyan-800 tabular-nums">x{{ (int) ($g['best_streak'] ?? 0) }}</div>
+                            <div class="text-xs text-slate-500">Best streak</div>
+                        </div>
+                        <div>
+                            <div class="text-xl font-extrabold text-cyan-800 tabular-nums">{{ (int) ($g['correct'] ?? 0) }}</div>
+                            <div class="text-xs text-slate-500">Correct</div>
+                        </div>
+                        <div>
+                            <div class="text-xl font-extrabold text-cyan-800 tabular-nums">{{ (int) ($g['wrong'] ?? 0) }}</div>
+                            <div class="text-xs text-slate-500">Missed</div>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-center text-xs text-slate-500">Game points never change your official grade.</p>
+                </div>
+            @endif
         @else
             <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                 Your answers were recorded. Your teacher will release the results.

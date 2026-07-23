@@ -6,12 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\Test;
 use App\Models\TestAttempt;
+use App\Services\Games\SpeedDashAttemptService;
 use App\Services\Tests\OnlineTestAttemptService;
 use App\Services\Tests\OnlineTestGradingService;
 use App\Services\Tests\TestAvailability;
+use App\Support\StudentTestAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -25,6 +26,7 @@ class AssessmentController extends Controller
         private OnlineTestAttemptService $attempts,
         private OnlineTestGradingService $grading,
         private TestAvailability $availability,
+        private StudentTestAccess $access,
     ) {}
 
     /**
@@ -34,8 +36,7 @@ class AssessmentController extends Controller
      */
     public function index()
     {
-        $student = Student::where('user_id', Auth::id())->first();
-        abort_unless($student, 403);
+        $student = $this->access->student();
 
         $tests = Test::whereIn('class_id', $this->classIds($student))
             ->where('status', 'published')
@@ -152,6 +153,7 @@ class AssessmentController extends Controller
 
         return view('student.assessments.start', [
             'test' => $test,
+            'isGame' => app(SpeedDashAttemptService::class)->isEnabled($test),
             'status' => $status,
             'opensAt' => $this->availability->opensAt($test),
             'closesAt' => $this->availability->closesAt($test),
@@ -182,6 +184,12 @@ class AssessmentController extends Controller
     public function take(Test $test)
     {
         [$student] = $this->guard($test);
+
+        // Speed Dash tests are delivered by the game screen; the attempt and the
+        // grading underneath are identical either way.
+        if (app(SpeedDashAttemptService::class)->isEnabled($test)) {
+            return redirect()->route('student.assessments.play', $test);
+        }
 
         $attempt = $this->attempts->activeAttempt($test, $student->id);
         if (! $attempt) {
@@ -275,26 +283,17 @@ class AssessmentController extends Controller
         ]);
     }
 
-    // --- guards -------------------------------------------------------------
+    // --- guards (shared with the Speed Dash delivery via StudentTestAccess) --
 
     /** @return array{0: Student} */
     private function guard(Test $test): array
     {
-        $student = Student::where('user_id', Auth::id())->first();
-        abort_unless($student, 403);
-        abort_unless((int) $test->school_id === (int) $student->school_id, 404);
-        abort_unless($this->availability->isOnline($test), 404, 'This is not an online test.');
-        abort_unless($test->class_id && $this->enrolledIn($student, (int) $test->class_id), 403);
-
-        return [$student];
+        return [$this->access->guardTest($test)];
     }
 
     private function guardAttempt(TestAttempt $attempt): void
     {
-        $student = Student::where('user_id', Auth::id())->first();
-        abort_unless($student, 403);
-        abort_unless((int) $attempt->student_id === (int) $student->id, 403);
-        abort_unless((int) $attempt->school_id === (int) $student->school_id, 404);
+        $this->access->guardAttempt($attempt);
     }
 
     /** Auto-submit a sitting that has run past its server deadline. Returns true if it did. */
@@ -324,24 +323,9 @@ class AssessmentController extends Controller
         return $closes === null || $closes->isPast();
     }
 
-    /** Every class the student belongs to — higher-ed via subject enrolments, basic ed via section. */
+    /** Every class the student belongs to — see StudentTestAccess. */
     private function classIds(Student $student): array
     {
-        $higher = DB::table('student_enrollment_subjects as ses')
-            ->join('student_enrollments as e', 'e.id', '=', 'ses.student_enrollment_id')
-            ->where('e.student_id', $student->id)->pluck('ses.class_id');
-
-        $sectionIds = DB::table('student_enrollments')
-            ->where('student_id', $student->id)
-            ->whereIn('status', ['enrolled', 'provisionally_enrolled'])
-            ->pluck('section_id')->filter();
-        $basic = DB::table('classes')->whereIn('section_id', $sectionIds)->pluck('id');
-
-        return $higher->merge($basic)->map(fn ($i) => (int) $i)->unique()->values()->all();
-    }
-
-    private function enrolledIn(Student $student, int $classId): bool
-    {
-        return in_array($classId, $this->classIds($student), true);
+        return $this->access->classIds($student);
     }
 }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Teacher\Test\GameModeController;
 use App\Http\Controllers\Teacher\Test\TestBuilder\SaveBuilderController;
 use App\Http\Controllers\Teacher\Test\TestBuilder\TestBuilderController;
 use App\Http\Controllers\Teacher\TestManagementController;
@@ -26,6 +27,12 @@ Route::prefix('teacher')
 
         Route::post('tests/{test}/publish', [TestManagementController::class, 'publish'])
             ->name('tests.publish');
+
+        // "Play as Game" — Quiz Speed Dash delivery settings for one test.
+        Route::get('tests/{test}/game', [GameModeController::class, 'edit'])
+            ->name('tests.game');
+        Route::post('tests/{test}/game', [GameModeController::class, 'update'])
+            ->name('tests.game.save');
 
         // AVAILABILITY ROUTE (THIS IS THE ONE YOUR JS CALLS)
         Route::get('tests/availability', [TestBuilderController::class, 'availability'])

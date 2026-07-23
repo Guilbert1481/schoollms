@@ -153,6 +153,14 @@ class TestManagementController extends Controller
             $actions .= '<a href="'.e(route('teacher.tests.grade', $t->id)).'" title="Grade essays"'
                 .' class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-600 hover:bg-violet-100">'
                 .'<i data-lucide="clipboard-check" class="h-4 w-4"></i></a>';
+
+            // "Play as Game" — Quiz Speed Dash delivery settings. Cyan when live.
+            $gameOn = ($t->play_mode ?? 'standard') === 'speed_dash';
+            $actions .= '<a href="'.e(route('teacher.tests.game', $t->id)).'"'
+                .' title="'.($gameOn ? 'Quiz Speed Dash is ON' : 'Play as Game — Quiz Speed Dash').'"'
+                .' class="inline-flex h-8 w-8 items-center justify-center rounded-lg '
+                .($gameOn ? 'bg-cyan-600 text-white hover:bg-cyan-700' : 'bg-cyan-50 text-cyan-600 hover:bg-cyan-100').'">'
+                .'<i data-lucide="gamepad-2" class="h-4 w-4"></i></a>';
         }
 
         if ($t->status === 'draft') {
