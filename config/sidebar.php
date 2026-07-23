@@ -1244,8 +1244,15 @@ return [
                     'icon' => 'file-check',
                 ],
                 [
+                    'label' => 'Records',
+                    'route' => 'student.records.index',
+                    'active' => 'student.records.*',
+                    'icon' => 'bar-chart-3',
+                ],
+                [
                     'label' => 'Attendance',
-                    'route' => '#',
+                    'route' => 'student.attendance.index',
+                    'active' => 'student.attendance.*',
                     'icon' => 'user-check',
                     // Logic note: You can later hide this if user is 'modular'
                 ],
