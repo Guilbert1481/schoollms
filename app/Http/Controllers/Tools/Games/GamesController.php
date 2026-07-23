@@ -23,13 +23,13 @@ class GamesController extends Controller
     public const GAMES = [
         ['slug' => 'filler',               'title' => 'Filler',                         'icon' => 'languages',      'color' => 'from-cyan-700 via-sky-800 to-blue-900',        'description' => "Fill in each verb's past simple and past participle — one at a time, in short rounds you can replay for mastery."],
         ['slug' => 'millionaire',          'title' => 'Who Wants to Be a Millionaire?', 'icon' => 'crown',          'color' => 'from-amber-700 via-orange-800 to-red-900',     'description' => 'Climb the ladder of escalating questions with lifelines and a dramatic reveal.'],
-        ['slug' => 'speed-dash',           'title' => 'The Endless Runner / Speed Dash','icon' => 'zap',            'color' => 'from-cyan-700 via-sky-800 to-blue-900',        'description' => 'Sprint through obstacles by answering correctly under increasing time pressure.'],
+        ['slug' => 'speed-dash',           'title' => 'The Endless Runner / Speed Dash', 'icon' => 'zap',            'color' => 'from-cyan-700 via-sky-800 to-blue-900',        'description' => 'Sprint through obstacles by answering correctly under increasing time pressure.'],
         ['slug' => 'tower-defense',        'title' => 'Tower Defense / Base Builder',   'icon' => 'shield',         'color' => 'from-emerald-700 via-teal-800 to-cyan-900',    'description' => 'Defend the base by answering questions to deploy towers and counter waves.'],
         ['slug' => 'detective',            'title' => 'Detective Mystery Solver',       'icon' => 'search',         'color' => 'from-slate-700 via-zinc-700 to-stone-800',     'description' => 'Gather clues and crack the case by deducing the right answer.'],
-        ['slug' => 'card-battler',         'title' => 'Card Battler',                   'icon' => 'layers',         'color' => 'from-fuchsia-700 via-purple-800 to-indigo-900','description' => 'Battle opponents by playing answer cards to deal damage and unlock combos.'],
+        ['slug' => 'card-battler',         'title' => 'Card Battler',                   'icon' => 'layers',         'color' => 'from-fuchsia-700 via-purple-800 to-indigo-900', 'description' => 'Battle opponents by playing answer cards to deal damage and unlock combos.'],
         ['slug' => 'crossword',            'title' => 'Crossword Puzzle',               'icon' => 'grid-3x3',       'color' => 'from-blue-700 via-sky-800 to-indigo-900',      'description' => 'Solve themed crossword puzzles built from your subject vocabulary.'],
         ['slug' => 'word-search',          'title' => 'Word Search',                    'icon' => 'search-code',    'color' => 'from-lime-700 via-emerald-800 to-teal-900',    'description' => 'Find hidden subject terms in a randomized letter grid.'],
-        ['slug' => 'cryptogram',           'title' => 'Cryptogram',                     'icon' => 'lock',           'color' => 'from-violet-700 via-purple-800 to-fuchsia-900','description' => 'Decode encrypted quotes or facts to reveal the answer.'],
+        ['slug' => 'cryptogram',           'title' => 'Cryptogram',                     'icon' => 'lock',           'color' => 'from-violet-700 via-purple-800 to-fuchsia-900', 'description' => 'Decode encrypted quotes or facts to reveal the answer.'],
         ['slug' => 'anagrams',             'title' => 'Scrambled Words / Anagrams',     'icon' => 'shuffle',        'color' => 'from-rose-700 via-pink-800 to-fuchsia-900',    'description' => 'Unscramble jumbled letters back into the correct keyword.'],
         ['slug' => 'memory-match',         'title' => 'Memory Match Tiles',             'icon' => 'square-stack',   'color' => 'from-pink-700 via-rose-800 to-red-900',        'description' => 'Match question tiles with the correct answer pairs from memory.'],
         ['slug' => 'hangman',              'title' => 'Hangman',                        'icon' => 'spell-check',    'color' => 'from-stone-700 via-zinc-800 to-slate-900',     'description' => 'Guess letters one at a time before the figure is fully drawn.'],
@@ -38,7 +38,7 @@ class GamesController extends Controller
         ['slug' => 'labeling-diagram',     'title' => 'Labeling Diagram Map',           'icon' => 'map-pin',        'color' => 'from-teal-700 via-cyan-800 to-sky-900',        'description' => 'Drop labels onto the right hotspots of a diagram or map.'],
         ['slug' => 'fill-blanks',          'title' => 'Fill-in-the-Blanks (Drag-to-Text)', 'icon' => 'pen-tool',    'color' => 'from-emerald-700 via-green-800 to-lime-900',   'description' => 'Drag words into the right slots of a sentence or paragraph.'],
         ['slug' => 'connector-lines',      'title' => 'Relational Connector Lines',     'icon' => 'git-fork',       'color' => 'from-purple-700 via-violet-800 to-indigo-900', 'description' => 'Connect prompts and answers by drawing matching lines.'],
-        ['slug' => 'tug-of-war',           'title' => 'Tug-of-War (The Momentum Battle)','icon' => 'swords',        'color' => 'from-red-700 via-rose-800 to-pink-900',        'description' => 'Two-side momentum battle where each correct answer pulls the rope.'],
+        ['slug' => 'tug-of-war',           'title' => 'Tug-of-War (The Momentum Battle)', 'icon' => 'swords',        'color' => 'from-red-700 via-rose-800 to-pink-900',        'description' => 'Two-side momentum battle where each correct answer pulls the rope.'],
         ['slug' => 'snake-and-ladder',     'title' => 'Snake and Ladder',               'icon' => 'dice-5',         'color' => 'from-green-700 via-emerald-800 to-teal-900',   'description' => 'Roll the dice and answer to climb ladders, miss to slide down snakes.'],
     ];
 
@@ -54,16 +54,16 @@ class GamesController extends Controller
         $game = collect(self::GAMES)->firstWhere('slug', $slug);
         abort_if($game === null, 404);
 
-        $user     = auth()->user();
+        $user = auth()->user();
         $schoolId = (int) ($user?->school_id ?? 0);
 
         return view('tools.games.play', [
-            'game'  => $game,
+            'game' => $game,
             'games' => self::GAMES,
             // ?embed=1 renders on the bare fullscreen layout (no sidebar/header)
             // for the catalog's distraction-free game overlay.
             'embed' => $request->boolean('embed'),
-            'ctx'   => $this->gameContext($user, $schoolId),
+            'ctx' => $this->gameContext($user, $schoolId),
         ]);
     }
 
@@ -77,14 +77,24 @@ class GamesController extends Controller
     {
         $isTeacher = strtolower((string) ($user->role ?? '')) === 'teacher';
 
+        // The content bank is scoped to the user's OWN subjects — a student sees
+        // the subjects of the classes they're enrolled in, a teacher the subjects
+        // they teach. Empty whitelist (other roles, or no classes yet) falls back
+        // to the whole school catalogue so practice never bricks.
+        $subjectIds = $this->activeSubjectIds($user, $schoolId, $isTeacher);
+
         $bank = [
             'subjects' => DB::table('subjects')->where('school_id', $schoolId)->where('is_active', 1)
+                ->when($subjectIds, fn ($q) => $q->whereIn('id', $subjectIds))
                 ->orderBy('name')->get(['id', 'name'])->all(),
             'topics' => DB::table('topics')->where('school_id', $schoolId)->where('is_active', 1)
+                ->when($subjectIds, fn ($q) => $q->whereIn('subject_id', $subjectIds))
                 ->orderBy('sequence')->get(['id', 'subject_id', 'name'])->all(),
             'lessons' => DB::table('lessons')->where('school_id', $schoolId)->where('is_active', 1)
+                ->when($subjectIds, fn ($q) => $q->whereIn('subject_id', $subjectIds))
                 ->orderBy('sequence')->get(['id', 'subject_id', 'topic_id', 'name'])->all(),
             'competencies' => DB::table('competencies')->where('school_id', $schoolId)->where('is_active', 1)
+                ->when($subjectIds, fn ($q) => $q->whereIn('subject_id', $subjectIds))
                 ->orderBy('sequence')->get(['id', 'subject_id', 'topic_id', 'lesson_id', 'name'])->all(),
         ];
 
@@ -95,7 +105,7 @@ class GamesController extends Controller
 
         // ---- Auto-capture the user's year level (ADR-0006 bridge) ----
         $autoLevelId = null;
-        $segment     = null; // 'basic' | 'higher' — drives 3 vs 4 grading terms
+        $segment = null; // 'basic' | 'higher' — drives 3 vs 4 grading terms
 
         if ($isTeacher) {
             // Teacher: the year levels of the sections they teach.
@@ -136,14 +146,52 @@ class GamesController extends Controller
         }
 
         return [
-            'role'        => $isTeacher ? 'teacher' : 'student',
-            'bank'        => $bank,
-            'levels'      => $levels,
+            'role' => $isTeacher ? 'teacher' : 'student',
+            'bank' => $bank,
+            'levels' => $levels,
             'autoLevelId' => $autoLevelId,
-            'termCount'   => $segment === 'basic' ? 3 : 4,
-            'quiz'        => $quiz,
-            'lock'        => $lock,
+            'termCount' => $segment === 'basic' ? 3 : 4,
+            'quiz' => $quiz,
+            'lock' => $lock,
         ];
+    }
+
+    /**
+     * The subject ids this user actually works with, for scoping the practice
+     * content bank. Teacher: subjects of the classes they teach (own or via the
+     * class_teacher pivot). Student: subjects of the classes behind their active
+     * enrolment — higher-ed via student_enrollment_subjects, basic ed via the
+     * enrolled section's classes (same resolution as StudentTestAccess).
+     *
+     * @return array<int, int> empty = no scoping (fall back to full catalogue)
+     */
+    private function activeSubjectIds($user, int $schoolId, bool $isTeacher): array
+    {
+        if ($isTeacher) {
+            return DB::table('classes as c')
+                ->where('c.school_id', $schoolId)
+                ->where('c.is_active', 1)
+                ->where(fn ($q) => $q->where('c.teacher_id', $user->id)
+                    ->orWhereIn('c.id', fn ($sub) => $sub->select('class_id')->from('class_teacher')->where('teacher_id', $user->id)))
+                ->whereNotNull('c.subject_id')
+                ->distinct()->pluck('c.subject_id')->map(fn ($i) => (int) $i)->all();
+        }
+
+        $student = \App\Models\Student::where('user_id', $user->id)->first();
+        if (! $student) {
+            return [];
+        }
+
+        $classIds = app(\App\Support\StudentTestAccess::class)->classIds($student);
+        if (! $classIds) {
+            return [];
+        }
+
+        return DB::table('classes')
+            ->where('school_id', $schoolId)
+            ->whereIn('id', $classIds)
+            ->whereNotNull('subject_id')
+            ->distinct()->pluck('subject_id')->map(fn ($i) => (int) $i)->all();
     }
 
     /** education_level + year_level -> academic_levels row id (ADR-0006). */
@@ -208,13 +256,13 @@ class GamesController extends Controller
         $teacher = DB::table('users')->where('id', $setting->teacher_id)->first();
 
         return [
-            'teacher_name'      => trim(($teacher->first_name ?? '').' '.($teacher->last_name ?? '')) ?: 'Your teacher',
-            'term'              => $setting->term,
+            'teacher_name' => trim(($teacher->first_name ?? '').' '.($teacher->last_name ?? '')) ?: 'Your teacher',
+            'term' => $setting->term,
             'academic_level_id' => $setting->academic_level_id,
-            'subject_id'        => $setting->subject_id,
-            'topic_id'          => $setting->topic_id,
-            'lesson_id'         => $setting->lesson_id,
-            'competency_id'     => $setting->competency_id,
+            'subject_id' => $setting->subject_id,
+            'topic_id' => $setting->topic_id,
+            'lesson_id' => $setting->lesson_id,
+            'competency_id' => $setting->competency_id,
         ];
     }
 
@@ -225,19 +273,19 @@ class GamesController extends Controller
         abort_unless(strtolower((string) $user->role) === 'teacher', 403);
 
         $data = $request->validate([
-            'is_on'             => ['required', 'boolean'],
-            'term'              => ['nullable', 'integer', 'min:1', 'max:4'],
+            'is_on' => ['required', 'boolean'],
+            'term' => ['nullable', 'integer', 'min:1', 'max:4'],
             'academic_level_id' => ['nullable', 'integer', 'exists:academic_levels,id'],
-            'subject_id'        => ['nullable', 'integer', 'exists:subjects,id'],
-            'topic_id'          => ['nullable', 'integer', 'exists:topics,id'],
-            'lesson_id'         => ['nullable', 'integer', 'exists:lessons,id'],
-            'competency_id'     => ['nullable', 'integer', 'exists:competencies,id'],
+            'subject_id' => ['nullable', 'integer', 'exists:subjects,id'],
+            'topic_id' => ['nullable', 'integer', 'exists:topics,id'],
+            'lesson_id' => ['nullable', 'integer', 'exists:lessons,id'],
+            'competency_id' => ['nullable', 'integer', 'exists:competencies,id'],
         ]);
 
         DB::table('game_quiz_settings')->updateOrInsert(
             ['teacher_id' => $user->id],
             $data + [
-                'school_id'  => (int) $user->school_id,
+                'school_id' => (int) $user->school_id,
                 'updated_at' => now(),
                 'created_at' => now(),
             ]
@@ -309,7 +357,7 @@ class GamesController extends Controller
             // the run (e.g. no 'advanced' authored yet → falls back to average).
             $avgPool = $pull('average', $limit);
             $advPool = $pull('advanced', $limit);
-            $half    = (int) ceil($limit / 2);
+            $half = (int) ceil($limit / 2);
 
             $avg = $avgPool->take($half);
             $adv = $advPool->take($limit - $avg->count());
@@ -353,9 +401,9 @@ class GamesController extends Controller
                 }
 
                 return [
-                    'id'          => $row->id,
-                    'question'    => $row->question_text,
-                    'answer'      => $answer,
+                    'id' => $row->id,
+                    'question' => $row->question_text,
+                    'answer' => $answer,
                     'explanation' => $row->explanation,
                 ];
             }
@@ -368,10 +416,10 @@ class GamesController extends Controller
             $shuffled = $choices->shuffle()->values();
 
             return [
-                'id'          => $row->id,
-                'question'    => $row->question_text,
-                'choices'     => $shuffled->pluck('choice_text')->all(),
-                'answer'      => $shuffled->search(fn ($c) => (int) $c->is_correct === 1),
+                'id' => $row->id,
+                'question' => $row->question_text,
+                'choices' => $shuffled->pluck('choice_text')->all(),
+                'answer' => $shuffled->search(fn ($c) => (int) $c->is_correct === 1),
                 'explanation' => $row->explanation,
             ];
         })->filter()->values();
