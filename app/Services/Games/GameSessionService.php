@@ -460,24 +460,65 @@ class GameSessionService
             if (! $studentId) {
                 return ['classes' => []];
             }
-            $classesQ->whereIn('c.id', fn ($sub) => $sub->select('class_model_id')->from('class_student')->where('student_id', $studentId));
+            // Same trio StudentTestAccess uses: pivot, subject enrolments
+            // (higher ed), and the enrolled section's classes (basic ed).
+            $classesQ->where(function ($q) use ($studentId) {
+                $q->whereIn('c.id', fn ($sub) => $sub->select('class_model_id')->from('class_student')->where('student_id', $studentId))
+                    ->orWhereIn('c.id', fn ($sub) => $sub->select('ses.class_id')->from('student_enrollment_subjects as ses')
+                        ->join('student_enrollments as e', 'e.id', '=', 'ses.student_enrollment_id')
+                        ->where('e.student_id', $studentId))
+                    ->orWhereIn('c.section_id', fn ($sub) => $sub->select('section_id')->from('student_enrollments')
+                        ->where('student_id', $studentId)
+                        ->whereIn('status', ['enrolled', 'provisionally_enrolled'])
+                        ->whereNotNull('section_id'));
+            });
         }
 
         $classes = $classesQ->orderBy('sub.name')->orderBy('s.name')
-            ->get(['c.id', 'sub.name as subject', 's.name as section', 's.year_level'])->all();
+            ->get(['c.id', 'c.section_id', 'sub.name as subject', 's.name as section', 's.year_level'])->all();
 
         if (! $classes) {
             return ['classes' => []];
         }
 
         $classIds = array_map(fn ($c) => $c->id, $classes);
-        $byClass = DB::table('class_student as cs')
+        $sectionIds = array_values(array_unique(array_filter(array_map(fn ($c) => $c->section_id, $classes))));
+        $fields = ['st.id', 'st.first_name', 'st.preferred_name', 'st.last_name'];
+
+        // Students reach a class three ways; merge all of them per class.
+        // 1) explicit class_student pivot rows
+        $pivot = DB::table('class_student as cs')
             ->join('students as st', 'st.id', '=', 'cs.student_id')
             ->whereIn('cs.class_model_id', $classIds)
             ->where('st.school_id', $schoolId)
-            ->orderBy('st.last_name')->orderBy('st.first_name')
-            ->get(['cs.class_model_id', 'st.id', 'st.first_name', 'st.preferred_name', 'st.last_name'])
-            ->groupBy('cs.class_model_id');
+            ->get(array_merge(['cs.class_model_id as class_id'], $fields));
+        // 2) higher-ed subject enrolments
+        $subject = DB::table('student_enrollment_subjects as ses')
+            ->join('student_enrollments as e', 'e.id', '=', 'ses.student_enrollment_id')
+            ->join('students as st', 'st.id', '=', 'e.student_id')
+            ->whereIn('ses.class_id', $classIds)
+            ->where('st.school_id', $schoolId)
+            ->get(array_merge(['ses.class_id'], $fields));
+        // 3) basic ed: everyone actively enrolled in the class's section
+        $bySection = ! $sectionIds ? collect() : DB::table('student_enrollments as e')
+            ->join('students as st', 'st.id', '=', 'e.student_id')
+            ->whereIn('e.section_id', $sectionIds)
+            ->whereIn('e.status', ['enrolled', 'provisionally_enrolled'])
+            ->where('st.school_id', $schoolId)
+            ->get(array_merge(['e.section_id'], $fields))
+            ->groupBy('section_id');
+
+        $byClass = [];
+        foreach ($classes as $c) {
+            $merged = collect()
+                ->concat($pivot->where('class_id', $c->id))
+                ->concat($subject->where('class_id', $c->id))
+                ->concat($bySection[$c->section_id] ?? collect())
+                ->unique('id')
+                ->sortBy([['last_name', 'asc'], ['first_name', 'asc']])
+                ->values();
+            $byClass[$c->id] = $merged;
+        }
 
         return [
             'classes' => array_map(fn ($c) => [
@@ -538,14 +579,19 @@ class GameSessionService
 
         return DB::table('classes as c')
             ->join('sections as s', 's.id', '=', 'c.section_id')
+            ->leftJoin('terms as t', 't.id', '=', 's.term_id')
             ->where('c.school_id', $schoolId)
             ->where('c.is_active', 1)
             ->where(fn ($q) => $q->where('c.teacher_id', $user->id)
                 ->orWhereIn('c.id', fn ($sub) => $sub->select('class_id')->from('class_teacher')->where('teacher_id', $user->id)))
             ->distinct()
             ->orderBy('s.year_level')->orderBy('s.name')
-            ->get(['s.id', 's.name', 's.year_level'])
-            ->map(fn ($s) => ['id' => (int) $s->id, 'label' => $s->name.' (Year '.$s->year_level.')'])
+            ->get(['s.id', 's.name', 's.year_level', 't.education_level'])
+            // ADR-0006 vocabulary: basic ed says "Grade N", higher ed "Year N".
+            ->map(fn ($s) => [
+                'id' => (int) $s->id,
+                'label' => $s->name.' ('.($s->education_level === 'basic_ed' ? 'Grade' : 'Year').' '.$s->year_level.')',
+            ])
             ->values()->all();
     }
 

@@ -176,6 +176,10 @@
             };
 
             el('snlSetup').style.display = 'none';
+            // Whole-page play: pin the game to the viewport and stop the page
+            // behind it from scrolling.
+            el('snlGameRoot').classList.add('snl-fixed');
+            document.documentElement.style.overflow = 'hidden';
             SnakeLadder.mount({
                 root: el('snlGameRoot'),
                 adapter: adapter,

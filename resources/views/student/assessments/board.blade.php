@@ -10,7 +10,9 @@
 
 <link rel="stylesheet" href="{{ asset('css/tools/games/snake-ladder.css') }}">
 
-<div id="snlGame" role="application" aria-label="Quiz Snakes and Ladders game"></div>
+{{-- snl-fixed pins the board to the viewport: one whole-page screen, no scroll. --}}
+<style> html, body { overflow: hidden; } </style>
+<div id="snlGame" class="snl-fixed" role="application" aria-label="Quiz Snakes and Ladders game"></div>
 
 {{-- Finishing is a normal POST so the redirect to the result page carries the
      session flash; the engine triggers it from the finish panel. --}}
