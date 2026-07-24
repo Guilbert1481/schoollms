@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Access Denied | MRIS Security</title>
     @vite(['resources/css/app.css'])
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="{{ asset('js/lucide.min.js') }}"></script>
     <style>
         .login-gradient {
             background: radial-gradient(circle at top right, #6366f1 0%, transparent 40%),

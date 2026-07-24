@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Final Step | Onboarding</title>
     @vite(['resources/css/app.css'])
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="{{ asset('js/lucide.min.js') }}"></script>
 </head>
 <body class="bg-slate-50 antialiased font-['Plus_Jakarta_Sans']">
 

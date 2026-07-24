@@ -14,7 +14,7 @@
     </title>
 
     @vite(['resources/css/app.css'])
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="{{ asset('js/lucide.min.js') }}"></script>
     <link rel="stylesheet" href="{{ asset('css/admin/dashboard.css') }}">
 
     <style>

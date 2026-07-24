@@ -44,17 +44,23 @@ class AssessmentNotifications
             ->with(['settings', 'subject'])
             ->get();
 
+        // Which of these tests the student has already finished — resolved in ONE
+        // query up front (not one per test) so the header stays cheap on every load.
+        $submittedTestIds = array_flip(
+            TestAttempt::where('student_id', $student->id)
+                ->whereIn('test_id', $tests->pluck('id'))
+                ->whereIn('status', ['submitted', 'graded'])
+                ->pluck('test_id')
+                ->all()
+        );
+
         $rows = [];
         foreach ($tests as $test) {
             if (! $availability->isOpen($test)) {
                 continue;
             }
 
-            $submitted = TestAttempt::where('test_id', $test->id)
-                ->where('student_id', $student->id)
-                ->whereIn('status', ['submitted', 'graded'])
-                ->exists();
-            if ($submitted) {
+            if (isset($submittedTestIds[$test->id])) {
                 continue;
             }
 

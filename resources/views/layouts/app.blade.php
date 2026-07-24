@@ -178,7 +178,7 @@
 </div>
 
 {{-- ICONS --}}
-<script src="https://unpkg.com/lucide@latest"></script>
+<script src="{{ asset('js/lucide.min.js') }}"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     lucide.createIcons();

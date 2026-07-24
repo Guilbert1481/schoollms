@@ -19,7 +19,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     {{-- Lucide Icons --}}
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="{{ asset('js/lucide.min.js') }}"></script>
 
     {{-- Dark mode now follows the app-wide `media` strategy (root tailwind.config),
          consistent with every other compiled page; the tenant `primary` color was

@@ -10,11 +10,16 @@ return [
     | All possible Tailwind classes are declared statically here so JIT builds them.
     | Do NOT dynamically generate bg-*, text-*, etc. strings elsewhere.
     |
+    | `hex` mirrors the `solid` shade and is what the header/sidebar actually
+    | render as an inline background-color (build-independent). Keep the two in
+    | sync — a missing `hex` silently falls back to slate #1e293b.
+    |
     */
 
     'colors' => [
 
         'slate' => [
+            'hex' => '#1e293b',
             'solid' => 'bg-slate-800',
             'gradient_vertical' => 'bg-gradient-to-b from-slate-700 to-slate-900',
             'gradient_horizontal' => 'bg-gradient-to-r from-slate-700 to-slate-900',
@@ -26,6 +31,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/10',
         ],
         'blue' => [
+            'hex' => '#1d4ed8',
             'solid' => 'bg-blue-700',
             'gradient_vertical' => 'bg-gradient-to-b from-blue-600 to-blue-800',
             'gradient_horizontal' => 'bg-gradient-to-r from-blue-600 to-blue-800',
@@ -37,6 +43,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/10',
         ],
         'purple' => [
+            'hex' => '#7e22ce',
             'solid' => 'bg-purple-700',
             'gradient_vertical' => 'bg-gradient-to-b from-purple-600 to-purple-800',
             'gradient_horizontal' => 'bg-gradient-to-r from-purple-600 to-purple-800',
@@ -48,6 +55,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/10',
         ],
         'rose' => [
+            'hex' => '#be123c',
             'solid' => 'bg-rose-700',
             'gradient_vertical' => 'bg-gradient-to-b from-rose-600 to-rose-800',
             'gradient_horizontal' => 'bg-gradient-to-r from-rose-600 to-rose-800',
@@ -59,6 +67,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/10',
         ],
         'amber' => [
+            'hex' => '#d97706',
             'solid' => 'bg-amber-600',
             'gradient_vertical' => 'bg-gradient-to-b from-amber-500 to-amber-700',
             'gradient_horizontal' => 'bg-gradient-to-r from-amber-500 to-amber-700',
@@ -70,6 +79,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/10',
         ],
         'emerald' => [
+            'hex' => '#047857',
             'solid' => 'bg-emerald-700',
             'gradient_vertical' => 'bg-gradient-to-b from-emerald-600 to-emerald-800',
             'gradient_horizontal' => 'bg-gradient-to-r from-emerald-600 to-emerald-800',
@@ -81,6 +91,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/10',
         ],
         'cyan' => [
+            'hex' => '#0e7490',
             'solid' => 'bg-cyan-700',
             'gradient_vertical' => 'bg-gradient-to-b from-cyan-600 to-cyan-800',
             'gradient_horizontal' => 'bg-gradient-to-r from-cyan-600 to-cyan-800',
@@ -92,6 +103,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/10',
         ],
         'indigo' => [
+            'hex' => '#4338ca',
             'solid' => 'bg-indigo-700',
             'gradient_vertical' => 'bg-gradient-to-b from-indigo-600 to-indigo-800',
             'gradient_horizontal' => 'bg-gradient-to-r from-indigo-600 to-indigo-800',
@@ -103,6 +115,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/10',
         ],
         'teal' => [
+            'hex' => '#0f766e',
             'solid' => 'bg-teal-700',
             'gradient_vertical' => 'bg-gradient-to-b from-teal-600 to-teal-800',
             'gradient_horizontal' => 'bg-gradient-to-r from-teal-600 to-teal-800',
@@ -114,6 +127,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/10',
         ],
         'fuchsia' => [
+            'hex' => '#a21caf',
             'solid' => 'bg-fuchsia-700',
             'gradient_vertical' => 'bg-gradient-to-b from-fuchsia-600 to-fuchsia-800',
             'gradient_horizontal' => 'bg-gradient-to-r from-fuchsia-600 to-fuchsia-800',
@@ -125,6 +139,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/10',
         ],
         'white' => [
+            'hex' => '#ffffff',
             'solid' => 'bg-white',
             'gradient_vertical' => 'bg-gradient-to-b from-gray-50 to-gray-100',
             'gradient_horizontal' => 'bg-gradient-to-r from-gray-50 to-gray-100',
@@ -136,6 +151,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/5',
         ],
         'light' => [
+            'hex' => '#f8fafc',
             'solid' => 'bg-slate-50',
             'gradient_vertical' => 'bg-gradient-to-b from-slate-50 to-slate-100',
             'gradient_horizontal' => 'bg-gradient-to-r from-slate-50 to-slate-100',
@@ -147,6 +163,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/5',
         ],
         'silver' => [
+            'hex' => '#f3f4f6',
             'solid' => 'bg-gray-100',
             'gradient_vertical' => 'bg-gradient-to-b from-gray-100 to-gray-200',
             'gradient_horizontal' => 'bg-gradient-to-r from-gray-100 to-gray-200',
@@ -158,6 +175,7 @@ return [
             'hover_light_mode' => 'hover:bg-black/5',
         ],
         'sky' => [
+            'hex' => '#f0f9ff',
             'solid' => 'bg-sky-50',
             'gradient_vertical' => 'bg-gradient-to-b from-sky-50 to-sky-100',
             'gradient_horizontal' => 'bg-gradient-to-r from-sky-50 to-sky-100',

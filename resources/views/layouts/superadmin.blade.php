@@ -75,7 +75,7 @@
         </main>
     </div>
 
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="{{ asset('js/lucide.min.js') }}"></script>
     <script>lucide.createIcons();</script>
     <script src="{{ mix('js/app.js') }}" defer></script>
     <script defer src="{{ asset('js/alpine.min.js') }}"></script>
