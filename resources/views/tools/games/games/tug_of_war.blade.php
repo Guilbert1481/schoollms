@@ -96,12 +96,15 @@
        pivot sits on the hands (the rope grip) so the body leans, not the grip. */
     [data-game="tug-of-war"] .tug-puller{ position:absolute; top:50%; width:52px; height:52px; z-index:3; filter:drop-shadow(0 3px 4px rgba(15,37,69,.25)); pointer-events:none; }
     [data-game="tug-of-war"] .tug-puller.a{ left:-6px; transform-origin:92% 52%; animation:tug-strain-a 1.3s ease-in-out infinite; }
-    [data-game="tug-of-war"] .tug-puller.b{ right:-6px; transform-origin:92% 52%; animation:tug-strain-b 1.3s ease-in-out .65s infinite; }
+    /* B is pre-mirrored INSIDE its SVG (a scale(-1,1) group), so its hands sit
+       at 8% and no CSS scaleX is needed — an off-center CSS flip used to shove
+       the whole figure sideways into the orange team card. */
+    [data-game="tug-of-war"] .tug-puller.b{ right:-6px; transform-origin:8% 52%; animation:tug-strain-b 1.3s ease-in-out .65s infinite; }
     @keyframes tug-strain-a{ 0%,100%{ transform:translateY(-52%) rotate(-8deg); } 50%{ transform:translateY(-52%) rotate(-16deg); } }
-    @keyframes tug-strain-b{ 0%,100%{ transform:translateY(-52%) scaleX(-1) rotate(-8deg); } 50%{ transform:translateY(-52%) scaleX(-1) rotate(-16deg); } }
+    @keyframes tug-strain-b{ 0%,100%{ transform:translateY(-52%) rotate(8deg); } 50%{ transform:translateY(-52%) rotate(16deg); } }
     @media (prefers-reduced-motion: reduce){
         [data-game="tug-of-war"] .tug-puller.a{ animation:none; transform:translateY(-52%) rotate(-10deg); }
-        [data-game="tug-of-war"] .tug-puller.b{ animation:none; transform:translateY(-52%) scaleX(-1) rotate(-10deg); }
+        [data-game="tug-of-war"] .tug-puller.b{ animation:none; transform:translateY(-52%) rotate(10deg); }
     }
     [data-game="tug-of-war"] .tug-finish{ display:flex; justify-content:space-between; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; margin-top:6px; }
     [data-game="tug-of-war"] .tug-finish .a{ color:var(--tug-blue-deep); }
@@ -290,6 +293,9 @@
                         <circle cx="60" cy="35" r="4.5" fill="#0f2545" stroke="#ffd86b" stroke-width="1.5"/>
                     </svg>
                     <svg class="tug-puller b" viewBox="0 0 64 64" aria-hidden="true">
+                        {{-- Mirrored in-viewBox (not via CSS) so the box stays put:
+                             hands land at x≈4 (8%), body leans toward the orange side. --}}
+                        <g transform="translate(64,0) scale(-1,1)">
                         <path d="M20 50 L10 60" stroke="#7a3d10" stroke-width="5" stroke-linecap="round"/>
                         <path d="M28 53 L24 62" stroke="#7a3d10" stroke-width="5" stroke-linecap="round"/>
                         <path d="M40 30 Q54 29 63 31" stroke="#7a3d10" stroke-width="6" stroke-linecap="round" fill="none"/>
@@ -302,6 +308,7 @@
                         <path d="M31 37 Q35 40 39 37" stroke="#3a1c08" stroke-width="2" fill="none" stroke-linecap="round"/>
                         <circle cx="60" cy="31" r="4.5" fill="#7a3d10" stroke="#ffd86b" stroke-width="1.5"/>
                         <circle cx="60" cy="35" r="4.5" fill="#7a3d10" stroke="#ffd86b" stroke-width="1.5"/>
+                        </g>
                     </svg>
                     <div class="tug-rope-line"></div>
                     <div id="tugNodes" class="tug-nodes"></div>
