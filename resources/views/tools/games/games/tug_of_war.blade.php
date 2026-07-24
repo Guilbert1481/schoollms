@@ -118,7 +118,12 @@
     [data-game="tug-of-war"] .tug-armbtn:disabled{ opacity:.4; cursor:default; text-decoration:line-through; }
     [data-game="tug-of-war"] .tug-opts{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
     [data-game="tug-of-war"] .tug-opt{ display:flex; align-items:center; gap:12px; border:1.5px solid var(--tug-line); background:#fff; border-radius:12px; padding:13px 16px; cursor:pointer; text-align:left; }
-    [data-game="tug-of-war"] .tug-opt:hover:not(:disabled){ border-color:var(--tug-blue); background:var(--tug-blue-soft); }
+    /* Hover only on real pointers (touch "hover" sticks after a tap), and only
+       after the mouse moves post-render — otherwise the next question's button
+       under the resting cursor looks like the previous pick persisting. */
+    @media (hover:hover) and (pointer:fine){
+        [data-game="tug-of-war"] .tug-opts:not(.tug-nohover) .tug-opt:hover:not(:disabled){ border-color:var(--tug-blue); background:var(--tug-blue-soft); }
+    }
     [data-game="tug-of-war"] .tug-optletter{ flex:0 0 auto; width:30px; height:30px; border-radius:8px; background:var(--tug-blue); color:#fff; font-weight:900; display:flex; align-items:center; justify-content:center; font-size:14px; }
     [data-game="tug-of-war"] .tug-opttext{ font-size:15px; font-weight:600; color:var(--tug-ink); }
     [data-game="tug-of-war"] .tug-opt.is-correct{ border-color:#16a34a; background:#e9faef; }
@@ -551,6 +556,13 @@
             ).join('');
             el('tugOptions').querySelectorAll('.tug-opt').forEach(b =>
                 b.addEventListener('click', () => submit({ choice_index: parseInt(b.dataset.idx, 10) })));
+            // Fresh question: hold hover styling until the pointer moves, so the
+            // button rendered under the resting cursor doesn't look pre-selected.
+            el('tugOptions').classList.add('tug-nohover');
+            document.addEventListener('mousemove', function unlock() {
+                el('tugOptions').classList.remove('tug-nohover');
+                document.removeEventListener('mousemove', unlock);
+            });
         } else {
             // Identification: host types the buzzing side's spoken answer.
             el('tugOptions').innerHTML =

@@ -110,9 +110,15 @@
     [data-game="millionaire"] .ml-optletter{ flex:0 0 auto; padding:0 14px 0 24px; font-weight:800; font-size:15px; color:var(--ml-gold-bright); position:relative; }
     [data-game="millionaire"] .ml-optletter::after{ content:""; position:absolute; right:0; top:50%; transform:translateY(-50%); height:22px; width:2px; background:rgba(240,192,74,.45); }
     [data-game="millionaire"] .ml-opttext{ padding:0 18px 0 14px; color:#eaf2ff; font-weight:600; font-size:14px; }
-    [data-game="millionaire"] .ml-opt:hover:not(:disabled)::before{ background:linear-gradient(180deg,#f3b23e,#d97a10); }
-    [data-game="millionaire"] .ml-opt:hover:not(:disabled) .ml-opttext{ color:#1a1000; }
-    [data-game="millionaire"] .ml-opt:hover:not(:disabled) .ml-optletter{ color:#3a1e00; }
+    /* Hover only on real pointers (touch "hover" sticks after a tap), and only
+       once the mouse has MOVED since the question rendered — otherwise the new
+       question's button under the resting cursor lights up and reads like the
+       previous selection persisting. */
+    @media (hover:hover) and (pointer:fine){
+        [data-game="millionaire"] .ml-options:not(.ml-nohover) .ml-opt:hover:not(:disabled)::before{ background:linear-gradient(180deg,#f3b23e,#d97a10); }
+        [data-game="millionaire"] .ml-options:not(.ml-nohover) .ml-opt:hover:not(:disabled) .ml-opttext{ color:#1a1000; }
+        [data-game="millionaire"] .ml-options:not(.ml-nohover) .ml-opt:hover:not(:disabled) .ml-optletter{ color:#3a1e00; }
+    }
     [data-game="millionaire"] .ml-opt.is-correct{ filter:drop-shadow(0 0 10px rgba(34,197,94,.7)); }
     [data-game="millionaire"] .ml-opt.is-correct::before{ background:linear-gradient(180deg,#2fbf5a,#12833a); }
     [data-game="millionaire"] .ml-opt.is-correct .ml-opttext,
@@ -355,7 +361,19 @@
         el('mlOptions').querySelectorAll('.ml-opt').forEach(btn => {
             btn.addEventListener('click', () => answer(parseInt(btn.dataset.idx, 10)));
         });
+        armHoverGuard();
         renderLadder();
+    }
+
+    // Fresh question: hold hover styling until the pointer actually moves, so
+    // the button that renders under the resting cursor doesn't look selected.
+    function armHoverGuard() {
+        const box = el('mlOptions');
+        box.classList.add('ml-nohover');
+        document.addEventListener('mousemove', function unlock() {
+            box.classList.remove('ml-nohover');
+            document.removeEventListener('mousemove', unlock);
+        });
     }
 
     function answer(idx) {
