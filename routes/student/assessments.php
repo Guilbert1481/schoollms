@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Student\AssessmentController;
+use App\Http\Controllers\Student\SnakeLadderController;
 use App\Http\Controllers\Student\SpeedDashController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,4 +33,11 @@ Route::middleware(['web', 'auth', 'role:student'])
         Route::get('{test}/play', [SpeedDashController::class, 'play'])->name('play');
         Route::post('attempt/{attempt}/game-answer', [SpeedDashController::class, 'answer'])->name('game-answer');
         Route::post('attempt/{attempt}/game-finish', [SpeedDashController::class, 'finish'])->name('game-finish');
+
+        // Quiz Snakes & Ladders — the BOARD-GAME delivery of the same
+        // attempt/grading pipeline. Dice and movement are server-authoritative.
+        Route::get('{test}/board', [SnakeLadderController::class, 'play'])->name('board');
+        Route::post('attempt/{attempt}/board-answer', [SnakeLadderController::class, 'answer'])->name('board-answer');
+        Route::post('attempt/{attempt}/board-roll', [SnakeLadderController::class, 'roll'])->name('board-roll');
+        Route::post('attempt/{attempt}/board-finish', [SnakeLadderController::class, 'finish'])->name('board-finish');
     });

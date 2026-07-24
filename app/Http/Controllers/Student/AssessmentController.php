@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\Test;
 use App\Models\TestAttempt;
+use App\Services\Games\SnakeLadderAttemptService;
 use App\Services\Games\SpeedDashAttemptService;
 use App\Services\Tests\OnlineTestAttemptService;
 use App\Services\Tests\OnlineTestGradingService;
@@ -153,7 +154,7 @@ class AssessmentController extends Controller
 
         return view('student.assessments.start', [
             'test' => $test,
-            'isGame' => app(SpeedDashAttemptService::class)->isEnabled($test),
+            'isGame' => ($test->settings?->play_mode ?? 'standard') !== 'standard',
             'status' => $status,
             'opensAt' => $this->availability->opensAt($test),
             'closesAt' => $this->availability->closesAt($test),
@@ -185,10 +186,13 @@ class AssessmentController extends Controller
     {
         [$student] = $this->guard($test);
 
-        // Speed Dash tests are delivered by the game screen; the attempt and the
-        // grading underneath are identical either way.
+        // Game-mode tests are delivered by their game screen; the attempt and
+        // the grading underneath are identical either way.
         if (app(SpeedDashAttemptService::class)->isEnabled($test)) {
             return redirect()->route('student.assessments.play', $test);
+        }
+        if (app(SnakeLadderAttemptService::class)->isEnabled($test)) {
+            return redirect()->route('student.assessments.board', $test);
         }
 
         $attempt = $this->attempts->activeAttempt($test, $student->id);

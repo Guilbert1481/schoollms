@@ -3,7 +3,8 @@
 @section('page-title', 'Play as Game')
 
 @section('content')
-<div class="w-full space-y-6">
+<style>[x-cloak]{display:none!important}</style>
+<div class="w-full space-y-6" x-data="{ mode: @js($playMode) }">
 
     @if(session('success'))
         <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ session('success') }}</div>
@@ -23,12 +24,12 @@
     <div>
         <h1 class="flex items-center gap-2 text-2xl font-bold text-slate-800">
             <i data-lucide="gamepad-2" class="h-7 w-7 text-cyan-600"></i>
-            Quiz Speed Dash — {{ $test->title }}
+            Play as Game — {{ $test->title }}
         </h1>
         <p class="mt-1 text-sm text-slate-600">
-            Deliver this test as an endless-runner game. Questions, points, schedule, attempt limits,
-            and the official grade are exactly what the Test Builder says — the game only changes how
-            students <em>experience</em> the same assessment.
+            Deliver this test as a game. Questions, points, schedule, attempt limits, and the official
+            grade are exactly what the Test Builder says — the game only changes how students
+            <em>experience</em> the same assessment.
         </p>
     </div>
 
@@ -36,11 +37,11 @@
     @if(! $isOnline)
         <div class="max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             <span class="font-semibold">This is not an online test.</span>
-            Speed Dash only delivers online tests — switch the test's mode to Online in the Test Builder first.
+            Games only deliver online tests — switch the test's mode to Online in the Test Builder first.
         </div>
     @elseif(! $eligibility['ok'])
         <div class="max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            <div class="font-semibold">This test can't be played as Speed Dash yet:</div>
+            <div class="font-semibold">This test can't be played as a game yet:</div>
             <ul class="mt-2 list-disc space-y-1 pl-5">
                 @foreach(array_slice($eligibility['reasons'], 0, 8) as $reason)
                     <li>{{ $reason }}</li>
@@ -50,11 +51,11 @@
                 @endif
             </ul>
             <p class="mt-2">Only <span class="font-semibold">True/False</span> and <span class="font-semibold">Multiple Choice</span>
-            questions with 2–5 options can be played as answer gates.</p>
+            questions with 2–5 options can be played in a game.</p>
         </div>
     @else
         <div class="max-w-3xl rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-            <span class="font-semibold">Ready to play.</span> Every question fits the game (True/False or
+            <span class="font-semibold">Ready to play.</span> Every question fits a game (True/False or
             Multiple Choice, 2–5 options, one correct answer).
         </div>
     @endif
@@ -62,72 +63,137 @@
     <form method="POST" action="{{ route('teacher.tests.game.save', $test) }}" class="max-w-3xl space-y-6">
         @csrf
 
-        {{-- Enable --}}
+        {{-- Delivery mode --}}
         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <label class="flex items-center justify-between gap-4">
-                <span>
-                    <span class="block text-sm font-bold text-slate-800">Enable Quiz Speed Dash</span>
-                    <span class="block text-xs text-slate-500">Students will take this test as the runner game instead of the standard form.</span>
-                </span>
-                <span class="relative inline-block cursor-pointer">
-                    <input type="hidden" name="enabled" value="0">
-                    <input type="checkbox" name="enabled" value="1" class="peer sr-only"
-                           @checked($enabled) @disabled(! $isOnline || ! $eligibility['ok'])>
-                    <span class="block h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-cyan-600"></span>
-                    <span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
-                </span>
-            </label>
+            <h2 class="mb-3 text-sm font-bold text-slate-800">How should students take this test?</h2>
+            <div class="grid gap-3 sm:grid-cols-3">
+                @foreach([
+                    'standard' => ['file-text', 'Standard quiz', 'The regular online test screen.'],
+                    'speed_dash' => ['zap', 'Quiz Speed Dash', 'Endless-runner: answer gates to keep running.'],
+                    'snake_and_ladder' => ['dice-5', 'Quiz Snakes & Ladders', 'Answer to roll the dice and race to tile 100.'],
+                ] as $value => [$icon, $label, $blurb])
+                    <label class="cursor-pointer rounded-xl border p-4 transition"
+                           :class="mode === '{{ $value }}' ? 'border-cyan-500 bg-cyan-50 ring-2 ring-cyan-200' : 'border-slate-200 hover:border-slate-300'">
+                        <input type="radio" name="play_mode" value="{{ $value }}" x-model="mode" class="sr-only"
+                               @disabled($value !== 'standard' && (! $isOnline || ! $eligibility['ok']))>
+                        <span class="flex items-center gap-2 text-sm font-bold text-slate-800">
+                            <i data-lucide="{{ $icon }}" class="h-4 w-4 text-cyan-600"></i>{{ $label }}
+                        </span>
+                        <span class="mt-1 block text-xs text-slate-500">{{ $blurb }}</span>
+                    </label>
+                @endforeach
+            </div>
         </div>
 
-        {{-- Core game settings --}}
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-5">
-            <h2 class="text-sm font-bold text-slate-800">Game settings</h2>
+        {{-- Snakes & Ladders settings --}}
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-5" x-show="mode === 'snake_and_ladder'" x-cloak>
+            <h2 class="text-sm font-bold text-slate-800">Snakes &amp; Ladders settings</h2>
+
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">Movement</label>
+                    <select name="movement_policy" class="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm">
+                        <option value="classic" @selected($boardSettings['movement_policy'] === 'classic')>Classic Dice — correct answer rolls 1–6</option>
+                        <option value="knowledge" @selected($boardSettings['movement_policy'] === 'knowledge')>Knowledge Dice — harder questions roll higher (average 1–3, advanced 4–6)</option>
+                        <option value="accuracy" @selected($boardSettings['movement_policy'] === 'accuracy')>Accuracy — every correct answer moves 4 tiles (+1 on a 3-streak)</option>
+                    </select>
+                    <p class="mt-1 text-xs text-slate-500">Wrong answers never move. Dice luck never touches the official grade.</p>
+                </div>
+
+                <div>
+                    <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">Reaching tile 100</label>
+                    <select name="finish_rule" class="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm">
+                        <option value="exact" @selected($boardSettings['finish_rule'] === 'exact')>Exact roll required — overshooting stays put</option>
+                        <option value="bounce" @selected($boardSettings['finish_rule'] === 'bounce')>Bounce back — extra pips bounce off 100</option>
+                        <option value="cap" @selected($boardSettings['finish_rule'] === 'cap')>Cap at 100 — any overshoot finishes</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">Board layout</label>
+                    <select name="board_layout" class="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm">
+                        <option value="default" @selected($boardSettings['board_layout'] === 'default')>Classic board — the curated snake/ladder spread</option>
+                        <option value="random" @selected($boardSettings['board_layout'] === 'random')>Surprise board — randomized per attempt (validated + reproducible)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">Snake Shield</label>
+                    <select name="shield_enabled" class="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm">
+                        <option value="1" @selected($boardSettings['shield_enabled'])>On — every 3-correct streak earns a shield that blocks one snake</option>
+                        <option value="0" @selected(! $boardSettings['shield_enabled'])>Off</option>
+                    </select>
+                    <p class="mt-1 text-xs text-slate-500">Shields affect the board only — never the official grade.</p>
+                </div>
+            </div>
+
+            <p class="rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+                Reaching tile 100 early never skips questions: the board is marked complete and the game
+                keeps asking until every question is answered. Finishing the questions without reaching
+                tile 100 also completes the test — the final board position is just for fun.
+            </p>
+        </div>
+
+        {{-- Speed Dash settings --}}
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-5" x-show="mode === 'speed_dash'" x-cloak>
+            <h2 class="text-sm font-bold text-slate-800">Speed Dash settings</h2>
 
             <div class="grid gap-5 sm:grid-cols-2">
                 <div>
                     <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">Starting lives (hearts)</label>
                     <select name="starting_lives" class="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm">
                         @foreach([1, 2, 3, 4, 5] as $n)
-                            <option value="{{ $n }}" @selected((int) $settings['starting_lives'] === $n)>{{ $n }}</option>
+                            <option value="{{ $n }}" @selected((int) $dashSettings['starting_lives'] === $n)>{{ $n }}</option>
                         @endforeach
                     </select>
                     <p class="mt-1 text-xs text-slate-500">
-                        Running out of hearts never ends a graded run — the game switches to Recovery Mode
-                        (slower, no bonuses) and the student still finishes every question.
+                        Running out of hearts never ends a graded run — Recovery Mode slows the game and
+                        the student still finishes every question.
                     </p>
                 </div>
 
                 <div>
                     <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">Answer submission</label>
                     <select name="instant_submit" class="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm">
-                        <option value="1" @selected($settings['instant_submit'])>Instant — picking a gate submits</option>
-                        <option value="0" @selected(! $settings['instant_submit'])>Confirm — pick, then press Enter / Confirm</option>
+                        <option value="1" @selected($dashSettings['instant_submit'])>Instant — picking a gate submits</option>
+                        <option value="0" @selected(! $dashSettings['instant_submit'])>Confirm — pick, then press Enter / Confirm</option>
                     </select>
-                    <p class="mt-1 text-xs text-slate-500">Confirm mode lets students change their pick before it counts.</p>
                 </div>
-            </div>
-        </div>
 
-        {{-- Advanced (collapsed by default) --}}
-        <details class="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <summary class="cursor-pointer select-none px-5 py-4 text-sm font-bold text-slate-700">Advanced</summary>
-            <div class="grid gap-5 border-t border-slate-100 p-5 sm:grid-cols-2">
                 <div>
                     <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">Power-ups</label>
                     <select name="powerups_enabled" class="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm">
-                        <option value="1" @selected($settings['powerups_enabled'])>On — Speed Boost at 3-streak, Shield at 5-streak</option>
-                        <option value="0" @selected(! $settings['powerups_enabled'])>Off</option>
+                        <option value="1" @selected($dashSettings['powerups_enabled'])>On — Speed Boost at 3-streak, Shield at 5-streak</option>
+                        <option value="0" @selected(! $dashSettings['powerups_enabled'])>Off</option>
                     </select>
-                    <p class="mt-1 text-xs text-slate-500">Power-ups affect the game score and visuals only — never the official grade.</p>
                 </div>
+
                 <div>
                     <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-400">Max speed bonus (game points)</label>
-                    <input type="number" name="speed_bonus_max" min="0" max="50" value="{{ (int) $settings['speed_bonus_max'] }}"
+                    <input type="number" name="speed_bonus_max" min="0" max="50" value="{{ (int) $dashSettings['speed_bonus_max'] }}"
                            class="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm">
                     <p class="mt-1 text-xs text-slate-500">Small bonus for fast correct answers (0 disables it). Accuracy always outweighs speed.</p>
                 </div>
             </div>
-        </details>
+        </div>
+
+        {{-- Hidden defaults so the inactive mode's fields always validate --}}
+        <template x-if="mode !== 'speed_dash'">
+            <span>
+                <input type="hidden" name="starting_lives" value="{{ (int) $dashSettings['starting_lives'] }}">
+                <input type="hidden" name="instant_submit" value="{{ $dashSettings['instant_submit'] ? 1 : 0 }}">
+                <input type="hidden" name="powerups_enabled" value="{{ $dashSettings['powerups_enabled'] ? 1 : 0 }}">
+                <input type="hidden" name="speed_bonus_max" value="{{ (int) $dashSettings['speed_bonus_max'] }}">
+            </span>
+        </template>
+        <template x-if="mode !== 'snake_and_ladder'">
+            <span>
+                <input type="hidden" name="movement_policy" value="{{ $boardSettings['movement_policy'] }}">
+                <input type="hidden" name="finish_rule" value="{{ $boardSettings['finish_rule'] }}">
+                <input type="hidden" name="board_layout" value="{{ $boardSettings['board_layout'] }}">
+                <input type="hidden" name="shield_enabled" value="{{ $boardSettings['shield_enabled'] ? 1 : 0 }}">
+            </span>
+        </template>
 
         {{-- What the game inherits (read-only) --}}
         <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">

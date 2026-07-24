@@ -110,8 +110,9 @@ class SpeedDashGradedModeTest extends TestCase
         $this->actingAs($this->teacher)->get(route('teacher.tests.game', $test))->assertOk()->assertSee('Ready to play');
 
         $this->actingAs($this->teacher)->post(route('teacher.tests.game.save', $test), [
-            'enabled' => 1, 'starting_lives' => 4, 'instant_submit' => 0,
+            'play_mode' => 'speed_dash', 'starting_lives' => 4, 'instant_submit' => 0,
             'powerups_enabled' => 1, 'speed_bonus_max' => 10,
+            'movement_policy' => 'classic', 'finish_rule' => 'exact', 'board_layout' => 'default', 'shield_enabled' => 1,
         ])->assertRedirect(route('teacher.tests.game', $test));
 
         $settings = $test->fresh('settings')->settings;
@@ -127,8 +128,9 @@ class SpeedDashGradedModeTest extends TestCase
         $this->question($test->id, 2, 'essay', []);
 
         $this->actingAs($this->teacher)->post(route('teacher.tests.game.save', $test), [
-            'enabled' => 1, 'starting_lives' => 3, 'instant_submit' => 1,
+            'play_mode' => 'speed_dash', 'starting_lives' => 3, 'instant_submit' => 1,
             'powerups_enabled' => 1, 'speed_bonus_max' => 20,
+            'movement_policy' => 'classic', 'finish_rule' => 'exact', 'board_layout' => 'default', 'shield_enabled' => 1,
         ])->assertSessionHas('error');
 
         $this->assertSame('standard', $test->fresh('settings')->settings->play_mode);
