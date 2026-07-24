@@ -26,20 +26,7 @@
     /* ============ shared card ============ */
     [data-game="tug-of-war"] .tug-card{ background:#fff; border:1px solid var(--tug-line); border-radius:16px; box-shadow:0 10px 30px rgba(15,37,69,.08); overflow:hidden; }
 
-    /* ============ CONFIG (splash) ============ */
-    [data-game="tug-of-war"] .tug-config{ max-width:640px; margin:0 auto; }
-    [data-game="tug-of-war"] .tug-config-head{ background:linear-gradient(120deg,var(--tug-navy),#183363); color:#fff; padding:26px 26px 22px; text-align:center; }
-    [data-game="tug-of-war"] .tug-badge{ display:inline-flex; align-items:center; gap:7px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.28); border-radius:999px; padding:5px 13px; font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
-    [data-game="tug-of-war"] .tug-config-title{ font-size:26px; font-weight:900; letter-spacing:.02em; margin:12px 0 4px; }
-    [data-game="tug-of-war"] .tug-config-sub{ font-size:13px; color:#c6d6f0; }
-    [data-game="tug-of-war"] .tug-config-body{ padding:20px 24px 24px; }
-
-    [data-game="tug-of-war"] .tug-scopebox{ background:var(--tug-blue-soft); border:1px solid #cfe0ff; border-radius:12px; padding:10px 14px; margin-bottom:18px; }
-    [data-game="tug-of-war"] .tug-scopelabel{ color:var(--tug-blue-deep); font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
-    [data-game="tug-of-war"] .tug-scopeval{ color:var(--tug-ink); font-size:14px; font-weight:800; margin-top:2px; }
-    [data-game="tug-of-war"] .tug-scopehint{ color:#6b7a90; font-size:11px; margin-top:2px; }
-
-    [data-game="tug-of-war"] .tug-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    /* ============ team builder (slot inside the shared config component) ============ */
     [data-game="tug-of-war"] .tug-field label{ display:block; color:#586a82; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; margin-bottom:5px; }
     [data-game="tug-of-war"] .tug-select{ width:100%; appearance:none; background:#fff; color:var(--tug-ink); border:1.5px solid var(--tug-line); border-radius:10px; padding:10px 12px; font-size:14px; font-weight:600; cursor:pointer; }
     [data-game="tug-of-war"] .tug-select:focus{ outline:none; border-color:var(--tug-blue); box-shadow:0 0 0 3px rgba(31,95,208,.15); }
@@ -54,11 +41,6 @@
     [data-game="tug-of-war"] .tug-tb.is-a{ border-color:var(--tug-blue); color:#fff; background:var(--tug-blue); }
     [data-game="tug-of-war"] .tug-tb.is-b{ border-color:var(--tug-orange); color:#fff; background:var(--tug-orange); }
     [data-game="tug-of-war"] .tug-empty{ font-size:12px; color:#8a97a8; text-align:center; padding:14px; }
-
-    [data-game="tug-of-war"] .tug-error{ margin-top:14px; background:#fff2f0; border:1px solid #f6c6bf; color:#b3261a; border-radius:10px; padding:10px 14px; font-size:13px; }
-    [data-game="tug-of-war"] .tug-start{ margin-top:18px; width:100%; border:0; cursor:pointer; border-radius:12px; padding:14px; font-size:15px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; color:#fff; background:linear-gradient(120deg,var(--tug-blue),var(--tug-orange)); box-shadow:0 8px 20px rgba(31,95,208,.28); }
-    [data-game="tug-of-war"] .tug-start:hover{ filter:brightness(1.05); }
-    [data-game="tug-of-war"] .tug-start:disabled{ opacity:.65; cursor:default; }
 
     /* ============ GAME ============ */
     [data-game="tug-of-war"] .tug-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--tug-navy); color:#fff; padding:12px 18px; }
@@ -177,60 +159,30 @@
     @media (max-width:720px){
         [data-game="tug-of-war"] .tug-arena{ grid-template-columns:1fr; }
         [data-game="tug-of-war"] .tug-opts{ grid-template-columns:1fr; }
-        [data-game="tug-of-war"] .tug-grid{ grid-template-columns:1fr; }
         [data-game="tug-of-war"] .tug-bench{ grid-template-columns:1fr; }
     }
 </style>
 @endverbatim
 
-    {{-- ============ CONFIG SCREEN ============ --}}
-    <div id="tugConfig" class="tug-card tug-config">
-        <div class="tug-config-head">
-            <span class="tug-badge"><span>&#9876;</span> Tug-of-War</span>
-            <div class="tug-config-title">Quiz Tug-of-War</div>
-            <div class="tug-config-sub">Two sides, one rope — every correct answer pulls it your way.</div>
-        </div>
-        <div class="tug-config-body">
-            <div class="tug-scopebox">
-                <div class="tug-scopelabel">Practicing</div>
-                <div id="tugScope" class="tug-scopeval">All subjects</div>
-                <div class="tug-scopehint">Change content from the &#9776; menu (top right).</div>
-            </div>
+    {{-- ============ CONFIG SCREEN — shared component (Constitution §11B) ============ --}}
+    @php $tugIsTeacher = strtolower((string) (auth()->user()->role ?? '')) === 'teacher'; @endphp
+    <div id="tugConfig">
+        <x-gamified-configuration
+            title="Quiz Tug-of-War"
+            subtitle="Two sides, one rope — every correct answer pulls it your way."
+            icon="⚔️"
+            :is-teacher="$tugIsTeacher"
+            :items="[5, 10, 15]"
+            :items-default="10"
+            :types="['mcq', 'identification']"
+            :difficulty="true"
+            :modes="['solo', 'opponent', 'team']"
+            mode-default="team"
+            :section="true"
+            :scoring="true"
+            start-label="Start now">
 
-            <div class="tug-grid">
-                <div class="tug-field">
-                    <label for="tugType">Question Type</label>
-                    <select id="tugType" class="tug-select">
-                        <option value="mcq" selected>Multiple Choice</option>
-                        <option value="identification">Identification</option>
-                    </select>
-                </div>
-                <div class="tug-field">
-                    <label for="tugCount">Questions</label>
-                    <select id="tugCount" class="tug-select">
-                        <option value="5">5</option>
-                        <option value="10" selected>10</option>
-                        <option value="15">15</option>
-                    </select>
-                </div>
-                <div class="tug-field">
-                    <label for="tugDiff">Difficulty</label>
-                    <select id="tugDiff" class="tug-select">
-                        <option value="average">Average</option>
-                        <option value="advanced">Advanced</option>
-                        <option value="mixed" selected>Mixed (average &rarr; advanced)</option>
-                    </select>
-                </div>
-                <div class="tug-field">
-                    <label for="tugMode">Mode</label>
-                    <select id="tugMode" class="tug-select">
-                        <option value="solo">Solo (vs CPU)</option>
-                        <option value="opponent">With opponent</option>
-                        <option value="team" selected>Team vs Team</option>
-                    </select>
-                </div>
-            </div>
-
+            {{-- Per-game extras (dropped into the component's slot). --}}
             {{-- Opponent: pick one classmate --}}
             <div id="tugOpponentWrap" class="tug-teamwrap tug-hidden">
                 <div class="tug-teamwrap-title">Choose your opponent</div>
@@ -245,10 +197,7 @@
                 </div>
                 <div id="tugRoster" class="tug-roster"><div class="tug-empty">Loading classmates…</div></div>
             </div>
-
-            <div id="tugError" class="tug-error tug-hidden"></div>
-            <button type="button" id="tugStartBtn" class="tug-start">Start now</button>
-        </div>
+        </x-gamified-configuration>
     </div>
 
     {{-- ============ GAME SCREEN ============ --}}
@@ -381,6 +330,7 @@
     let curSeq = 0;
     let rosterCache = null;
     let timer = null;
+    let scoring = null;      // teacher scoring (winner/non-winner %) — shown on the end screen only
 
     // ---------- helpers ----------
     async function api(path, opts = {}) {
@@ -402,20 +352,16 @@
         el('tugEnd').classList.toggle('tug-hidden', screen !== 'end');
     }
 
-    // ---------- config screen ----------
-    function refreshScope() {
-        if (window.GameScope && typeof window.GameScope.summary === 'function') el('tugScope').textContent = window.GameScope.summary();
-    }
-    document.addEventListener('gamescope:changed', refreshScope);
-    refreshScope();
-
-    el('tugMode').addEventListener('change', onModeChange);
-    function onModeChange() {
-        const mode = el('tugMode').value;
+    // ---------- config screen (driven by the shared gamified-configuration component) ----------
+    // The shared component owns the scope box + item/type/difficulty/mode
+    // selects; this game only supplies the opponent picker / team builder and
+    // reacts to the component's mode + start events.
+    function applyMode(mode) {
         el('tugOpponentWrap').classList.toggle('tug-hidden', mode !== 'opponent');
         el('tugTeamWrap').classList.toggle('tug-hidden', mode !== 'team');
-        if ((mode === 'opponent' || mode === 'team')) loadRoster();
+        if (mode === 'opponent' || mode === 'team') loadRoster();
     }
+    document.addEventListener('gamified-config:mode', (e) => applyMode(e.detail.mode));
 
     async function loadRoster() {
         if (!rosterCache) {
@@ -471,36 +417,34 @@
         return [];
     }
 
-    el('tugStartBtn').addEventListener('click', startNow);
-    async function startNow() {
-        const btn = el('tugStartBtn'), err = el('tugError');
-        err.classList.add('tug-hidden');
-        const mode = el('tugMode').value;
+    document.addEventListener('gamified-config:start', async (e) => {
+        const cfg = e.detail;                       // {items, type, difficulty, mode, section, scoring}
+        scoring = cfg.scoring || null;
+        const mode = cfg.mode;
         const players = gatherPlayers(mode);
-        if (mode === 'opponent' && !players.length) return fail('Pick an opponent first.');
-        if (mode === 'team' && players.filter(p => p.team === 'A').length === 0 || (mode === 'team' && players.filter(p => p.team === 'B').length === 0)) {
-            return fail('Assign at least one student to each team.');
+        if (mode === 'opponent' && !players.length) return window.GamifiedConfig.error('Pick an opponent first.');
+        if (mode === 'team' && (players.filter(p => p.team === 'A').length === 0 || players.filter(p => p.team === 'B').length === 0)) {
+            return window.GamifiedConfig.error('Assign at least one student to each team.');
         }
-        btn.disabled = true; btn.textContent = 'Setting up…';
+        window.GamifiedConfig.loading(true, 'Setting up…');
         try {
             const scope = window.GameScope || {};
-            const cfg = {
-                mode, question_type: el('tugType').value, difficulty: el('tugDiff').value,
-                question_count: parseInt(el('tugCount').value, 10), players,
-            };
-            ['subject_id', 'topic_id', 'lesson_id', 'competency_id', 'academic_level_id'].forEach(k => { if (scope[k]) cfg[k] = scope[k]; });
-            const created = await api('/', { method: 'POST', body: cfg });
+            const body = { mode, question_type: cfg.type, difficulty: cfg.difficulty, question_count: cfg.items, players };
+            ['subject_id', 'topic_id', 'lesson_id', 'competency_id', 'academic_level_id'].forEach(k => { if (scope[k]) body[k] = scope[k]; });
+            const created = await api('/', { method: 'POST', body });
             state = await api('/' + created.id + '/start', { method: 'POST' });
             armedTeam = null; lockedTeams = {}; curSeq = 0;
             renderGame();
             show('game');
-        } catch (e) {
-            fail(e.message);
+        } catch (err) {
+            window.GamifiedConfig.error(err.message);
         } finally {
-            btn.disabled = false; btn.textContent = 'Start now';
+            window.GamifiedConfig.loading(false);
         }
-        function fail(m) { err.textContent = m; err.classList.remove('tug-hidden'); btn.disabled = false; btn.textContent = 'Start now'; }
-    }
+    });
+
+    // Reveal the default mode's extras once the shared config has initialised.
+    applyMode((window.GamifiedConfig && window.GamifiedConfig.read().mode) || 'team');
 
     // ---------- game screen ----------
     function renderGame() {
@@ -651,7 +595,14 @@
         const a = state.teams.A, b = state.teams.B;
         el('tugEndEmoji').innerHTML = w === 'draw' ? '&#129309;' : '&#127942;';
         el('tugEndTitle').textContent = w === 'draw' ? "It's a draw!" : ((w === 'A' ? a.label : b.label) + ' wins!');
-        el('tugEndDetail').textContent = 'Final pull: ' + a.correct + ' vs ' + b.correct + ' correct.';
+        let detail = 'Final pull: ' + a.correct + ' vs ' + b.correct + ' correct.';
+        // Teacher scoring — recorded as a recitation (display only for now).
+        if (scoring && w !== 'draw' && (state.mode === 'opponent' || state.mode === 'team')) {
+            const winLabel = w === 'A' ? a.label : b.label;
+            const loseLabel = w === 'A' ? b.label : a.label;
+            detail += '  •  Recitation: ' + winLabel + ' ' + scoring.winner_pct + '%, ' + loseLabel + ' ' + scoring.loser_pct + '%.';
+        }
+        el('tugEndDetail').textContent = detail;
         el('tugEndALabel').textContent = a.label; el('tugEndBLabel').textContent = b.label;
         el('tugEndAScore').textContent = a.score; el('tugEndBScore').textContent = b.score;
     }

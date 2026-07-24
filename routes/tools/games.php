@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Tools\Games\GameConfigController;
 use App\Http\Controllers\Tools\Games\GamesController;
 use App\Http\Controllers\Tools\Games\GameSessionController;
 use Illuminate\Support\Facades\Route;
@@ -11,6 +12,7 @@ Route::middleware(['auth'])
         Route::get('/', [GamesController::class, 'index'])->name('index');
         Route::get('/api/questions', [GamesController::class, 'questions'])->name('questions');
         Route::post('/api/quiz-mode', [GamesController::class, 'saveQuizMode'])->name('quiz-mode');
+        Route::get('/api/config-options', [GameConfigController::class, 'options'])->name('config-options');
 
         // Live multiplayer game sessions (Tug-of-War). GameSession is
         // school-scoped (BelongsToSchool), so {session} binding 404s across

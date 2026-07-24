@@ -1,7 +1,7 @@
 # Engineering Constitution — Sophentis / schoollms
 
 > **The supreme engineering document for Sophentis.** Every other governance doc derives its
-> authority from this one. **Status:** Active · **Version:** 1.2 · **Last updated:** 2026-07-17 ·
+> authority from this one. **Status:** Active · **Version:** 1.3 · **Last updated:** 2026-07-23 ·
 > **Applies to:** everyone who engineers Sophentis — human developers and AI assistants alike, with
 > no exemption.
 >
@@ -153,6 +153,29 @@ current status, in [`FULL_PRODUCTION_STACK.md`](./FULL_PRODUCTION_STACK.md).
 Constitution. For its security layer it **indexes** [`SECURITY_PRINCIPLES.md`](./SECURITY_PRINCIPLES.md);
 precedence (§6) is unchanged.
 
+## 11B. Shared UI is componentized (no per-feature duplication)
+
+Operationalizing **Reuse over duplication** (§3): UI that recurs across features **MUST** live in a
+single reusable component, never be re-implemented per feature. Per-feature code owns only what
+genuinely differs.
+
+- **Gamified Quiz — pre-game configuration.** The setup screen shown *before* every game (number of
+  items, question type, difficulty, play mode Solo / With-opponent / Team, the teacher-only scoring
+  block, and the student ↔ teacher portal mode) **MUST** be one reusable component
+  (`gamified_configuration`) consumed by **every** game — Millionaire, Hangman, Speed Dash,
+  Tug-of-War, Filler, and any future game. Each game owns only its **game screen** and **result
+  screen**, which may vary; the config screen does not fork per game. A new or existing game that
+  duplicates the configuration UI instead of consuming the shared component is a **defect**, not a
+  trade-off.
+- **Grade-writing stays gated.** Where that shared config records scores to the gradebook (e.g. an
+  opponent/team match logged as a day's recitation), the write is a money/grade mutation and remains
+  bound by §7 (passing test + second reviewer) and §11A (no unaudited grade mutation) — reusability
+  never relaxes the grade guardrail.
+
+*Status note:* as of v1.3 the shared component is a **standard to converge on**, not yet built — the
+existing games (incl. Tug-of-War) still carry per-game config screens; that duplication is the debt
+this section now forbids adding to and mandates retiring.
+
 ## 12. Code ownership
 
 Code is owned by the team; anyone may fix anything. But **finance, auth, and tenancy changes require a
@@ -183,7 +206,9 @@ and trustworthy** for the schools and children who depend on it. Leave it better
 
 *Living document — amended by ADR and versioned. Governs the companion standards listed in §5.*
 
-**Amendment history:** v1.2 (2026-07-17) — added §11A *Production-stack compliance*, ratifying
+**Amendment history:** v1.3 (2026-07-23) — added §11B *Shared UI is componentized*, mandating one
+reusable `gamified_configuration` pre-game screen across all Gamified Quiz games (operationalizes §3
+"Reuse over duplication"; keeps the §7/§11A grade guardrail intact). v1.2 (2026-07-17) — added §11A *Production-stack compliance*, ratifying
 [`FULL_PRODUCTION_STACK.md`](./FULL_PRODUCTION_STACK.md) as a mandatory companion checklist consulted
 before creating or editing any file (+ §14 pre-flight bullet); part of the Argo-parity security
 uplift, recorded as ADR-0008. v1.0 (2026-07-03) — initial ratification, harmonized with the existing Sophentis governance set (`ENGINEERING_PRINCIPLES`, `ARCHITECTURE_PRINCIPLES`, `SECURITY_PRINCIPLES`/`ACCESS_CONTROL`, `DEVELOPMENT_WORKFLOW`, `MODERNIZATION_ROADMAP`/`PROGRESS`). v1.1 (2026-07-05) — ratified `CLAUDE_OPERATIONAL_GUIDELINES.md` into the governance set (§5), precedence order (§6, deliberately last), AI collaboration policy (§8), and reading protocol (§14); recorded as ADR-0004.

@@ -493,6 +493,62 @@ class GameSessionService
         ];
     }
 
+    /**
+     * Options the shared pre-game config screen needs: whether the bank holds
+     * any 'advanced' items for this scope/type (so the UI can hide the tier),
+     * and the hosting teacher's sections. School-scoped.
+     *
+     * @param  array<string, mixed>  $scope  type + subject/topic/lesson/competency/level ids
+     * @return array{advanced_available:bool, sections:array<int, array{id:int,label:string}>}
+     */
+    public function configOptions(User $user, array $scope): array
+    {
+        $schoolId = (int) $user->school_id;
+
+        $types = match ((string) ($scope['type'] ?? '')) {
+            'identification' => ['identification'],
+            'true_false' => ['true_false'],
+            'mcq', 'multiple_choice' => ['mcq', 'multiple_choice'],
+            default => ['mcq', 'multiple_choice', 'true_false', 'identification'],
+        };
+
+        $advancedAvailable = DB::table('questions')
+            ->where('school_id', $schoolId)
+            ->whereIn('question_type', $types)
+            ->where('difficulty', 'advanced')
+            ->when(! empty($scope['subject_id']), fn ($q) => $q->where('subject_id', (int) $scope['subject_id']))
+            ->when(! empty($scope['topic_id']), fn ($q) => $q->where('topic_id', (int) $scope['topic_id']))
+            ->when(! empty($scope['lesson_id']), fn ($q) => $q->where('lesson_id', (int) $scope['lesson_id']))
+            ->when(! empty($scope['competency_id']), fn ($q) => $q->where('competency_id', (int) $scope['competency_id']))
+            ->when(! empty($scope['academic_level_id']), fn ($q) => $q->where('academic_level_id', (int) $scope['academic_level_id']))
+            ->exists();
+
+        return [
+            'advanced_available' => $advancedAvailable,
+            'sections' => $this->teacherSections($user, $schoolId),
+        ];
+    }
+
+    /** The distinct sections a teacher teaches (empty for students). */
+    private function teacherSections(User $user, int $schoolId): array
+    {
+        if (strtolower((string) ($user->role ?? '')) !== 'teacher') {
+            return [];
+        }
+
+        return DB::table('classes as c')
+            ->join('sections as s', 's.id', '=', 'c.section_id')
+            ->where('c.school_id', $schoolId)
+            ->where('c.is_active', 1)
+            ->where(fn ($q) => $q->where('c.teacher_id', $user->id)
+                ->orWhereIn('c.id', fn ($sub) => $sub->select('class_id')->from('class_teacher')->where('teacher_id', $user->id)))
+            ->distinct()
+            ->orderBy('s.year_level')->orderBy('s.name')
+            ->get(['s.id', 's.name', 's.year_level'])
+            ->map(fn ($s) => ['id' => (int) $s->id, 'label' => $s->name.' (Year '.$s->year_level.')'])
+            ->values()->all();
+    }
+
     // ---------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------

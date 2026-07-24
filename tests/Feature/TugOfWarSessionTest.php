@@ -234,14 +234,35 @@ class TugOfWarSessionTest extends TestCase
         $res->assertSee('.tug-stage', false)
             ->assertSee('[data-game="tug-of-war"]', false);
 
-        // Config screen: the new dropdowns.
-        $res->assertSee('id="tugType"', false)
-            ->assertSee('id="tugMode"', false)
-            ->assertSee('Identification');
+        // Config screen is now the shared <x-gamified-configuration> component
+        // (Constitution §11B): its controls render, and Tug-of-War's team
+        // builder is dropped into the component slot.
+        $res->assertSee('data-gconf', false)
+            ->assertSee('id="gconfType"', false)
+            ->assertSee('id="gconfMode"', false)
+            ->assertSee('Identification')
+            ->assertSee('id="tugTeamWrap"', false);   // per-game slot extra
 
         // Game screen: the mockup's rope + live badge.
         $res->assertSee('id="tugKnot"', false)
             ->assertSee('Live Classroom Game', false);
+    }
+
+    public function test_config_options_endpoint_reports_advanced_availability(): void
+    {
+        // setUp seeds only 'average' MCQ — advanced must read false…
+        $res = $this->actingAs($this->host)
+            ->getJson(route('tools.games.config-options', ['type' => 'mcq']))
+            ->assertOk();
+        $this->assertFalse($res->json('advanced_available'), 'no advanced items authored yet');
+        $this->assertIsArray($res->json('sections'));
+
+        // …until an advanced item exists for the scope.
+        $this->seedMcq('ADV', 'advanced', 2);
+        $this->actingAs($this->host)
+            ->getJson(route('tools.games.config-options', ['type' => 'mcq']))
+            ->assertOk()
+            ->assertJson(['advanced_available' => true]);
     }
 
     // ---- helpers -----------------------------------------------------------

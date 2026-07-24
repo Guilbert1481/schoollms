@@ -91,26 +91,16 @@
 </style>
 @endverbatim
 
-  <div id="hmStart" class="hm-card">
-    <h3 class="hm-title">Hangman</h3>
-    <p class="hm-lead">Read the clue and guess the answer one letter at a time. Every wrong guess draws another part of the figure — six wrong and the round is lost.</p>
-    <div class="hm-scope">
-      <div class="k">Practicing</div>
-      <div class="v" id="hmScope">All subjects</div>
-      <div class="h">Change content from the &#9776; menu (top right).</div>
-    </div>
-    <div class="hm-controls">
-      <div class="hm-field">
-        <label>Rounds</label>
-        <select id="hmCount">
-          <option value="5">5</option>
-          <option value="10" selected>10</option>
-          <option value="15">15</option>
-        </select>
-      </div>
-      <button type="button" id="hmStartBtn" class="hm-btn">Start game</button>
-    </div>
-    <div id="hmStartError" class="hm-note err hm-hidden"></div>
+  {{-- Config screen — shared component (Constitution §11B). Hangman is always
+       Identification and single-player, so only the item count applies. --}}
+  <div id="hmStart">
+    <x-gamified-configuration
+        title="Hangman"
+        subtitle="Read the clue and guess the answer one letter at a time — six wrong and the round is lost."
+        icon="🎯"
+        :items="[5, 10, 15]"
+        :items-default="10"
+        start-label="Start game" />
   </div>
 
   <div id="hmGame" class="hm-card hm-hidden">
@@ -205,14 +195,13 @@
         gameActive = screen === 'game';
     }
 
-    async function start() {
-        const btn = el('hmStartBtn'), err = el('hmStartError');
-        err.classList.add('hm-hidden');
-        btn.disabled = true;
-        btn.textContent = 'Loading…';
+    async function start(cfg) {
+        window.GamifiedConfig.clearError();
+        window.GamifiedConfig.loading(true, 'Loading…');
+        const limit = cfg.items;
         let usedFallback = false;
         try {
-            const params = new URLSearchParams({ type: 'identification', limit: el('hmCount').value });
+            const params = new URLSearchParams({ type: 'identification', limit });
             const scope = window.GameScope || {};
             ['subject_id', 'topic_id', 'lesson_id', 'competency_id', 'academic_level_id'].forEach(k => {
                 if (scope[k]) params.set(k, scope[k]);
@@ -221,13 +210,12 @@
             if (!res.ok) throw new Error('Request failed (' + res.status + ')');
             const data = await res.json();
             questions = (data.questions || []).filter(q => /[a-z]/i.test(q.answer));
-            if (questions.length === 0) { questions = pickFallback(el('hmCount').value); usedFallback = true; }
+            if (questions.length === 0) { questions = pickFallback(limit); usedFallback = true; }
         } catch (e) {
-            questions = pickFallback(el('hmCount').value);
+            questions = pickFallback(limit);
             usedFallback = true;
         } finally {
-            btn.disabled = false;
-            btn.textContent = 'Start game';
+            window.GamifiedConfig.loading(false);
         }
 
         el('hmDeckNote').classList.toggle('hm-hidden', !usedFallback);
@@ -358,16 +346,9 @@
         if (ALPHABET.includes(l)) guess(l);
     });
 
-    el('hmStartBtn').addEventListener('click', start);
+    // Start is driven by the shared gamified-configuration component.
+    document.addEventListener('gamified-config:start', (e) => start(e.detail));
     el('hmNextBtn').addEventListener('click', next);
     el('hmAgainBtn').addEventListener('click', () => show('start'));
-
-    function refreshScope() {
-        if (window.GameScope && typeof window.GameScope.summary === 'function') {
-            el('hmScope').textContent = window.GameScope.summary();
-        }
-    }
-    document.addEventListener('gamescope:changed', refreshScope);
-    refreshScope();
 })();
 </script>
