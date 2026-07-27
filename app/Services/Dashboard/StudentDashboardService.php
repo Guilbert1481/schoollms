@@ -39,52 +39,54 @@ class StudentDashboardService
     public function summary(User $user): array
     {
         return $this->remember($user, 'summary', function () use ($user) {
-            $subjects  = $this->subjectRows($user);
+            $subjects = $this->subjectRows($user);
             $deadlines = $this->deadlineCounts($user);
-            $billing   = $this->billing($user);
+            $billing = $this->billing($user);
 
             $posted = $subjects->filter(fn ($s) => $s->posted_grade !== null);
-            $gwa    = $this->weightedAverage($posted);
-            $risk   = $posted->filter(fn ($s) => (float) $s->posted_grade < self::PASSING_GRADE)->count();
-            $units  = $subjects->sum(fn ($s) => (float) ($s->units ?? 0));
+            $gwa = $this->weightedAverage($posted);
+            // Same multi-source detection as the modal, so the tile count and
+            // the breakdown can never disagree.
+            $risk = count($this->subjectsAtRisk($user));
+            $units = $subjects->sum(fn ($s) => (float) ($s->units ?? 0));
             $progress = $subjects->count()
                 ? (int) round($subjects->avg(fn ($s) => (int) $s->progress_percentage))
                 : 0;
 
             return [
                 'active_subjects_student' => [
-                    'value'    => $subjects->count(),
+                    'value' => $subjects->count(),
                     'subtitle' => 'This term',
                 ],
                 'pending_assignments_student' => [
-                    'value'    => $deadlines['pending'],
+                    'value' => $deadlines['pending'],
                     'subtitle' => $deadlines['due_this_week'].' due this week',
                 ],
                 'progress_student' => [
-                    'value'    => $progress.'%',
+                    'value' => $progress.'%',
                     'subtitle' => $this->isBasicEd($user) ? 'Term progress' : 'Semester progress',
                 ],
                 'GWA_student' => [
-                    'value'    => $gwa !== null ? number_format($gwa, 2) : '—',
+                    'value' => $gwa !== null ? number_format($gwa, 2) : '—',
                     'subtitle' => $this->gwaLabel($gwa),
                 ],
                 'task_student' => [
-                    'value'    => $deadlines['completed'],
+                    'value' => $deadlines['completed'],
                     'subtitle' => 'Tasks completed',
                 ],
                 'subject_at_risk' => [
-                    'value'    => $risk,
+                    'value' => $risk,
                     'subtitle' => $risk > 0 ? 'Needs attention' : 'All clear',
                 ],
                 'outstanding_student' => [
                     // Only what's currently payable (billed + any unpaid past dues),
                     // NOT the whole year's scheduled installments — showing the full
                     // annual payable is an unnecessary emotional burden.
-                    'value'    => '₱'.number_format($billing['current_due'], 2),
+                    'value' => '₱'.number_format($billing['current_due'], 2),
                     'subtitle' => $billing['due_subtitle'],
                 ],
                 'units_student' => [
-                    'value'    => $units > 0 ? rtrim(rtrim(number_format($units, 2, '.', ''), '0'), '.') : 0,
+                    'value' => $units > 0 ? rtrim(rtrim(number_format($units, 2, '.', ''), '0'), '.') : 0,
                     'subtitle' => 'Enrolled units',
                 ],
             ];
@@ -97,41 +99,41 @@ class StudentDashboardService
 
     public function widgets(User $user): array
     {
-        $subjects  = $this->subjectRows($user);
+        $subjects = $this->subjectRows($user);
         $deadlines = $this->deadlineCounts($user);
-        $billing   = $this->billing($user);
-        $posted    = $subjects->filter(fn ($s) => $s->posted_grade !== null);
+        $billing = $this->billing($user);
+        $posted = $subjects->filter(fn ($s) => $s->posted_grade !== null);
 
         return [
-            'term_label'      => $this->termLabel($user),
-            'on_track'        => $subjects->count()
+            'term_label' => $this->termLabel($user),
+            'on_track' => $subjects->count()
                 ? (int) round($subjects->avg(fn ($s) => (int) $s->progress_percentage))
                 : 0,
-            'grade_trend'     => $this->gradeTrend($user),
-            'schedule'        => $this->todaySchedule($user),
-            'deadline_list'   => $this->upcomingDeadlines($user),
-            'announcements'   => $this->announcements($user),
-            'performance'     => $posted->map(fn ($s) => [
+            'grade_trend' => $this->gradeTrend($user),
+            'schedule' => $this->todaySchedule($user),
+            'deadline_list' => $this->upcomingDeadlines($user),
+            'announcements' => $this->announcements($user),
+            'performance' => $posted->map(fn ($s) => [
                 'label' => $s->subject_name,
                 'value' => (float) $s->posted_grade,
             ])->values()->all(),
-            'assignments'     => $deadlines,
-            'recent_grades'   => $posted->sortByDesc('graded_at')->take(5)->map(fn ($s) => [
+            'assignments' => $deadlines,
+            'recent_grades' => $posted->sortByDesc('graded_at')->take(5)->map(fn ($s) => [
                 'subject' => $s->subject_name,
-                'code'    => $s->subject_code,
-                'grade'   => number_format((float) $s->posted_grade, 2),
+                'code' => $s->subject_code,
+                'grade' => number_format((float) $s->posted_grade, 2),
                 'at_risk' => (float) $s->posted_grade < self::PASSING_GRADE,
-                'date'    => $s->graded_at ? Carbon::parse($s->graded_at)->format('M d') : '—',
+                'date' => $s->graded_at ? Carbon::parse($s->graded_at)->format('M d') : '—',
             ])->values()->all(),
-            'billing'         => $billing,
-            'subject_cards'   => $subjects->take(4)->map(fn ($s) => [
-                'name'     => $s->subject_name,
-                'code'     => $s->subject_code,
+            'billing' => $billing,
+            'subject_cards' => $subjects->take(4)->map(fn ($s) => [
+                'name' => $s->subject_name,
+                'code' => $s->subject_code,
                 'progress' => (int) $s->progress_percentage,
-                'grade'    => $s->posted_grade !== null ? number_format((float) $s->posted_grade, 0) : '—',
+                'grade' => $s->posted_grade !== null ? number_format((float) $s->posted_grade, 0) : '—',
             ])->values()->all(),
-            'calendar'        => $this->calendar($user),
-            'snapshot'        => $this->snapshot($user),
+            'calendar' => $this->calendar($user),
+            'snapshot' => $this->snapshot($user),
         ];
     }
 
@@ -176,13 +178,13 @@ class StudentDashboardService
                 continue;
             }
             $days[$r->day_of_week][] = [
-                'time'    => Carbon::parse($r->start_time)->format('g:i A'),
-                'end'     => Carbon::parse($r->end_time)->format('g:i A'),
+                'time' => Carbon::parse($r->start_time)->format('g:i A'),
+                'end' => Carbon::parse($r->end_time)->format('g:i A'),
                 'subject' => $r->subject_name,
-                'code'    => $r->subject_code,
-                'room'    => $r->room ?: '—',
+                'code' => $r->subject_code,
+                'room' => $r->room ?: '—',
                 'teacher' => trim(($r->first_name ?? '').' '.($r->last_name ?? '')) ?: '—',
-                'now'     => $r->day_of_week === $todayName
+                'now' => $r->day_of_week === $todayName
                               && $r->start_time <= $nowTime && $nowTime < $r->end_time,
             ];
         }
@@ -214,49 +216,256 @@ class StudentDashboardService
      * -----------------------------------------------------------------*/
 
     /**
-     * At-risk subjects (posted grade below passing) enriched with multi-factor
-     * reasons — grade, attendance rate, and failed online quizzes/tests — plus a
-     * short recommendation to at least pass. Drives the dashboard modal.
+     * At-risk subjects, multi-source. A subject is flagged when its best
+     * available measure falls below passing:
+     *   1. a POSTED grade — student_enrollment_subjects (higher ed) or
+     *      report_card_grades (basic ed quarters, averaged); or, with
+     *      nothing posted for that subject yet,
+     *   2. a RUNNING measure from graded activity — the grading-scheme
+     *      component average when work is component-tagged, else the plain
+     *      mean of activity percentages (tests, OMR sheets, homework).
+     * Flagged subjects are enriched with reasons (grade, attendance rate,
+     * failed tests) and a recommendation. Advisory display only — nothing
+     * here writes or alters a grade.
      *
      * @return list<array<string, mixed>>
      */
     public function subjectsAtRisk(User $user): array
     {
-        $subjects = $this->subjectRows($user)
-            ->filter(fn ($s) => $s->posted_grade !== null && (float) $s->posted_grade < self::PASSING_GRADE)
-            ->values();
+        return $this->remember($user, 'subjects_at_risk', function () use ($user) {
+            $student = Student::where('user_id', $user->id)->where('school_id', $user->school_id)->first();
+            $enrollment = $this->enrollment($user);
+            if (! $student || ! $enrollment) {
+                return [];
+            }
 
-        if ($subjects->isEmpty()) {
-            return [];
+            // subject_id => ['value' => float, 'source' => 'posted'|'running']
+            $measures = [];
+            foreach ($this->postedBySubject($student, $enrollment) as $subjectId => $grade) {
+                $measures[$subjectId] = ['value' => $grade, 'source' => 'posted'];
+            }
+            foreach ($this->runningBySubject($student) as $subjectId => $avg) {
+                $measures[$subjectId] ??= ['value' => $avg, 'source' => 'running'];
+            }
+
+            $atRisk = array_filter($measures, fn ($m) => $m['value'] < self::PASSING_GRADE);
+            if ($atRisk === []) {
+                return [];
+            }
+
+            $subjects = DB::table('subjects')->whereIn('id', array_keys($atRisk))->get(['id', 'name', 'code'])->keyBy('id');
+            $classBySubject = $this->classBySubject($student, $enrollment);
+            $attendance = $this->attendanceByClass($student);   // [class_id => pct]
+            $failed = $this->failedTestsByClass($student);       // [class_id => count]
+
+            $rows = [];
+            foreach ($atRisk as $subjectId => $m) {
+                $meta = $subjects[$subjectId] ?? null;
+                $classId = $classBySubject[$subjectId] ?? null;
+                $avg = round($m['value'], 2);
+                $att = $classId ? ($attendance[$classId] ?? null) : null;
+                $fail = $classId ? ($failed[$classId] ?? 0) : 0;
+
+                $reasons = [$m['source'] === 'posted'
+                    ? 'Average '.number_format($avg, 2).' — below passing ('.(int) self::PASSING_GRADE.')'
+                    : 'Running average '.number_format($avg, 2).' — below passing ('.(int) self::PASSING_GRADE.'), no grade posted yet'];
+                if ($att !== null && $att < self::ATTENDANCE_AT_RISK) {
+                    $reasons[] = 'Attendance '.$att.'% — frequent absences';
+                }
+                if ($fail > 0) {
+                    $reasons[] = $fail.' failed quiz/long test'.($fail > 1 ? 's' : '');
+                }
+
+                $rows[] = [
+                    'subject' => $meta->name ?? 'Subject #'.$subjectId,
+                    'code' => $meta->code ?? null,
+                    'average' => number_format($avg, 2),
+                    'attendance' => $att,
+                    'failed_tests' => $fail,
+                    'reasons' => $reasons,
+                    'recommendation' => $this->recommendation($avg, $att, $fail),
+                ];
+            }
+
+            usort($rows, fn ($a, $b) => (float) $a['average'] <=> (float) $b['average']);
+
+            return $rows;
+        });
+    }
+
+    /**
+     * Posted grades per subject — one per enrolled higher-ed subject
+     * (COALESCE(final_grade, grade)), plus basic-ed report-card quarters
+     * averaged per subject. Higher-ed wins when both somehow exist.
+     *
+     * @return array<int, float> subject_id => grade
+     */
+    private function postedBySubject(Student $student, StudentEnrollment $enrollment): array
+    {
+        $out = [];
+
+        DB::table('student_enrollment_subjects as ses')
+            ->where('ses.student_enrollment_id', $enrollment->id)
+            ->where('ses.status', StudentEnrollment::STATUS_ENROLLED)
+            ->whereNotNull('ses.subject_id')
+            ->selectRaw('ses.subject_id, COALESCE(ses.final_grade, ses.grade) as posted')
+            ->get()
+            ->each(function ($r) use (&$out) {
+                if ($r->posted !== null) {
+                    $out[(int) $r->subject_id] = (float) $r->posted;
+                }
+            });
+
+        DB::table('report_card_grades')
+            ->where('student_id', $student->id)
+            ->where('school_id', $student->school_id)
+            ->when($enrollment->academic_year_id, fn ($q) => $q->where('academic_year_id', $enrollment->academic_year_id))
+            ->whereNotNull('final_grade')
+            ->groupBy('subject_id')
+            ->selectRaw('subject_id, AVG(final_grade) as avg_grade')
+            ->get()
+            ->each(function ($r) use (&$out) {
+                $out[(int) $r->subject_id] ??= (float) $r->avg_grade;
+            });
+
+        return $out;
+    }
+
+    /**
+     * Running measure per subject from graded activity: the grading-scheme
+     * component average (weighted) where component_scores exist, else the
+     * plain mean of activity percentages.
+     *
+     * @return array<int, float> subject_id => running average
+     */
+    private function runningBySubject(Student $student): array
+    {
+        $out = [];
+
+        $componentRows = DB::table('component_scores as cs')
+            ->join('grade_components as gc', 'gc.id', '=', 'cs.grade_component_id')
+            ->leftJoin('classes as c', 'c.id', '=', 'cs.class_id')
+            ->where('cs.student_id', $student->id)
+            ->where('cs.school_id', $student->school_id)
+            ->whereNotNull('cs.score')
+            ->selectRaw('COALESCE(cs.subject_id, c.subject_id) as sid, cs.grade_component_id, gc.weight, cs.score')
+            ->get()
+            ->filter(fn ($r) => $r->sid !== null);
+
+        foreach ($componentRows->groupBy('sid') as $sid => $bucket) {
+            $weightedSum = 0.0;
+            $totalWeight = 0.0;
+            foreach ($bucket->groupBy('grade_component_id') as $rows) {
+                $weight = (float) $rows->first()->weight;
+                if ($weight <= 0) {
+                    continue;
+                }
+                $weightedSum += (float) $rows->avg('score') * $weight;
+                $totalWeight += $weight;
+            }
+            if ($totalWeight > 0) {
+                $out[(int) $sid] = $weightedSum / $totalWeight;
+            }
         }
 
-        $student = Student::where('user_id', $user->id)->where('school_id', $user->school_id)->first();
-        $attendance = $this->attendanceByClass($student);   // [class_id => pct]
-        $failed = $this->failedTestsByClass($student);       // [class_id => count]
+        foreach ($this->activityPctsBySubject($student) as $sid => $pcts) {
+            $out[$sid] ??= array_sum($pcts) / count($pcts);
+        }
 
-        return $subjects->map(function ($s) use ($attendance, $failed) {
-            $avg  = round((float) $s->posted_grade, 2);
-            $att  = $s->class_id ? ($attendance[(int) $s->class_id] ?? null) : null;
-            $fail = $s->class_id ? ($failed[(int) $s->class_id] ?? 0) : 0;
+        return $out;
+    }
 
-            $reasons = ['Average '.number_format($avg, 2).' — below passing ('.(int) self::PASSING_GRADE.')'];
-            if ($att !== null && $att < self::ATTENDANCE_AT_RISK) {
-                $reasons[] = 'Attendance '.$att.'% — frequent absences';
+    /**
+     * Graded-activity percentages per subject: the latest submitted/graded
+     * attempt per online test, every OMR result, and graded homework.
+     *
+     * @return array<int, list<float>> subject_id => percentages
+     */
+    private function activityPctsBySubject(Student $student): array
+    {
+        $out = [];
+        $push = function ($sid, $pct) use (&$out) {
+            if ($sid !== null && $pct !== null) {
+                $out[(int) $sid][] = (float) $pct;
             }
-            if ($fail > 0) {
-                $reasons[] = $fail.' failed quiz/long test'.($fail > 1 ? 's' : '');
-            }
+        };
 
-            return [
-                'subject'        => $s->subject_name,
-                'code'           => $s->subject_code,
-                'average'        => number_format($avg, 2),
-                'attendance'     => $att,
-                'failed_tests'   => $fail,
-                'reasons'        => $reasons,
-                'recommendation' => $this->recommendation($avg, $att, $fail),
-            ];
-        })->all();
+        DB::table('test_attempts as ta')
+            ->join('tests as t', 't.id', '=', 'ta.test_id')
+            ->leftJoin('classes as c', 'c.id', '=', 't.class_id')
+            ->where('ta.student_id', $student->id)
+            ->where('t.school_id', $student->school_id)
+            ->whereIn('ta.status', ['submitted', 'graded'])
+            ->whereNotNull('ta.percentage')
+            ->orderBy('ta.id')
+            ->selectRaw('ta.test_id, ta.percentage, COALESCE(t.subject_id, c.subject_id) as sid')
+            ->get()
+            ->groupBy('test_id')
+            ->each(function ($g) use ($push) {
+                $latest = $g->last();
+                $push($latest->sid, $latest->percentage);
+            });
+
+        DB::table('omr_sheets as sh')
+            ->join('omr_results as r', 'r.omr_sheet_id', '=', 'sh.id')
+            ->join('tests as t', 't.id', '=', 'sh.test_id')
+            ->leftJoin('classes as c', 'c.id', '=', 't.class_id')
+            ->where('sh.student_id', $student->id)
+            ->where('sh.school_id', $student->school_id)
+            ->whereNotNull('r.percentage')
+            ->selectRaw('r.percentage, COALESCE(t.subject_id, c.subject_id) as sid')
+            ->get()
+            ->each(fn ($r) => $push($r->sid, $r->percentage));
+
+        DB::table('homework_submissions as hs')
+            ->join('homework as h', 'h.id', '=', 'hs.homework_id')
+            ->leftJoin('classes as c', 'c.id', '=', 'h.class_id')
+            ->where('hs.student_id', $student->id)
+            ->where('h.school_id', $student->school_id)
+            ->whereNotNull('hs.score')
+            ->selectRaw('hs.score, h.points, c.subject_id as sid')
+            ->get()
+            ->each(function ($r) use ($push) {
+                if ((float) $r->points > 0) {
+                    $push($r->sid, (float) $r->score / (float) $r->points * 100);
+                }
+            });
+
+        return $out;
+    }
+
+    /**
+     * subject_id => class_id, for the attendance / failed-test enrichment —
+     * higher ed from the enrolled-subject rows, basic ed from the section's
+     * classes.
+     *
+     * @return array<int, int>
+     */
+    private function classBySubject(Student $student, StudentEnrollment $enrollment): array
+    {
+        $out = [];
+
+        DB::table('student_enrollment_subjects as ses')
+            ->where('ses.student_enrollment_id', $enrollment->id)
+            ->whereNotNull('ses.class_id')
+            ->whereNotNull('ses.subject_id')
+            ->get(['ses.subject_id', 'ses.class_id'])
+            ->each(function ($r) use (&$out) {
+                $out[(int) $r->subject_id] ??= (int) $r->class_id;
+            });
+
+        if ($enrollment->section_id) {
+            DB::table('classes')
+                ->where('section_id', $enrollment->section_id)
+                ->where('school_id', $student->school_id)
+                ->whereNotNull('subject_id')
+                ->get(['id', 'subject_id'])
+                ->each(function ($r) use (&$out) {
+                    $out[(int) $r->subject_id] ??= (int) $r->id;
+                });
+        }
+
+        return $out;
     }
 
     /**
@@ -426,12 +635,12 @@ class StudentDashboardService
             $weekEnd = now()->addDays(7);
 
             return [
-                'pending'       => $rows->where('status', 'pending')->count(),
-                'overdue'       => $rows->where('status', 'overdue')->count(),
-                'completed'     => $rows->filter(fn ($r) => (int) $r->is_completed === 1)->count(),
+                'pending' => $rows->where('status', 'pending')->count(),
+                'overdue' => $rows->where('status', 'overdue')->count(),
+                'completed' => $rows->filter(fn ($r) => (int) $r->is_completed === 1)->count(),
                 'due_this_week' => $rows->filter(fn ($r) => $r->status === 'pending'
                     && Carbon::parse($r->due_date)->lte($weekEnd))->count(),
-                'total'         => $rows->count(),
+                'total' => $rows->count(),
             ];
         });
     }
@@ -450,23 +659,23 @@ class StudentDashboardService
             ->limit(5)
             ->get(['d.title', 'd.type', 'd.due_date', 'duc.status'])
             ->map(function ($d) {
-                $due  = Carbon::parse($d->due_date);
+                $due = Carbon::parse($d->due_date);
                 $days = (int) now()->startOfDay()->diffInDays($due->copy()->startOfDay(), false);
 
                 [$badge, $tone] = match (true) {
                     $d->status === 'overdue' || $days < 0 => ['Overdue', 'rose'],
-                    $days <= 2                            => ['High', 'rose'],
-                    $days <= 7                            => ['Medium', 'amber'],
-                    default                               => ['Low', 'emerald'],
+                    $days <= 2 => ['High', 'rose'],
+                    $days <= 7 => ['Medium', 'amber'],
+                    default => ['Low', 'emerald'],
                 };
 
                 return [
                     'title' => $d->title,
-                    'type'  => ucfirst((string) $d->type),
-                    'when'  => $days < 0 ? $due->format('M d') : ($days === 0 ? 'Today'
+                    'type' => ucfirst((string) $d->type),
+                    'when' => $days < 0 ? $due->format('M d') : ($days === 0 ? 'Today'
                         : ($days === 1 ? 'Tomorrow' : 'In '.$days.' days')),
                     'badge' => $badge,
-                    'tone'  => $tone,
+                    'tone' => $tone,
                 ];
             })
             ->all();
@@ -488,7 +697,7 @@ class StudentDashboardService
             ->get(['title', 'published_at', 'priority_level'])
             ->map(fn ($a) => [
                 'title' => $a->title,
-                'when'  => Carbon::parse($a->published_at)->format('M d, Y'),
+                'when' => Carbon::parse($a->published_at)->format('M d, Y'),
                 'super' => $a->priority_level === 'super',
             ])
             ->all();
@@ -534,11 +743,11 @@ class StudentDashboardService
         $nowTime = now()->format('H:i:s');
 
         return $rows->map(fn ($r) => [
-            'time'    => Carbon::parse($r->start_time)->format('g:i A'),
+            'time' => Carbon::parse($r->start_time)->format('g:i A'),
             'subject' => $r->subject_name,
-            'room'    => $r->room ?: '—',
+            'room' => $r->room ?: '—',
             'teacher' => trim(($r->first_name ?? '').' '.($r->last_name ?? '')) ?: '—',
-            'now'     => $r->start_time <= $nowTime && $nowTime < $r->end_time,
+            'now' => $r->start_time <= $nowTime && $nowTime < $r->end_time,
         ])->all();
     }
 
@@ -580,7 +789,7 @@ class StudentDashboardService
 
             $today = now()->startOfDay();
 
-            $open    = $rows->filter(fn ($r) => (float) $r->balance > 0.005);
+            $open = $rows->filter(fn ($r) => (float) $r->balance > 0.005);
             $overdue = $open->filter(fn ($r) => $r->due_date && Carbon::parse($r->due_date)->isPast());
             $nextDue = $open->filter(fn ($r) => $r->due_date && ! Carbon::parse($r->due_date)->isPast())
                 ->sortBy('due_date')->first();
@@ -588,24 +797,23 @@ class StudentDashboardService
             // "Currently payable" = invoices already billed (billing_date reached,
             // or legacy null billing_date) that still carry a balance. Future
             // scheduled installments are excluded from the student-facing figure.
-            $currentDue = (float) $open->filter(fn ($r) =>
-                ! $r->billing_date || Carbon::parse($r->billing_date)->startOfDay()->lte($today)
+            $currentDue = (float) $open->filter(fn ($r) => ! $r->billing_date || Carbon::parse($r->billing_date)->startOfDay()->lte($today)
             )->sum('balance');
 
             $outstanding = (float) $open->sum('balance');
 
             return [
-                'paid'            => (float) $rows->sum('paid_amount'),
-                'outstanding'     => $outstanding,           // full open balance (all installments)
-                'current_due'     => $currentDue,            // billed + unpaid past dues only
-                'overdue'         => (float) $overdue->sum('balance'),
-                'next_due'        => $nextDue ? Carbon::parse($nextDue->due_date)->format('M d') : null,
+                'paid' => (float) $rows->sum('paid_amount'),
+                'outstanding' => $outstanding,           // full open balance (all installments)
+                'current_due' => $currentDue,            // billed + unpaid past dues only
+                'overdue' => (float) $overdue->sum('balance'),
+                'next_due' => $nextDue ? Carbon::parse($nextDue->due_date)->format('M d') : null,
                 'next_due_amount' => $nextDue ? (float) $nextDue->balance : null,
-                'due_subtitle'    => match (true) {
-                    $overdue->isNotEmpty()  => 'Overdue — please settle',
-                    $nextDue !== null       => 'Due '.Carbon::parse($nextDue->due_date)->format('M d'),
-                    $currentDue > 0.005     => 'No due date set',
-                    default                 => 'All settled',
+                'due_subtitle' => match (true) {
+                    $overdue->isNotEmpty() => 'Overdue — please settle',
+                    $nextDue !== null => 'Due '.Carbon::parse($nextDue->due_date)->format('M d'),
+                    $currentDue > 0.005 => 'No due date set',
+                    default => 'All settled',
                 },
             ];
         });
@@ -631,8 +839,8 @@ class StudentDashboardService
     public function calendarFor(User $user, int $year, int $month): array
     {
         $start = Carbon::create($year, $month, 1)->startOfMonth();
-        $end   = $start->copy()->endOfMonth();
-        $days  = [];
+        $end = $start->copy()->endOfMonth();
+        $days = [];
 
         $push = function (string $date, string $type) use (&$days) {
             $day = (int) Carbon::parse($date)->format('j');
@@ -665,9 +873,9 @@ class StudentDashboardService
             ));
 
         return [
-            'year'  => (int) $start->format('Y'),
+            'year' => (int) $start->format('Y'),
             'month' => (int) $start->format('n'),
-            'days'  => $days,
+            'days' => $days,
         ];
     }
 
@@ -726,10 +934,10 @@ class StudentDashboardService
     private function snapshot(User $user): array
     {
         $deadlines = $this->deadlineCounts($user);
-        $billing   = $this->billing($user);
-        $subjects  = $this->subjectRows($user);
-        $posted    = $subjects->filter(fn ($s) => $s->posted_grade !== null);
-        $risk      = $posted->filter(fn ($s) => (float) $s->posted_grade < self::PASSING_GRADE);
+        $billing = $this->billing($user);
+        $subjects = $this->subjectRows($user);
+        $posted = $subjects->filter(fn ($s) => $s->posted_grade !== null);
+        $risk = collect($this->subjectsAtRisk($user)); // multi-source, same as the KPI/modal
 
         $dueTomorrow = DB::table('deadline_user_completions as duc')
             ->join('deadlines as d', 'd.id', '=', 'duc.deadline_id')
@@ -748,7 +956,7 @@ class StudentDashboardService
             $bullets[] = ['tone' => 'rose', 'text' => $deadlines['overdue'].' task'.($deadlines['overdue'] > 1 ? 's are' : ' is').' overdue — catch up soon.'];
         }
         if ($risk->isNotEmpty()) {
-            $bullets[] = ['tone' => 'rose', 'text' => $risk->pluck('subject_name')->take(2)->implode(' and ').($risk->count() > 2 ? ' (+'.($risk->count() - 2).' more)' : '').' need'.($risk->count() === 1 ? 's' : '').' attention grade-wise.'];
+            $bullets[] = ['tone' => 'rose', 'text' => $risk->pluck('subject')->take(2)->implode(' and ').($risk->count() > 2 ? ' (+'.($risk->count() - 2).' more)' : '').' need'.($risk->count() === 1 ? 's' : '').' attention grade-wise.'];
         } elseif ($posted->isNotEmpty()) {
             $bullets[] = ['tone' => 'emerald', 'text' => 'All graded subjects are in good standing. Keep it up!'];
         }
@@ -796,7 +1004,7 @@ class StudentDashboardService
         }
 
         $weights = $posted->sum(fn ($s) => (float) ($s->units ?: 1));
-        $sum     = $posted->sum(fn ($s) => (float) $s->posted_grade * (float) ($s->units ?: 1));
+        $sum = $posted->sum(fn ($s) => (float) $s->posted_grade * (float) ($s->units ?: 1));
 
         return $weights > 0 ? $sum / $weights : null;
     }
@@ -804,12 +1012,12 @@ class StudentDashboardService
     private function gwaLabel(?float $gwa): string
     {
         return match (true) {
-            $gwa === null                     => 'No grades yet',
-            $gwa >= 90.0                      => 'Excellent',
-            $gwa >= 85.0                      => 'Very good',
-            $gwa >= 80.0                      => 'Good',
-            $gwa >= self::PASSING_GRADE       => 'Passing',
-            default                           => 'At risk',
+            $gwa === null => 'No grades yet',
+            $gwa >= 90.0 => 'Excellent',
+            $gwa >= 85.0 => 'Very good',
+            $gwa >= 80.0 => 'Good',
+            $gwa >= self::PASSING_GRADE => 'Passing',
+            default => 'At risk',
         };
     }
 
