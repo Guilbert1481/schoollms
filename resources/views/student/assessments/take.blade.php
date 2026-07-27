@@ -363,4 +363,7 @@ window.OT = {
     render();
 })();
 </script>
+{{-- Symbol-entry aid for typed answers (fill-in-the-blank, identification).
+     Editor only: evaluation is off so it cannot compute answers during a test. --}}
+<x-math-tool :evaluate="false" />
 @endsection

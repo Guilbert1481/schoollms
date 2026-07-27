@@ -19,4 +19,5 @@
     window.csrfToken = @json(csrf_token());
 </script>
 <script src="{{ asset('js/tests/matching.js') }}?v={{ time() }}"></script>
+<x-math-tool />
 @endsection

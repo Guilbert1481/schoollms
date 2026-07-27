@@ -85,4 +85,5 @@
     console.log('INLINE SCRIPT LOADED');
 </script>
 
+<x-math-tool />
 @endsection

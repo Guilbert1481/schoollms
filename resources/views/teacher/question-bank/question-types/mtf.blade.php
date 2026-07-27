@@ -26,4 +26,5 @@
     window.csrfToken = @json(csrf_token());
 </script>
 <script src="{{ asset('js/tests/mtf.js') }}?v={{ time() }}"></script>
+<x-math-tool />
 @endsection

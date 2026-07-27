@@ -21,5 +21,6 @@
 </script>
 <!-- Note the updated path: js/questions/fib.js -->
 <script src="{{ asset('js/questions/fib.js') }}?v={{ time() }}"></script>
+<x-math-tool />
 @endsection
 

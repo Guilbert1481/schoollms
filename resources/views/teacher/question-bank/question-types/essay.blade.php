@@ -36,4 +36,5 @@
     window.csrfToken = @json(csrf_token());
 </script>
 <script src="{{ asset('js/tests/essay.js') }}?v={{ time() }}"></script>
+<x-math-tool />
 @endsection
