@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Teacher;
 use App\Http\Controllers\Controller;
 use App\Models\ClassModel;
 use App\Models\ComponentScore;
+use App\Models\GradeSetting;
+use App\Services\Grading\GradeActivityService;
 use App\Services\Grading\GradebookService;
 use App\Services\Grading\GradingSchemeResolver;
+use App\Services\Grading\StudentGradeLedger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -82,6 +85,68 @@ class GradebookController extends Controller
             .($held > 0 ? " {$held} still incomplete and not posted." : '');
 
         return $this->back($class, $message, $period);
+    }
+
+    /**
+     * Record a hand-entered graded item (the "Add Record" modal): one activity for
+     * a component + each student's raw score, which recomputes the component.
+     */
+    public function storeRecord(Request $request, GradeActivityService $service)
+    {
+        $data = $request->validate([
+            'class_id' => ['required', 'integer'],
+            'grade_component_id' => ['required', 'integer'],
+            'total_items' => ['required', 'integer', 'min:1', 'max:100000'],
+            'title' => ['nullable', 'string', 'max:120'],
+            // Bound by the school's configured grading-period count (Settings → Grades → Division).
+            'period' => ['nullable', 'integer', 'min:1', 'max:'.GradeSetting::periodCountForSchool((int) (Auth::user()->school_id ?? 0))],
+            'scores' => ['nullable', 'array'],
+            'scores.*' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $class = ClassModel::where('teacher_id', Auth::id())->findOrFail($data['class_id']);
+        $period = isset($data['period']) ? (int) $data['period'] : null;
+
+        // A raw score can never exceed the item count.
+        foreach (($data['scores'] ?? []) as $raw) {
+            if ($raw !== null && $raw !== '' && (float) $raw > (float) $data['total_items']) {
+                return back()
+                    ->withErrors(['scores' => "A raw score can't exceed the total items ({$data['total_items']})."])
+                    ->withInput();
+            }
+        }
+
+        $activity = $service->record(
+            $class,
+            (int) $data['grade_component_id'],
+            (int) $data['total_items'],
+            $data['title'] ?? null,
+            $data['scores'] ?? [],
+            $period,
+            Auth::id(),
+        );
+
+        return $activity
+            ? $this->back($class, 'Record saved.', $period)
+            : $this->back($class, 'Could not save — that component is not in this class\'s grading scheme.', $period);
+    }
+
+    /** A student's detailed grade ledger, rendered as the right-drawer partial. */
+    public function ledger(Request $request, StudentGradeLedger $ledger)
+    {
+        $class = ClassModel::where('teacher_id', Auth::id())->findOrFail((int) $request->query('class_id'));
+        $studentId = (int) $request->query('student_id');
+        $period = $request->query('period') !== null ? max(1, min(4, (int) $request->query('period'))) : null;
+
+        $student = DB::table('students')->where('id', $studentId)->first(['first_name', 'last_name', 'student_number']);
+
+        return view('teacher.gradebook.partials.ledger', [
+            'data' => $ledger->forStudent($class, $studentId, $period),
+            'class' => $class,
+            'studentId' => $studentId,
+            'studentName' => $student ? trim("{$student->last_name}, {$student->first_name}") : 'Student',
+            'studentNumber' => $student->student_number ?? '',
+        ]);
     }
 
     /* ------------------------------------------------------------------ */
@@ -181,9 +246,13 @@ class GradebookController extends Controller
      */
     private function validated(Request $request): array
     {
+        // Bound the period by the school's configured count so grades can't be
+        // posted to an ordinal the school doesn't use (Settings → Grades → Division).
+        $maxPeriod = GradeSetting::periodCountForSchool((int) (Auth::user()->school_id ?? 0));
+
         $data = $request->validate([
             'class_id' => ['required', 'integer'],
-            'period' => ['nullable', 'integer', 'min:1', 'max:4'],
+            'period' => ['nullable', 'integer', 'min:1', 'max:'.$maxPeriod],
             'scores' => ['nullable', 'array'],
             'scores.*' => ['array'],
             'scores.*.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -196,7 +265,9 @@ class GradebookController extends Controller
 
     private function period(Request $request): int
     {
-        return max(1, min(4, (int) $request->query('period', 1)));
+        $maxPeriod = GradeSetting::periodCountForSchool((int) (Auth::user()->school_id ?? 0));
+
+        return max(1, min($maxPeriod, (int) $request->query('period', 1)));
     }
 
     private function back(ClassModel $class, string $message, ?int $period = null)

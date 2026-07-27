@@ -3,29 +3,24 @@
 namespace App\Services\Grading;
 
 use App\Models\ClassModel;
-use App\Models\ComponentScore;
 use App\Models\Test;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Rolls test scores into the gradebook automatically — the test-side twin of
- * {@see HomeworkComponentFeed}. When a test is tagged with a grade component, this
- * recomputes each student's score for that component as
+ * {@see HomeworkComponentFeed}. When a test is tagged with a grade component,
+ * syncing it recomputes that component for the class through
+ * {@see ComponentScoreRecomputer}, which folds this test's scores in with every
+ * other source (other tests, homework, hand-entered activities) as
+ * Σ raw ÷ Σ max × 100 and writes component_scores — the table the gradebook reads.
  *
- *     Σ(raw_score) ÷ Σ(max_score) × 100
- *
- * over every test they have sat for that component, and writes it into
- * component_scores — the same table the gradebook reads.
- *
- * Both delivery modes feed the SAME grade, from their own source: F2F from
- * omr_results (per sheet), online from test_attempts (the student's latest submitted
- * attempt per test). A given test is only ever one mode, so summing both is safe —
- * one source is empty. Online attempts count while still provisional (essays
- * pending), so the entry re-fires and finalises when the teacher grades them.
+ * Both delivery modes feed the same grade from their own source: F2F from
+ * omr_results (per sheet), online from test_attempts (the student's latest
+ * submitted attempt per test). Online attempts count while still provisional
+ * (essays pending), so the score re-fires and finalises when they are graded.
  */
 class TestComponentFeed
 {
-    public function __construct(private GradebookService $gradebook) {}
+    public function __construct(private ComponentScoreRecomputer $recomputer) {}
 
     public function sync(Test $test): void
     {
@@ -38,79 +33,10 @@ class TestComponentFeed
             return; // a personal test belongs to no class, so it has no gradebook
         }
 
-        $componentId = (int) $test->grade_component_id;
-
-        if ($this->gradebook->classTrack($class) === 'basic') {
-            $ctx = $this->gradebook->basicContext($class);
-            if (! $ctx) {
-                return;
-            }
-            $period = (int) ($test->grading_period ?: 1);
-
-            $studentIds = DB::table('student_enrollments')
-                ->where('section_id', $class->section_id)->where('education_node_id', $ctx['node_id'])
-                ->whereIn('status', ['enrolled', 'provisionally_enrolled'])->pluck('student_id');
-
-            $testIds = DB::table('tests')
-                ->where('class_id', $class->id)->where('grade_component_id', $componentId)
-                ->where('grading_period', $period)->pluck('id');
-
-            $key = fn (int $sid) => [
-                'student_id' => $sid, 'grade_component_id' => $componentId, 'class_id' => null,
-                'subject_id' => (int) $class->subject_id, 'education_node_id' => $ctx['node_id'], 'grading_period' => $period,
-            ];
-        } else {
-            $studentIds = DB::table('student_enrollment_subjects as ses')
-                ->join('student_enrollments as e', 'e.id', '=', 'ses.student_enrollment_id')
-                ->where('ses.class_id', $class->id)->pluck('e.student_id');
-
-            $testIds = DB::table('tests')
-                ->where('class_id', $class->id)->where('grade_component_id', $componentId)->pluck('id');
-
-            $key = fn (int $sid) => [
-                'student_id' => $sid, 'grade_component_id' => $componentId, 'class_id' => (int) $class->id,
-                'subject_id' => (int) $class->subject_id, 'education_node_id' => null, 'grading_period' => null,
-            ];
-        }
-
-        if ($testIds->isEmpty()) {
-            return;
-        }
-
-        foreach ($studentIds as $studentId) {
-            // F2F: sum the OMR results for this student's sheets.
-            $omr = DB::table('omr_results as r')
-                ->join('omr_sheets as s', 's.id', '=', 'r.omr_sheet_id')
-                ->whereIn('s.test_id', $testIds)
-                ->where('s.student_id', $studentId)
-                ->selectRaw('COALESCE(SUM(r.raw_score), 0) AS earned, COALESCE(SUM(r.max_score), 0) AS possible')
-                ->first();
-
-            // Online: the student's LATEST submitted attempt per test (retakes → last one).
-            $latestAttemptIds = DB::table('test_attempts')
-                ->whereIn('test_id', $testIds)
-                ->where('student_id', $studentId)
-                ->whereIn('status', ['submitted', 'graded'])
-                ->groupBy('test_id')
-                ->selectRaw('MAX(id) AS id')
-                ->pluck('id');
-
-            $online = DB::table('test_attempts')
-                ->whereIn('id', $latestAttemptIds)
-                ->selectRaw('COALESCE(SUM(raw_score), 0) AS earned, COALESCE(SUM(max_score), 0) AS possible')
-                ->first();
-
-            $earned = (float) $omr->earned + (float) $online->earned;
-            $possible = (float) $omr->possible + (float) $online->possible;
-
-            if ($possible <= 0) {
-                continue; // nothing taken by this student yet
-            }
-
-            ComponentScore::updateOrCreate($key((int) $studentId), [
-                'school_id' => (int) $class->school_id,
-                'score' => round($earned / $possible * 100, 2),
-            ]);
-        }
+        $this->recomputer->recompute(
+            $class,
+            (int) $test->grade_component_id,
+            $test->grading_period ? (int) $test->grading_period : null,
+        );
     }
 }

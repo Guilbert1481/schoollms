@@ -11,4 +11,8 @@ Route::middleware(['web', 'auth', 'role:teacher'])
         Route::get('/', [GradebookController::class, 'index'])->name('index');
         Route::post('/draft', [GradebookController::class, 'draft'])->name('draft');
         Route::post('/post', [GradebookController::class, 'post'])->name('post');
+
+        // Manual "Add Record" entry + a student's detailed ledger (right drawer).
+        Route::post('/record', [GradebookController::class, 'storeRecord'])->name('record');
+        Route::get('/ledger', [GradebookController::class, 'ledger'])->name('ledger');
     });
