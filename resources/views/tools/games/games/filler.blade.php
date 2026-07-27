@@ -61,15 +61,21 @@
 
 [data-game="filler"] .fl-scrim{position:fixed;inset:0;z-index:9999;display:none;place-items:center;padding:20px;background:rgba(10,20,42,.46);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 [data-game="filler"] .fl-scrim.fl-open{display:grid}
-[data-game="filler"] .fl-play{width:100%;max-width:520px;background:var(--fl-card);border:1px solid var(--fl-line2);border-radius:22px;box-shadow:0 40px 90px -30px rgba(0,0,0,.55);overflow:hidden;animation:fl-pop .3s cubic-bezier(.2,.9,.3,1.2)}
+[data-game="filler"] .fl-play{width:100%;max-width:520px;max-height:94vh;overflow:auto;background:var(--fl-card);border:1px solid var(--fl-line2);border-radius:22px;box-shadow:0 40px 90px -30px rgba(0,0,0,.55);animation:fl-pop .3s cubic-bezier(.2,.9,.3,1.2)}
+[data-game="filler"] .fl-play.fl-two{max-width:880px}
+[data-game="filler"] .fl-cols{display:grid;grid-template-columns:minmax(0,1fr) 230px;align-items:stretch}
+[data-game="filler"] .fl-side{border-left:1px solid var(--fl-line);background:var(--fl-bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:18px 14px}
+[data-game="filler"] .fl-side-t{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--fl-faint);font-weight:600}
+[data-game="filler"] .fl-side-n{font-size:12px;color:var(--fl-muted);font-variant-numeric:tabular-nums}
+@media(max-width:640px){[data-game="filler"] .fl-cols{grid-template-columns:1fr}[data-game="filler"] .fl-side{border-left:0;border-top:1px solid var(--fl-line)}}
 @keyframes fl-pop{from{opacity:0;transform:translateY(14px) scale(.965)}to{opacity:1;transform:none}}
 [data-game="filler"] .fl-ptop{display:flex;align-items:flex-start;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--fl-line);background:var(--fl-bg2)}
 [data-game="filler"] .fl-prog{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--fl-muted)}
 [data-game="filler"] .fl-prog .fl-rd{font-weight:600;color:var(--fl-ink);letter-spacing:.02em}
-[data-game="filler"] .fl-dots{display:flex;gap:5px;flex-wrap:wrap;max-width:230px}
-[data-game="filler"] .fl-dot{width:8px;height:8px;border-radius:50%;background:var(--fl-line2)}
+[data-game="filler"] .fl-dots{display:grid;gap:4px;justify-content:center;align-content:center}
+[data-game="filler"] .fl-dot{width:4px;height:4px;border-radius:50%;background:var(--fl-line2)}
 [data-game="filler"] .fl-dot.fl-done{background:var(--fl-good)}
-[data-game="filler"] .fl-dot.fl-now{background:var(--fl-brand);box-shadow:0 0 0 4px rgba(31,95,224,.2)}
+[data-game="filler"] .fl-dot.fl-now{background:var(--fl-brand);box-shadow:0 0 0 2.5px rgba(31,95,224,.25)}
 [data-game="filler"] .fl-dot.fl-miss{background:var(--fl-bad)}
 [data-game="filler"] .fl-stats{display:flex;gap:8px;align-items:flex-start}
 [data-game="filler"] .fl-stat{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;background:var(--fl-chip);border:1px solid var(--fl-line);border-radius:20px;padding:4px 11px;font-variant-numeric:tabular-nums}
@@ -274,20 +280,27 @@
       d+='<span class="fl-dot '+cls+'"></span>';
     } return d;
   }
+  // Circles per row = the round size's tens digit x 2 (20 -> 4, 30 -> 6, 40 -> 8),
+  // so big rounds grow sideways instead of eating the panel's vertical space.
+  function dotsPerRow(n){ return n>=10 ? Math.floor(n/10)*2 : Math.max(1,n); }
   function render(){
     var v=roundList[idx];
+    play.classList.add('fl-two');
     play.innerHTML=
-    '<div class="fl-ptop"><div class="fl-prog"><span class="fl-rd">Round '+roundNo()+' of '+totalRounds()+' &middot; '+(idx+1)+' / '+roundList.length+'</span>'+
-      '<span class="fl-dots">'+dots()+'</span></div>'+
+    '<div class="fl-ptop"><div class="fl-prog"><span class="fl-rd">Round '+roundNo()+' of '+totalRounds()+' &middot; '+(idx+1)+' / '+roundList.length+'</span></div>'+
       '<div class="fl-stats"><span class="fl-stat fl-sc">&#9670; '+score+'</span><span class="fl-stat fl-st">&#128293; '+streak+'</span>'+
       '<button type="button" class="fl-x" id="flXclose" aria-label="Close">&times;</button></div></div>'+
+    '<div class="fl-cols"><div>'+
     '<div class="fl-pbody"><div class="fl-given-lab">Base form &middot; infinitive</div>'+
       '<div class="fl-given"><span class="fl-to">to</span>'+esc(v[0])+'</div><div class="fl-rule"></div>'+
       '<div class="fl-fields">'+
         '<div class="fl-field"><label>Past simple</label><input id="flA1" autocomplete="off" spellcheck="false" placeholder="&mdash;"><div class="fl-reveal" id="flR1"></div></div>'+
         '<div class="fl-field"><label>Past participle</label><input id="flA2" autocomplete="off" spellcheck="false" placeholder="&mdash;"><div class="fl-reveal" id="flR2"></div></div>'+
       '</div><div class="fl-fb" id="flFb"></div></div>'+
-    '<div class="fl-pfoot"><button type="button" class="fl-btn" id="flReveal">Reveal</button><button type="button" class="fl-btn fl-primary" id="flCheck">Check answer</button></div>';
+    '<div class="fl-pfoot"><button type="button" class="fl-btn" id="flReveal">Reveal</button><button type="button" class="fl-btn fl-primary" id="flCheck">Check answer</button></div>'+
+    '</div><aside class="fl-side"><div class="fl-side-t">Round progress</div>'+
+      '<div class="fl-dots" style="grid-template-columns:repeat('+dotsPerRow(roundList.length)+',4px)">'+dots()+'</div>'+
+      '<div class="fl-side-n">'+(idx+1)+' / '+roundList.length+'</div></aside></div>';
     document.getElementById('flXclose').onclick=close;
     document.getElementById('flCheck').onclick=function(){ grade(false); };
     document.getElementById('flReveal').onclick=function(){ grade(true); };
@@ -317,6 +330,7 @@
     var right=0, misses=[];
     for(var i=0;i<roundList.length;i++){ if(results[i]) right++; else misses.push(roundList[i]); }
     var total=roundList.length, pct=Math.round(right/Math.max(1,total)*100);
+    play.classList.remove('fl-two');                   // results screen back to the narrow card
     completed.add(currentRound); persist();            // round counts as done (score doesn't matter)
     var allDone = completed.size>=totalRounds();
     var b='<button type="button" class="fl-btn fl-primary" id="flReplay">Replay this round</button>';
