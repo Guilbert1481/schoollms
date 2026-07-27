@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Admin\School\Settings\Assignments;
 
 use App\Http\Controllers\Controller;
+use App\Models\College;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\College;
 
 class CollegesController extends Controller
 {
@@ -13,15 +13,17 @@ class CollegesController extends Controller
     {
         $schoolId = auth()->user()->school_id;
 
+        // Left join: a dean account without a profiles row must still be
+        // assignable, so fall back to the users table's own name columns.
         $deans = DB::table('users')
-            ->join('profiles', 'profiles.user_id', '=', 'users.id')
+            ->leftJoin('profiles', 'profiles.user_id', '=', 'users.id')
             ->where('users.school_id', $schoolId)
             ->where('users.role', 'dean')
             ->select(
                 'users.id',
-                DB::raw("CONCAT(profiles.first_name,' ',profiles.last_name) as name")
+                DB::raw("COALESCE(NULLIF(TRIM(CONCAT(COALESCE(profiles.first_name,''),' ',COALESCE(profiles.last_name,''))),''), CONCAT(users.first_name,' ',users.last_name)) as name")
             )
-            ->orderBy('profiles.last_name')
+            ->orderByRaw('COALESCE(profiles.last_name, users.last_name)')
             ->get();
 
         $colleges = DB::table('colleges as c')
@@ -34,7 +36,7 @@ class CollegesController extends Controller
                 'c.name',
                 'c.description',
                 'c.dean_id',
-                DB::raw("COALESCE(CONCAT(p.first_name,' ',p.last_name),'Unassigned') as dean_name")
+                DB::raw("COALESCE(NULLIF(TRIM(CONCAT(COALESCE(p.first_name,''),' ',COALESCE(p.last_name,''))),''), CONCAT(u.first_name,' ',u.last_name), 'Unassigned') as dean_name")
             )
             ->orderBy('c.name')
             ->get();
@@ -42,16 +44,16 @@ class CollegesController extends Controller
         $tableConfig = config('tables.tables.colleges');
 
         return view('admin.assignments.index', [
-            'tab'          => 'colleges',
-            'deans'        => $deans,
-            'colleges'     => $colleges,
-            'columns'      => $tableConfig['columns'] ?? [],
-            'labels'       => $tableConfig['labels'] ?? [],
-            'formColumns'  => $tableConfig['form'] ?? [],
-            'programs'     => [],
-            'offices'      => [],
+            'tab' => 'colleges',
+            'deans' => $deans,
+            'colleges' => $colleges,
+            'columns' => $tableConfig['columns'] ?? [],
+            'labels' => $tableConfig['labels'] ?? [],
+            'formColumns' => $tableConfig['form'] ?? [],
+            'programs' => [],
+            'offices' => [],
             'programHeads' => [],
-            'officeHeads'  => [],
+            'officeHeads' => [],
         ]);
     }
 
@@ -59,17 +61,17 @@ class CollegesController extends Controller
     public function createCollege(Request $request)
     {
         $request->validate([
-            'code'        => 'required|string|max:50',
-            'name'        => 'required|string|max:255',
+            'code' => 'required|string|max:50',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:500',
         ]);
 
         College::create([
-            'school_id'   => auth()->user()->school_id,
-            'code'        => $request->code,
-            'name'        => $request->name,
+            'school_id' => auth()->user()->school_id,
+            'code' => $request->code,
+            'name' => $request->name,
             'description' => $request->description,
-            'is_active'   => true,
+            'is_active' => true,
         ]);
 
         return back()->with('success', 'College created successfully.');
@@ -79,8 +81,8 @@ class CollegesController extends Controller
     public function updateCollegeInfo(Request $request, $id)
     {
         $request->validate([
-            'code'        => 'required|string|max:50',
-            'name'        => 'required|string|max:255',
+            'code' => 'required|string|max:50',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:500',
         ]);
 
