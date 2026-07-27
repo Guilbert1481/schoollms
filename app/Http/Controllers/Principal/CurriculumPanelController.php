@@ -35,6 +35,7 @@ class CurriculumPanelController extends BaseCrudController
             ->get()
             ->map(function ($r) {
                 $r->is_active_label = ((int) $r->is_active === 1) ? 'Active' : 'Inactive';
+
                 return $r;
             });
 
@@ -46,53 +47,71 @@ class CurriculumPanelController extends BaseCrudController
 
         $actions = [
             [
-                'name'    => 'edit',
-                'label'   => 'Edit',
-                'class'   => 'bg-blue-500 text-white hover:bg-blue-600',
-                'type'    => 'modal',
-                'modal'   => 'subjectEditModal',
+                'name' => 'edit',
+                'label' => 'Edit',
+                'class' => 'bg-blue-500 text-white hover:bg-blue-600',
+                'type' => 'modal',
+                'modal' => 'subjectEditModal',
             ],
             [
-                'name'  => 'delete',
+                'name' => 'delete',
                 'label' => 'Delete',
                 'class' => 'bg-red-500 text-white hover:bg-red-600',
-                'type'  => 'delete',
+                'type' => 'delete',
             ],
         ];
 
         $formColumns = ['name', 'code', 'description'];
         $labels = [
-            'name'        => 'Subject Name',
-            'code'        => 'Code',
+            'name' => 'Subject Name',
+            'code' => 'Code',
             'description' => 'Description',
         ];
 
         return view('principal.curricula-panel.subjects', [
-            'data'        => $data,
-            'columns'     => $columns,
-            'actions'     => $actions,
-            'table'       => 'subjects',
+            'data' => $data,
+            'columns' => $columns,
+            'actions' => $actions,
+            'table' => 'subjects',
             'formColumns' => $formColumns,
-            'labels'      => $labels,
+            'labels' => $labels,
         ]);
     }
 
     public function indexGradeLevels(Request $request)
     {
         $schoolId = auth()->user()->school_id;
-        $nodeId   = $request->integer('education_node_id') ?: null;
+        $nodeId = $request->integer('education_node_id') ?: null;
+        $categoryId = $request->integer('category_id') ?: null;
 
-        // Pull basic-ed grade levels (stages under "Basic Education")
+        // Basic-ed education-level categories (Preschool, Elementary, Junior High,
+        // Senior High) are the direct "stage" children of the "Basic Education"
+        // level node. The grade levels are the stage descendants beneath the chosen
+        // category, so the grade dropdown narrows to the selected category.
         $basicEd = DB::table('education_nodes')
             ->where('node_type', 'level')
             ->where('name', 'Basic Education')
             ->first();
 
-        $gradeLevels = collect();
-        if ($basicEd) {
-            $gradeLevels = $this->collectStageDescendants((int) $basicEd->id);
+        $categories = $basicEd ? $this->basicEdCategories((int) $basicEd->id) : collect();
+
+        // Resolve which category is active: an explicit pick, else the category the
+        // chosen grade level lives under, else the first category.
+        if (! $categoryId && $nodeId && $basicEd) {
+            $categoryId = $this->categoryOfNode($nodeId, (int) $basicEd->id);
+        }
+        if (! $categoryId && $categories->isNotEmpty()) {
+            $categoryId = (int) $categories->first()->id;
         }
 
+        $gradeLevels = $categoryId ? $this->collectStageDescendants($categoryId) : collect();
+
+        // Drop a grade level that is not in the active category, then fall back to
+        // the category's first grade so the subjects table has a selection.
+        $gradeIds = $gradeLevels->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if ($nodeId && ! in_array($nodeId, $gradeIds, true)) {
+            $nodeId = null;
+        }
         if (! $nodeId && $gradeLevels->isNotEmpty()) {
             $nodeId = (int) $gradeLevels->first()->id;
         }
@@ -121,6 +140,7 @@ class CurriculumPanelController extends BaseCrudController
                 ])
                 ->map(function ($r) {
                     $r->is_active_label = ((int) $r->is_active === 1) ? 'Active' : 'Inactive';
+
                     return $r;
                 });
         }
@@ -129,15 +149,15 @@ class CurriculumPanelController extends BaseCrudController
             ['key' => 'name',  'label' => 'Subject'],
             ['key' => 'code',  'label' => 'Code'],
             [
-                'key'    => 'is_active_label',
-                'label'  => 'Status',
+                'key' => 'is_active_label',
+                'label' => 'Status',
                 'filter' => [
-                    'type'    => 'dropdown',
-                    'param'   => 'status',
+                    'type' => 'dropdown',
+                    'param' => 'status',
                     'default' => 'all',
                     'options' => [
-                        'all'      => 'All',
-                        'active'   => 'Active',
+                        'all' => 'All',
+                        'active' => 'Active',
                         'inactive' => 'Inactive',
                     ],
                 ],
@@ -157,10 +177,12 @@ class CurriculumPanelController extends BaseCrudController
         }
 
         return view('principal.curricula-panel.grade-levels', [
-            'gradeLevels'       => $gradeLevels,
-            'nodeId'            => $nodeId,
-            'data'              => $rows,
-            'columns'           => $columns,
+            'categories' => $categories,
+            'categoryId' => $categoryId,
+            'gradeLevels' => $gradeLevels,
+            'nodeId' => $nodeId,
+            'data' => $rows,
+            'columns' => $columns,
             'availableSubjects' => $availableSubjects,
         ]);
     }
@@ -176,14 +198,16 @@ class CurriculumPanelController extends BaseCrudController
         // grade level.
         $request->merge([
             'is_basic_ed' => 1,
-            'is_active'   => $request->has('is_active') ? (int) $request->boolean('is_active') : 0,
+            'is_active' => $request->has('is_active') ? (int) $request->boolean('is_active') : 0,
         ]);
+
         return $this->storeRecord('subjects', $request);
     }
 
     public function updateSubject(Request $request, $id)
     {
         $request->merge(['table' => 'subjects', 'id' => $id]);
+
         return $this->updateRecord($request);
     }
 
@@ -200,8 +224,8 @@ class CurriculumPanelController extends BaseCrudController
     {
         $data = $request->validate([
             'education_node_id' => 'required|integer|exists:education_nodes,id',
-            'subject_ids'       => 'required|array|min:1',
-            'subject_ids.*'     => 'integer|exists:subjects,id',
+            'subject_ids' => 'required|array|min:1',
+            'subject_ids.*' => 'integer|exists:subjects,id',
         ]);
 
         $count = 0;
@@ -209,10 +233,10 @@ class CurriculumPanelController extends BaseCrudController
             DB::table('grade_level_subjects')->updateOrInsert(
                 [
                     'education_node_id' => $data['education_node_id'],
-                    'subject_id'        => $subjectId,
+                    'subject_id' => $subjectId,
                 ],
                 [
-                    'is_active'  => 1,
+                    'is_active' => 1,
                     'updated_at' => now(),
                     'created_at' => now(),
                 ]
@@ -224,7 +248,7 @@ class CurriculumPanelController extends BaseCrudController
             ->route('principal.curricula-panel.grade-levels', [
                 'education_node_id' => $data['education_node_id'],
             ])
-            ->with('success', $count . ' subject(s) added to grade level.');
+            ->with('success', $count.' subject(s) added to grade level.');
     }
 
     public function detachGradeLevelSubject($pivotId)
@@ -249,7 +273,7 @@ class CurriculumPanelController extends BaseCrudController
         DB::table('grade_level_subjects')
             ->where('id', $pivotId)
             ->update([
-                'is_active'  => $row->is_active ? 0 : 1,
+                'is_active' => $row->is_active ? 0 : 1,
                 'updated_at' => now(),
             ]);
 
@@ -269,13 +293,13 @@ class CurriculumPanelController extends BaseCrudController
     {
         $request->validate([
             'education_node_id' => 'required|integer|exists:education_nodes,id',
-            'csv'               => 'required|file|mimes:csv,txt|max:2048',
+            'csv' => 'required|file|mimes:csv,txt|max:2048',
         ]);
 
         $schoolId = auth()->user()->school_id;
-        $nodeId   = (int) $request->input('education_node_id');
+        $nodeId = (int) $request->input('education_node_id');
 
-        $path   = $request->file('csv')->getRealPath();
+        $path = $request->file('csv')->getRealPath();
         $handle = fopen($path, 'r');
         if (! $handle) {
             return redirect()->back()->withErrors(['error' => 'Unable to read CSV file.']);
@@ -284,22 +308,24 @@ class CurriculumPanelController extends BaseCrudController
         $headers = fgetcsv($handle);
         if (! $headers) {
             fclose($handle);
+
             return redirect()->back()->withErrors(['error' => 'CSV file is empty.']);
         }
         $headers = array_map(fn ($h) => strtolower(trim((string) $h)), $headers);
 
         if (! in_array('subject_code', $headers, true)) {
             fclose($handle);
+
             return redirect()->back()->withErrors([
                 'error' => 'CSV must include a "subject_code" column (is_active optional).',
             ]);
         }
 
-        $idx       = array_flip($headers);
-        $inserted  = 0;
-        $updated   = 0;
-        $skipped   = [];
-        $line      = 1;
+        $idx = array_flip($headers);
+        $inserted = 0;
+        $updated = 0;
+        $skipped = [];
+        $line = 1;
 
         while (($row = fgetcsv($handle)) !== false) {
             $line++;
@@ -307,13 +333,14 @@ class CurriculumPanelController extends BaseCrudController
                 continue;
             }
 
-            $code  = trim((string) ($row[$idx['subject_code']] ?? ''));
+            $code = trim((string) ($row[$idx['subject_code']] ?? ''));
             $isAct = isset($idx['is_active'])
                 ? (int) filter_var($row[$idx['is_active']] ?? 1, FILTER_VALIDATE_BOOLEAN)
                 : 1;
 
             if ($code === '') {
                 $skipped[] = "Line {$line}: blank subject_code.";
+
                 continue;
             }
 
@@ -325,6 +352,7 @@ class CurriculumPanelController extends BaseCrudController
 
             if (! $subject) {
                 $skipped[] = "Line {$line}: subject code '{$code}' not found.";
+
                 continue;
             }
 
@@ -341,10 +369,10 @@ class CurriculumPanelController extends BaseCrudController
             } else {
                 DB::table('grade_level_subjects')->insert([
                     'education_node_id' => $nodeId,
-                    'subject_id'        => $subject->id,
-                    'is_active'         => $isAct,
-                    'created_at'        => now(),
-                    'updated_at'        => now(),
+                    'subject_id' => $subject->id,
+                    'is_active' => $isAct,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
                 $inserted++;
             }
@@ -372,6 +400,39 @@ class CurriculumPanelController extends BaseCrudController
      |============================================================*/
 
     /**
+     * The basic-ed education-level categories — the direct "stage" children of the
+     * "Basic Education" level node (Preschool, Elementary, Junior High, Senior High).
+     * These drive the category dropdown; the grade levels narrow to the pick.
+     */
+    protected function basicEdCategories(int $basicEdId)
+    {
+        return DB::table('education_nodes')
+            ->where('parent_id', $basicEdId)
+            ->where('node_type', 'stage')
+            ->orderBy('order_index')
+            ->get(['id', 'name']);
+    }
+
+    /**
+     * The category (direct stage child of Basic Education) a grade-level node lives
+     * under, found by walking up its ancestry. Null when not under Basic Education.
+     */
+    protected function categoryOfNode(int $nodeId, int $basicEdId): ?int
+    {
+        $byId = DB::table('education_nodes')->get(['id', 'parent_id'])->keyBy('id');
+
+        $cur = $byId->get($nodeId);
+        for ($i = 0; $i < 32 && $cur; $i++) {
+            if ((int) $cur->parent_id === $basicEdId) {
+                return (int) $cur->id;
+            }
+            $cur = $cur->parent_id ? $byId->get($cur->parent_id) : null;
+        }
+
+        return null;
+    }
+
+    /**
      * Recursively collect all "stage" descendants of an education node
      * (used to enumerate Kinder / Grade 1-12 under Basic Education).
      */
@@ -381,7 +442,7 @@ class CurriculumPanelController extends BaseCrudController
             ->orderBy('order_index')
             ->get();
 
-        $byId     = $all->keyBy('id');
+        $byId = $all->keyBy('id');
         $byParent = $all->groupBy('parent_id');
 
         $stages = collect();
@@ -395,11 +456,11 @@ class CurriculumPanelController extends BaseCrudController
                     // elementary/JHS stages remain plain ("Grade 1").
                     $context = array_values(array_filter(
                         $ancestry,
-                        fn ($a) => !in_array($a->node_type, ['stage', 'level'], true)
+                        fn ($a) => ! in_array($a->node_type, ['stage', 'level'], true)
                     ));
                     $label = $child->name;
-                    if (!empty($context)) {
-                        $label = $child->name . ' — ' . implode(' / ', array_map(fn ($a) => $a->name, $context));
+                    if (! empty($context)) {
+                        $label = $child->name.' — '.implode(' / ', array_map(fn ($a) => $a->name, $context));
                     }
                     $child->label = $label;
                     $stages->push($child);

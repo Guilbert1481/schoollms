@@ -43,8 +43,21 @@
         ]"
         :deleteRoute="'principal.curricula-panel.grade-level-subjects.destroy'"
     >
-        {{-- Grade level selector --}}
+        {{-- Education level (Basic Ed category) → grade level cascade.
+             Changing the category resets the grade level; the grade dropdown then
+             lists only the grades under the chosen category. --}}
         <form method="GET" action="{{ route('principal.curricula-panel.grade-levels') }}" class="flex items-center gap-2">
+            <select name="category_id"
+                    onchange="this.form.education_node_id.value=''; this.form.submit()"
+                    class="border border-gray-300 rounded px-2 py-2 text-sm">
+                <option value="">Education Level…</option>
+                @foreach($categories as $c)
+                    <option value="{{ $c->id }}" @selected((int)$categoryId === (int)$c->id)>
+                        {{ $c->name }}
+                    </option>
+                @endforeach
+            </select>
+
             <select name="education_node_id"
                     onchange="this.form.submit()"
                     class="border border-gray-300 rounded px-2 py-2 text-sm">
