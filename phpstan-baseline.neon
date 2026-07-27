@@ -37,30 +37,6 @@ parameters:
 			path: app/Http/Controllers/Admin/QuestionConfigController.php
 
 		-
-			message: '#^Relation ''college'' is not found in App\\Models\\Program model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Http/Controllers/Admin/School/Settings/Assignments/AssignmentManagementController.php
-
-		-
-			message: '#^Relation ''dean'' is not found in App\\Models\\College model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Http/Controllers/Admin/School/Settings/Assignments/AssignmentManagementController.php
-
-		-
-			message: '#^Relation ''officeHead'' is not found in App\\Models\\Office model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Http/Controllers/Admin/School/Settings/Assignments/AssignmentManagementController.php
-
-		-
-			message: '#^Relation ''programHead'' is not found in App\\Models\\Program model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Http/Controllers/Admin/School/Settings/Assignments/AssignmentManagementController.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\SchoolSetting\:\:\$academic_levels\.$#'
 			identifier: property.notFound
 			count: 1
