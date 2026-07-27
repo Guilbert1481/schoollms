@@ -29,8 +29,8 @@ class HangmanGameTest extends TestCase
         $this->actingAs($this->authUser())
             ->get(route('tools.games.play', ['slug' => 'hangman']))
             ->assertOk()
-            ->assertSee('Hangman')
-            ->assertSee('The gallows')   // the SVG stage label
-            ->assertSee('hmP5', false);  // the sixth drawn body part exists in the SVG
+            ->assertSee('Hangman Challenge')
+            ->assertSee('Mistake Meter')  // the key-art mistake meter panel
+            ->assertSee('hmP5', false);   // the sixth drawn body part exists in the SVG
     }
 }
