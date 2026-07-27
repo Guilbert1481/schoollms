@@ -174,8 +174,8 @@
             :items-default="12"
             :types="['identification']"
             :difficulty="true"
-            :modes="['solo', 'team']"
-            mode-default="solo"
+            :modes="['solo', 'bot', 'classmate', 'team']"
+            mode-default="bot"
             start-label="Build my puzzle" />
     </div>
 
@@ -308,7 +308,10 @@
     let rows = 0, cols = 0;
     let curIdx = -1;       // index into the ordered clue list
     let typed = [];        // player letters for the current word (null = empty)
-    let mode = 'solo';
+    let mode = 'solo';           // solo (alone) | bot (vs Rival Bot) | classmate | team
+    let names = { A: 'You', B: 'Rival Bot' };
+    let cmList = [];             // invited classmates ({id,name}) for bench chips
+    const passing = () => mode === 'team' || mode === 'classmate';  // alternating turns
     let scores = { A: 0, B: 0 };
     let solvedCount = { A: 0, B: 0 };
     let turn = 'A';
@@ -460,17 +463,20 @@
         return '<div class="cw-chip' + (cpu ? ' cpu' : '') + '">' + (cpu ? '&#129302;' : '<img src="' + AVATAR + '" alt="">') + '</div>';
     }
     function renderBench() {
-        const soloRival = mode === 'solo';
+        const bot = mode === 'bot';
         el('cwAChips').innerHTML = chip(false) + (mode === 'team' ? chip(false) + chip(false) : '');
-        el('cwBChips').innerHTML = soloRival ? chip(true) : chip(false) + chip(false) + chip(false);
+        el('cwBChips').innerHTML = mode === 'solo' ? ''
+            : bot ? chip(true)
+            : mode === 'classmate' ? cmList.slice(0, 4).map(() => chip(false)).join('')
+            : chip(false) + chip(false) + chip(false);
         el('cwBenchA').innerHTML =
             '<div class="cw-p a"><div class="av"><img src="' + AVATAR + '" alt=""></div>' +
-            '<div class="nm">' + (mode === 'team' ? 'Team Einstein' : 'You') + '</div>' +
+            '<div class="nm">' + esc(names.A) + '</div>' +
             '<div class="st' + (turn === 'A' ? ' go' : '') + '">' + (turn === 'A' ? 'Answering' : 'Ready') + '</div></div>';
-        el('cwBenchB').innerHTML =
-            '<div class="cw-p b"><div class="av' + (soloRival ? ' cpu' : '') + '">' + (soloRival ? '&#129302;' : '<img src="' + AVATAR + '" alt="">') + '</div>' +
-            '<div class="nm">' + (soloRival ? 'Rival Bot' : 'Team Newton') + '</div>' +
-            '<div class="st' + (turn === 'B' ? ' go' : '') + '">' + (turn === 'B' ? 'Answering' : (soloRival ? 'Thinking' : 'Ready')) + '</div></div>';
+        el('cwBenchB').innerHTML = mode === 'solo' ? '' :
+            '<div class="cw-p b"><div class="av' + (bot ? ' cpu' : '') + '">' + (bot ? '&#129302;' : '<img src="' + AVATAR + '" alt="">') + '</div>' +
+            '<div class="nm">' + esc(names.B) + '</div>' +
+            '<div class="st' + (turn === 'B' ? ' go' : '') + '">' + (turn === 'B' ? 'Answering' : (bot ? 'Thinking' : 'Ready')) + '</div></div>';
     }
 
     function renderList() {
@@ -555,11 +561,11 @@
         if (guess.length < w.len) { sfx.bad(); return shakeBoxes(); }
 
         if (guess === w.answer) {
-            solveWord(w, mode === 'team' ? turn : 'A');
+            solveWord(w, passing() ? turn : 'A');
         } else {
             sfx.bad(); shakeBoxes();
             feed('<b>' + esc(guess) + '</b> is not it &mdash; keep thinking!');
-            if (mode === 'team') passTurn();
+            if (passing()) passTurn();
             typed = new Array(w.len).fill(null);
             renderCurrent();
         }
@@ -579,9 +585,8 @@
         }
         scores[by] += 100; solvedCount[by]++;
         if (by === 'A') sfx.ok(); else sfx.rival();
-        const who = by === 'A' ? (mode === 'team' ? 'Team Einstein' : 'You') : (mode === 'solo' ? 'Rival Bot' : 'Team Newton');
-        feed('&#10024; <b>' + esc(who) + '</b> solved <b>' + esc(w.answer) + '</b> <span class="pts">+100 pts</span>');
-        if (mode === 'team') passTurn();
+        feed('&#10024; <b>' + esc(names[by]) + '</b> solved <b>' + esc(w.answer) + '</b> <span class="pts">+100 pts</span>');
+        if (passing()) passTurn();
 
         if (words.every(x => x.solvedBy)) return endGame(false);
         const list = orderedWords();
@@ -601,7 +606,7 @@
         if (i < 0) return;
         const r = w.dir === 'A' ? w.row : w.row + i, c = w.dir === 'A' ? w.col + i : w.col;
         grid[r + ',' + c].solved = true;
-        const side = mode === 'team' ? turn : 'A';
+        const side = passing() ? turn : 'A';
         scores[side] = Math.max(0, scores[side] - 25);
         typed[i] = null;
         feed('&#128161; Hint used <span class="pts">&minus;25 pts</span> &mdash; a letter is revealed.');
@@ -639,16 +644,19 @@
         clearInterval(timerH); clearInterval(cpuH);
         sfx.end();
         const winner = scores.A === scores.B ? null : (scores.A > scores.B ? 'A' : 'B');
-        const nameA = mode === 'team' ? 'Team Einstein' : 'You';
-        const nameB = mode === 'solo' ? 'Rival Bot' : 'Team Newton';
+        const verdict = mode === 'solo'
+            ? 'You solved ' + solvedCount.A + ' of ' + words.length + ' words!'
+            : (winner === null
+                ? 'It&#8217;s a tie!'
+                : '<b>' + esc(names[winner]) + '</b> ' + (names[winner] === 'You' ? 'win' : 'wins') + ' the board!');
         const ov = document.createElement('div');
         ov.className = 'cw-overlay';
         ov.innerHTML = '<div class="cw-panel">' +
             '<h3>' + (timeUp ? '&#9201; Time&#8217;s up!' : '&#127942; Puzzle complete!') + '</h3>' +
-            '<p>' + (winner === null ? 'It&#8217;s a tie!' : '<b>' + esc(winner === 'A' ? nameA : nameB) + '</b> wins the board!') + '</p>' +
+            '<p>' + verdict + '</p>' +
             '<div class="row">' +
-            '<div class="cw-stat"><b>' + scores.A + '</b><span>' + esc(nameA) + '</span></div>' +
-            '<div class="cw-stat"><b>' + scores.B + '</b><span>' + esc(nameB) + '</span></div>' +
+            '<div class="cw-stat"><b>' + scores.A + '</b><span>' + esc(names.A) + '</span></div>' +
+            (mode === 'solo' ? '' : '<div class="cw-stat"><b>' + scores.B + '</b><span>' + esc(names.B) + '</span></div>') +
             '<div class="cw-stat"><b>' + (solvedCount.A + solvedCount.B) + '/' + words.length + '</b><span>Words solved</span></div>' +
             '</div>' +
             '<button type="button" class="cw-btn" data-act="again">Play Again</button>' +
@@ -704,7 +712,15 @@
     // ---------------- start (shared config hands off here) ----------------
     document.addEventListener('gamified-config:start', async (e) => {
         const cfg = e.detail;
-        mode = cfg.mode === 'team' ? 'team' : 'solo';
+        mode = ['solo', 'bot', 'classmate', 'team'].indexOf(cfg.mode) >= 0 ? cfg.mode : 'bot';
+        if (mode === 'team' && cfg.teams && cfg.teams.count !== 2) {
+            return window.GamifiedConfig.error('Crossword Challenge plays with exactly 2 teams — set "Number of teams" to 2.');
+        }
+        cmList = cfg.classmates || [];
+        names.A = mode === 'team' ? 'Team Einstein' : 'You';
+        names.B = mode === 'bot' ? 'Rival Bot'
+            : mode === 'classmate' ? (cmList.length === 1 ? cmList[0].name : 'Classmates')
+            : 'Team Newton';
         window.GamifiedConfig.loading(true, 'Building your puzzle…');
         try {
             const params = new URLSearchParams({ type: 'identification', limit: '30', difficulty: cfg.difficulty || 'mixed' });
@@ -730,8 +746,10 @@
             const scopeLine = (window.GameScope && window.GameScope.summary) ? window.GameScope.summary() : 'Practice';
             el('cwTopMid').textContent = words.length + '-Question ' + scopeLine + ' Challenge';
             el('cwLive').textContent = mode === 'team' ? 'Live Classroom Game' : 'Practice Game';
-            el('cwALabel').textContent = mode === 'team' ? 'Team Einstein' : 'You';
-            el('cwBLabel').textContent = mode === 'solo' ? 'Rival Bot' : 'Team Newton';
+            el('cwALabel').textContent = names.A;
+            el('cwBLabel').textContent = names.B;
+            // True solo: no opponent — hide the right-hand team card entirely.
+            el('cwCardB').classList.toggle('cw-hidden', mode === 'solo');
 
             el('cwConfig').classList.add('cw-hidden');
             el('cwGame').classList.remove('cw-hidden');
@@ -739,7 +757,7 @@
             turn = 'A';
             selectClue(0);
             startTimer(words.length * 45);
-            if (mode === 'solo') {
+            if (mode === 'bot') {
                 const pace = { average: 60, mixed: 45, advanced: 32 }[cfg.difficulty] || 45;
                 cpuTick(pace * 1000);
             }

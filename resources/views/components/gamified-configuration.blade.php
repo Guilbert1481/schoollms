@@ -19,8 +19,16 @@
             (per-game extras go here — team builder, hearts, verb table…)
        &lt;/x-gamified-configuration&gt;
 
+     Modes (canonical): solo (alone, no opponent) · bot (vs Rival Bot) ·
+     classmate (student invites classmates — built-in picker, roster-fed) ·
+     team (TEACHER-ONLY Team vs Team — built-in team builder: number of teams,
+     Generate random assignment, or manual per-student selects; games with
+     their own builder pass :team-builder="false") · opponent (legacy tug live
+     1v1). 'team' is hidden for students and 'classmate' for teachers.
+
      JS contract (games listen; the component owns the form):
-       • event 'gamified-config:start'  detail={items,type,difficulty,mode,section}
+       • event 'gamified-config:start'  detail={items,type,difficulty,mode,section,
+         classmates:[{id,name}]|null, teams:{count,members:[[{id,name}]]}|null}
          — fired on Start; the game hides this screen and begins.
        • event 'gamified-config:mode'   detail={mode}
          — fired when the mode changes; the game reveals its mode-specific slot.
@@ -42,10 +50,11 @@
     'types'        => [],              // allowed question types (canonical); [] hides
     'typeDefault'  => null,
     'difficulty'   => false,          // show the difficulty select
-    'modes'        => [],             // ['solo','opponent','team']; [] hides
+    'modes'        => [],             // ['solo','bot','classmate','opponent','team']; [] hides
     'modeDefault'  => null,
     'section'      => false,          // teacher-only section select
     'scoring'      => false,          // teacher-only scoring block (opponent/team)
+    'teamBuilder'  => true,           // built-in team builder for 'team' mode; games with their own pass false
     'startLabel'   => 'Start',
     'optionsUrl'   => null,           // difficulty-availability + sections feed
 ])
@@ -65,11 +74,18 @@
     ];
     $itemsList   = array_values(array_filter((array) $items, fn ($n) => (int) $n > 0));
     $typesList   = array_values(array_filter((array) $types, fn ($t) => isset($typeLabels[$t])));
-    $modesList   = array_values(array_intersect((array) $modes, ['solo', 'opponent', 'team']));
-    $modeLabels  = ['solo' => 'Solo', 'opponent' => 'With opponent', 'team' => 'Team vs Team'];
+    $modesList   = array_values(array_intersect((array) $modes, ['solo', 'bot', 'classmate', 'opponent', 'team']));
+    // Role gating: Team vs Team is a teacher-run configuration; inviting a
+    // classmate is a student flow. 'opponent' (tug live 1v1) stays student-open.
+    $modesList   = array_values(array_filter($modesList, fn ($m) => match ($m) {
+        'team' => (bool) $isTeacher,
+        'classmate' => ! $isTeacher,
+        default => true,
+    }));
+    $modeLabels  = ['solo' => 'Solo', 'bot' => 'With Bot', 'classmate' => 'With Classmate', 'opponent' => 'With Classmate', 'team' => 'Team vs Team'];
     $optionsUrl  = $optionsUrl ?? route('tools.games.config-options');
     $typeDefault = $typeDefault ?: ($typesList[0] ?? null);
-    $modeDefault = $modeDefault ?: ($modesList[0] ?? null);
+    $modeDefault = in_array($modeDefault, $modesList, true) ? $modeDefault : ($modesList[0] ?? null);
 @endphp
 
 @once
@@ -102,6 +118,19 @@
 
     [data-gconf] .gconf-teacher{ margin-top:14px; border:1px solid #dbe7d8; background:#f3f9f1; border-radius:12px; padding:12px 14px; }
     [data-gconf] .gconf-teacher-t{ display:flex; align-items:center; gap:6px; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:#4b7b45; margin-bottom:10px; }
+
+    [data-gconf] .gconf-mode-panel{ margin-top:14px; border:1px solid #d7e3f6; background:var(--g-soft); border-radius:12px; padding:12px 14px; }
+    [data-gconf] .gconf-panel-t{ display:flex; align-items:center; gap:6px; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--g-blue-deep); margin-bottom:10px; }
+    [data-gconf] .gconf-people{ max-height:210px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; background:#fff; border:1px solid var(--g-line); border-radius:10px; padding:8px; }
+    [data-gconf] .gconf-person{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--g-ink); padding:4px 6px; border-radius:8px; }
+    [data-gconf] .gconf-person:hover{ background:var(--g-soft); }
+    [data-gconf] .gconf-person input[type=checkbox]{ width:15px; height:15px; accent-color:var(--g-blue); }
+    [data-gconf] .gconf-person .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    [data-gconf] .gconf-person select{ border:1.5px solid var(--g-line); border-radius:8px; padding:4px 8px; font-size:12px; font-weight:700; color:var(--g-ink); background:#fff; cursor:pointer; }
+    [data-gconf] .gconf-empty{ font-size:12.5px; color:#6b7a90; padding:6px; }
+    [data-gconf] .gconf-genbtn{ width:100%; margin-bottom:10px; border:1.5px solid var(--g-blue); background:#fff; color:var(--g-blue-deep); border-radius:10px; padding:10px; font-size:13px; font-weight:800; cursor:pointer; }
+    [data-gconf] .gconf-genbtn:hover{ background:#e8f0ff; }
+    [data-gconf] .gconf-hint-line{ font-size:11px; color:#6b7a90; margin-top:8px; }
 
     [data-gconf] .gconf-slot:not(:empty){ margin-top:16px; }
     [data-gconf] .gconf-error{ margin-top:14px; background:#fff2f0; border:1px solid #f6c6bf; color:#b3261a; border-radius:10px; padding:10px 14px; font-size:13px; }
@@ -180,6 +209,37 @@
                 @endif
             </div>
 
+            @if(in_array('classmate', $modesList, true))
+                {{-- Student flow: tick classmates to play with on this screen. --}}
+                <div id="gconfCmPanel" class="gconf-mode-panel gconf-hidden">
+                    <div class="gconf-panel-t"><span>&#129309;</span> Invite classmates to play with you</div>
+                    <select id="gconfCmClass" class="gconf-sel" style="margin-bottom:8px;"></select>
+                    <div id="gconfCmList" class="gconf-people"><div class="gconf-empty">Loading classmates&hellip;</div></div>
+                    <div class="gconf-hint-line">Invited classmates play on this screen, pass-and-play style.</div>
+                </div>
+            @endif
+
+            @if(in_array('team', $modesList, true) && $teamBuilder)
+                {{-- Teacher flow: split the class into teams — Generate assigns
+                     randomly, or set each student's team by hand. --}}
+                <div id="gconfTeamPanel" class="gconf-mode-panel gconf-hidden">
+                    <div class="gconf-panel-t"><span>&#128101;</span> Team builder (teacher)</div>
+                    <div class="gconf-grid" style="margin-bottom:10px;">
+                        <div class="gconf-field">
+                            <label class="gconf-label" for="gconfTeamCount">Number of teams</label>
+                            <input id="gconfTeamCount" class="gconf-num" type="number" min="2" max="6" value="2">
+                        </div>
+                        <div class="gconf-field">
+                            <label class="gconf-label" for="gconfTbClass">Class</label>
+                            <select id="gconfTbClass" class="gconf-sel"></select>
+                        </div>
+                    </div>
+                    <button type="button" id="gconfGenerate" class="gconf-genbtn">&#127922; Generate &mdash; assign students randomly</button>
+                    <div id="gconfTbList" class="gconf-people"><div class="gconf-empty">Loading students&hellip;</div></div>
+                    <div id="gconfTbSummary" class="gconf-hint-line"></div>
+                </div>
+            @endif
+
             @if($section && $isTeacher)
                 <div class="gconf-teacher">
                     <div class="gconf-teacher-t"><span>🔒</span> Teacher only</div>
@@ -254,7 +314,121 @@
     const modeSel = el('gconfMode');
     if (modeSel) {
         modeSel.addEventListener('change', () => {
+            updateModePanels();
             document.dispatchEvent(new CustomEvent('gamified-config:mode', { detail: { mode: modeSel.value } }));
+        });
+    }
+
+    // ---- classmate picker + team builder (shared roster feed) ---------------
+    const ROSTER_URL = @json(route('tools.games.sessions.classmates'));
+    let rosterData = null, rosterPromise = null;
+    const cmSelected = new Set();   // invited classmate student ids
+    let tbAssign = {};              // studentId -> team number (1-based)
+    const peopleNames = {};         // studentId -> display name
+
+    function loadRoster() {
+        rosterPromise = rosterPromise || fetch(ROSTER_URL, { headers: { Accept: 'application/json' } })
+            .then(r => r.ok ? r.json() : { classes: [] })
+            .catch(() => ({ classes: [] }))
+            .then(d => { rosterData = d; return d; });
+        return rosterPromise;
+    }
+    function rosterClasses() { return (rosterData && rosterData.classes) || []; }
+    function classFor(sel) {
+        const classes = rosterClasses();
+        return classes.find(c => String(c.id) === sel.value) || classes[0] || null;
+    }
+    function fillClassSelect(sel, onChange) {
+        if (sel.dataset.filled) return;
+        sel.innerHTML = rosterClasses().map(c => '<option value="' + c.id + '">' + escapeHtml(c.label) + '</option>').join('');
+        sel.dataset.filled = '1';
+        sel.addEventListener('change', onChange);
+    }
+
+    function updateModePanels() {
+        const mode = modeSel ? modeSel.value : null;
+        const cm = el('gconfCmPanel'), tb = el('gconfTeamPanel');
+        if (cm) cm.classList.toggle('gconf-hidden', mode !== 'classmate');
+        if (tb) tb.classList.toggle('gconf-hidden', mode !== 'team');
+        if (cm && mode === 'classmate') loadRoster().then(renderClassmates);
+        if (tb && mode === 'team') loadRoster().then(renderTeamBuilder);
+    }
+
+    function renderClassmates() {
+        const sel = el('gconfCmClass'), list = el('gconfCmList');
+        if (!rosterClasses().length) {
+            sel.classList.add('gconf-hidden');
+            list.innerHTML = '<div class="gconf-empty">No classmates found for your classes yet.</div>';
+            return;
+        }
+        sel.classList.remove('gconf-hidden');
+        fillClassSelect(sel, renderClassmates);
+        const cls = classFor(sel);
+        const students = cls ? cls.students : [];
+        list.innerHTML = students.length ? students.map(s => {
+            peopleNames[s.id] = s.name;
+            return '<label class="gconf-person"><input type="checkbox" data-cm="' + s.id + '" ' + (cmSelected.has(s.id) ? 'checked' : '') + '>'
+                + '<span class="nm">' + escapeHtml(s.name) + '</span></label>';
+        }).join('') : '<div class="gconf-empty">No classmates in this class yet.</div>';
+        list.querySelectorAll('[data-cm]').forEach(cb => cb.addEventListener('change', () => {
+            const id = parseInt(cb.dataset.cm, 10);
+            if (cb.checked) cmSelected.add(id); else cmSelected.delete(id);
+        }));
+    }
+
+    function teamCount() {
+        const n = el('gconfTeamCount') ? parseInt(el('gconfTeamCount').value, 10) : 2;
+        return Number.isFinite(n) ? Math.min(6, Math.max(2, n)) : 2;
+    }
+    function tbStudents() {
+        const cls = el('gconfTbClass') ? classFor(el('gconfTbClass')) : null;
+        return cls ? cls.students : [];
+    }
+    function renderTeamBuilder() {
+        const sel = el('gconfTbClass'), list = el('gconfTbList');
+        if (!rosterClasses().length) {
+            list.innerHTML = '<div class="gconf-empty">No classes with students found.</div>';
+            el('gconfTbSummary').textContent = '';
+            return;
+        }
+        fillClassSelect(sel, () => { tbAssign = {}; renderTeamBuilder(); });
+        const students = tbStudents(), n = teamCount();
+        list.innerHTML = students.length ? students.map(s => {
+            peopleNames[s.id] = s.name;
+            const cur = tbAssign[s.id] || 0;
+            let opts = '<option value="0">&mdash; No team</option>';
+            for (let t = 1; t <= n; t++) opts += '<option value="' + t + '" ' + (cur === t ? 'selected' : '') + '>Team ' + t + '</option>';
+            return '<div class="gconf-person"><span class="nm">' + escapeHtml(s.name) + '</span><select data-tb="' + s.id + '">' + opts + '</select></div>';
+        }).join('') : '<div class="gconf-empty">No students in this class yet.</div>';
+        list.querySelectorAll('[data-tb]').forEach(dd => dd.addEventListener('change', () => {
+            const id = parseInt(dd.dataset.tb, 10), t = parseInt(dd.value, 10);
+            if (t > 0) tbAssign[id] = t; else delete tbAssign[id];
+            paintTbSummary();
+        }));
+        paintTbSummary();
+    }
+    function paintTbSummary() {
+        const students = tbStudents(), n = teamCount();
+        const counts = Array.from({ length: n }, () => 0);
+        let assigned = 0;
+        students.forEach(s => { const t = tbAssign[s.id]; if (t >= 1 && t <= n) { counts[t - 1]++; assigned++; } });
+        el('gconfTbSummary').textContent = counts.map((c, i) => 'Team ' + (i + 1) + ': ' + c).join(' · ')
+            + ' · Unassigned: ' + (students.length - assigned);
+    }
+    if (el('gconfGenerate')) {
+        el('gconfGenerate').addEventListener('click', () => {
+            const students = tbStudents().slice();
+            for (let i = students.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [students[i], students[j]] = [students[j], students[i]]; }
+            tbAssign = {};
+            students.forEach((s, i) => { tbAssign[s.id] = (i % teamCount()) + 1; });
+            renderTeamBuilder();
+        });
+    }
+    if (el('gconfTeamCount')) {
+        el('gconfTeamCount').addEventListener('change', () => {
+            const n = teamCount();
+            Object.keys(tbAssign).forEach(id => { if (tbAssign[id] > n) delete tbAssign[id]; });
+            renderTeamBuilder();
         });
     }
 
@@ -302,12 +476,30 @@
             const n = el(id) ? parseInt(el(id).value, 10) : NaN;
             return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : fallback;
         };
+        const mode = el('gconfMode') ? el('gconfMode').value : null;
+        let teams = null;
+        if (el('gconfTeamPanel') && mode === 'team') {
+            const n = teamCount();
+            const members = Array.from({ length: n }, () => []);
+            Object.keys(tbAssign).forEach(id => {
+                const t = tbAssign[id];
+                if (t >= 1 && t <= n) members[t - 1].push({ id: parseInt(id, 10), name: peopleNames[id] || ('Student ' + id) });
+            });
+            teams = { count: n, members: members };
+        }
         return {
             items:      itemsValue(),
             type:       el('gconfType') ? el('gconfType').value : null,
             difficulty: el('gconfDiff') ? el('gconfDiff').value : null,
-            mode:       el('gconfMode') ? el('gconfMode').value : null,
+            mode:       mode,
             section:    el('gconfSection') ? (el('gconfSection').value || null) : null,
+            // Invited classmates (student 'classmate' mode) — real names; the
+            // game shows cartoon avatars until student photos are on file.
+            classmates: el('gconfCmPanel')
+                ? Array.from(cmSelected).map(id => ({ id: id, name: peopleNames[id] || ('Student ' + id) }))
+                : null,
+            // Teacher team builder output for 'team' mode.
+            teams:      teams,
             // Teacher scoring (display-only; no gradebook write yet).
             scoring:    el('gconfWinPct') ? {
                 points:     intVal('gconfPoints', 1),
@@ -335,6 +527,12 @@
         if (el('gconfItems') && !cfg.items) {
             return window.GamifiedConfig.error('Enter a valid number of items (1–50).');
         }
+        if (cfg.mode === 'classmate' && (!cfg.classmates || !cfg.classmates.length)) {
+            return window.GamifiedConfig.error('Tick at least one classmate to invite.');
+        }
+        if (cfg.mode === 'team' && cfg.teams && cfg.teams.members.some(m => !m.length)) {
+            return window.GamifiedConfig.error('Every team needs at least one student — use Generate or assign them manually.');
+        }
         document.dispatchEvent(new CustomEvent('gamified-config:start', { detail: cfg }));
     });
 
@@ -343,5 +541,6 @@
     }
 
     loadOptions();
+    updateModePanels();
 })();
 </script>

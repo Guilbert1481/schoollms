@@ -180,6 +180,7 @@
             mode-default="team"
             :section="true"
             :scoring="true"
+            :team-builder="false"
             start-label="Start now">
 
             {{-- Per-game extras (dropped into the component's slot). --}}

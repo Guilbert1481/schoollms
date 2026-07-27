@@ -192,17 +192,19 @@
 @endverbatim
 
     {{-- ============ CONFIG (shared component) ============ --}}
+    @php $agIsTeacher = ($ctx['role'] ?? 'student') === 'teacher'; @endphp
     <div id="agConfig">
         <x-gamified-configuration
             title="Anagram Challenge"
             subtitle="Unscramble the jumbled letters back into the correct answer — three attempts per word."
             icon="🔀"
+            :is-teacher="$agIsTeacher"
             :items="[10, 15, 20]"
             :items-default="10"
             :types="['identification']"
             :difficulty="true"
-            :modes="['solo', 'team']"
-            mode-default="solo"
+            :modes="['solo', 'bot', 'classmate', 'team']"
+            mode-default="bot"
             start-label="Start the challenge" />
     </div>
 
@@ -302,7 +304,7 @@
         <div class="ag-bottom">
             <div class="ag-benches">
                 <div id="agBenchA" class="ag-bench a"></div>
-                <div class="ag-benchdiv"></div>
+                <div id="agBenchDiv" class="ag-benchdiv"></div>
                 <div id="agBenchB" class="ag-bench b"></div>
             </div>
             <div class="ag-feed"><span class="lt" id="agFeedLt">?</span><span id="agFeed">Place your first letter!</span></div>
@@ -442,27 +444,51 @@
     const TEAM_NAMES = { A: 'Team Einstein', B: 'Team Newton' };
     let roster = { A: [], B: [] };
 
-    function buildRoster() {
+    // Modes: solo (alone, no opponent) · bot (vs Rival Bot) · classmate (you
+    // vs invited classmates, pass-and-play) · team (teacher-built 2 teams).
+    const look = (id) => LOOKS[Math.abs(parseInt(id, 10) || 0) % LOOKS.length];
+    function buildRoster(cfg) {
         if (mode === 'solo') {
             roster.A = [{ n: 'You', img: avatarUri(LOOKS[0]) }];
+            roster.B = [];
+        } else if (mode === 'bot') {
+            roster.A = [{ n: 'You', img: avatarUri(LOOKS[0]) }];
             roster.B = [{ n: 'Rival Bot', cpu: true }];
+        } else if (mode === 'classmate') {
+            roster.A = [{ n: 'You', img: avatarUri(LOOKS[0]) }];
+            roster.B = (cfg.classmates || []).map(c => ({ n: c.name, img: avatarUri(look(c.id)) }));
+            if (!roster.B.length) roster.B = [{ n: 'Classmate', img: avatarUri(LOOKS[4]) }];
+        } else if (cfg.teams && cfg.teams.members && cfg.teams.members.length >= 2) {
+            roster.A = cfg.teams.members[0].map(c => ({ n: c.name, img: avatarUri(look(c.id)) }));
+            roster.B = cfg.teams.members[1].map(c => ({ n: c.name, img: avatarUri(look(c.id)) }));
         } else {
             roster.A = ['Mia', 'Leo', 'Zoe', 'Noah'].map((n, i) => ({ n: n, img: avatarUri(LOOKS[i]) }));
             roster.B = ['Ava', 'Ethan', 'Lily', 'Lucas'].map((n, i) => ({ n: n, img: avatarUri(LOOKS[4 + i]) }));
         }
     }
-    const teamLabel = (t) => mode === 'solo' ? (t === 'A' ? 'Your Team' : 'Rival Bot') : TEAM_NAMES[t];
-    const turnText = (t) => mode === 'solo'
-        ? (t === 'A' ? 'Your Turn' : "Rival Bot's Turn")
-        : (t === 'A' ? "Einstein's Turn" : "Newton's Turn");
-    const isBotTurn = () => mode === 'solo' && turn === 'B';
-    const guesserName = () => roster[turn][seat[turn] % roster[turn].length].n;
+    const teamLabel = (t) => {
+        if (mode === 'team') return TEAM_NAMES[t];
+        if (t === 'A') return mode === 'solo' ? 'You' : 'Your Team';
+        if (mode === 'bot') return 'Rival Bot';
+        return roster.B.length === 1 ? roster.B[0].n : 'Classmates';
+    };
+    const turnText = (t) => {
+        if (t === 'A') return mode === 'team' ? "Einstein's Turn" : 'Your Turn';
+        if (mode === 'bot') return "Rival Bot's Turn";
+        if (mode === 'classmate') return roster.B.length === 1 ? roster.B[0].n + "'s Turn" : "Classmates' Turn";
+        return "Newton's Turn";
+    };
+    const isBotTurn = () => mode === 'bot' && turn === 'B';
+    const guesserName = () => roster[turn].length ? roster[turn][seat[turn] % roster[turn].length].n : 'You';
 
     // ---------------- start ----------------
     async function start(cfg) {
         window.GamifiedConfig.clearError();
-        window.GamifiedConfig.loading(true, 'Loading…');
         mode = cfg.mode || 'solo';
+        if (mode === 'team' && cfg.teams && cfg.teams.count !== 2) {
+            return window.GamifiedConfig.error('Anagram Challenge plays with exactly 2 teams — set "Number of teams" to 2.');
+        }
+        window.GamifiedConfig.loading(true, 'Loading…');
         const limit = cfg.items || 10;
         let usedFallback = false;
         try {
@@ -485,7 +511,11 @@
         }
 
         el('agDeckNote').classList.toggle('ag-hidden', !usedFallback);
-        buildRoster();
+        buildRoster(cfg);
+        // True solo: no opponent — hide the right-hand team card and bench.
+        el('agCardB').classList.toggle('ag-hidden', mode === 'solo');
+        el('agBenchB').classList.toggle('ag-hidden', mode === 'solo');
+        el('agBenchDiv').classList.toggle('ag-hidden', mode === 'solo');
         roundIdx = 0; scores = { A: 0, B: 0 }; solved = { A: 0, B: 0 }; streak = { A: 0, B: 0 };
         segResult = new Array(questions.length).fill(null);
         seat = { A: 0, B: 0 }; over = false; paused = false;
@@ -549,7 +579,7 @@
         slots = new Array(letters.length).fill(null);
         attempts = 0; hintsUsed = false; roundOver = false;
         roundStart = timerLeft;
-        turn = roundIdx % 2 === 0 ? 'A' : 'B';
+        turn = mode === 'solo' ? 'A' : (roundIdx % 2 === 0 ? 'A' : 'B');
         botPlan = null;
 
         el('agQNow').textContent = roundIdx + 1;
@@ -771,16 +801,19 @@
 
     function renderChips() {
         ['A', 'B'].forEach(t => {
-            el('ag' + t + 'Chips').innerHTML = roster[t].map(p => p.cpu
+            const shown = roster[t].slice(0, 4), extra = roster[t].length - shown.length;
+            el('ag' + t + 'Chips').innerHTML = shown.map(p => p.cpu
                 ? '<span class="ag-chip cpu">\u{1F916}</span>'
-                : '<span class="ag-chip"><img src="' + p.img + '" alt="' + esc(p.n) + '"></span>').join('');
+                : '<span class="ag-chip"><img src="' + p.img + '" alt="' + esc(p.n) + '"></span>').join('')
+                + (extra > 0 ? '<span class="ag-chip cpu">+' + extra + '</span>' : '');
         });
     }
 
     function renderBenches() {
         ['A', 'B'].forEach(t => {
             const activeTeam = t === turn && !roundOver && !over;
-            el('agBench' + t).innerHTML = roster[t].map((p, i) => {
+            const shown = roster[t].slice(0, 5), extra = roster[t].length - shown.length;
+            el('agBench' + t).innerHTML = shown.map((p, i) => {
                 let st = '<span class="st">Online</span>', dot = '';
                 if (activeTeam) {
                     if (i === seat[t] % roster[t].length) { st = '<span class="st arr">Arranging</span>'; dot = ' bl'; }
@@ -791,7 +824,8 @@
                     ? '<div class="av cpu">\u{1F916}<span class="dot' + dot + '"></span></div>'
                     : '<div class="av"><img src="' + p.img + '" alt=""><span class="dot' + dot + '"></span></div>';
                 return '<div class="ag-p ' + (t === 'B' ? 'b' : 'a') + '">' + av + '<div class="nm">' + esc(p.n) + '</div>' + st + '</div>';
-            }).join('');
+            }).join('')
+                + (extra > 0 ? '<div class="ag-p ' + (t === 'B' ? 'b' : 'a') + '"><div class="av cpu">+' + extra + '</div><div class="nm">more</div></div>' : '');
         });
     }
 
@@ -827,20 +861,28 @@
         clearInterval(timerH); clearInterval(botH); clearTimeout(nextH);
         sfx.end();
         const a = scores.A, b = scores.B;
-        const winner = a === b ? null : (a > b ? 'A' : 'B');
-        const headline = winner === null
-            ? "It's a tie!"
-            : (mode === 'solo'
-                ? (winner === 'A' ? '\u{1F3C6} You win!' : '\u{1F916} Rival Bot wins!')
-                : '\u{1F3C6} ' + teamLabel(winner) + ' wins!');
+        let headline, statsHtml;
+        if (mode === 'solo') {
+            headline = '\u{1F3C6} Challenge complete!';
+            statsHtml =
+                '<div class="ag-stat"><b>' + a + '</b><span>Your points</span></div>'
+                + '<div class="ag-stat"><b>' + solved.A + '/' + questions.length + '</b><span>Words solved</span></div>';
+        } else {
+            const winner = a === b ? null : (a > b ? 'A' : 'B');
+            headline = winner === null
+                ? "It's a tie!"
+                : (mode === 'bot'
+                    ? (winner === 'A' ? '\u{1F3C6} You win!' : '\u{1F916} Rival Bot wins!')
+                    : '\u{1F3C6} ' + teamLabel(winner) + (teamLabel(winner) === 'You' ? ' win!' : ' wins!'));
+            statsHtml =
+                '<div class="ag-stat"><b>' + a + '</b><span>' + esc(teamLabel('A')) + '</span></div>'
+                + '<div class="ag-stat"><b>' + b + '</b><span>' + esc(teamLabel('B')) + '</span></div>'
+                + '<div class="ag-stat"><b>' + solved.A + ' – ' + solved.B + '</b><span>Words solved</span></div>';
+        }
         el('agEndPanel').innerHTML =
             '<h3>' + esc(headline) + '</h3>'
             + '<p>' + (timeUp ? "Time's up! Final tally:" : 'All ' + questions.length + ' questions played. Final tally:') + '</p>'
-            + '<div class="row">'
-            +   '<div class="ag-stat"><b>' + a + '</b><span>' + esc(teamLabel('A')) + '</span></div>'
-            +   '<div class="ag-stat"><b>' + b + '</b><span>' + esc(teamLabel('B')) + '</span></div>'
-            +   '<div class="ag-stat"><b>' + solved.A + ' – ' + solved.B + '</b><span>Words solved</span></div>'
-            + '</div>'
+            + '<div class="row">' + statsHtml + '</div>'
             + '<p style="font-size:12px">Practice game — nothing here is graded.</p>'
             + '<div><button type="button" id="agAgain" class="ag-btn">Play again</button>'
             + '<button type="button" id="agExit" class="ag-btn alt">Exit</button></div>';

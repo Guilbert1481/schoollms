@@ -45,4 +45,27 @@ class GamifiedConfigRenderTest extends TestCase
             'anagrams' => ['anagrams', 'id="agGame"'],
         ];
     }
+
+    /**
+     * Play-mode gating: Team vs Team (+ its team builder) is teacher-only,
+     * With Classmate (+ its invite picker) is student-only.
+     */
+    public function test_play_mode_options_are_role_gated(): void
+    {
+        $school = School::factory()->create();
+        $teacher = User::factory()->create(['school_id' => $school->id, 'role' => 'teacher']);
+        $student = User::factory()->create(['school_id' => $school->id, 'role' => 'student']);
+
+        $this->actingAs($teacher)->get(route('tools.games.play', ['slug' => 'hangman']))
+            ->assertOk()
+            ->assertSee('Team vs Team')
+            ->assertSee('id="gconfTeamPanel"', false)
+            ->assertDontSee('With Classmate');
+
+        $this->actingAs($student)->get(route('tools.games.play', ['slug' => 'hangman']))
+            ->assertOk()
+            ->assertSee('With Classmate')
+            ->assertSee('id="gconfCmPanel"', false)
+            ->assertDontSee('Team vs Team');
+    }
 }
