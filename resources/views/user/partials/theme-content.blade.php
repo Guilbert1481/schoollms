@@ -83,6 +83,10 @@
                                     </option>
                                 @endforeach
                             </optgroup>
+                            <optgroup label="Dark Interface">
+                                <option value="black" {{ ($sidebar['color'] ?? '') == 'black' ? 'selected' : '' }}>Black</option>
+                                <option value="navy" {{ ($sidebar['color'] ?? '') == 'navy' ? 'selected' : '' }}>Navy Blue</option>
+                            </optgroup>
                             <optgroup label="Light Interface">
                                 <option value="white" {{ ($sidebar['color'] ?? '') == 'white' ? 'selected' : '' }}>Pure White</option>
                                 <option value="light" {{ ($sidebar['color'] ?? '') == 'light' ? 'selected' : '' }}>Soft Gray</option>
@@ -145,6 +149,10 @@
                                         {{ ucfirst($color) }}
                                     </option>
                                 @endforeach
+                            </optgroup>
+                            <optgroup label="Dark Interface">
+                                <option value="black" {{ ($header['color'] ?? '') == 'black' ? 'selected' : '' }}>Black</option>
+                                <option value="navy" {{ ($header['color'] ?? '') == 'navy' ? 'selected' : '' }}>Navy Blue</option>
                             </optgroup>
                             <optgroup label="Light Interface">
                                 <option value="white" {{ ($header['color'] ?? '') == 'white' ? 'selected' : '' }}>Pure White</option>
