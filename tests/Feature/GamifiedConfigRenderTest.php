@@ -42,6 +42,7 @@ class GamifiedConfigRenderTest extends TestCase
         return [
             'tug-of-war' => ['tug-of-war', 'id="tugGame"'],
             'hangman' => ['hangman', 'id="hmGame"'],
+            'anagrams' => ['anagrams', 'id="agGame"'],
         ];
     }
 }
