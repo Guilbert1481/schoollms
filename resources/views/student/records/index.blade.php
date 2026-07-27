@@ -55,15 +55,15 @@
                 </select>
             </div>
             @if ($isBasicEd)
-                <div>
-                    <label class="mb-1 block text-xs font-semibold text-slate-500">Quarter</label>
-                    <select name="period" onchange="this.form.submit()"
-                            class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                        <option value="">All quarters</option>
-                        @foreach ([1, 2, 3, 4] as $q)
-                            <option value="{{ $q }}" @selected(($filters['period'] ?? null) == $q)>Quarter {{ $q }}</option>
-                        @endforeach
-                    </select>
+                {{-- Basic-ed grading-period filter — names come from Principal →
+                     Settings → Grades → Division (falls back to the defaults). --}}
+                @php
+                    $gpSetting = \App\Models\GradeSetting::where('school_id', (int) (auth()->user()?->school_id ?? 0))->first();
+                @endphp
+                <div class="w-44">
+                    <label class="mb-1 block text-xs font-semibold text-slate-500">{{ $gpSetting?->periodLabel() ?? \App\Models\GradeSetting::DEFAULT_PERIOD_LABEL }}</label>
+                    <x-grading_period_basiced name="period" :selected="$filters['period'] ?? null"
+                        :auto-submit="true" :include-all="true" :show-label="false" :setting="$gpSetting" />
                 </div>
             @else
                 <div>

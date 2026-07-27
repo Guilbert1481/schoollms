@@ -92,14 +92,7 @@
                         @endif
                     </div>
                     @if ($context['track'] === 'basic')
-                        <div>
-                            <label class="mb-1 block text-xs font-medium text-slate-600">Grading period</label>
-                            <select name="grading_period" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                                @foreach ([1 => '1st', 2 => '2nd', 3 => '3rd', 4 => '4th'] as $p => $label)
-                                    <option value="{{ $p }}">{{ $label }} grading</option>
-                                @endforeach
-                            </select>
-                        </div>
+                        <x-grading_period_basiced name="grading_period" :selected="old('grading_period')" />
                     @endif
                 </div>
 

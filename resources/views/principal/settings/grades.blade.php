@@ -4,7 +4,14 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="mx-auto w-full max-w-4xl space-y-6 p-4 md:p-6" x-data="{ tab: '{{ session('grades_tab', 'threshold') }}' }">
+@php
+    // Land on the Division tab when its own validation failed, otherwise honour
+    // the flashed tab (set after a successful save) or the default.
+    $divisionHasError = $errors->has('period_label')
+        || collect($errors->keys())->contains(fn ($k) => str_starts_with($k, 'period_names'));
+    $gradesInitialTab = $divisionHasError ? 'division' : session('grades_tab', 'threshold');
+@endphp
+<div class="w-full space-y-6" x-data="{ tab: '{{ $gradesInitialTab }}' }">
 
     {{-- Header --}}
     <div>
@@ -40,6 +47,11 @@
                     :class="tab === 'student_grade' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
                     class="px-4 py-2 text-sm font-semibold border-b-2 transition">
                 Student Grade
+            </button>
+            <button type="button" @click="tab = 'division'"
+                    :class="tab === 'division' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
+                    class="px-4 py-2 text-sm font-semibold border-b-2 transition">
+                Division
             </button>
             {{-- Future threshold types will get their own tabs here. --}}
         </nav>
@@ -124,6 +136,91 @@
                            @checked(old('show_student_form137', $settings->show_student_form137))>
                     <span class="grade-slider"></span>
                 </label>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex justify-end">
+                <button type="submit"
+                        class="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-700">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {{-- Division tab: name the basic-ed grading periods. The period stays an
+         ordinal (1..N) everywhere; this only changes how it reads. Capped at the
+         grade pipeline's supported maximum. Alpine drives the editable list;
+         display:none avoids a flash before Alpine boots. --}}
+    <div x-show="tab === 'division'" style="display: none;"
+         class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <form method="POST" action="{{ route('principal.settings.grades.division') }}" class="space-y-6"
+              x-data="{
+                  label: @js(old('period_label', $settings->periodLabel())),
+                  periods: @js(array_values(old('period_names', array_values($settings->periods())))),
+                  max: {{ \App\Models\GradeSetting::MAX_PERIODS }},
+                  ordinal(i) { return ['1st','2nd','3rd','4th','5th','6th'][i] || (i + 1) + 'th'; },
+                  add() { if (this.periods.length < this.max) this.periods.push(''); },
+                  removeLast() { if (this.periods.length > 1) this.periods.pop(); },
+              }">
+            @csrf
+
+            <p class="text-xs text-slate-500">
+                Name the grading periods for basic education. This changes only how the period reads —
+                teachers still grade the same periods in order. Shown wherever a period is picked
+                (gradebook, homework, and more).
+            </p>
+
+            {{-- The collective noun --}}
+            <div>
+                <label for="period_label" class="block text-sm font-bold text-slate-700 mb-1">Grading period name</label>
+                <p class="text-xs text-slate-500 mb-2">
+                    The word your school uses for one grading period — e.g. Quarter, Term, or Grading Period.
+                </p>
+                <input type="text" id="period_label" name="period_label" x-model="label" maxlength="40"
+                       placeholder="Quarter"
+                       class="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            {{-- The per-period names --}}
+            <div>
+                <div class="block text-sm font-bold text-slate-700 mb-1">Periods</div>
+                <p class="text-xs text-slate-500 mb-3">
+                    Up to <span x-text="max"></span> periods, in order — these are the options teachers and students see.
+                    Rename any of them freely; add or remove periods from the end. You can't remove a period once grades
+                    have been posted to it.
+                </p>
+
+                <div class="space-y-2">
+                    <template x-for="(name, i) in periods" :key="i">
+                        <div class="flex items-center gap-2">
+                            <span class="w-8 shrink-0 text-xs font-semibold text-slate-400" x-text="ordinal(i)"></span>
+                            <input type="text" name="period_names[]" x-model="periods[i]" maxlength="60"
+                                   :placeholder="ordinal(i) + ' ' + (label || 'Quarter')"
+                                   class="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            {{-- Removal is tail-only: dropping a middle period would
+                                 renumber the ones after it and shift the labels of
+                                 already-posted grades. Only the last row can be removed. --}}
+                            <button type="button" @click="removeLast()"
+                                    x-show="i === periods.length - 1 && periods.length > 1"
+                                    class="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                                    title="Remove the last period" aria-label="Remove the last period">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 5v6m4-6v6"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <button type="button" @click="add()" x-show="periods.length < max"
+                        class="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:border-indigo-400 hover:text-indigo-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Add period
+                </button>
             </div>
 
             <div class="pt-2 border-t border-slate-100 flex justify-end">
