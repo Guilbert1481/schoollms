@@ -8,7 +8,6 @@ use App\Models\CurriculumSubject;
 use App\Models\StudentEnrollment;
 use App\Models\StudentEnrollmentSubject;
 use App\Services\Academics\Form137Service;
-use App\Services\Academics\ReportCardService;
 use Illuminate\Support\Facades\Auth;
 
 class TranscriptController extends Controller
@@ -26,21 +25,19 @@ class TranscriptController extends Controller
      */
     public function index()
     {
-        $user    = Auth::user();
+        $user = Auth::user();
         $student = $user?->student ?? \App\Models\Student::where('user_id', $user?->id)->first();
 
         $columns = config('tables.transcript.columns', []);
 
         $blank = [
-            'columns'        => $columns,
-            'groups'         => collect(),
-            'programLabel'   => '—',
-            'totalUnits'     => 0,
-            'requiredUnits'  => 0,
-            'percentDone'    => 0,
-            'gwa'            => null,
-            'report'         => $student ? app(ReportCardService::class)->build($student) : null,
-            'rcEditable'     => false,
+            'columns' => $columns,
+            'groups' => collect(),
+            'programLabel' => '—',
+            'totalUnits' => 0,
+            'requiredUnits' => 0,
+            'percentDone' => 0,
+            'gwa' => null,
         ];
 
         if (! $student) {
@@ -54,14 +51,12 @@ class TranscriptController extends Controller
             $data = $form137->build($student);
 
             return view('transcript.form137', [
-                'student'    => $student,
-                'sections'   => $data['sections'],
-                'summary'    => $data['summary'],
-                'backUrl'    => route('student.dashboard'),
-                'backLabel'  => 'Back to Dashboard',
-                'editable'   => false,   // students view their record read-only
-                'report'     => app(ReportCardService::class)->build($student),
-                'rcEditable' => false,
+                'student' => $student,
+                'sections' => $data['sections'],
+                'summary' => $data['summary'],
+                'backUrl' => route('student.dashboard'),
+                'backLabel' => 'Back to Dashboard',
+                'editable' => false,   // students view their record read-only
             ]);
         }
 
@@ -90,9 +85,9 @@ class TranscriptController extends Controller
 
         // Determine the school's term structure so we can render every
         // semester (1st..Nth) even when no subjects are scheduled for it yet.
-        $termsPerYear  = (int) ($curriculum->terms_per_year ?: 2);
+        $termsPerYear = (int) ($curriculum->terms_per_year ?: 2);
         $hasSummerTerm = (bool) ($curriculum->has_summer_term ?? false);
-        $expectedSems  = range(1, max(1, $termsPerYear));
+        $expectedSems = range(1, max(1, $termsPerYear));
         if ($hasSummerTerm && ! in_array(3, $expectedSems, true)) {
             $expectedSems[] = 3; // legacy "summer = sem 3" convention for bi-sem
         }
@@ -124,13 +119,13 @@ class TranscriptController extends Controller
                     's.name as subject_name',
                 ])
                 ->map(fn ($r) => (object) [
-                    'id'         => $r->id,
+                    'id' => $r->id,
                     'subject_id' => $r->subject_id,
                     'year_level' => $r->year_level,
-                    'semester'   => $r->semester,
-                    'units'      => $r->units,
-                    'subject'    => (object) [
-                        'id'   => $r->subject_id,
+                    'semester' => $r->semester,
+                    'units' => $r->units,
+                    'subject' => (object) [
+                        'id' => $r->subject_id,
                         'code' => $r->subject_code,
                         'name' => $r->subject_name,
                     ],
@@ -170,27 +165,27 @@ class TranscriptController extends Controller
         $requiredUnits = (float) $curriculumRows->sum('units');
 
         $rows = $curriculumRows->map(function ($cs) use ($taken, $termsPerYear, $teacherByClass) {
-            $subj    = $cs->subject;
-            $units   = (float) ($cs->units ?? 0);
-            $sem     = (int) $cs->semester;
-            $year    = (int) $cs->year_level;
+            $subj = $cs->subject;
+            $units = (float) ($cs->units ?? 0);
+            $sem = (int) $cs->semester;
+            $year = (int) $cs->year_level;
             $semWord = self::semesterLabel($sem, $termsPerYear);
 
-            $record  = $taken->get($cs->subject_id);
-            $grade   = $record?->grade;
-            $status  = strtolower((string) ($record->status ?? ''));
+            $record = $taken->get($cs->subject_id);
+            $grade = $record?->grade;
+            $status = strtolower((string) ($record->status ?? ''));
             $teacher = ($record && $record->class_id ? ($teacherByClass[(int) $record->class_id] ?? '') : '') ?: '—';
 
-            $isCredit  = in_array($status, ['credit', 'credited', 'transferred']);
-            $isFailed  = $status === 'failed' || (is_numeric($grade) && self::isFailing((float) $grade));
-            $isPassed  = ! $isCredit && ! $isFailed && in_array($status, ['passed', 'completed']) && is_numeric($grade);
+            $isCredit = in_array($status, ['credit', 'credited', 'transferred']);
+            $isFailed = $status === 'failed' || (is_numeric($grade) && self::isFailing((float) $grade));
+            $isPassed = ! $isCredit && ! $isFailed && in_array($status, ['passed', 'completed']) && is_numeric($grade);
             $isOngoing = ! $isCredit && ! $isFailed && ! $isPassed && $status === 'enrolled';
-            $finished  = $isCredit || $isFailed || $isPassed;
+            $finished = $isCredit || $isFailed || $isPassed;
 
             // Term column: bottom AY line shown only when subject is actually
             // finished. Otherwise just the curriculum semester is displayed.
             $ayName = $record?->enrollment?->term?->academicYear?->name;
-            $termTopHtml    = '<div style="font-weight:700;color:#1e293b;">'.$semWord.'</div>';
+            $termTopHtml = '<div style="font-weight:700;color:#1e293b;">'.$semWord.'</div>';
             $termBottomHtml = $finished && $ayName
                 ? '<div style="font-size:11px;color:#64748b;margin-top:2px;">'.e($ayName).'</div>'
                 : '';
@@ -198,35 +193,35 @@ class TranscriptController extends Controller
 
             // Final-grade colouring (green pass / red fail / blue credit).
             $gradeColor = $isCredit ? '#2563eb' : ($isFailed ? '#dc2626' : ($isPassed ? '#16a34a' : '#94a3b8'));
-            $gradeText  = $isCredit
+            $gradeText = $isCredit
                 ? 'Credit'
                 : ($grade !== null ? rtrim(rtrim(number_format((float) $grade, 2, '.', ''), '0'), '.') : '—');
-            $gradeHtml  = '<span style="font-weight:700;color:'.$gradeColor.';">'.$gradeText.'</span>';
+            $gradeHtml = '<span style="font-weight:700;color:'.$gradeColor.';">'.$gradeText.'</span>';
 
             [$statusLabel, $statusBg, $statusFg] = match (true) {
-                $isCredit  => ['Credit', '#dbeafe', '#1d4ed8'],
-                $isFailed  => ['Failed', '#fee2e2', '#b91c1c'],
-                $isPassed  => ['Passed', '#dcfce7', '#15803d'],
+                $isCredit => ['Credit', '#dbeafe', '#1d4ed8'],
+                $isFailed => ['Failed', '#fee2e2', '#b91c1c'],
+                $isPassed => ['Passed', '#dcfce7', '#15803d'],
                 $isOngoing => ['Ongoing', '#fef9c3', '#a16207'],
-                default    => ['Not Taken', '#f1f5f9', '#475569'],
+                default => ['Not Taken', '#f1f5f9', '#475569'],
             };
             $statusHtml = '<span style="display:inline-block;padding:2px 10px;border-radius:9999px;font-size:11px;font-weight:700;background:'.$statusBg.';color:'.$statusFg.';">'.$statusLabel.'</span>';
 
             return (object) [
-                'id'                => $cs->id,
-                'year_level'        => $year,
-                'semester'          => $sem,
-                'term'              => $termHtml,
-                'subject_code'      => $subj->code ?? '—',
+                'id' => $cs->id,
+                'year_level' => $year,
+                'semester' => $sem,
+                'term' => $termHtml,
+                'subject_code' => $subj->code ?? '—',
                 'descriptive_title' => $subj->name ?? '—',
-                'teacher'           => $teacher,
-                'final_grade'       => $gradeHtml,
-                'units'             => $units > 0 ? rtrim(rtrim(number_format($units, 2, '.', ''), '0'), '.') : '—',
-                'status'            => $statusHtml,
-                '_grade_numeric'    => is_numeric($grade) ? (float) $grade : null,
-                '_units_numeric'    => $units,
-                '_is_passed'        => $isPassed,
-                '_is_credit'        => $isCredit,
+                'teacher' => $teacher,
+                'final_grade' => $gradeHtml,
+                'units' => $units > 0 ? rtrim(rtrim(number_format($units, 2, '.', ''), '0'), '.') : '—',
+                'status' => $statusHtml,
+                '_grade_numeric' => is_numeric($grade) ? (float) $grade : null,
+                '_units_numeric' => $units,
+                '_is_passed' => $isPassed,
+                '_is_credit' => $isCredit,
             ];
         });
 
@@ -238,10 +233,10 @@ class TranscriptController extends Controller
             ? round(($totalUnits / $requiredUnits) * 100, 1)
             : 0;
 
-        $weighted    = $rows->filter(fn ($r) => $r->_is_passed && $r->_grade_numeric !== null && $r->_units_numeric > 0);
-        $weightSum   = (float) $weighted->sum('_units_numeric');
+        $weighted = $rows->filter(fn ($r) => $r->_is_passed && $r->_grade_numeric !== null && $r->_units_numeric > 0);
+        $weightSum = (float) $weighted->sum('_units_numeric');
         $weightedSum = (float) $weighted->sum(fn ($r) => $r->_grade_numeric * $r->_units_numeric);
-        $gwa         = $weightSum > 0 ? round($weightedSum / $weightSum, 2) : null;
+        $gwa = $weightSum > 0 ? round($weightedSum / $weightSum, 2) : null;
 
         // Group: year_level → semester → rows. Scaffold every expected
         // semester (per the curriculum's terms_per_year / has_summer_term)
@@ -249,7 +244,7 @@ class TranscriptController extends Controller
         // empty buckets — e.g. a trimester school always shows 1st/2nd/3rd
         // Sem per year, even if no subject is scheduled in one of them yet.
         $maxYear = (int) ($curriculumRows->max('year_level') ?: 0);
-        $years   = $maxYear > 0 ? range(1, $maxYear) : [];
+        $years = $maxYear > 0 ? range(1, $maxYear) : [];
 
         $rowsByYearSem = $rows->groupBy('year_level')
             ->map(fn ($yearRows) => $yearRows->groupBy('semester'));
@@ -267,17 +262,15 @@ class TranscriptController extends Controller
         }
 
         return view('student.transcript.index', [
-            'columns'       => $columns,
-            'groups'        => $groups,
-            'programLabel'  => $programLabel,
-            'totalUnits'    => $totalUnits,
+            'columns' => $columns,
+            'groups' => $groups,
+            'programLabel' => $programLabel,
+            'totalUnits' => $totalUnits,
             'requiredUnits' => $requiredUnits,
-            'percentDone'   => $percentDone,
-            'gwa'           => $gwa,
-            'termsPerYear'  => $termsPerYear,
+            'percentDone' => $percentDone,
+            'gwa' => $gwa,
+            'termsPerYear' => $termsPerYear,
             'hasSummerTerm' => $hasSummerTerm,
-            'report'        => app(ReportCardService::class)->build($student),
-            'rcEditable'    => false,
         ]);
     }
 
@@ -286,16 +279,17 @@ class TranscriptController extends Controller
         // Trimester schools: 3 is a regular term, not "Summer".
         if ($termsPerYear >= 3) {
             return match ($sem) {
-                1       => '1st Sem',
-                2       => '2nd Sem',
-                3       => '3rd Sem',
+                1 => '1st Sem',
+                2 => '2nd Sem',
+                3 => '3rd Sem',
                 default => 'Sem '.$sem,
             };
         }
+
         return match ($sem) {
-            1       => '1st Sem',
-            2       => '2nd Sem',
-            3       => 'Summer',
+            1 => '1st Sem',
+            2 => '2nd Sem',
+            3 => 'Summer',
             default => 'Sem '.$sem,
         };
     }
@@ -305,6 +299,7 @@ class TranscriptController extends Controller
         if ($g <= 5.0) {
             return $g > 3.0;   // PH 1.00–5.00 scale
         }
+
         return $g < 75;        // 100-pt scale
     }
 }

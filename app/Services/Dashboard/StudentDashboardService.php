@@ -6,7 +6,6 @@ use App\Models\AcademicYear;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\StudentEnrollmentSubject;
-use App\Models\Term;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -561,33 +560,39 @@ class StudentDashboardService
                 return null;
             }
 
-            $activeYear = AcademicYear::where('school_id', $user->school_id)
+            // Basic ed and higher ed each manage their own academic-year rows,
+            // so a school running both levels legitimately holds one active
+            // year PER level — resolve against every active year, never
+            // whichever single row ->first() happens to grab.
+            $activeYearIds = AcademicYear::where('school_id', $user->school_id)
                 ->where('is_active', true)
-                ->first();
-            if (! $activeYear) {
+                ->pluck('id');
+
+            if ($activeYearIds->isEmpty()) {
+                // No year flagged active (the activate toggle was never
+                // clicked, or a date-sync cleared it) — fall back to the
+                // year(s) whose date range covers today.
+                $activeYearIds = AcademicYear::where('school_id', $user->school_id)
+                    ->whereDate('start_date', '<=', now())
+                    ->whereDate('end_date', '>=', now())
+                    ->pluck('id');
+            }
+            if ($activeYearIds->isEmpty()) {
                 return null;
             }
 
-            $activeTerm = Term::where('school_id', $user->school_id)
-                ->where('academic_year_id', $activeYear->id)
-                ->whereIn('status', ['active', 'upcoming'])
-                ->orderByRaw("FIELD(status,'active','upcoming')")
-                ->orderBy('start_date', 'desc')
-                ->first();
-
-            return StudentEnrollment::query()
+            $enrolled = fn () => StudentEnrollment::query()
                 ->where('student_id', $student->id)
-                ->where('academic_year_id', $activeYear->id)
-                ->where('status', StudentEnrollment::STATUS_ENROLLED)
-                ->when($activeTerm, fn ($q) => $q->where('term_id', $activeTerm->id))
+                ->whereIn('academic_year_id', $activeYearIds)
+                ->where('status', StudentEnrollment::STATUS_ENROLLED);
+
+            // Prefer an enrollment sitting on a currently running/upcoming
+            // term; otherwise any enrolled row in an active year.
+            return $enrolled()
+                ->whereHas('term', fn ($q) => $q->whereIn('status', ['active', 'upcoming']))
                 ->latest('id')
                 ->first()
-                ?? StudentEnrollment::query()
-                    ->where('student_id', $student->id)
-                    ->where('academic_year_id', $activeYear->id)
-                    ->where('status', StudentEnrollment::STATUS_ENROLLED)
-                    ->latest('id')
-                    ->first();
+                ?? $enrolled()->latest('id')->first();
         });
     }
 
@@ -709,7 +714,9 @@ class StudentDashboardService
      */
     private function todaySchedule(User $user): array
     {
-        $classIds = $this->subjectRows($user)->pluck('class_id')->filter()->unique()->values();
+        // Higher-ed subject enrolments + basic-ed section classes — the same
+        // class set the weekly timetable page uses.
+        $classIds = collect($this->currentClassIds($user));
         if ($classIds->isEmpty()) {
             return [];
         }
