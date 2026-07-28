@@ -73,6 +73,15 @@
                 </div>
             @endif
 
+            @if (session('warning'))
+                <div class="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-3 text-amber-600">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 flex-shrink-0"></i>
+                    <p class="text-[10px] font-black uppercase tracking-wider">
+                        {{ session('warning') }}
+                    </p>
+                </div>
+            @endif
+
             @if ($errors->any())
                 <div class="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-600">
                     <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>

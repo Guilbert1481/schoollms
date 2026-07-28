@@ -39,12 +39,15 @@ Route::get('/tenancy/tls-check', [TlsCheckController::class, 'check'])
     ->name('tenancy.tls-check')
     ->middleware('throttle:120,1');
 
-// Main Login (for superadmins/platform)
-Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+// Main Login (for superadmins/platform). Form GETs are no-store: a cached
+// copy (mobile back/forward cache) resubmits a dead CSRF token and 419-loops.
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login')
+    ->middleware(\App\Http\Middleware\NoStore::class);
 Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
 
 // School-Specific Login (using {slug})
-Route::get('{slug}/login', [LoginController::class, 'showLoginForm'])->name('school.login');
+Route::get('{slug}/login', [LoginController::class, 'showLoginForm'])->name('school.login')
+    ->middleware(\App\Http\Middleware\NoStore::class);
 Route::post('{slug}/login', [LoginController::class, 'login'])->name('school.login.post')->middleware('throttle:login');
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
@@ -53,18 +56,18 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // deliberately role-free: TwoFactorMiddleware funnels every enrolled or
 // 2FA-mandatory user here. POSTs share the login throttle.
 Route::middleware('auth')->prefix('2fa')->name('2fa.')->group(function () {
-    Route::get('/setup', [\App\Http\Controllers\Auth\TwoFactorController::class, 'setup'])->name('setup');
+    Route::get('/setup', [\App\Http\Controllers\Auth\TwoFactorController::class, 'setup'])->name('setup')->middleware(\App\Http\Middleware\NoStore::class);
     Route::post('/setup', [\App\Http\Controllers\Auth\TwoFactorController::class, 'confirmSetup'])->name('setup.confirm')->middleware('throttle:login');
-    Route::get('/verify', [\App\Http\Controllers\Auth\TwoFactorController::class, 'challenge'])->name('verify');
+    Route::get('/verify', [\App\Http\Controllers\Auth\TwoFactorController::class, 'challenge'])->name('verify')->middleware(\App\Http\Middleware\NoStore::class);
     Route::post('/verify', [\App\Http\Controllers\Auth\TwoFactorController::class, 'verify'])->name('verify.post')->middleware('throttle:login');
-    Route::get('/recovery', [\App\Http\Controllers\Auth\TwoFactorController::class, 'recovery'])->name('recovery');
+    Route::get('/recovery', [\App\Http\Controllers\Auth\TwoFactorController::class, 'recovery'])->name('recovery')->middleware(\App\Http\Middleware\NoStore::class);
     Route::post('/recovery', [\App\Http\Controllers\Auth\TwoFactorController::class, 'useRecovery'])->name('recovery.post')->middleware('throttle:login');
 });
 
 // Password Reset (M1 — self-service forgot/reset password; built-in broker)
-Route::get('/forgot-password', [PasswordResetController::class, 'showLinkRequest'])->name('password.request');
+Route::get('/forgot-password', [PasswordResetController::class, 'showLinkRequest'])->name('password.request')->middleware(\App\Http\Middleware\NoStore::class);
 Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])->name('password.email')->middleware('throttle:6,1');
-Route::get('/reset-password/{token}', [PasswordResetController::class, 'showReset'])->name('password.reset');
+Route::get('/reset-password/{token}', [PasswordResetController::class, 'showReset'])->name('password.reset')->middleware(\App\Http\Middleware\NoStore::class);
 Route::post('/reset-password', [PasswordResetController::class, 'reset'])->name('password.update')->middleware('throttle:6,1');
 
 /*

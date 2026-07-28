@@ -16,6 +16,16 @@ class ExpiredSessionRedirect
     {
         $slug = self::resolveSlug($request);
 
+        // A dead token on the sign-in form itself (a cached copy of the page,
+        // or a form left open past the session lifetime): go straight back to
+        // a FRESH login form. Bouncing through the website home just reoffers
+        // the stale page and loops the user into the rate limiter.
+        if ($request->is('login', '*/login')) {
+            return redirect()
+                ->to($slug ? route('school.login', ['slug' => $slug]) : '/login')
+                ->with('warning', 'That sign-in page had expired — please try again.');
+        }
+
         if ($slug) {
             return redirect()
                 ->route('website.home', ['schoolSlug' => $slug])
