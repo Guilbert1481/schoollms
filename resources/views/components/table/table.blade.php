@@ -203,6 +203,7 @@
                 :rowNumbers="!empty($rowNumbers)"
                 :reorderable="!empty($reorderable)"
                 :emptyMessage="$emptyMessage ?? null"
+                :threshold="$threshold ?? 3"
             />
 
         </table>

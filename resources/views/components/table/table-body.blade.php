@@ -40,7 +40,8 @@
             :actions="$actions ?? []"
             :row="$row"
             :tableKey="$tableKey"
-            :deleteRoute="$deleteRoute ?? null" />
+            :deleteRoute="$deleteRoute ?? null"
+            :threshold="$threshold ?? 3" />
     </td>
     @endif
 
