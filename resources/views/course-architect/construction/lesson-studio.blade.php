@@ -84,8 +84,9 @@
     @if($level < 3)
         @php
             $childLabel  = $level === 0 ? 'topic' : ($level === 1 ? 'lesson' : 'resource');
-            // Reorder is allowed for Topics (L1) and Lessons (L2). Subjects (L0) are not reorderable here.
-            $reorderType = $level === 1 ? 'topic' : ($level === 2 ? 'lesson' : null);
+            // Reorder AND row actions are allowed for Topics (L1) and Lessons (L2);
+            // Subjects (L0) are neither reorderable nor editable here ($folderType is null).
+            $reorderType = $folderType;
         @endphp
 
         @if(count($folders) === 0)
@@ -117,11 +118,13 @@
                     @foreach($folders as $i => $f)
                         <div class="folder-item relative" data-id="{{ $f['id'] }}"
                              data-name="{{ \Illuminate\Support\Str::lower($f['name'] . ' ' . ($f['subtitle'] ?? '')) }}">
-                            <input type="checkbox"
-                                   class="ls-pick absolute top-2 z-10 w-4 h-4 rounded border-slate-300 text-indigo-600"
-                                   style="right: {{ $reorderType ? '2.9rem' : '0.5rem' }};"
-                                   data-id="{{ $f['id'] }}" data-name="{{ $f['name'] }}"
-                                   title="Tick to add {{ strtolower($bulkChild) }}s under this {{ strtolower($bulkParent) }}">
+                            @if($canManageFolders)
+                                <input type="checkbox"
+                                       class="ls-pick absolute top-2 z-10 w-4 h-4 rounded border-slate-300 text-indigo-600"
+                                       style="right: {{ $reorderType ? '2.9rem' : '0.5rem' }};"
+                                       data-id="{{ $f['id'] }}" data-name="{{ $f['name'] }}"
+                                       title="Tick to add {{ strtolower($bulkChild) }}s under this {{ strtolower($bulkParent) }}">
+                            @endif
                             @if($reorderType)
                                 <button type="button"
                                         class="drag-handle absolute top-2 right-2 z-10 w-7 h-7 rounded-lg bg-white/80 ring-1 ring-slate-200 text-slate-400 hover:text-indigo-600 hover:bg-white flex items-center justify-center cursor-grab active:cursor-grabbing"
@@ -163,8 +166,12 @@
                     :tableKey="$listTableKey"
                     :columns="$listColumns"
                     :data="$listData"
-                    :hideActions="true"
-                    :rowNumbers="(bool) $reorderType"
+                    :hideActions="empty($rowActions)"
+                    :actions="$rowActions"
+                    {{-- Numbering is informational, so it stays for everyone at
+                         Topic/Lesson level; only the drag-to-reorder handles are
+                         tied to who may restructure. --}}
+                    :rowNumbers="$level > 0"
                     :reorderable="(bool) $reorderType"
                 >
                     <x-slot:afterFilter>
@@ -189,7 +196,15 @@
                 tableKey="lesson_resources"
                 :columns="$columns"
                 :data="$resources"
+                :threshold="4"
                 :actions="[
+                    [
+                        'name'    => 'view',
+                        'label'   => 'View',
+                        'class'   => 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100',
+                        'type'    => 'js',
+                        'handler' => 'openLessonPreview',
+                    ],
                     [
                         'name'    => 'create_test',
                         'label'   => 'Create Test',
@@ -223,8 +238,18 @@
         @include('course-architect.construction.partials.preview-lesson-modal')
     @endif
 
+    {{-- Quick-upload from the lesson list (Level 2) — content-adders only --}}
+    @if($canUploadContent && $level === 2 && count($folders) > 0)
+        @include('course-architect.construction.partials.quick-upload-modal')
+    @endif
+
+    {{-- Rename modal for the Topic / Lesson rows (never Subjects) --}}
+    @if($folderType)
+        @include('course-architect.construction.partials.edit-folder-modal')
+    @endif
+
     {{-- Bulk-add modal: tick one {{ strtolower($bulkParent ?? 'row') }}, add several {{ strtolower($bulkChild ?? 'item') }}s at once --}}
-    @if($level < 3 && count($folders) > 0)
+    @if($canManageFolders && $level < 3 && count($folders) > 0)
         <x-modal.form id="bulkAddModal" :title="'Add '.$bulkChild.'s'" widthClass="w-[440px]">
             <form method="POST" action="{{ route('course-architect.lesson-studio.folder.store') }}">
                 @csrf
@@ -264,7 +289,60 @@
         window.location.href = "{{ route('course-architect.assessment-lab.index') }}?from_resource=" + id;
     }
 
+    // ── Row actions for Topic (L1) / Lesson (L2) folders ────────────────────
+    // Defined only where they apply — Subjects (L0) have no actions column, so
+    // there is nothing to bind there.
+    @if($folderType)
+    (function () {
+        const items = @json((object) $folderItems);
+        const type  = @json($folderType);
+        const base  = "{{ url('course-architect/lesson-studio/folder') }}";
+        const token = "{{ csrf_token() }}";
+
+        // View — drill into the folder, same destination as clicking its name.
+        window.lsFolderOpen = function (id) {
+            const item = items[id];
+            if (item) window.location.href = item.url;
+        };
+
+        window.lsFolderEdit = function (id) {
+            const item = items[id];
+            const form = document.getElementById('lsEditFolderForm');
+            if (!item || !form) return;
+
+            form.action = `${base}/${type}/${id}`;
+            const field = form.querySelector('[name="name"]');
+            if (field) field.value = item.name;
+            openModal('lsEditFolderModal');
+        };
+
+        window.lsFolderDelete = function (id) {
+            const item = items[id];
+            if (!item) return;
+
+            // Deleting cascades through children and their uploaded files
+            // (see LessonStudioController::destroyFolder) — say so plainly.
+            const warn = type === 'topic'
+                ? `Delete the topic "${item.name}"? All its lessons, competencies and uploaded files will be permanently removed.`
+                : `Delete the lesson "${item.name}"? All its competencies and uploaded files will be permanently removed.`;
+            if (!confirm(warn)) return;
+
+            const f = document.createElement('form');
+            f.method = 'POST';
+            f.action = `${base}/${type}/${id}`;
+            f.innerHTML =
+                `<input type="hidden" name="_token" value="${token}">` +
+                `<input type="hidden" name="_method" value="DELETE">`;
+            document.body.appendChild(f);
+            f.submit();
+        };
+    })();
+    @endif
+
     // ── Bulk add: single-select checkboxes (synced across card/list views) ──
+    // Only shipped to a user who may add folders — without the checkboxes and the
+    // modal, none of this has anything to bind to.
+    @if($canManageFolders)
     document.addEventListener('change', function (e) {
         const cb = e.target;
         if (!cb.classList || !cb.classList.contains('ls-pick')) return;
@@ -299,6 +377,7 @@
         });
         openModal('bulkAddModal');
     }
+    @endif
 
     // ── Drag-to-reorder (Topics @ L1, Lessons @ L2) ─────────────────────────
     (function () {

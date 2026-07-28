@@ -44,6 +44,19 @@ class LessonStudioController extends Controller
 
         $level = $lessonModel ? 3 : ($topicModel ? 2 : ($subjectModel ? 1 : 0));
 
+        // Who may edit the OUTLINE (Topics / Lessons / Competencies) on this page.
+        // Basic ed: the subject_coordinator. Higher ed: nobody here — the outline
+        // belongs to the Program Head, so a course_architect only adds content.
+        // Mirrors the route gating + the basic-ed fence on every write method, so
+        // the UI never offers a control that would 403.
+        $canManageFolders = $request->user()->role === 'subject_coordinator'
+            && (! $subjectModel || (bool) $subjectModel->is_basic_ed);
+
+        // Who may add CONTENT (upload resources). Mirrors the route group that
+        // owns store() — both roles fill lessons in; only the coordinator owns
+        // the outline. Drives the quick-upload action on the lesson list.
+        $canUploadContent = in_array($request->user()->role, ['course_architect', 'subject_coordinator'], true);
+
         $breadcrumbs = [['label' => 'Subjects', 'url' => route('course-architect.lesson-studio.index')]];
         if ($subjectModel) {
             $breadcrumbs[] = [
@@ -241,7 +254,7 @@ class LessonStudioController extends Controller
             ];
             $listData = collect($folders)->map(fn ($f) => (object) [
                 'id' => $f['id'],
-                'name' => '<span class="inline-flex items-center gap-2">'.$this->pickCheckboxHtml($f).'<a href="'.e($f['url']).'" class="font-medium text-indigo-700 hover:underline inline-flex items-center gap-1.5">'
+                'name' => '<span class="inline-flex items-center gap-2">'.$this->pickCheckboxHtml($f, $canManageFolders).'<a href="'.e($f['url']).'" class="font-medium text-indigo-700 hover:underline inline-flex items-center gap-1.5">'
                                   .'<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>'
                                   .e($f['name']).'</a></span>',
                 'code' => $f['subtitle'] ?? '—',
@@ -269,7 +282,7 @@ class LessonStudioController extends Controller
             ];
             $listData = collect($folders)->map(fn ($f) => (object) [
                 'id' => $f['id'],
-                'name' => '<span class="inline-flex items-center gap-2">'.$this->pickCheckboxHtml($f).'<a href="'.e($f['url']).'" class="font-medium text-indigo-700 hover:underline inline-flex items-center gap-1.5">'
+                'name' => '<span class="inline-flex items-center gap-2">'.$this->pickCheckboxHtml($f, $canManageFolders).'<a href="'.e($f['url']).'" class="font-medium text-indigo-700 hover:underline inline-flex items-center gap-1.5">'
                                    .'<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>'
                                    .e($f['name']).'</a></span>',
                 'lessons_count' => $f['count'],
@@ -296,7 +309,7 @@ class LessonStudioController extends Controller
             ];
             $listData = collect($folders)->map(fn ($f) => (object) [
                 'id' => $f['id'],
-                'name' => '<span class="inline-flex items-center gap-2">'.$this->pickCheckboxHtml($f).'<a href="'.e($f['url']).'" class="font-medium text-indigo-700 hover:underline inline-flex items-center gap-1.5">'
+                'name' => '<span class="inline-flex items-center gap-2">'.$this->pickCheckboxHtml($f, $canManageFolders).'<a href="'.e($f['url']).'" class="font-medium text-indigo-700 hover:underline inline-flex items-center gap-1.5">'
                                      .'<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>'
                                      .e($f['name']).'</a></span>',
                 'resources_count' => $f['count'],
@@ -336,8 +349,44 @@ class LessonStudioController extends Controller
             ];
         }
 
+        // Row actions (View / Rename / Delete) exist for Topics and Lessons only.
+        // Subjects (level 0) are created by the Principal and stay read-only here,
+        // so their table renders without an actions column at all — and neither
+        // does anyone who may not manage the outline (i.e. a course_architect).
+        $folderType = $canManageFolders
+            ? match ($level) {
+                1 => 'topic',
+                2 => 'lesson',
+                default => null,
+            }
+        : null;
+        $folderItems = $folderType
+            ? collect($folders)->mapWithKeys(fn ($f) => [
+                $f['id'] => ['name' => $f['name'], 'url' => $f['url']],
+            ])->all()
+            : [];
+
+        // Row actions for the shared list table (levels 0–2). Folder management
+        // (View / Rename / Delete) only for those who own the outline; the quick
+        // Upload action only on lessons (level 2) for content-adders.
+        $rowActions = $folderType ? config('tables.table-actions.lesson_studio_ca_folder') : [];
+        if ($level === 2 && $canUploadContent) {
+            $rowActions = array_merge($rowActions, config('tables.table-actions.lesson_studio_ca_upload'));
+        }
+
+        // Lesson id → name for the quick-upload modal's display (level 2 only).
+        $lessonNames = $level === 2
+            ? collect($folders)->mapWithKeys(fn ($f) => [$f['id'] => $f['name']])->all()
+            : [];
+
         return view('course-architect.construction.lesson-studio', [
+            'canUploadContent' => $canUploadContent,
+            'rowActions' => $rowActions,
+            'lessonNames' => $lessonNames,
             'level' => $level,
+            'canManageFolders' => $canManageFolders,
+            'folderType' => $folderType,
+            'folderItems' => $folderItems,
             'gradeLevels' => $gradeLevels,
             'activeLevelId' => $activeLevelId,
             'showAll' => $showAll,
@@ -422,11 +471,37 @@ class LessonStudioController extends Controller
         });
     }
 
-    /** Row checkbox feeding the bulk-add modal (single-select enforced by JS). */
-    private function pickCheckboxHtml(array $f): string
+    /**
+     * Row checkbox feeding the bulk-add modal (single-select enforced by JS).
+     * Renders nothing for a user who may not add folders — the checkbox exists
+     * only to pick a parent for the bulk-add form.
+     */
+    private function pickCheckboxHtml(array $f, bool $canManageFolders): string
     {
+        if (! $canManageFolders) {
+            return '';
+        }
+
         return '<input type="checkbox" class="ls-pick w-4 h-4 rounded border-slate-300 text-indigo-600 align-middle"'
             .' data-id="'.(int) $f['id'].'" data-name="'.e($f['name']).'">';
+    }
+
+    /**
+     * Guard every outline write (Topic / Lesson / Competency) to BASIC-ED subjects.
+     *
+     * The routes already limit these endpoints to subject_coordinator, but route
+     * gating alone does not say *which subjects* it may restructure. Higher-ed
+     * outlines belong to the Program Head, so the owning subject is re-checked
+     * here — otherwise a coordinator could reach a college subject by typing its
+     * id and build topics under it.
+     */
+    private function assertBasicEdSubject(?int $subjectId): void
+    {
+        abort_unless(
+            $subjectId && DB::table('subjects')->where('id', $subjectId)->value('is_basic_ed'),
+            403,
+            'Topics, lessons and competencies for this subject are managed by the Program Head.'
+        );
     }
 
     /**
@@ -463,6 +538,7 @@ class LessonStudioController extends Controller
         if (! empty($data['lesson_id'])) {
             // Competencies under a Lesson
             $lesson = Lesson::where('id', $data['lesson_id'])->where('school_id', $schoolId)->firstOrFail();
+            $this->assertBasicEdSubject($lesson->subject_id);
             foreach ($names as $name) {
                 Competency::create([
                     'school_id' => $schoolId,
@@ -479,6 +555,7 @@ class LessonStudioController extends Controller
         } elseif (! empty($data['topic_id'])) {
             // Lessons under a Topic
             $topic = Topic::where('id', $data['topic_id'])->where('school_id', $schoolId)->firstOrFail();
+            $this->assertBasicEdSubject($topic->subject_id);
             foreach ($names as $name) {
                 Lesson::create([
                     'school_id' => $schoolId,
@@ -492,6 +569,7 @@ class LessonStudioController extends Controller
         } elseif (! empty($data['subject_id'])) {
             // Topics under a Subject
             $subject = Subject::where('id', $data['subject_id'])->where('school_id', $schoolId)->firstOrFail();
+            $this->assertBasicEdSubject($subject->id);
             foreach ($names as $name) {
                 Topic::create([
                     'school_id' => $schoolId,
@@ -509,6 +587,38 @@ class LessonStudioController extends Controller
     }
 
     /**
+     * Rename a folder (Topic / Lesson / Competency).
+     *
+     * `subject` is deliberately absent from the map: subjects are created by the
+     * Principal and are read-only on this screen, so a forged `type=subject` can
+     * never reach a Subject row even if the route constraint were relaxed. Every
+     * lookup is school-scoped, so one school's coordinator cannot rename another's.
+     */
+    public function updateFolder(Request $request, string $type, int $id)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $class = match ($type) {
+            'topic' => Topic::class,
+            'lesson' => Lesson::class,
+            'competency' => Competency::class,
+            default => abort(404),
+        };
+
+        $folder = $class::where('id', $id)
+            ->where('school_id', $request->user()->school_id)
+            ->firstOrFail();
+
+        $this->assertBasicEdSubject($folder->subject_id);
+
+        $folder->update(['name' => trim($data['name'])]);
+
+        return back()->with('success', ucfirst($type).' renamed.');
+    }
+
+    /**
      * Delete a folder (Topic / Lesson / Competency) and all its children.
      * Cascades through descendants AND the lesson_resources stored under them,
      * removing orphaned uploaded files from disk.
@@ -523,16 +633,19 @@ class LessonStudioController extends Controller
 
         if ($type === 'topic') {
             $topic = Topic::where('id', $id)->where('school_id', $schoolId)->firstOrFail();
+            $this->assertBasicEdSubject($topic->subject_id);
             $lessonIds = Lesson::where('topic_id', $topic->id)->pluck('id')->all();
             $back = route('course-architect.lesson-studio.subject', $topic->subject_id);
             $msg = 'Topic removed.';
         } elseif ($type === 'lesson') {
             $lesson = Lesson::where('id', $id)->where('school_id', $schoolId)->firstOrFail();
+            $this->assertBasicEdSubject($lesson->subject_id);
             $lessonIds = [$lesson->id];
             $back = route('course-architect.lesson-studio.topic', [$lesson->subject_id, $lesson->topic_id]);
             $msg = 'Lesson removed.';
         } elseif ($type === 'competency') {
             $competency = Competency::where('id', $id)->where('school_id', $schoolId)->firstOrFail();
+            $this->assertBasicEdSubject($competency->subject_id);
             $back = route('course-architect.lesson-studio.lesson', [
                 $competency->subject_id, $competency->topic_id, $competency->lesson_id,
             ]);
@@ -578,6 +691,16 @@ class LessonStudioController extends Controller
 
         $schoolId = $request->user()->school_id;
         $table = $data['type'] === 'topic' ? 'topics' : 'lessons';
+
+        // Same basic-ed fence as the other outline writes — reordering a
+        // higher-ed subject's topics is the Program Head's call, not a
+        // coordinator's. Rows outside this school are already ignored below.
+        DB::table($table)
+            ->whereIn('id', $data['ids'])
+            ->where('school_id', $schoolId)
+            ->distinct()
+            ->pluck('subject_id')
+            ->each(fn ($subjectId) => $this->assertBasicEdSubject($subjectId));
 
         DB::transaction(function () use ($table, $schoolId, $data) {
             foreach ($data['ids'] as $i => $id) {
@@ -631,11 +754,15 @@ class LessonStudioController extends Controller
             'created_by' => $user->id,
         ]);
 
-        return redirect()
-            ->route('course-architect.lesson-studio.lesson', [
+        // When uploaded from the lesson list (quick-upload), stay on that list so
+        // several lessons can be filled in a row; otherwise land on the lesson.
+        $back = $request->boolean('stay')
+            ? redirect()->route('course-architect.lesson-studio.topic', [$data['subject_id'], $data['topic_id']])
+            : redirect()->route('course-architect.lesson-studio.lesson', [
                 $data['subject_id'], $data['topic_id'], $data['lesson_id'],
-            ])
-            ->with('success', 'Lesson resource added.');
+            ]);
+
+        return $back->with('success', 'Lesson resource added.');
     }
 
     public function destroy(Request $request, LessonResource $lessonResource)
