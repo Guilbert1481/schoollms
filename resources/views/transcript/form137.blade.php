@@ -176,8 +176,11 @@
     @endforelse
 </div>
 
-{{-- Report Card (current school year) below the Form 137 --}}
-@include('partials.report-card')
+{{-- Report Card (current school year) below the Form 137 — registrar only:
+     staff record quarterly grades through its edit modal. Students already
+     see the read-only card under Academics → Grades, so it is not repeated
+     on their transcript. --}}
+@includeWhen($editable, 'partials.report-card')
 
 @if($editable)
     {{-- Registrar edit modal — record a learning area's final grade for this

@@ -20,10 +20,10 @@ class ApplyScheduleController extends Controller
         ]);
 
         $sessions = $data['sessions'] ?? [];
-        $score    = (float) ($data['score'] ?? 0);
-        $name     = $data['name'] ?? 'Generated Schedule';
-        $termId   = (int) $data['term_id'];
-        $meta     = $data['meta'] ?? [];
+        $score = (float) ($data['score'] ?? 0);
+        $name = $data['name'] ?? 'Generated Schedule';
+        $termId = (int) $data['term_id'];
+        $meta = $data['meta'] ?? [];
         $schoolId = optional($request->user())->school_id;
 
         if (! Schema::hasTable('schedules') || ! Schema::hasTable('schedule_sessions')) {
@@ -45,13 +45,13 @@ class ApplyScheduleController extends Controller
                 ->update(['is_active' => false, 'updated_at' => now()]);
 
             $scheduleId = DB::table('schedules')->insertGetId([
-                'school_id'  => $schoolId,
-                'term_id'    => $termId,
-                'name'       => $name,
-                'version'    => $version,
-                'score'      => $score,
-                'is_active'  => true,
-                'meta'       => json_encode($meta),
+                'school_id' => $schoolId,
+                'term_id' => $termId,
+                'name' => $name,
+                'version' => $version,
+                'score' => $score,
+                'is_active' => true,
+                'meta' => json_encode($meta),
                 'created_by' => optional($request->user())->id,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -61,22 +61,24 @@ class ApplyScheduleController extends Controller
             $seen = [];
             foreach ($sessions as $s) {
                 // Defensive dedup: same (section, day, start_time) → keep only first.
-                $key = ($s['section_id'] ?? '') . '|' . ($s['day_of_week'] ?? '') . '|' . ($s['start_time'] ?? '');
-                if (isset($seen[$key])) continue;
+                $key = ($s['section_id'] ?? '').'|'.($s['day_of_week'] ?? '').'|'.($s['start_time'] ?? '');
+                if (isset($seen[$key])) {
+                    continue;
+                }
                 $seen[$key] = true;
                 $rows[] = [
-                    'schedule_id'      => $scheduleId,
-                    'section_id'       => $s['section_id'] ?? null,
-                    'subject_id'       => $s['subject_id'] ?? null,
-                    'teacher_id'       => $s['teacher_id'] ?? null,
-                    'room_id'          => $s['room_id']    ?? null,
-                    'day_of_week'      => $s['day_of_week'] ?? '',
-                    'start_time'       => $s['start_time']  ?? '00:00',
-                    'end_time'         => $s['end_time']    ?? '00:00',
-                    'status'           => $s['status']      ?? 'valid',
+                    'schedule_id' => $scheduleId,
+                    'section_id' => $s['section_id'] ?? null,
+                    'subject_id' => $s['subject_id'] ?? null,
+                    'teacher_id' => $s['teacher_id'] ?? null,
+                    'room_id' => $s['room_id'] ?? null,
+                    'day_of_week' => $s['day_of_week'] ?? '',
+                    'start_time' => $s['start_time'] ?? '00:00',
+                    'end_time' => $s['end_time'] ?? '00:00',
+                    'status' => $s['status'] ?? 'valid',
                     'conflict_reasons' => json_encode($s['conflict_reasons'] ?? []),
-                    'created_at'       => now(),
-                    'updated_at'       => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ];
             }
             if ($rows) {
@@ -84,6 +86,10 @@ class ApplyScheduleController extends Controller
                     DB::table('schedule_sessions')->insert($chunk);
                 }
             }
+
+            // Push the applied timetable into class_schedules so student
+            // weekly schedules and class-session generation pick it up.
+            app(\App\Services\Academics\ClassScheduleSync::class)->sync($scheduleId);
 
             return response()->json([
                 'ok' => true,
