@@ -2,12 +2,16 @@
 
 return [
 
+    // Roles allowed to reach this table through school/system/dynamic/*.
+    // Dean > Curricula Panel (role:dean,admin,superadmin).
+    'roles' => ['admin', 'superadmin', 'dean'],
+
     'labels' => [
-        'name'           => 'Curriculum',
-        'version'        => 'Version',
-        'program_id'     => 'Program',
+        'name' => 'Curriculum',
+        'version' => 'Version',
+        'program_id' => 'Program',
         'terms_per_year' => 'Terms / Year',
-        'is_active'      => 'Active',
+        'is_active' => 'Active',
     ],
 
     'columns' => [
@@ -39,8 +43,8 @@ return [
 
     'relations' => [
         'program_id' => [
-            'table'       => 'programs',
-            'value'       => 'id',
+            'table' => 'programs',
+            'value' => 'id',
             'whereSchool' => true,
         ],
     ],

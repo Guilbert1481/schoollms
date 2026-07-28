@@ -2,6 +2,10 @@
 
 return [
 
+    // Roles allowed to reach this table through school/system/dynamic/*.
+    // School Settings > Master Data > Certificates (role:admin,superadmin).
+    'roles' => ['admin', 'superadmin'],
+
     'labels' => [
         'name' => 'Template Name',
         'certificate_type' => 'Type',

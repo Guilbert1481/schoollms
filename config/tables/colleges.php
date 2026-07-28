@@ -2,11 +2,15 @@
 
 return [
 
+    // Roles allowed to reach this table through school/system/dynamic/*.
+    // Admin > Assignments (role:admin,superadmin).
+    'roles' => ['admin', 'superadmin'],
+
     'labels' => [
-        'code'        => 'Code',
-        'name'        => 'College Name',
+        'code' => 'Code',
+        'name' => 'College Name',
         'description' => 'Description',
-        'dean_id'     => 'Assigned Dean',
+        'dean_id' => 'Assigned Dean',
     ],
 
     'columns' => [

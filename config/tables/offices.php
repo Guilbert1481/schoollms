@@ -2,9 +2,13 @@
 
 return [
 
+    // Roles allowed to reach this table through school/system/dynamic/*.
+    // School Settings > Master Data > Organization, and Admin > Assignments.
+    'roles' => ['admin', 'superadmin'],
+
     'labels' => [
-        'code'           => 'Code',
-        'name'           => 'Office Name',
+        'code' => 'Code',
+        'name' => 'Office Name',
         'office_type_id' => 'Type',
         'office_head_id' => 'Assigned Head',
     ],

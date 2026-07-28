@@ -2,13 +2,17 @@
 
 return [
 
+    // Roles allowed to reach this table through school/system/dynamic/*.
+    // School Settings only; its tables use per-term keys, so nothing reaches the generic endpoints today.
+    'roles' => ['admin', 'superadmin'],
+
     'labels' => [
-        'subject_label'   => 'Subject',
-        'program_label'   => 'Program',
-        'year_level'      => 'Year Level',
-        'status_label'    => 'Status',
+        'subject_label' => 'Subject',
+        'program_label' => 'Program',
+        'year_level' => 'Year Level',
+        'status_label' => 'Status',
         'irregular_label' => 'Irregular?',
-        'offering_code'   => 'Code',
+        'offering_code' => 'Code',
     ],
 
     'columns' => [

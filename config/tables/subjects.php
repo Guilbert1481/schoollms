@@ -2,15 +2,19 @@
 
 return [
 
+    // Roles allowed to reach this table through school/system/dynamic/*.
+    // Dean > Curricula Panel (dean) and Principal > Curricula Panel (role:principal). Deliberately EXCLUDES course_architect / subject_coordinator / teacher - subjects are Principal- or Program-Head-owned and the Lesson Studio refuses to edit them.
+    'roles' => ['admin', 'superadmin', 'dean', 'principal'],
+
     'labels' => [
-        'name'                => 'Subject Name',
-        'code'                => 'Code',
-        'category'            => 'Category',
-        'topics_count'        => 'Topics',
-        'lessons_count'       => 'Lessons',
-        'competencies_count'  => 'Competencies',
-        'is_active'           => 'Status',
-        'description'         => 'Description',
+        'name' => 'Subject Name',
+        'code' => 'Code',
+        'category' => 'Category',
+        'topics_count' => 'Topics',
+        'lessons_count' => 'Lessons',
+        'competencies_count' => 'Competencies',
+        'is_active' => 'Status',
+        'description' => 'Description',
     ],
 
     'columns' => [

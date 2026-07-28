@@ -20,9 +20,9 @@ spaces/hyphens into `_`, but always type them like this):
 ```
 superadmin   admin        academics            admission_manager
 registrar    finance_manager                   dean
-principal    program_head course_architect     teacher
-guidance_counselor        student              trainee
-trainor      training_program_head
+principal    program_head course_architect     subject_coordinator
+teacher      guidance_counselor                student
+trainee      trainor      training_program_head
 ```
 
 Rule of thumb: **always include `admin,superadmin`** on staff/management routes
@@ -81,6 +81,7 @@ means the table isn't registered yet. To register it:
    ```php
    <?php
    return [
+       'roles'   => ['admin', 'superadmin'],   // REQUIRED — who may touch it here
        'labels'  => ['name' => 'Name'],
        'columns' => [
            ['key' => 'name', 'label' => 'Name'],
@@ -96,12 +97,27 @@ means the table isn't registered yet. To register it:
    'your_table' => require __DIR__ . '/your_table.php',
    ```
 3. Make sure the DB table has a `school_id` column (it gets auto-scoped per school).
+4. Add any new role to the route's `role:` list in `routes/school/system/dynamic.php`
+   — that list is the **union** of every table's `roles`.
 
 `BaseCrudController` then automatically:
 - allows that table (and rejects every unregistered one),
+- **refuses any role not in that table's `roles`** — a missing `roles` key means
+  nobody, so the table stays inert until you declare its owner,
 - scopes every read/update/delete to the user's `school_id`,
 - writes ONLY real, non-protected columns (it strips `id`, `school_id`,
   `user_id`, timestamps, and any field that isn't a real column).
+
+**`roles` is per table, not per route.** The route gate cannot express "a dean may
+edit `curriculums` but not `offices`" — one flat list applies to everything behind
+it. That is exactly how `subjects`, `topics` and `lessons` ended up writable by 15
+roles, letting a teacher or course_architect restructure a curriculum without ever
+visiting the screen that owns it. Set `roles` to the audience of the screens that
+actually drive the table, and no wider.
+
+**Registering a table is a grant of write access.** If nothing drives the table
+through these endpoints, do not register it at all — `topics` and `lessons` have
+config files but are deliberately left out of the registry for this reason.
 
 You do NOT need to touch `BaseCrudController`. If you find yourself wanting to,
 stop and ask — that's the security boundary.

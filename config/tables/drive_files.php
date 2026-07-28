@@ -2,10 +2,14 @@
 
 return [
 
+    // Roles allowed to reach this table through school/system/dynamic/*.
+    // Drive uses its own routes (driveEdit/driveDelete); nothing reaches the generic endpoints, so keep this minimal.
+    'roles' => ['admin', 'superadmin'],
+
     'labels' => [
-        'name'             => 'Name',
-        'type_label'       => 'Type',
-        'owner_name'       => 'Owner',
+        'name' => 'Name',
+        'type_label' => 'Type',
+        'owner_name' => 'Owner',
         'last_editor_name' => 'Updated by',
         'updated_at_label' => 'Updated',
     ],

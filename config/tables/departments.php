@@ -2,6 +2,10 @@
 
 return [
 
+    // Roles allowed to reach this table through school/system/dynamic/*.
+    // School Settings > Master Data > Organization, and Admin > Assignments (both role:admin,superadmin).
+    'roles' => ['admin', 'superadmin'],
+
     'labels' => [
         'name' => 'Department Name',
         'head_user_id' => 'Department Head',
@@ -31,12 +35,12 @@ return [
     ],
 
     'relations' => [
-    'head_user_id' => [
-        'table' => 'users',
-        'value' => 'id',
-        'join_profiles' => true,
-        'whereSchool' => true,
+        'head_user_id' => [
+            'table' => 'users',
+            'value' => 'id',
+            'join_profiles' => true,
+            'whereSchool' => true,
+        ],
     ],
-],
 
 ];

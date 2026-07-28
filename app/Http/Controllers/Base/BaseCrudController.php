@@ -16,10 +16,14 @@ use Illuminate\Support\Facades\Schema;
  *   1. Table allowlist — only tables registered in config/tables/tables.php may
  *      be touched. Anything else (users, roles, account_access, payments, …)
  *      is rejected with 404, even for staff.
- *   2. Tenant scoping — every read/update/delete is constrained to the
+ *   2. Role allowlist — each registered table declares the roles that may reach
+ *      it here. Without this, one flat route-level role list applied to EVERY
+ *      table, so any role on it could edit any registered table and sidestep the
+ *      rules the owning module enforces on its own screens.
+ *   3. Tenant scoping — every read/update/delete is constrained to the
  *      authenticated user's school_id, so one school can never reach another's
  *      rows by guessing an id.
- *   3. Column allowlist — only real, non-protected columns are written, so a
+ *   4. Column allowlist — only real, non-protected columns are written, so a
  *      request cannot smuggle id / school_id / user_id / timestamps or any
  *      made-up field into the database.
  */
@@ -49,6 +53,31 @@ class BaseCrudController extends Controller
         );
 
         return $registry[$table];
+    }
+
+    /**
+     * Resolve a table's config for an incoming generic-endpoint request: the
+     * table must be registered AND the caller's role must be on that table's
+     * allowlist.
+     *
+     * Fails closed — a table with no `roles` key is refused for everyone, so a
+     * newly registered table is inert until its owner is declared. Page
+     * controllers keep using tableConfig()/loadTableData() directly; the role
+     * check belongs to the HTTP surface, where the request's table name is
+     * attacker-controlled.
+     */
+    protected function tableConfigForRequest(string $table): array
+    {
+        $config = $this->tableConfig($table);
+        $role = auth()->user()?->role;
+
+        abort_unless(
+            $role !== null && in_array($role, $config['roles'] ?? [], true),
+            403,
+            'Your role may not manage this table here.'
+        );
+
+        return $config;
     }
 
     /** Authenticated user's school id (null for a global superadmin). */
@@ -99,8 +128,8 @@ class BaseCrudController extends Controller
             foreach ($config['relations'] as $column => $relation) {
                 if (isset($relation['join_profiles']) && $relation['join_profiles']) {
                     $query->leftJoin('users', 'users.id', '=', "$table.$column")
-                          ->leftJoin('profiles', 'profiles.user_id', '=', 'users.id')
-                          ->addSelect(DB::raw("CONCAT(profiles.first_name, ' ', profiles.last_name) as {$column}_label"));
+                        ->leftJoin('profiles', 'profiles.user_id', '=', 'users.id')
+                        ->addSelect(DB::raw("CONCAT(profiles.first_name, ' ', profiles.last_name) as {$column}_label"));
                 }
             }
         }
@@ -134,7 +163,7 @@ class BaseCrudController extends Controller
 
     protected function storeRecord($table, $request)
     {
-        $config = $this->tableConfig($table);
+        $config = $this->tableConfigForRequest($table);
 
         $data = $this->filterWritable($table, $request->except(['_token']));
 
@@ -160,9 +189,9 @@ class BaseCrudController extends Controller
     public function updateRecord(Request $request)
     {
         $table = (string) $request->input('table');
-        $id    = (int) $request->input('id');
+        $id = (int) $request->input('id');
 
-        $this->tableConfig($table);
+        $this->tableConfigForRequest($table);
 
         $data = $this->filterWritable($table, $request->except(['_token', '_method', 'table', 'id']));
 
@@ -179,7 +208,7 @@ class BaseCrudController extends Controller
 
     protected function deleteRecord($table, $id)
     {
-        $this->tableConfig($table);
+        $this->tableConfigForRequest($table);
 
         $query = DB::table($table)->where('id', (int) $id);
         $this->scopeSchool($query, $table);
@@ -190,7 +219,7 @@ class BaseCrudController extends Controller
 
     public function getRecord($table, $id)
     {
-        $this->tableConfig($table);
+        $this->tableConfigForRequest($table);
 
         $query = DB::table($table)->where('id', (int) $id);
         $this->scopeSchool($query, $table);
