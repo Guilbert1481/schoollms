@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Staff\Registrar;
 use App\Http\Controllers\Controller;
 use App\Models\Curriculum;
 use App\Models\CurriculumSubject;
+use App\Models\PermanentRecordGrade;
+use App\Models\ReportCardGrade;
 use App\Models\Student;
 use App\Models\StudentEnrollment;
 use App\Models\StudentEnrollmentSubject;
-use App\Models\PermanentRecordGrade;
-use App\Models\ReportCardGrade;
 use App\Models\TranscriptEditRequest;
 use App\Services\Academics\Form137Service;
 use App\Services\Academics\ReportCardService;
@@ -104,10 +104,10 @@ class TranscriptOfRecordController extends Controller
 
         $nodeToRoot = $this->buildNodeRootMap();
 
-        $levelParam    = $request->input('level');
-        $showAll       = $levelParam === null || $levelParam === '' || strtolower((string) $levelParam) === 'all';
+        $levelParam = $request->input('level');
+        $showAll = $levelParam === null || $levelParam === '' || strtolower((string) $levelParam) === 'all';
         $activeLevelId = (int) ($request->integer('level') ?: ($levels->first()->id ?? 0));
-        $showTabs      = $levels->count() > 1;
+        $showTabs = $levels->count() > 1;
         if (! $showTabs) {
             $showAll = false;
         }
@@ -149,17 +149,21 @@ class TranscriptOfRecordController extends Controller
             [$statusLabel, $statusBg, $statusFg] = $this->statusPill($status);
 
             $allRows->push((object) [
-                'id'          => $student->id,
-                'full_name'   => $fullName,
-                'year_level'  => $e->year_level ? 'Year '.(int) $e->year_level : '—',
-                'student_id'  => $student->student_number ?? '—',
-                'program'     => $this->programLabel($e, $nodeToRoot),
-                'status'      => '<span style="display:inline-block;padding:2px 10px;border-radius:9999px;font-size:11px;font-weight:700;background:'.$statusBg.';color:'.$statusFg.';">'.$statusLabel.'</span>',
+                'id' => $student->id,
+                'full_name' => $fullName,
+                'year_level' => $e->year_level ? 'Year '.(int) $e->year_level : '—',
+                'student_id' => $student->student_number ?? '—',
+                'program' => $this->programLabel($e, $nodeToRoot),
+                'status' => '<span style="display:inline-block;padding:2px 10px;border-radius:9999px;font-size:11px;font-weight:700;background:'.$statusBg.';color:'.$statusFg.';">'.$statusLabel.'</span>',
+                'gv_grades' => $this->visibilitySwitch((int) $student->id, 'grades', (bool) $student->show_grades),
+                'gv_form137' => $this->visibilitySwitch((int) $student->id, 'form137', (bool) $student->show_form137),
                 '_status_raw' => $status,
-                '_level_id'   => $rootLevelId,
+                '_level_id' => $rootLevelId,
                 '_year_level' => $e->year_level,
-                '_ay_id'      => $e->academic_year_id,
-                '_ay_name'    => $e->academicYear?->name,
+                '_ay_id' => $e->academic_year_id,
+                '_ay_name' => $e->academicYear?->name,
+                '_program_id' => $e->program?->id,
+                '_program' => $e->program?->code ?? $e->program?->name,
             ]);
         }
 
@@ -196,24 +200,46 @@ class TranscriptOfRecordController extends Controller
         ksort($yearLevelOptions, SORT_NUMERIC);
         $yearLevel = $request->input('year_level');
         $yearLevel = ($yearLevel === null || $yearLevel === '') ? null : (string) $yearLevel;
-        $finalRows = $yearLevel !== null
-            ? $afterAy->filter(fn ($r) => (string) $r->_year_level === $yearLevel)->values()
-            : $afterAy->values();
+
+        // Program filter — surfaced only for a non-basic-ed active level (basic ed
+        // filters by grade/year level instead). Options come from the AY-scoped set.
+        $activeLevelName = optional($levels->firstWhere('id', $activeLevelId))->name;
+        $showProgramFilter = ! $showAll && $activeLevelId
+            && ! str_contains(strtolower((string) $activeLevelName), 'basic');
+        $programOptions = [];
+        $programFilter = null;
+        if ($showProgramFilter) {
+            $programOptions = $afterAy->filter(fn ($r) => $r->_program_id)
+                ->unique('_program_id')->sortBy('_program')
+                ->mapWithKeys(fn ($r) => [(int) $r->_program_id => $r->_program ?: ('Program #'.$r->_program_id)])->all();
+            $programFilter = $request->integer('program') ?: null;
+            if ($programFilter && ! array_key_exists($programFilter, $programOptions)) {
+                $programFilter = null;
+            }
+        }
+
+        $finalRows = $afterAy
+            ->when($yearLevel !== null, fn ($rows) => $rows->filter(fn ($r) => (string) $r->_year_level === $yearLevel))
+            ->when($programFilter, fn ($rows) => $rows->filter(fn ($r) => (int) $r->_program_id === $programFilter))
+            ->values();
 
         return [
-            'columns'          => config('tables.transcript_master.columns', []),
-            'levels'           => $levels,
-            'activeLevelId'    => $activeLevelId,
-            'showTabs'         => $showTabs,
-            'showAll'          => $showAll,
-            'rows'             => $finalRows,
-            'counts'           => $counts,
-            'statusOptions'    => $statusOptions,
-            'statusFilter'     => $statusFilter,
-            'academicYears'    => $academicYears,
-            'academicYearId'   => $academicYearId,
+            'columns' => config('tables.transcript_master.columns', []),
+            'levels' => $levels,
+            'activeLevelId' => $activeLevelId,
+            'showTabs' => $showTabs,
+            'showAll' => $showAll,
+            'rows' => $finalRows,
+            'counts' => $counts,
+            'statusOptions' => $statusOptions,
+            'statusFilter' => $statusFilter,
+            'academicYears' => $academicYears,
+            'academicYearId' => $academicYearId,
             'yearLevelOptions' => $yearLevelOptions,
-            'yearLevel'        => $yearLevel,
+            'yearLevel' => $yearLevel,
+            'showProgramFilter' => $showProgramFilter,
+            'programOptions' => $programOptions,
+            'programFilter' => $programFilter,
         ];
     }
 
@@ -244,7 +270,7 @@ class TranscriptOfRecordController extends Controller
                 $yr = $e->year_level;
                 if ($yr !== null && $yr !== '' && $yr !== '—') {
                     $yrLabel = is_numeric($yr) ? 'Grade '.$yr : (string) $yr;
-                    $label   = $yrLabel.' - '.$label;
+                    $label = $yrLabel.' - '.$label;
                 }
             }
         }
@@ -269,13 +295,13 @@ class TranscriptOfRecordController extends Controller
             $data = $form137->build($student);
 
             return view('transcript.form137', [
-                'student'    => $student,
-                'sections'   => $data['sections'],
-                'summary'    => $data['summary'],
-                'backUrl'    => route('registrar.transcripts.index'),
-                'backLabel'  => 'Back to Records',
-                'editable'   => true,   // registrar can edit grades + mark transfers
-                'report'     => app(ReportCardService::class)->build($student),
+                'student' => $student,
+                'sections' => $data['sections'],
+                'summary' => $data['summary'],
+                'backUrl' => route('registrar.transcripts.index'),
+                'backLabel' => 'Back to Records',
+                'editable' => true,   // registrar can edit grades + mark transfers
+                'report' => app(ReportCardService::class)->build($student),
                 'rcEditable' => true,
             ]);
         }
@@ -286,19 +312,19 @@ class TranscriptOfRecordController extends Controller
         $report = app(ReportCardService::class)->build($student);
 
         $blank = [
-            'student'        => $student,
-            'columns'        => $columns,
-            'groups'         => collect(),
-            'programLabel'   => '—',
-            'totalUnits'     => 0,
-            'requiredUnits'  => 0,
-            'percentDone'    => 0,
-            'gwa'            => null,
-            'pendingByCs'    => collect(),
+            'student' => $student,
+            'columns' => $columns,
+            'groups' => collect(),
+            'programLabel' => '—',
+            'totalUnits' => 0,
+            'requiredUnits' => 0,
+            'percentDone' => 0,
+            'gwa' => null,
+            'pendingByCs' => collect(),
             'isTransfereeOrShifter' => false,
-            'latestEnrollmentId'    => null,
-            'report'         => $report,
-            'rcEditable'     => false,   // higher-ed report card reads posted grades (read-only)
+            'latestEnrollmentId' => null,
+            'report' => $report,
+            'rcEditable' => false,   // higher-ed report card reads posted grades (read-only)
         ];
 
         $latestEnrollment = StudentEnrollment::with('program:id,code,name')
@@ -343,15 +369,15 @@ class TranscriptOfRecordController extends Controller
 
         if (! $curriculum) {
             return view('registrar.transcripts.show', array_merge($blank, [
-                'programLabel'          => $programLabel,
+                'programLabel' => $programLabel,
                 'isTransfereeOrShifter' => $isTransfereeOrShifter,
-                'latestEnrollmentId'    => $latestEnrollment?->id,
+                'latestEnrollmentId' => $latestEnrollment?->id,
             ]));
         }
 
-        $termsPerYear  = (int) ($curriculum->terms_per_year ?: 2);
+        $termsPerYear = (int) ($curriculum->terms_per_year ?: 2);
         $hasSummerTerm = (bool) ($curriculum->has_summer_term ?? false);
-        $expectedSems  = range(1, max(1, $termsPerYear));
+        $expectedSems = range(1, max(1, $termsPerYear));
         if ($hasSummerTerm && ! in_array(3, $expectedSems, true)) {
             $expectedSems[] = 3;
         }
@@ -374,13 +400,13 @@ class TranscriptOfRecordController extends Controller
                     's.name as subject_name',
                 ])
                 ->map(fn ($r) => (object) [
-                    'id'         => $r->id,
+                    'id' => $r->id,
                     'subject_id' => $r->subject_id,
                     'year_level' => $r->year_level,
-                    'semester'   => $r->semester,
-                    'units'      => $r->units,
-                    'subject'    => (object) [
-                        'id'   => $r->subject_id,
+                    'semester' => $r->semester,
+                    'units' => $r->units,
+                    'subject' => (object) [
+                        'id' => $r->subject_id,
                         'code' => $r->subject_code,
                         'name' => $r->subject_name,
                     ],
@@ -429,62 +455,62 @@ class TranscriptOfRecordController extends Controller
             ->all();
 
         $rows = $curriculumRows->map(function ($cs) use ($taken, $termsPerYear, $teacherByClass) {
-            $subj    = $cs->subject;
-            $units   = (float) ($cs->units ?? 0);
-            $sem     = (int) $cs->semester;
-            $year    = (int) $cs->year_level;
+            $subj = $cs->subject;
+            $units = (float) ($cs->units ?? 0);
+            $sem = (int) $cs->semester;
+            $year = (int) $cs->year_level;
             $semWord = $this->semesterLabel($sem, $termsPerYear);
 
-            $record  = $taken->get($cs->subject_id);
-            $grade   = $record?->grade;
-            $status  = strtolower((string) ($record->status ?? ''));
+            $record = $taken->get($cs->subject_id);
+            $grade = $record?->grade;
+            $status = strtolower((string) ($record->status ?? ''));
             $teacher = ($record && $record->class_id ? ($teacherByClass[(int) $record->class_id] ?? '') : '') ?: '—';
 
-            $isCredit  = in_array($status, ['credit', 'credited', 'transferred']);
-            $isFailed  = $status === 'failed' || (is_numeric($grade) && $this->isFailing((float) $grade));
-            $isPassed  = ! $isCredit && ! $isFailed && in_array($status, ['passed', 'completed']) && is_numeric($grade);
-            $finished  = $isCredit || $isFailed || $isPassed;
+            $isCredit = in_array($status, ['credit', 'credited', 'transferred']);
+            $isFailed = $status === 'failed' || (is_numeric($grade) && $this->isFailing((float) $grade));
+            $isPassed = ! $isCredit && ! $isFailed && in_array($status, ['passed', 'completed']) && is_numeric($grade);
+            $finished = $isCredit || $isFailed || $isPassed;
 
             return (object) [
-                'id'                    => $cs->id,
-                'subject_id'            => $cs->subject_id,
+                'id' => $cs->id,
+                'subject_id' => $cs->subject_id,
                 'enrollment_subject_id' => $record?->id,
-                'year_level'            => $year,
-                'semester'              => $sem,
-                'semester_label'        => $semWord,
-                'subject_code'          => $subj->code ?? '—',
-                'descriptive_title'     => $subj->name ?? '—',
-                'teacher'               => $teacher,
-                'final_grade'           => is_numeric($grade)
+                'year_level' => $year,
+                'semester' => $sem,
+                'semester_label' => $semWord,
+                'subject_code' => $subj->code ?? '—',
+                'descriptive_title' => $subj->name ?? '—',
+                'teacher' => $teacher,
+                'final_grade' => is_numeric($grade)
                     ? rtrim(rtrim(number_format((float) $grade, 2, '.', ''), '0'), '.')
                     : ($isCredit ? 'Credit' : '—'),
-                'final_grade_raw'       => is_numeric($grade) ? (float) $grade : null,
-                'units'                 => $units > 0 ? rtrim(rtrim(number_format($units, 2, '.', ''), '0'), '.') : '—',
-                'status_label'          => match (true) {
-                    $isCredit  => 'Credit',
-                    $isFailed  => 'Failed',
-                    $isPassed  => 'Passed',
+                'final_grade_raw' => is_numeric($grade) ? (float) $grade : null,
+                'units' => $units > 0 ? rtrim(rtrim(number_format($units, 2, '.', ''), '0'), '.') : '—',
+                'status_label' => match (true) {
+                    $isCredit => 'Credit',
+                    $isFailed => 'Failed',
+                    $isPassed => 'Passed',
                     $status === 'enrolled' => 'Ongoing',
-                    default    => 'Not Taken',
+                    default => 'Not Taken',
                 },
-                '_grade_numeric'        => is_numeric($grade) ? (float) $grade : null,
-                '_units_numeric'        => $units,
-                '_is_passed'            => $isPassed,
-                '_is_credit'            => $isCredit,
-                '_finished'             => $finished,
+                '_grade_numeric' => is_numeric($grade) ? (float) $grade : null,
+                '_units_numeric' => $units,
+                '_is_passed' => $isPassed,
+                '_is_credit' => $isCredit,
+                '_finished' => $finished,
             ];
         });
 
-        $totalUnits  = (float) $rows->filter(fn ($r) => $r->_is_passed || $r->_is_credit)->sum('_units_numeric');
+        $totalUnits = (float) $rows->filter(fn ($r) => $r->_is_passed || $r->_is_credit)->sum('_units_numeric');
         $percentDone = $requiredUnits > 0 ? round(($totalUnits / $requiredUnits) * 100, 1) : 0;
 
-        $weighted    = $rows->filter(fn ($r) => $r->_is_passed && $r->_grade_numeric !== null && $r->_units_numeric > 0);
-        $weightSum   = (float) $weighted->sum('_units_numeric');
+        $weighted = $rows->filter(fn ($r) => $r->_is_passed && $r->_grade_numeric !== null && $r->_units_numeric > 0);
+        $weightSum = (float) $weighted->sum('_units_numeric');
         $weightedSum = (float) $weighted->sum(fn ($r) => $r->_grade_numeric * $r->_units_numeric);
-        $gwa         = $weightSum > 0 ? round($weightedSum / $weightSum, 2) : null;
+        $gwa = $weightSum > 0 ? round($weightedSum / $weightSum, 2) : null;
 
         $maxYear = (int) ($curriculumRows->max('year_level') ?: 0);
-        $years   = $maxYear > 0 ? range(1, $maxYear) : [];
+        $years = $maxYear > 0 ? range(1, $maxYear) : [];
 
         $rowsByYearSem = $rows->groupBy('year_level')
             ->map(fn ($yearRows) => $yearRows->groupBy('semester'));
@@ -502,21 +528,21 @@ class TranscriptOfRecordController extends Controller
         }
 
         return view('registrar.transcripts.show', [
-            'student'         => $student,
-            'columns'         => $columns,
-            'groups'          => $groups,
-            'programLabel'    => $programLabel,
-            'totalUnits'      => $totalUnits,
-            'requiredUnits'   => $requiredUnits,
-            'percentDone'     => $percentDone,
-            'gwa'             => $gwa,
-            'termsPerYear'    => $termsPerYear,
-            'hasSummerTerm'   => $hasSummerTerm,
+            'student' => $student,
+            'columns' => $columns,
+            'groups' => $groups,
+            'programLabel' => $programLabel,
+            'totalUnits' => $totalUnits,
+            'requiredUnits' => $requiredUnits,
+            'percentDone' => $percentDone,
+            'gwa' => $gwa,
+            'termsPerYear' => $termsPerYear,
+            'hasSummerTerm' => $hasSummerTerm,
             'pendingBySubject' => $pendingBySubject,
             'isTransfereeOrShifter' => $isTransfereeOrShifter,
-            'latestEnrollmentId'    => $latestEnrollment?->id,
-            'report'          => $report,
-            'rcEditable'      => false,
+            'latestEnrollmentId' => $latestEnrollment?->id,
+            'report' => $report,
+            'rcEditable' => false,
         ]);
     }
 
@@ -530,10 +556,10 @@ class TranscriptOfRecordController extends Controller
     public function storeEditRequest(Request $request, Student $student)
     {
         $data = $request->validate([
-            'subject_id'            => ['required', 'integer', 'exists:subjects,id'],
+            'subject_id' => ['required', 'integer', 'exists:subjects,id'],
             'enrollment_subject_id' => ['nullable', 'integer', 'exists:student_enrollment_subjects,id'],
-            'new_grade'             => ['required', 'numeric', 'min:0', 'max:100'],
-            'reason'                => ['nullable', 'string', 'max:1000'],
+            'new_grade' => ['required', 'numeric', 'min:0', 'max:100'],
+            'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $oldGrade = null;
@@ -542,14 +568,14 @@ class TranscriptOfRecordController extends Controller
         }
 
         TranscriptEditRequest::create([
-            'student_id'            => $student->id,
-            'subject_id'            => $data['subject_id'],
+            'student_id' => $student->id,
+            'subject_id' => $data['subject_id'],
             'enrollment_subject_id' => $data['enrollment_subject_id'] ?? null,
-            'old_grade'             => $oldGrade,
-            'new_grade'             => $data['new_grade'],
-            'reason'                => $data['reason'] ?? null,
-            'status'                => TranscriptEditRequest::STATUS_PENDING,
-            'requested_by'          => Auth::id(),
+            'old_grade' => $oldGrade,
+            'new_grade' => $data['new_grade'],
+            'reason' => $data['reason'] ?? null,
+            'status' => TranscriptEditRequest::STATUS_PENDING,
+            'requested_by' => Auth::id(),
         ]);
 
         return back()->with('success', 'Edit request submitted. Awaiting program head and dean approval.');
@@ -568,15 +594,15 @@ class TranscriptOfRecordController extends Controller
     public function applyCreditEdit(Request $request, Student $student)
     {
         $data = $request->validate([
-            'subject_id'            => ['required', 'integer', 'exists:subjects,id'],
+            'subject_id' => ['required', 'integer', 'exists:subjects,id'],
             'enrollment_subject_id' => ['nullable', 'integer', 'exists:student_enrollment_subjects,id'],
-            'new_grade'             => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'new_status'            => ['required', 'string', 'in:credit,passed,failed,enrolled'],
-            'reason'                => ['nullable', 'string', 'max:1000'],
-            'latest_enrollment_id'  => ['nullable', 'integer', 'exists:student_enrollments,id'],
+            'new_grade' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'new_status' => ['required', 'string', 'in:credit,passed,failed,enrolled'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+            'latest_enrollment_id' => ['nullable', 'integer', 'exists:student_enrollments,id'],
             // Form 137: when a subject is credited/transferred, record the
             // school it was transferred from (stored on the subject's remarks).
-            'transferred_from'      => ['nullable', 'string', 'max:255'],
+            'transferred_from' => ['nullable', 'string', 'max:255'],
         ]);
 
         // Transfer source is only meaningful for credited subjects.
@@ -608,32 +634,32 @@ class TranscriptOfRecordController extends Controller
 
             $row = StudentEnrollmentSubject::create([
                 'student_enrollment_id' => $enrollmentId,
-                'subject_id'            => $data['subject_id'],
-                'status'                => $data['new_status'],
-                'grade'                 => $data['new_grade'] ?? null,
-                'final_grade'           => $data['new_grade'] ?? null,
-                'remarks'               => $remarks,
+                'subject_id' => $data['subject_id'],
+                'status' => $data['new_status'],
+                'grade' => $data['new_grade'] ?? null,
+                'final_grade' => $data['new_grade'] ?? null,
+                'remarks' => $remarks,
             ]);
         } else {
-            $row->status      = $data['new_status'];
-            $row->grade       = $data['new_grade'] ?? $row->grade;
+            $row->status = $data['new_status'];
+            $row->grade = $data['new_grade'] ?? $row->grade;
             $row->final_grade = $data['new_grade'] ?? $row->final_grade;
-            $row->remarks     = $remarks;
+            $row->remarks = $remarks;
             $row->save();
         }
 
         // Log an "applied" TranscriptEditRequest entry so the audit trail is
         // preserved alongside normal edit requests.
         TranscriptEditRequest::create([
-            'student_id'            => $student->id,
-            'subject_id'            => $data['subject_id'],
+            'student_id' => $student->id,
+            'subject_id' => $data['subject_id'],
             'enrollment_subject_id' => $row->id,
-            'old_grade'             => null,
-            'new_grade'             => $data['new_grade'] ?? null,
-            'reason'                => $data['reason']
+            'old_grade' => null,
+            'new_grade' => $data['new_grade'] ?? null,
+            'reason' => $data['reason']
                 ?? 'Registrar transcript correction (direct edit).',
-            'status'                => TranscriptEditRequest::STATUS_APPLIED,
-            'requested_by'          => Auth::id(),
+            'status' => TranscriptEditRequest::STATUS_APPLIED,
+            'requested_by' => Auth::id(),
         ]);
 
         return back()->with('success', 'Transcript updated successfully.');
@@ -649,28 +675,28 @@ class TranscriptOfRecordController extends Controller
     {
         $data = $request->validate([
             'education_node_id' => ['required', 'integer', 'exists:education_nodes,id'],
-            'subject_id'        => ['required', 'integer', 'exists:subjects,id'],
-            'new_grade'         => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'new_status'        => ['required', 'string', 'in:passed,failed,credit,enrolled'],
-            'teacher_name'      => ['nullable', 'string', 'max:255'],
-            'transferred_from'  => ['nullable', 'string', 'max:255'],
-            'school_year'       => ['nullable', 'string', 'max:32'],
+            'subject_id' => ['required', 'integer', 'exists:subjects,id'],
+            'new_grade' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'new_status' => ['required', 'string', 'in:passed,failed,credit,enrolled'],
+            'teacher_name' => ['nullable', 'string', 'max:255'],
+            'transferred_from' => ['nullable', 'string', 'max:255'],
+            'school_year' => ['nullable', 'string', 'max:32'],
         ]);
 
         PermanentRecordGrade::updateOrCreate(
             [
-                'student_id'        => $student->id,
+                'student_id' => $student->id,
                 'education_node_id' => $data['education_node_id'],
-                'subject_id'        => $data['subject_id'],
+                'subject_id' => $data['subject_id'],
             ],
             [
-                'school_id'        => $student->school_id,
-                'final_grade'      => $data['new_grade'] ?? null,
-                'status'           => $data['new_status'],
-                'teacher_name'     => $data['teacher_name'] ?: null,
+                'school_id' => $student->school_id,
+                'final_grade' => $data['new_grade'] ?? null,
+                'status' => $data['new_status'],
+                'teacher_name' => $data['teacher_name'] ?: null,
                 'transferred_from' => $data['new_status'] === 'credit' ? ($data['transferred_from'] ?: null) : null,
-                'school_year'      => $data['school_year'] ?: null,
-                'recorded_by'      => Auth::id(),
+                'school_year' => $data['school_year'] ?: null,
+                'recorded_by' => Auth::id(),
             ]
         );
 
@@ -682,10 +708,10 @@ class TranscriptOfRecordController extends Controller
     {
         $data = $request->validate([
             'education_node_id' => ['required', 'integer', 'exists:education_nodes,id'],
-            'subject_id'        => ['required', 'integer', 'exists:subjects,id'],
-            'academic_year_id'  => ['nullable', 'integer', 'exists:academic_years,id'],
-            'grades'            => ['array'],
-            'grades.*'          => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'subject_id' => ['required', 'integer', 'exists:subjects,id'],
+            'academic_year_id' => ['nullable', 'integer', 'exists:academic_years,id'],
+            'grades' => ['array'],
+            'grades.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
         foreach ((array) ($data['grades'] ?? []) as $period => $grade) {
@@ -696,14 +722,14 @@ class TranscriptOfRecordController extends Controller
 
             ReportCardGrade::updateOrCreate(
                 [
-                    'student_id'        => $student->id,
+                    'student_id' => $student->id,
                     'education_node_id' => $data['education_node_id'],
-                    'subject_id'        => $data['subject_id'],
-                    'academic_year_id'  => $data['academic_year_id'] ?? null,
-                    'grading_period'    => $period,
+                    'subject_id' => $data['subject_id'],
+                    'academic_year_id' => $data['academic_year_id'] ?? null,
+                    'grading_period' => $period,
                 ],
                 [
-                    'school_id'   => $student->school_id,
+                    'school_id' => $student->school_id,
                     'final_grade' => ($grade === '' || $grade === null) ? null : $grade,
                     'recorded_by' => Auth::id(),
                 ]
@@ -711,6 +737,34 @@ class TranscriptOfRecordController extends Controller
         }
 
         return back()->with('success', 'Report card grades saved.');
+    }
+
+    /**
+     * Toggle a student's grade-view visibility (Grades / Form 137). Hidden from
+     * the student until the registrar grants it on request. Tenant-scoped: a
+     * registrar can only touch their own school's students.
+     */
+    public function updateGradeVisibility(Request $request, Student $student)
+    {
+        abort_unless((int) $student->school_id === (int) auth()->user()->school_id, 404);
+
+        $data = $request->validate([
+            'view' => ['required', 'in:grades,form137'],
+        ]);
+
+        $column = $data['view'] === 'grades' ? 'show_grades' : 'show_form137';
+        $enabled = $request->boolean('enabled');
+        $student->update([$column => $enabled]);
+
+        return response()->json(['ok' => true, 'view' => $data['view'], 'enabled' => $enabled]);
+    }
+
+    /** Server-built toggle-switch cell for the visibility columns (raw HTML). */
+    protected function visibilitySwitch(int $studentId, string $view, bool $on): string
+    {
+        return '<label class="gv-switch"><input type="checkbox"'.($on ? ' checked' : '')
+            .' onchange="gvToggle('.$studentId.', \''.$view.'\', this)">'
+            .'<span class="gv-slider"></span></label>';
     }
 
     protected function semesterLabel(int $sem, int $termsPerYear = 2): string
@@ -721,6 +775,7 @@ class TranscriptOfRecordController extends Controller
                 default => 'Sem '.$sem,
             };
         }
+
         return match ($sem) {
             1 => '1st Sem', 2 => '2nd Sem', 3 => 'Summer',
             default => 'Sem '.$sem,
@@ -732,6 +787,7 @@ class TranscriptOfRecordController extends Controller
         if ($g <= 5.0) {
             return $g > 3.0;   // 1.00–5.00 scale
         }
+
         return $g < 75;        // 100-pt scale
     }
 
@@ -753,6 +809,7 @@ class TranscriptOfRecordController extends Controller
             }
             $rootOf[$id] = $cur?->id;
         }
+
         return $rootOf;
     }
 
@@ -775,6 +832,7 @@ class TranscriptOfRecordController extends Controller
             'partially_paid', 'enrolled', 'provisionally_enrolled',
             'dropped', 'cancelled', 'completed',
         ];
+
         return in_array($enrollmentStatus, $known, true) ? $enrollmentStatus : 'unenrolled';
     }
 
@@ -782,24 +840,24 @@ class TranscriptOfRecordController extends Controller
     protected function statusPill(string $status): array
     {
         return match ($status) {
-            'draft'          => ['Draft',          '#f1f5f9', '#475569'],
-            'submitted'      => ['Submitted Application', '#e0e7ff', '#4338ca'],
-            'exam_passed'    => ['Passed Entrance Exam', '#dbeafe', '#1d4ed8'],
-            'exam_failed'    => ['Failed Entrance Exam', '#fee2e2', '#b91c1c'],
-            'assessed'       => ['Assessed',       '#e0f2fe', '#0369a1'],
-            'provisional'    => ['Provisional',    '#fef3c7', '#a16207'],
-            'rejected'       => ['Rejected',       '#fee2e2', '#b91c1c'],
-            'sent_billing'   => ['Sent Billing',   '#ede9fe', '#6d28d9'],
-            'billed'         => ['Billed',         '#fef9c3', '#854d0e'],
+            'draft' => ['Draft',          '#f1f5f9', '#475569'],
+            'submitted' => ['Submitted Application', '#e0e7ff', '#4338ca'],
+            'exam_passed' => ['Passed Entrance Exam', '#dbeafe', '#1d4ed8'],
+            'exam_failed' => ['Failed Entrance Exam', '#fee2e2', '#b91c1c'],
+            'assessed' => ['Assessed',       '#e0f2fe', '#0369a1'],
+            'provisional' => ['Provisional',    '#fef3c7', '#a16207'],
+            'rejected' => ['Rejected',       '#fee2e2', '#b91c1c'],
+            'sent_billing' => ['Sent Billing',   '#ede9fe', '#6d28d9'],
+            'billed' => ['Billed',         '#fef9c3', '#854d0e'],
             'partially_paid' => ['Partially Paid', '#fef3c7', '#a16207'],
-            'enrolled'       => ['Enrolled',       '#dcfce7', '#15803d'],
+            'enrolled' => ['Enrolled',       '#dcfce7', '#15803d'],
             'provisionally_enrolled' => ['Provisionally Enrolled', '#dcfce7', '#047857'],
-            'dropped'        => ['Dropped',        '#fee2e2', '#b91c1c'],
-            'cancelled'      => ['Cancelled',      '#fee2e2', '#b91c1c'],
-            'completed'      => ['Completed',      '#dcfce7', '#15803d'],
-            'graduated'      => ['Graduated',      '#dbeafe', '#1d4ed8'],
-            'transferred'    => ['Transferred',    '#fef3c7', '#a16207'],
-            default          => ['Unenrolled',     '#f1f5f9', '#475569'],
+            'dropped' => ['Dropped',        '#fee2e2', '#b91c1c'],
+            'cancelled' => ['Cancelled',      '#fee2e2', '#b91c1c'],
+            'completed' => ['Completed',      '#dcfce7', '#15803d'],
+            'graduated' => ['Graduated',      '#dbeafe', '#1d4ed8'],
+            'transferred' => ['Transferred',    '#fef3c7', '#a16207'],
+            default => ['Unenrolled',     '#f1f5f9', '#475569'],
         };
     }
 }

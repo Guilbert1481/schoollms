@@ -41,26 +41,6 @@ class GradeSettingsController extends Controller
     }
 
     /**
-     * Settings → Grades → Student Grade: which grade views students can see.
-     * Each switch gates the matching student sidebar item and its route (the
-     * middleware enforces access; the sidebar hides the link).
-     */
-    public function updateStudentVisibility(Request $request)
-    {
-        $schoolId = (int) auth()->user()->school_id;
-        abort_unless($schoolId, 404);
-
-        GradeSetting::forSchool($schoolId)->update([
-            'show_student_grades' => $request->boolean('show_student_grades'),
-            'show_student_form137' => $request->boolean('show_student_form137'),
-        ]);
-
-        return back()
-            ->with('success', 'Student grade visibility saved.')
-            ->with('grades_tab', 'student_grade');
-    }
-
-    /**
      * Settings → Grades → Division: name the basic-ed grading periods. Stores
      * the collective noun (period_label) and the per-period display names. The
      * period stays an ordinal (1..N) — this only changes how it reads. Capped at

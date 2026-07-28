@@ -10,11 +10,13 @@
 return [
 
     'labels' => [
-        'full_name'  => 'Full Name',
+        'full_name' => 'Full Name',
         'year_level' => 'Year Level',
         'student_id' => 'Student ID',
-        'program'    => 'Program',
-        'status'     => 'Status',
+        'program' => 'Program',
+        'status' => 'Status',
+        'gv_grades' => 'Grades',
+        'gv_form137' => 'Form 137',
     ],
 
     'columns' => [
@@ -23,6 +25,9 @@ return [
         ['key' => 'student_id', 'label' => 'Student ID', 'width' => '160px'],
         ['key' => 'program',    'label' => 'Program',    'width' => '260px'],
         ['key' => 'status',     'label' => 'Status', 'raw' => true, 'width' => '140px'],
+        // Registrar-owned grade-view visibility toggles (raw switch cells).
+        ['key' => 'gv_grades',  'label' => 'Grades',   'raw' => true, 'width' => '90px'],
+        ['key' => 'gv_form137', 'label' => 'Form 137', 'raw' => true, 'width' => '90px'],
     ],
 
     'hidden' => [

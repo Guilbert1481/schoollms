@@ -30,12 +30,17 @@
         ? app(\App\Services\Dashboard\StudentDashboardService::class)->isBasicEd($user)
         : false;
 
-    // Principal → Settings → Grades → Student Grade: per-school switches that
-    // hide the student "Grades" (report card) and "Form 137" (transcript) items.
-    // Read-only lookup; a missing row means both are off (the default).
-    $studentGradeView = $isBasicEdStudent
-        ? \App\Models\GradeSetting::where('school_id', (int) ($user->school_id ?? 0))->first()
+    // Registrar → Transcript of Records: per-student grade-view visibility.
+    // Hidden by default; the registrar grants per student on request. Applies to
+    // every student (basic ed AND higher ed), not just the actively-enrolled — a
+    // read-only lookup, a missing/blank flag means hidden.
+    $studentGV = ($role === 'student' && $user)
+        ? \App\Models\Student::where('user_id', $user->id)
+            ->where('school_id', (int) ($user->school_id ?? 0))
+            ->first(['show_grades', 'show_form137'])
         : null;
+    $canSeeGrades = $role === 'student' ? (bool) ($studentGV->show_grades ?? false) : true;
+    $canSeeForm137 = $role === 'student' ? (bool) ($studentGV->show_form137 ?? false) : true;
 
     // Modality Request is non-basic-ed only and only while the 2-week
     // post-enrollment window is open (same rule the controller enforces).
@@ -89,15 +94,15 @@
                                     return !isset($child['roles']) ||
                                         in_array($role, array_map('strtolower', $child['roles']));
                                 })
-                                // Basic-ed student grade-view toggles (Principal →
-                                // Grades → Student Grade): drop the item when off.
-                                ->reject(function ($child) use ($isBasicEdStudent, $studentGradeView) {
-                                    if (! $isBasicEdStudent) {
+                                // Per-student grade-view toggles (Registrar →
+                                // Transcript of Records): drop the item when off.
+                                ->reject(function ($child) use ($role, $canSeeGrades, $canSeeForm137) {
+                                    if ($role !== 'student') {
                                         return false;
                                     }
                                     return match ($child['route'] ?? '') {
-                                        'student.report-card'     => ! ($studentGradeView->show_student_grades ?? false),
-                                        'student.transcript.index' => ! ($studentGradeView->show_student_form137 ?? false),
+                                        'student.report-card'      => ! $canSeeGrades,
+                                        'student.transcript.index' => ! $canSeeForm137,
                                         default => false,
                                     };
                                 })

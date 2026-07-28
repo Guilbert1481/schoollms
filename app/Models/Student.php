@@ -14,6 +14,8 @@ class Student extends Model
         'school_id',
         'home_school_id',
         'user_id',
+        'show_grades',
+        'show_form137',
         'student_number',
         'lrn',
         'first_name',
@@ -69,6 +71,10 @@ class Student extends Model
      */
     protected $casts = [
         'government_id_number' => EncryptedTolerant::class,
+        // Registrar-owned grade-view visibility (default off; see the
+        // add_grade_visibility_to_students migration).
+        'show_grades' => 'boolean',
+        'show_form137' => 'boolean',
     ];
 
     public function school()
