@@ -122,7 +122,7 @@ class TranscriptOfRecordController extends Controller
             ->groupBy('se.student_id')
             ->pluck('id');
 
-        $enrollments = StudentEnrollment::with(['student', 'program', 'modality', 'educationNode', 'academicYear'])
+        $enrollments = StudentEnrollment::with(['student', 'program', 'modality', 'educationNode', 'academicYear', 'section'])
             ->whereIn('id', $latestIds)
             ->get()
             ->sortBy(fn ($e) => strtolower(($e->student?->last_name ?? '').' '.($e->student?->first_name ?? '')))
@@ -164,6 +164,8 @@ class TranscriptOfRecordController extends Controller
                 '_ay_name' => $e->academicYear?->name,
                 '_program_id' => $e->program?->id,
                 '_program' => $e->program?->code ?? $e->program?->name,
+                '_section_id' => $e->section?->id,
+                '_section' => $e->section?->name,
             ]);
         }
 
@@ -218,9 +220,26 @@ class TranscriptOfRecordController extends Controller
             }
         }
 
+        // Section filter — surfaced only for a basic-ed active level (higher ed
+        // filters by program instead). Options come from the AY-scoped set.
+        $showSectionFilter = ! $showAll && $activeLevelId
+            && str_contains(strtolower((string) $activeLevelName), 'basic');
+        $sectionOptions = [];
+        $sectionFilter = null;
+        if ($showSectionFilter) {
+            $sectionOptions = $afterAy->filter(fn ($r) => $r->_section_id)
+                ->unique('_section_id')->sortBy('_section')
+                ->mapWithKeys(fn ($r) => [(int) $r->_section_id => $r->_section ?: ('Section #'.$r->_section_id)])->all();
+            $sectionFilter = $request->integer('section') ?: null;
+            if ($sectionFilter && ! array_key_exists($sectionFilter, $sectionOptions)) {
+                $sectionFilter = null;
+            }
+        }
+
         $finalRows = $afterAy
             ->when($yearLevel !== null, fn ($rows) => $rows->filter(fn ($r) => (string) $r->_year_level === $yearLevel))
             ->when($programFilter, fn ($rows) => $rows->filter(fn ($r) => (int) $r->_program_id === $programFilter))
+            ->when($sectionFilter, fn ($rows) => $rows->filter(fn ($r) => (int) $r->_section_id === $sectionFilter))
             ->values();
 
         return [
@@ -240,6 +259,9 @@ class TranscriptOfRecordController extends Controller
             'showProgramFilter' => $showProgramFilter,
             'programOptions' => $programOptions,
             'programFilter' => $programFilter,
+            'showSectionFilter' => $showSectionFilter,
+            'sectionOptions' => $sectionOptions,
+            'sectionFilter' => $sectionFilter,
         ];
     }
 
@@ -757,6 +779,33 @@ class TranscriptOfRecordController extends Controller
         $student->update([$column => $enabled]);
 
         return response()->json(['ok' => true, 'view' => $data['view'], 'enabled' => $enabled]);
+    }
+
+    /**
+     * Bulk toggle grade-view visibility for EVERY student the list's active
+     * filters currently show (level tab, status, academic year, year level,
+     * program, section). Reuses gather() so "apply to all shown" means exactly
+     * the rows the registrar sees; gather() and the update are both school-scoped.
+     */
+    public function updateGradeVisibilityBulk(Request $request)
+    {
+        $schoolId = (int) auth()->user()->school_id;
+        abort_unless($schoolId, 404);
+
+        $data = $request->validate([
+            'view' => ['required', 'in:grades,form137'],
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        $column = $data['view'] === 'grades' ? 'show_grades' : 'show_form137';
+        $enabled = $request->boolean('enabled');
+        $ids = $this->gather($request)['rows']->pluck('id')->all();
+
+        $count = empty($ids) ? 0 : Student::whereIn('id', $ids)
+            ->where('school_id', $schoolId)
+            ->update([$column => $enabled]);
+
+        return response()->json(['ok' => true, 'view' => $data['view'], 'enabled' => $enabled, 'count' => $count]);
     }
 
     /** Server-built toggle-switch cell for the visibility columns (raw HTML). */

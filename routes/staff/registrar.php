@@ -78,6 +78,8 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
             ->name('transcripts.report-card-grade');
         // Per-student grade-view visibility toggles (Grades / Form 137) — hidden
         // from the student until the registrar grants access on request.
+        Route::post('transcripts/grade-visibility/bulk', [TranscriptOfRecordController::class, 'updateGradeVisibilityBulk'])
+            ->name('transcripts.grade-visibility.bulk');
         Route::post('transcripts/{student}/grade-visibility', [TranscriptOfRecordController::class, 'updateGradeVisibility'])
             ->name('transcripts.grade-visibility');
 

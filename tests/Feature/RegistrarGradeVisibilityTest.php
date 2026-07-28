@@ -132,4 +132,95 @@ class RegistrarGradeVisibilityTest extends TestCase
             ->assertOk()
             ->assertSee('gv-switch');
     }
+
+    private function activeYearTerm(School $school): array
+    {
+        $ayId = DB::table('academic_years')->insertGetId(['school_id' => $school->id, 'name' => '2026-2027', 'is_active' => 1]);
+        $termId = DB::table('terms')->insertGetId([
+            'school_id' => $school->id, 'academic_year_id' => $ayId, 'academic_year' => '2026-2027',
+            'enrollment_type' => 'x', 'term' => 'first', 'name' => 'T',
+            'start_date' => '2026-06-01', 'end_date' => '2027-03-31',
+        ]);
+
+        return [$ayId, $termId];
+    }
+
+    /** A student with an enrolled latest enrollment, so it shows on the master list. */
+    private function enrolledStudent(School $school, int $ayId, int $termId, ?int $yearLevel = null): Student
+    {
+        $user = User::factory()->create(['school_id' => $school->id, 'role' => 'student']);
+        $student = Student::create([
+            'school_id' => $school->id, 'user_id' => $user->id,
+            'student_number' => 'S-'.$user->id, 'first_name' => 'A', 'last_name' => 'B'.$user->id,
+        ]);
+        DB::table('student_enrollments')->insert([
+            'school_id' => $school->id, 'student_id' => $student->id, 'academic_year_id' => $ayId,
+            'term_id' => $termId, 'status' => 'enrolled', 'year_level' => $yearLevel,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return $student;
+    }
+
+    public function test_bulk_grants_grades_to_all_shown_students(): void
+    {
+        $school = School::factory()->create();
+        $registrar = User::factory()->create(['school_id' => $school->id, 'role' => 'registrar']);
+        [$ayId, $termId] = $this->activeYearTerm($school);
+        $s1 = $this->enrolledStudent($school, $ayId, $termId);
+        $s2 = $this->enrolledStudent($school, $ayId, $termId);
+
+        // No filters → every shown (school) student.
+        $this->actingAs($registrar)->post(route('registrar.transcripts.grade-visibility.bulk'), [
+            'view' => 'grades', 'enabled' => 1,
+        ])->assertOk()->assertJson(['ok' => true, 'count' => 2]);
+
+        $this->assertDatabaseHas('students', ['id' => $s1->id, 'show_grades' => 1, 'show_form137' => 0]);
+        $this->assertDatabaseHas('students', ['id' => $s2->id, 'show_grades' => 1]);
+    }
+
+    public function test_bulk_respects_the_active_filters(): void
+    {
+        $school = School::factory()->create();
+        $registrar = User::factory()->create(['school_id' => $school->id, 'role' => 'registrar']);
+        [$ayId, $termId] = $this->activeYearTerm($school);
+        $y1 = $this->enrolledStudent($school, $ayId, $termId, 1);
+        $y2 = $this->enrolledStudent($school, $ayId, $termId, 2);
+
+        // Filter to Year 1 → only that student is toggled (proves "apply to shown").
+        $this->actingAs($registrar)->post(route('registrar.transcripts.grade-visibility.bulk'), [
+            'view' => 'grades', 'enabled' => 1, 'year_level' => '1',
+        ])->assertOk()->assertJson(['count' => 1]);
+
+        $this->assertDatabaseHas('students', ['id' => $y1->id, 'show_grades' => 1]);
+        $this->assertDatabaseHas('students', ['id' => $y2->id, 'show_grades' => 0]);
+    }
+
+    public function test_bulk_is_scoped_to_the_registrars_school(): void
+    {
+        $schoolA = School::factory()->create();
+        $schoolB = School::factory()->create();
+        $registrarA = User::factory()->create(['school_id' => $schoolA->id, 'role' => 'registrar']);
+        [$ayA, $termA] = $this->activeYearTerm($schoolA);
+        [$ayB, $termB] = $this->activeYearTerm($schoolB);
+        $sA = $this->enrolledStudent($schoolA, $ayA, $termA);
+        $sB = $this->enrolledStudent($schoolB, $ayB, $termB);
+
+        $this->actingAs($registrarA)->post(route('registrar.transcripts.grade-visibility.bulk'), [
+            'view' => 'grades', 'enabled' => 1,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('students', ['id' => $sA->id, 'show_grades' => 1]);
+        $this->assertDatabaseHas('students', ['id' => $sB->id, 'show_grades' => 0]); // untouched
+    }
+
+    public function test_a_student_cannot_bulk_toggle(): void
+    {
+        $school = School::factory()->create();
+        $studentUser = $this->student($school);
+
+        $this->actingAs($studentUser)->post(route('registrar.transcripts.grade-visibility.bulk'), [
+            'view' => 'grades', 'enabled' => 1,
+        ])->assertForbidden();
+    }
 }
