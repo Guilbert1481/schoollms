@@ -50,9 +50,12 @@ class EnsureEnrollmentOpen
             ->orderByDesc('id')
             ->first();
 
-        // No session configured for this term → don't lock anything.
+        // No session configured for this term → fail closed. Term ids are
+        // guessable in the URL, so an unconfigured term must show the notice,
+        // not the form: only sessions an Admission Manager deliberately made
+        // Active accept applications.
         if (! $setting) {
-            return $next($request);
+            return $this->closedNotice($term, null);
         }
 
         // Active → allow. Anything else (Closed / Upcoming) → show the notice.
@@ -60,11 +63,16 @@ class EnsureEnrollmentOpen
             return $next($request);
         }
 
+        return $this->closedNotice($term, $setting);
+    }
+
+    protected function closedNotice(Term $term, ?EnrollmentSetting $setting): Response
+    {
         $schoolName = SchoolProfile::where('school_id', $term->school_id)->value('school_name');
 
         return response()->view('public.enrollment.closed', [
-            'term'       => $term,
-            'setting'    => $setting,
+            'term' => $term,
+            'setting' => $setting,
             'schoolName' => $schoolName,
         ]);
     }

@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     @php
-        $isUpcoming = ($setting->status ?? 'Closed') === 'Upcoming';
-        $sessionTitle = $setting->title ?: ($setting->name ?: 'this session');
-        $endLabel   = $setting->end_date   ? \Illuminate\Support\Carbon::parse($setting->end_date)->format('F d, Y')   : null;
-        $startLabel = $setting->start_date ? \Illuminate\Support\Carbon::parse($setting->start_date)->format('F d, Y') : null;
+        // $setting is null when the term has no enrolment session configured
+        // at all (the middleware fails closed) — fall back to the term's name.
+        $isUpcoming = ($setting?->status ?? 'Closed') === 'Upcoming';
+        $sessionTitle = $setting?->title ?: ($setting?->name ?: ($term?->name ?: ($term?->title ?: 'this session')));
+        $endLabel   = $setting?->end_date   ? \Illuminate\Support\Carbon::parse($setting->end_date)->format('F d, Y')   : null;
+        $startLabel = $setting?->start_date ? \Illuminate\Support\Carbon::parse($setting->start_date)->format('F d, Y') : null;
     @endphp
     <title>{{ $isUpcoming ? 'Enrollment Not Yet Open' : 'Enrollment Closed' }} — {{ $schoolName ?? 'School Portal' }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
