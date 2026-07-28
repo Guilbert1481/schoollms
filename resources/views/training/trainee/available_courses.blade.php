@@ -34,7 +34,7 @@
                         : 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=900&q=80';
 
                     $instructor = trim(($s->instructor_title ?? '') . ' ' . ($s->instructor_name ?? ''));
-                    $courseName = $s->title ?: $s->name;
+                    $courseName = $s->display_title;
 
                     $currencySymbol = $s->currency
                         ? (\App\Helpers\CurrencyHelper::fromCountry(null)['symbol'] ?: '')

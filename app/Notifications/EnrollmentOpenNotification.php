@@ -10,9 +10,7 @@ class EnrollmentOpenNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(public EnrollmentSetting $setting)
-    {
-    }
+    public function __construct(public EnrollmentSetting $setting) {}
 
     public function via($notifiable): array
     {
@@ -28,11 +26,11 @@ class EnrollmentOpenNotification extends Notification
         );
 
         return [
-            'title'                 => 'Enrollment is now open',
-            'message'               => trim(($this->setting->title ?: $this->setting->name).' '.($window ? "($window)" : '')),
-            'type'                  => 'enrollment',
-            'reference_id'          => $this->setting->term_id,
-            'term_id'               => $this->setting->term_id,
+            'title' => 'Enrollment is now open',
+            'message' => trim(($this->setting->term?->name ?: ($this->setting->title ?: $this->setting->name)).' '.($window ? "($window)" : '')),
+            'type' => 'enrollment',
+            'reference_id' => $this->setting->term_id,
+            'term_id' => $this->setting->term_id,
             'enrollment_setting_id' => $this->setting->id,
         ];
     }
