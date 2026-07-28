@@ -6,7 +6,6 @@ use App\Models\EnrollmentSetting;
 use App\Models\StudentEnrollment;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Builds virtual (derived) enrollment notifications for the bell.
@@ -31,7 +30,7 @@ class EnrollmentNotifications
             return [];
         }
 
-        $today    = Carbon::now()->startOfDay();
+        $today = Carbon::now()->startOfDay();
         $schoolId = $user->school_id;
 
         $settings = EnrollmentSetting::query()
@@ -59,7 +58,7 @@ class EnrollmentNotifications
             : collect();
 
         $appliedSettingIds = $studentEnrollments->pluck('enrollment_setting_id')->filter()->all();
-        $appliedTermIds    = $studentEnrollments->pluck('term_id')->filter()->unique()->all();
+        $appliedTermIds = $studentEnrollments->pluck('term_id')->filter()->unique()->all();
 
         $rows = [];
 
@@ -71,9 +70,9 @@ class EnrollmentNotifications
                 continue;
             }
 
-            $end       = Carbon::parse($setting->end_date)->endOfDay();
-            $daysLeft  = (int) $today->diffInDays($end, false);
-            $urgent    = $daysLeft >= 0 && $daysLeft <= self::URGENT_THRESHOLD_DAYS;
+            $end = Carbon::parse($setting->end_date)->endOfDay();
+            $daysLeft = (int) $today->diffInDays($end, false);
+            $urgent = $daysLeft >= 0 && $daysLeft <= self::URGENT_THRESHOLD_DAYS;
 
             $window = trim(
                 ($setting->start_date ? Carbon::parse($setting->start_date)->format('M d') : '')
@@ -82,18 +81,18 @@ class EnrollmentNotifications
             );
 
             $rows[] = [
-                'id'           => 'enroll-'.$setting->id,
-                'title'        => $urgent
+                'id' => 'enroll-'.$setting->id,
+                'title' => $urgent
                     ? 'Enrollment closing soon'
                     : 'Enrollment is now open',
-                'message'      => trim(($setting->title ?: $setting->name).' '.($window ? "($window)" : '')),
-                'type'         => 'enrollment',
+                'message' => trim(($setting->term?->name ?: ($setting->title ?: $setting->name)).' '.($window ? "($window)" : '')),
+                'type' => 'enrollment',
                 'reference_id' => $setting->term_id,
-                'term_id'      => $setting->term_id,
-                'read'         => false,
-                'urgent'       => $urgent,
-                'days_left'    => $daysLeft,
-                'created_at'   => $setting->created_at,
+                'term_id' => $setting->term_id,
+                'read' => false,
+                'urgent' => $urgent,
+                'days_left' => $daysLeft,
+                'created_at' => $setting->created_at,
             ];
         }
 

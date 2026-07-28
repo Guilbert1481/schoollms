@@ -105,8 +105,8 @@
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                 @forelse($settings as $s)
                 <tr>
-                    <td class="py-3 pr-4 font-semibold">{{ $s->title }}</td>
-                    <td class="py-3 pr-4">{{ $s->name }}</td>
+                    <td class="py-3 pr-4 font-semibold">{{ $s->display_title }}</td>
+                    <td class="py-3 pr-4">{{ $s->term?->name ?? $s->name }}</td>
                     <td class="py-3 pr-4">{{ $s->start_date }}</td>
                     <td class="py-3 pr-4">{{ $s->end_date }}</td>
 
@@ -133,7 +133,7 @@
                             @php
                                 $editPayload = [
                                     'id' => $s->id,
-                                    'title' => $s->title,
+                                    'title' => $s->display_title,
                                     'start_date' => $s->start_date,
                                     'end_date' => $s->end_date,
                                     'price' => $s->price,
@@ -152,7 +152,7 @@
                             {{-- Generate QR --}}
                             @php
                                 $qrPayload = [
-                                    'title' => $s->title,
+                                    'title' => $s->display_title,
                                     'url'   => route('public.apply.qr', $s->term_id),
                                 ];
                             @endphp
