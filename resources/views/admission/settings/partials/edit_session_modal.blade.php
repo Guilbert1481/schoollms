@@ -22,8 +22,14 @@
             <div class="space-y-3">
                 <div>
                     <label class="text-xs font-bold">Session Title</label>
-                    <input type="text" name="title" id="edit_title"
-                           class="w-full border rounded-lg px-3 py-2">
+                    {{-- Read-only: the title always follows the linked term set in
+                         Master Data → AY & Terms. It is NOT submitted; the server
+                         derives it from the term. --}}
+                    <input type="text" id="edit_title" readonly tabindex="-1"
+                           class="w-full border rounded-lg px-3 py-2 bg-gray-100 text-slate-600 cursor-not-allowed">
+                    <p class="text-xs text-slate-500 mt-1">
+                        Comes from the term in Master Data → AY &amp; Terms. Rename it there to change this.
+                    </p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">

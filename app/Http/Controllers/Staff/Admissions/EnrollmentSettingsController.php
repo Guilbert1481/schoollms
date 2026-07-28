@@ -2,24 +2,24 @@
 
 namespace App\Http\Controllers\Staff\Admissions;
 
+use App\Helpers\CurrencyHelper;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver as GdDriver;
-use App\Models\EnrollmentSetting;
-use App\Models\AdmissionExamSetting;
 use App\Models\AcademicYear;
-use App\Models\Term;
+use App\Models\AdmissionExamSetting;
+use App\Models\EnrollmentSetting;
 use App\Models\EnrollmentType;
+use App\Models\Term;
 use App\Models\User;
 use App\Notifications\EnrollmentOpenNotification;
 use App\Services\ProgramSubjectActivationService;
-use App\Helpers\CurrencyHelper;
-use Illuminate\Support\Facades\Notification;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Intervention\Image\Drivers\Gd\Driver as GdDriver;
+use Intervention\Image\ImageManager;
 
 class EnrollmentSettingsController extends Controller
 {
@@ -29,7 +29,7 @@ class EnrollmentSettingsController extends Controller
             'academicYear',
             'term',
             'enrollmentType',
-            'creator'
+            'creator',
         ])->orderBy('start_date', 'desc')->get();
 
         $today = Carbon::today();
@@ -57,7 +57,7 @@ class EnrollmentSettingsController extends Controller
         $types = EnrollmentType::orderBy('name')->get();
 
         $examSetting = $this->currentExamSetting();
-        $activeTab   = 'enrollment';
+        $activeTab = 'enrollment';
 
         return view('admission.settings.enrollment_settings', compact(
             'settings',
@@ -93,11 +93,11 @@ class EnrollmentSettingsController extends Controller
             }
         }
         $upcomingTerms = Term::where('status', 'upcoming')->orderBy('start_date')->get();
-        $years         = AcademicYear::orderBy('name')->get();
-        $terms         = Term::orderBy('name')->get();
-        $types         = EnrollmentType::orderBy('name')->get();
-        $examSetting   = $this->currentExamSetting();
-        $activeTab     = 'admission-exam';
+        $years = AcademicYear::orderBy('name')->get();
+        $terms = Term::orderBy('name')->get();
+        $types = EnrollmentType::orderBy('name')->get();
+        $examSetting = $this->currentExamSetting();
+        $activeTab = 'admission-exam';
 
         return view('admission.settings.enrollment_settings', compact(
             'settings', 'years', 'terms', 'types', 'upcomingTerms',
@@ -111,26 +111,26 @@ class EnrollmentSettingsController extends Controller
     public function admissionExamUpdate(Request $request)
     {
         $validated = $request->validate([
-            'require_for_new_student'      => 'sometimes|boolean',
-            'require_for_transferee'       => 'sometimes|boolean',
-            'require_for_returnee'         => 'sometimes|boolean',
-            'require_for_shiftee'          => 'sometimes|boolean',
-            'exam_purpose'                 => 'required|in:diagnostic_only,admission_requirement',
-            'grants_scholarship'           => 'sometimes|boolean',
-            'max_score'                    => 'required|integer|min:1|max:1000',
-            'passing_score'                => 'nullable|integer|min:0|lte:max_score',
-            'max_attempts'                 => 'required|integer|min:1|max:10',
-            'retake_cooldown_days'         => 'nullable|integer|min:0|max:365',
-            'result_validity_months'       => 'nullable|integer|min:0|max:120',
-            'allow_program_head_waiver'    => 'sometimes|boolean',
+            'require_for_new_student' => 'sometimes|boolean',
+            'require_for_transferee' => 'sometimes|boolean',
+            'require_for_returnee' => 'sometimes|boolean',
+            'require_for_shiftee' => 'sometimes|boolean',
+            'exam_purpose' => 'required|in:diagnostic_only,admission_requirement',
+            'grants_scholarship' => 'sometimes|boolean',
+            'max_score' => 'required|integer|min:1|max:1000',
+            'passing_score' => 'nullable|integer|min:0|lte:max_score',
+            'max_attempts' => 'required|integer|min:1|max:10',
+            'retake_cooldown_days' => 'nullable|integer|min:0|max:365',
+            'result_validity_months' => 'nullable|integer|min:0|max:120',
+            'allow_program_head_waiver' => 'sometimes|boolean',
             'notify_applicant_on_schedule' => 'sometimes|boolean',
-            'auto_assess_after_pass'       => 'sometimes|boolean',
-            'instructions'                 => 'nullable|string|max:5000',
-            'scholarship_bands'                 => 'nullable|array',
-            'scholarship_bands.*.label'         => 'nullable|string|max:100',
-            'scholarship_bands.*.percent'       => 'nullable|numeric|min:0|max:100',
-            'scholarship_bands.*.apply_to'      => 'nullable|in:tuition,total',
-            'scholarship_bands.*.min_score'     => 'nullable|integer|min:0',
+            'auto_assess_after_pass' => 'sometimes|boolean',
+            'instructions' => 'nullable|string|max:5000',
+            'scholarship_bands' => 'nullable|array',
+            'scholarship_bands.*.label' => 'nullable|string|max:100',
+            'scholarship_bands.*.percent' => 'nullable|numeric|min:0|max:100',
+            'scholarship_bands.*.apply_to' => 'nullable|in:tuition,total',
+            'scholarship_bands.*.min_score' => 'nullable|integer|min:0',
         ]);
 
         // When the exam is a hard requirement, passing_score is mandatory.
@@ -156,9 +156,9 @@ class EnrollmentSettingsController extends Controller
         $validated['scholarship_bands'] = collect($request->input('scholarship_bands', []))
             ->filter(fn ($b) => is_numeric($b['percent'] ?? null) && is_numeric($b['min_score'] ?? null))
             ->map(fn ($b) => [
-                'label'     => trim((string) ($b['label'] ?? '')) ?: (((float) $b['percent']).'% scholarship'),
-                'percent'   => round((float) $b['percent'], 2),
-                'apply_to'  => in_array($b['apply_to'] ?? null, ['tuition', 'total'], true) ? $b['apply_to'] : 'total',
+                'label' => trim((string) ($b['label'] ?? '')) ?: (((float) $b['percent']).'% scholarship'),
+                'percent' => round((float) $b['percent'], 2),
+                'apply_to' => in_array($b['apply_to'] ?? null, ['tuition', 'total'], true) ? $b['apply_to'] : 'total',
                 'min_score' => (int) $b['min_score'],
             ])
             ->sortByDesc('min_score')
@@ -186,20 +186,20 @@ class EnrollmentSettingsController extends Controller
         return AdmissionExamSetting::firstOrNew(
             ['school_id' => $schoolId],
             [
-                'require_for_new_student'      => false,
-                'require_for_transferee'       => false,
-                'require_for_returnee'         => false,
-                'require_for_shiftee'          => false,
-                'exam_purpose'                 => AdmissionExamSetting::PURPOSE_DIAGNOSTIC,
-                'max_score'                    => 100,
-                'passing_score'                => null,
-                'max_attempts'                 => 1,
-                'retake_cooldown_days'         => null,
-                'result_validity_months'       => null,
-                'allow_program_head_waiver'    => true,
+                'require_for_new_student' => false,
+                'require_for_transferee' => false,
+                'require_for_returnee' => false,
+                'require_for_shiftee' => false,
+                'exam_purpose' => AdmissionExamSetting::PURPOSE_DIAGNOSTIC,
+                'max_score' => 100,
+                'passing_score' => null,
+                'max_attempts' => 1,
+                'retake_cooldown_days' => null,
+                'result_validity_months' => null,
+                'allow_program_head_waiver' => true,
                 'notify_applicant_on_schedule' => true,
-                'auto_assess_after_pass'       => false,
-                'instructions'                 => null,
+                'auto_assess_after_pass' => false,
+                'instructions' => null,
             ]
         );
     }
@@ -220,66 +220,73 @@ class EnrollmentSettingsController extends Controller
             'course_details' => 'nullable|string',
         ]);
 
-    $coverPath = null;
-    if ($request->hasFile('cover_image')) {
-        $coverPath = $this->storeCoverImage($request->file('cover_image'));
+        $coverPath = null;
+        if ($request->hasFile('cover_image')) {
+            $coverPath = $this->storeCoverImage($request->file('cover_image'));
+        }
+
+        $currency = $request->input('currency')
+            ?: CurrencyHelper::forCurrentSchool()['code'];
+
+        // The linked term is the single source of truth for the session's display
+        // name — store the term's current name so it stays consistent, and so a
+        // later rename is reflected (display reads the term live). See
+        // EnrollmentSetting::getDisplayTitleAttribute().
+        $termName = optional(Term::find($request->term_id))->name;
+
+        $setting = EnrollmentSetting::create([
+            'name' => $termName ?: $request->name,
+            'title' => $termName ?: $request->title,
+            'academic_year_id' => $request->academic_year_id,
+            'term_id' => $request->term_id,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'price' => $request->price,
+            'currency' => $currency,
+            'cover_image' => $coverPath,
+            'instructor_title' => $request->instructor_title,
+            'instructor_name' => $request->instructor_name,
+            'course_details' => $request->course_details,
+            'created_by' => auth()->id(),
+        ]);
+
+        // Auto-activate program_subjects if the enrollment window already includes today.
+        app(ProgramSubjectActivationService::class)->sync();
+
+        // Dismiss any "term_created" bell notifications for this admission user
+        // that point at the term/AY they just opened an enrollment for. This is
+        // what makes the bell badge go away once the session date is set.
+        $user = auth()->user();
+        if ($user) {
+            $termId = (int) $request->term_id;
+            $ayId = (int) $request->academic_year_id;
+
+            \Illuminate\Support\Facades\DB::table('notifications')
+                ->where('notifiable_id', $user->id)
+                ->whereNull('read_at')
+                ->where(function ($q) use ($termId, $ayId) {
+                    $q->where('data', 'like', '%"type":"term_created"%')
+                        ->where(function ($qq) use ($termId, $ayId) {
+                            $qq->where('data', 'like', '%"term_id":'.$termId.'%')
+                                ->orWhere('data', 'like', '%"academic_year_id":'.$ayId.'%');
+                        });
+                })
+                ->update(['read_at' => now(), 'updated_at' => now()]);
+        }
+
+        // Note: student bell notifications are now derived virtually from
+        // EnrollmentSetting rows (see App\Support\EnrollmentNotifications). This
+        // ensures even students created AFTER the setting was made will see the
+        // notification, and that it auto-disappears when end_date passes or the
+        // student submits an application.
+
+        return redirect()->back()->with('success', 'Enrollment setting created.');
     }
-
-    $currency = $request->input('currency')
-        ?: CurrencyHelper::forCurrentSchool()['code'];
-
-    $setting = EnrollmentSetting::create([
-        'name' => $request->name,
-        'title' => $request->title,
-        'academic_year_id' => $request->academic_year_id,
-        'term_id' => $request->term_id,
-        'start_date' => $request->start_date,
-        'end_date' => $request->end_date,
-        'price' => $request->price,
-        'currency' => $currency,
-        'cover_image' => $coverPath,
-        'instructor_title' => $request->instructor_title,
-        'instructor_name' => $request->instructor_name,
-        'course_details' => $request->course_details,
-        'created_by' => auth()->id(),
-    ]);
-
-    // Auto-activate program_subjects if the enrollment window already includes today.
-    app(ProgramSubjectActivationService::class)->sync();
-
-    // Dismiss any "term_created" bell notifications for this admission user
-    // that point at the term/AY they just opened an enrollment for. This is
-    // what makes the bell badge go away once the session date is set.
-    $user = auth()->user();
-    if ($user) {
-        $termId = (int) $request->term_id;
-        $ayId   = (int) $request->academic_year_id;
-
-        \Illuminate\Support\Facades\DB::table('notifications')
-            ->where('notifiable_id', $user->id)
-            ->whereNull('read_at')
-            ->where(function ($q) use ($termId, $ayId) {
-                $q->where('data', 'like', '%"type":"term_created"%')
-                  ->where(function ($qq) use ($termId, $ayId) {
-                      $qq->where('data', 'like', '%"term_id":' . $termId . '%')
-                         ->orWhere('data', 'like', '%"academic_year_id":' . $ayId . '%');
-                  });
-            })
-            ->update(['read_at' => now(), 'updated_at' => now()]);
-    }
-
-    // Note: student bell notifications are now derived virtually from
-    // EnrollmentSetting rows (see App\Support\EnrollmentNotifications). This
-    // ensures even students created AFTER the setting was made will see the
-    // notification, and that it auto-disappears when end_date passes or the
-    // student submits an application.
-
-    return redirect()->back()->with('success', 'Enrollment setting created.');
-}
 
     public function destroy($id)
     {
         EnrollmentSetting::findOrFail($id)->delete();
+
         return back()->with('success', 'Enrollment session deleted.');
     }
 
@@ -307,47 +314,52 @@ class EnrollmentSettingsController extends Controller
     }
 
     public function update(Request $request, $id)
-{
-    $request->validate([
-        'title' => 'required',
-        'start_date' => 'required|date',
-        'end_date' => 'required|date',
-        'price' => 'nullable|numeric|min:0',
-        'cover_image' => 'nullable|image|max:20480',
-        'instructor_title' => 'nullable|string|max:50',
-        'instructor_name' => 'nullable|string|max:255',
-        'course_details' => 'nullable|string',
-    ]);
+    {
+        $request->validate([
+            'start_date' => 'required|date',
+            'end_date' => 'required|date',
+            'price' => 'nullable|numeric|min:0',
+            'cover_image' => 'nullable|image|max:20480',
+            'instructor_title' => 'nullable|string|max:50',
+            'instructor_name' => 'nullable|string|max:255',
+            'course_details' => 'nullable|string',
+        ]);
 
-    $setting = EnrollmentSetting::findOrFail($id);
+        $setting = EnrollmentSetting::findOrFail($id);
 
-    $data = [
-        'title' => $request->title,
-        'start_date' => $request->start_date,
-        'end_date' => $request->end_date,
-        'price' => $request->price,
-        'currency' => $request->input('currency')
-            ?: ($setting->currency ?: CurrencyHelper::forCurrentSchool()['code']),
-        'instructor_title' => $request->instructor_title,
-        'instructor_name' => $request->instructor_name,
-        'course_details' => $request->course_details,
-        'updated_by' => auth()->id(),
-    ];
+        // Title/name are not edited here — they follow the linked term. Re-sync the
+        // stored copy to the term's current name so it never drifts (display reads
+        // the term live regardless). See EnrollmentSetting::getDisplayTitleAttribute().
+        $termName = optional($setting->term)->name;
 
-    if ($request->hasFile('cover_image')) {
-        if ($setting->cover_image && Storage::disk('public')->exists($setting->cover_image)) {
-            Storage::disk('public')->delete($setting->cover_image);
+        $data = [
+            'title' => $termName ?: $setting->title,
+            'name' => $termName ?: $setting->name,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'price' => $request->price,
+            'currency' => $request->input('currency')
+                ?: ($setting->currency ?: CurrencyHelper::forCurrentSchool()['code']),
+            'instructor_title' => $request->instructor_title,
+            'instructor_name' => $request->instructor_name,
+            'course_details' => $request->course_details,
+            'updated_by' => auth()->id(),
+        ];
+
+        if ($request->hasFile('cover_image')) {
+            if ($setting->cover_image && Storage::disk('public')->exists($setting->cover_image)) {
+                Storage::disk('public')->delete($setting->cover_image);
+            }
+            $data['cover_image'] = $this->storeCoverImage($request->file('cover_image'));
         }
-        $data['cover_image'] = $this->storeCoverImage($request->file('cover_image'));
+
+        $setting->update($data);
+
+        // Re-sync activation in case dates changed.
+        app(ProgramSubjectActivationService::class)->sync();
+
+        return back()->with('success', 'Enrollment session updated.');
     }
-
-    $setting->update($data);
-
-    // Re-sync activation in case dates changed.
-    app(ProgramSubjectActivationService::class)->sync();
-
-    return back()->with('success', 'Enrollment session updated.');
-}
 
     /**
      * Resize and compress an uploaded cover image so it fits common
@@ -356,13 +368,13 @@ class EnrollmentSettingsController extends Controller
     protected function storeCoverImage(UploadedFile $file): string
     {
         $disk = Storage::disk('public');
-        $dir  = 'enrollment/covers';
+        $dir = 'enrollment/covers';
 
         $filename = Str::uuid().'.jpg';
         $relative = $dir.'/'.$filename;
 
         try {
-            $manager = new ImageManager(new GdDriver());
+            $manager = new ImageManager(new GdDriver);
             $image = $manager->read($file->getRealPath())
                 ->scaleDown(width: 1600, height: 1600);
 

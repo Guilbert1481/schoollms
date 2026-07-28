@@ -60,6 +60,17 @@ class EnrollmentSetting extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+    /**
+     * The name shown for this session everywhere in the UI. The linked Master
+     * Data term is the single source of truth, so renaming the term (e.g.
+     * "2nd Semester" → "1st Semester") is reflected live without re-saving the
+     * session. Falls back to the stored copy only for legacy rows with no term.
+     */
+    public function getDisplayTitleAttribute(): string
+    {
+        return (string) ($this->term?->name ?: ($this->title ?: $this->name ?: ''));
+    }
+
     public function getStatusAttribute()
     {
         $today = now()->startOfDay();

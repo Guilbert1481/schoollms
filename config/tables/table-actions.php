@@ -34,19 +34,19 @@ return [
 
     'colleges' => [
         [
-            'name'    => 'assign',
-            'label'   => 'Assign',
-            'class'   => 'bg-emerald-600 text-white',
-            'type'    => 'modal',
-            'modal'   => 'collegeAssignModal',
+            'name' => 'assign',
+            'label' => 'Assign',
+            'class' => 'bg-emerald-600 text-white',
+            'type' => 'modal',
+            'modal' => 'collegeAssignModal',
             'handler' => "openCollegeModal('collegeAssignModal', {id})",
         ],
         [
-            'name'    => 'edit',
-            'label'   => 'Edit',
-            'class'   => 'bg-blue-500 text-white',
-            'type'    => 'modal',
-            'modal'   => 'collegeEditModal',
+            'name' => 'edit',
+            'label' => 'Edit',
+            'class' => 'bg-blue-500 text-white',
+            'type' => 'modal',
+            'modal' => 'collegeEditModal',
             'handler' => "openCollegeModal('collegeEditModal', {id})",
         ],
         $base['delete'],
@@ -54,19 +54,19 @@ return [
 
     'programs' => [
         [
-            'name'    => 'assign',
-            'label'   => 'Assign',
-            'class'   => 'bg-emerald-600 text-white',
-            'type'    => 'modal',
-            'modal'   => 'programAssignModal',
+            'name' => 'assign',
+            'label' => 'Assign',
+            'class' => 'bg-emerald-600 text-white',
+            'type' => 'modal',
+            'modal' => 'programAssignModal',
             'handler' => "openProgramModal('programAssignModal', {id})",
         ],
         [
-            'name'    => 'edit',
-            'label'   => 'Edit',
-            'class'   => 'bg-blue-500 text-white',
-            'type'    => 'modal',
-            'modal'   => 'programEditModal',
+            'name' => 'edit',
+            'label' => 'Edit',
+            'class' => 'bg-blue-500 text-white',
+            'type' => 'modal',
+            'modal' => 'programEditModal',
             'handler' => "openProgramModal('programEditModal', {id})",
         ],
         $base['delete'],
@@ -74,19 +74,19 @@ return [
 
     'offices' => [
         [
-            'name'    => 'assign',
-            'label'   => 'Assign',
-            'class'   => 'bg-emerald-600 text-white',
-            'type'    => 'modal',
-            'modal'   => 'officeAssignModal',
+            'name' => 'assign',
+            'label' => 'Assign',
+            'class' => 'bg-emerald-600 text-white',
+            'type' => 'modal',
+            'modal' => 'officeAssignModal',
             'handler' => "openOfficeModal('officeAssignModal', {id})",
         ],
         [
-            'name'    => 'edit',
-            'label'   => 'Edit',
-            'class'   => 'bg-blue-500 text-white',
-            'type'    => 'modal',
-            'modal'   => 'officeEditModal',
+            'name' => 'edit',
+            'label' => 'Edit',
+            'class' => 'bg-blue-500 text-white',
+            'type' => 'modal',
+            'modal' => 'officeEditModal',
             'handler' => "openOfficeModal('officeEditModal', {id})",
         ],
         $base['delete'],
@@ -206,55 +206,55 @@ return [
 
     'drive_files' => [
         [
-            'name'    => 'edit',
-            'label'   => 'Edit',
-            'class'   => 'bg-emerald-600 text-white hover:bg-emerald-700',
-            'type'    => 'js',
+            'name' => 'edit',
+            'label' => 'Edit',
+            'class' => 'bg-emerald-600 text-white hover:bg-emerald-700',
+            'type' => 'js',
             'handler' => 'driveEdit',
         ],
         [
-            'name'    => 'share',
-            'label'   => 'Share',
-            'class'   => 'bg-slate-200 text-slate-700 hover:bg-slate-300',
-            'type'    => 'js',
+            'name' => 'share',
+            'label' => 'Share',
+            'class' => 'bg-slate-200 text-slate-700 hover:bg-slate-300',
+            'type' => 'js',
             'handler' => 'driveShare',
         ],
         [
-            'name'    => 'delete',
-            'label'   => 'Delete',
-            'class'   => 'bg-rose-600 text-white hover:bg-rose-700',
-            'type'    => 'js',
+            'name' => 'delete',
+            'label' => 'Delete',
+            'class' => 'bg-rose-600 text-white hover:bg-rose-700',
+            'type' => 'js',
             'handler' => 'driveDelete',
         ],
     ],
 
     'superadmin_schools' => [
         [
-            'name'  => 'view',
+            'name' => 'view',
             'label' => 'View',
             'class' => 'bg-indigo-500 text-white hover:bg-indigo-600',
-            'type'  => 'link',
+            'type' => 'link',
             'route' => 'superadmin.schools.show',
         ],
         [
-            'name'    => 'edit',
-            'label'   => 'Edit',
-            'class'   => 'bg-blue-500 text-white hover:bg-blue-600',
-            'type'    => 'js',
+            'name' => 'edit',
+            'label' => 'Edit',
+            'class' => 'bg-blue-500 text-white hover:bg-blue-600',
+            'type' => 'js',
             'handler' => 'openSchoolEditModal',
         ],
         [
-            'name'    => 'modules',
-            'label'   => 'Add-ons',
-            'class'   => 'bg-emerald-500 text-white hover:bg-emerald-600',
-            'type'    => 'js',
+            'name' => 'modules',
+            'label' => 'Add-ons',
+            'class' => 'bg-emerald-500 text-white hover:bg-emerald-600',
+            'type' => 'js',
             'handler' => 'openSchoolModulesModal',
         ],
         [
-            'name'  => 'delete',
+            'name' => 'delete',
             'label' => 'Delete',
             'class' => 'bg-red-500 text-white hover:bg-red-600',
-            'type'  => 'delete',
+            'type' => 'delete',
         ],
     ],
 
@@ -265,28 +265,28 @@ return [
 
     'subjects' => [
         [
-            'name'    => 'edit',
-            'label'   => 'Edit',
-            'class'   => 'bg-blue-500 text-white hover:bg-blue-600',
-            'type'    => 'modal',
-            'modal'   => 'subjectEditModal',
-            'handler' => "openSubjectEditModal({id})",
+            'name' => 'edit',
+            'label' => 'Edit',
+            'class' => 'bg-blue-500 text-white hover:bg-blue-600',
+            'type' => 'modal',
+            'modal' => 'subjectEditModal',
+            'handler' => 'openSubjectEditModal({id})',
         ],
         [
-            'name'    => 'delete',
-            'label'   => 'Delete',
-            'class'   => 'bg-red-500 text-white hover:bg-red-600',
-            'type'    => 'js',
+            'name' => 'delete',
+            'label' => 'Delete',
+            'class' => 'bg-red-500 text-white hover:bg-red-600',
+            'type' => 'js',
             'handler' => 'confirmDeleteSubject',
         ],
     ],
 
     'subject_offerings' => [
         [
-            'name'  => 'delete',
+            'name' => 'delete',
             'label' => 'Remove',
             'class' => 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100',
-            'type'  => 'delete',
+            'type' => 'delete',
         ],
     ],
 
@@ -295,27 +295,68 @@ return [
     // a hidden DELETE form to the correct route per folder type.
     'lesson_studio_folder' => [
         [
-            'name'    => 'edit',
-            'label'   => 'Edit',
-            'class'   => 'bg-blue-500 text-white hover:bg-blue-600',
-            'type'    => 'js',
+            'name' => 'edit',
+            'label' => 'Edit',
+            'class' => 'bg-blue-500 text-white hover:bg-blue-600',
+            'type' => 'js',
             'handler' => 'phLessonStudioEdit',
         ],
         [
-            'name'    => 'delete',
-            'label'   => 'Delete',
-            'class'   => 'bg-red-500 text-white hover:bg-red-600',
-            'type'    => 'js',
+            'name' => 'delete',
+            'label' => 'Delete',
+            'class' => 'bg-red-500 text-white hover:bg-red-600',
+            'type' => 'js',
             'handler' => 'phLessonStudioDelete',
+        ],
+    ],
+
+    // Course Architect / Subject Coordinator Lesson Studio — Topic (L1) and
+    // Lesson (L2) rows. Subjects (L0) get no actions: the Principal owns them.
+    // All three are 'js' because the destroy/update routes take {type} AND {id},
+    // which the generic delete handler (route($deleteRoute, $id)) cannot build.
+    'lesson_studio_ca_folder' => [
+        [
+            'name' => 'view',
+            'label' => 'View',
+            'class' => 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100',
+            'type' => 'js',
+            'handler' => 'lsFolderOpen',
+        ],
+        [
+            'name' => 'edit',
+            'label' => 'Rename',
+            'class' => 'bg-amber-500 text-white hover:bg-amber-600',
+            'type' => 'js',
+            'handler' => 'lsFolderEdit',
+        ],
+        [
+            'name' => 'delete',
+            'label' => 'Delete',
+            'class' => 'bg-red-500 text-white hover:bg-red-600',
+            'type' => 'js',
+            'handler' => 'lsFolderDelete',
+        ],
+    ],
+
+    // Upload a resource straight from the lesson list (Level 2) without drilling
+    // into the lesson. Shown only to content-adders (course_architect /
+    // subject_coordinator); the handler opens the quick-upload modal.
+    'lesson_studio_ca_upload' => [
+        [
+            'name' => 'upload',
+            'label' => 'Upload',
+            'class' => 'bg-emerald-600 text-white hover:bg-emerald-700',
+            'type' => 'js',
+            'handler' => 'lsUploadResource',
         ],
     ],
 
     'transcript_master' => [
         [
-            'name'  => 'view',
+            'name' => 'view',
             'label' => 'View Transcript',
             'class' => 'bg-indigo-600 text-white hover:bg-indigo-700',
-            'type'  => 'link',
+            'type' => 'link',
             'route' => 'registrar.transcripts.show',
         ],
     ],
