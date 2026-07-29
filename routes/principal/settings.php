@@ -15,6 +15,9 @@ Route::middleware(['web', 'auth', 'role:principal'])
         // Settings → Grades → Student Grade: show/hide the student Grades + Form 137 views.
         Route::post('/grades/student-visibility', [GradeSettingsController::class, 'updateStudentVisibility'])
             ->name('grades.student-visibility');
+        // Settings → Grades → Division: name the basic-ed grading periods (label + names).
+        Route::post('/grades/division', [GradeSettingsController::class, 'updateDivision'])
+            ->name('grades.division');
 
         // Settings → Attendance (per basic-ed level). Band fixed to basic here.
         Route::get('/attendance', [AttendanceSettingsController::class, 'index'])

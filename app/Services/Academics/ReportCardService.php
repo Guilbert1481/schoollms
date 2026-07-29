@@ -20,26 +20,28 @@ use Illuminate\Support\Facades\DB;
  */
 class ReportCardService
 {
-    public const PERIOD_LABELS = [1 => '1st Grading', 2 => '2nd Grading', 3 => '3rd Grading', 4 => '4th Grading'];
-
-    /** Basic ed reports across 3 grading periods. */
-    private const BASIC_PERIODS = [1, 2, 3];
-
     private const ENROLLED = ['enrolled', 'provisionally_enrolled', 'completed'];
 
     public function build(Student $student): array
     {
-        $threshold = (float) GradeSetting::forSchool((int) $student->school_id)->passing_threshold;
+        $setting = GradeSetting::forSchool((int) $student->school_id);
+        $threshold = (float) $setting->passing_threshold;
 
         return app(Form137Service::class)->isBasicEd($student)
-            ? $this->buildBasicEd($student, $threshold)
+            ? $this->buildBasicEd($student, $threshold, $setting->periods())
             : $this->buildHigherEd($student, $threshold);
     }
 
     /* ------------------------------------------------------------------ */
 
-    private function buildBasicEd(Student $student, float $threshold): array
+    private function buildBasicEd(Student $student, float $threshold, array $periods): array
     {
+        // The school's configured grading periods (ordinal => name), e.g.
+        // [1 => '1st Quarter', …]. This drives the columns, the labels, AND the
+        // averaged set — so every configured period (incl. the 4th quarter) is
+        // counted in each subject Final, the period averages, and the GA.
+        $ordinals = array_keys($periods);
+
         $enr = StudentEnrollment::with('academicYear:id,name')
             ->where('student_id', $student->id)
             ->whereIn('status', self::ENROLLED)
@@ -47,24 +49,24 @@ class ReportCardService
             ->first();
 
         $base = [
-            'is_basic'        => true,
-            'has_context'     => false,
-            'period_labels'   => array_map(fn ($p) => self::PERIOD_LABELS[$p], self::BASIC_PERIODS),
-            'periods'         => self::BASIC_PERIODS,
-            'rows'            => collect(),
+            'is_basic' => true,
+            'has_context' => false,
+            'period_labels' => array_values($periods),
+            'periods' => $ordinals,
+            'rows' => collect(),
             'period_averages' => [],
             'general_average' => null,
-            'remark'          => null,
+            'remark' => null,
         ];
 
         if (! $enr || ! $enr->education_node_id) {
             return $base;
         }
 
-        $nodeId     = (int) $enr->education_node_id;
-        $ayId       = $enr->academic_year_id;
+        $nodeId = (int) $enr->education_node_id;
+        $ayId = $enr->academic_year_id;
         $gradeLabel = DB::table('education_nodes')->where('id', $nodeId)->value('name') ?: 'Current Grade Level';
-        $ayLabel    = $enr->academicYear?->name ? 'SY '.$enr->academicYear->name : '—';
+        $ayLabel = $enr->academicYear?->name ? 'SY '.$enr->academicYear->name : '—';
 
         $areas = DB::table('grade_level_subjects as g')
             ->join('subjects as s', 's.id', '=', 'g.subject_id')
@@ -85,14 +87,14 @@ class ReportCardService
             ->get(['subject_id', 'grading_period', 'final_grade'])
             ->keyBy(fn ($r) => $r->subject_id.':'.$r->grading_period);
 
-        $periodSums = array_fill_keys(self::BASIC_PERIODS, ['sum' => 0.0, 'n' => 0]);
-        $finals     = [];
+        $periodSums = array_fill_keys($ordinals, ['sum' => 0.0, 'n' => 0]);
+        $finals = [];
 
-        $rows = $areas->map(function ($a) use ($rcg, $threshold, $nodeId, &$periodSums, &$finals) {
+        $rows = $areas->map(function ($a) use ($rcg, $threshold, $nodeId, $ordinals, &$periodSums, &$finals) {
             $cells = [];
             $present = [];
-            foreach (self::BASIC_PERIODS as $p) {
-                $g   = $rcg->get($a->subject_id.':'.$p);
+            foreach ($ordinals as $p) {
+                $g = $rcg->get($a->subject_id.':'.$p);
                 $num = $g && is_numeric($g->final_grade) ? (float) $g->final_grade : null;
                 if ($num !== null) {
                     $present[] = $num;
@@ -100,9 +102,9 @@ class ReportCardService
                     $periodSums[$p]['n']++;
                 }
                 $cells[$p] = [
-                    'display'   => $num !== null ? $this->fmt($num) : '—',
+                    'display' => $num !== null ? $this->fmt($num) : '—',
                     'grade_raw' => $num,
-                    'tone'      => $num === null ? 'slate' : ($num >= $threshold ? 'emerald' : 'rose'),
+                    'tone' => $num === null ? 'slate' : ($num >= $threshold ? 'emerald' : 'rose'),
                 ];
             }
 
@@ -112,19 +114,19 @@ class ReportCardService
             }
 
             return [
-                'learning_area'     => $a->name,
-                'code'              => $a->code,
-                'subject_id'        => (int) $a->subject_id,
+                'learning_area' => $a->name,
+                'code' => $a->code,
+                'subject_id' => (int) $a->subject_id,
                 'education_node_id' => $nodeId,
-                'cells'             => $cells,
-                'final'             => $final !== null ? $this->fmt($final) : '—',
-                'final_tone'        => $final === null ? 'slate' : ($final >= $threshold ? 'emerald' : 'rose'),
-                'final_remark'      => $final === null ? '—' : ($final >= $threshold ? 'Passed' : 'Failed'),
+                'cells' => $cells,
+                'final' => $final !== null ? $this->fmt($final) : '—',
+                'final_tone' => $final === null ? 'slate' : ($final >= $threshold ? 'emerald' : 'rose'),
+                'final_remark' => $final === null ? '—' : ($final >= $threshold ? 'Passed' : 'Failed'),
             ];
         })->values();
 
         $periodAverages = [];
-        foreach (self::BASIC_PERIODS as $p) {
+        foreach ($ordinals as $p) {
             $periodAverages[$p] = $periodSums[$p]['n']
                 ? $this->fmt(round($periodSums[$p]['sum'] / $periodSums[$p]['n'], 2))
                 : '—';
@@ -133,15 +135,15 @@ class ReportCardService
         $ga = count($finals) ? round(array_sum($finals) / count($finals), 2) : null;
 
         return array_merge($base, [
-            'has_context'     => true,
-            'ay_label'        => $ayLabel,
-            'grade_label'     => $gradeLabel,
+            'has_context' => true,
+            'ay_label' => $ayLabel,
+            'grade_label' => $gradeLabel,
             'academic_year_id' => $ayId,
-            'rows'            => $rows,
+            'rows' => $rows,
             'period_averages' => $periodAverages,
             'general_average' => $ga,
-            'ga_display'      => $ga !== null ? $this->fmt($ga) : '—',
-            'remark'          => $ga === null ? 'In Progress' : ($ga >= $threshold ? 'Promoted' : 'Retained'),
+            'ga_display' => $ga !== null ? $this->fmt($ga) : '—',
+            'remark' => $ga === null ? 'In Progress' : ($ga >= $threshold ? 'Promoted' : 'Retained'),
         ]);
     }
 
@@ -156,10 +158,10 @@ class ReportCardService
             ->first();
 
         $base = [
-            'is_basic'    => false,
+            'is_basic' => false,
             'has_context' => false,
-            'rows'        => collect(),
-            'gwa'         => null,
+            'rows' => collect(),
+            'gwa' => null,
         ];
 
         if (! $enr) {
@@ -178,43 +180,43 @@ class ReportCardService
             ])
             ->map(function ($r) use ($threshold) {
                 $final = $r->final_grade ?? $r->grade;
-                $num   = is_numeric($final) ? (float) $final : null;
+                $num = is_numeric($final) ? (float) $final : null;
                 $status = strtolower((string) $r->status);
                 $isCredit = in_array($status, ['credit', 'credited', 'transferred'], true);
 
                 [$remark, $tone] = match (true) {
-                    $isCredit                              => ['Credit', 'sky'],
+                    $isCredit => ['Credit', 'sky'],
                     $num === null && $status === 'enrolled' => ['Ongoing', 'slate'],
-                    $num === null                          => ['—', 'slate'],
-                    $num >= $threshold                     => ['Passed', 'emerald'],
-                    default                                => ['Failed', 'rose'],
+                    $num === null => ['—', 'slate'],
+                    $num >= $threshold => ['Passed', 'emerald'],
+                    default => ['Failed', 'rose'],
                 };
 
                 return [
                     'subject' => $r->subject,
-                    'code'    => $r->code,
+                    'code' => $r->code,
                     'teacher' => trim((string) $r->teacher) ?: '—',
-                    'units'   => $r->units > 0 ? $this->fmt((float) $r->units) : '—',
-                    'grade'   => $isCredit ? 'Credit' : ($num !== null ? $this->fmt($num) : '—'),
-                    'remark'  => $remark,
-                    'tone'    => $tone,
-                    '_num'    => $isCredit ? null : $num,
-                    '_units'  => (float) ($r->units ?? 0),
+                    'units' => $r->units > 0 ? $this->fmt((float) $r->units) : '—',
+                    'grade' => $isCredit ? 'Credit' : ($num !== null ? $this->fmt($num) : '—'),
+                    'remark' => $remark,
+                    'tone' => $tone,
+                    '_num' => $isCredit ? null : $num,
+                    '_units' => (float) ($r->units ?? 0),
                 ];
             })->values();
 
-        $weighted  = $rows->filter(fn ($r) => $r['_num'] !== null && $r['_units'] > 0);
+        $weighted = $rows->filter(fn ($r) => $r['_num'] !== null && $r['_units'] > 0);
         $weightSum = (float) $weighted->sum('_units');
-        $gwa       = $weightSum > 0
+        $gwa = $weightSum > 0
             ? round($weighted->sum(fn ($r) => $r['_num'] * $r['_units']) / $weightSum, 2)
             : null;
 
         return array_merge($base, [
             'has_context' => true,
-            'ay_label'    => $enr->academicYear?->name ? 'SY '.$enr->academicYear->name : '—',
-            'term_label'  => $enr->term?->name ?: '—',
-            'rows'        => $rows,
-            'gwa'         => $gwa,
+            'ay_label' => $enr->academicYear?->name ? 'SY '.$enr->academicYear->name : '—',
+            'term_label' => $enr->term?->name ?: '—',
+            'rows' => $rows,
+            'gwa' => $gwa,
         ]);
     }
 

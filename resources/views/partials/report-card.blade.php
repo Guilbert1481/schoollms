@@ -73,9 +73,7 @@
                                                 data-subject-id="{{ $r['subject_id'] }}"
                                                 data-node-id="{{ $r['education_node_id'] }}"
                                                 data-name="{{ e($r['learning_area']) }}"
-                                                data-g1="{{ $r['cells'][1]['grade_raw'] ?? '' }}"
-                                                data-g2="{{ $r['cells'][2]['grade_raw'] ?? '' }}"
-                                                data-g3="{{ $r['cells'][3]['grade_raw'] ?? '' }}"
+                                                data-grades="{{ json_encode(collect($report['periods'])->mapWithKeys(fn ($p) => [$p => $r['cells'][$p]['grade_raw'] ?? ''])) }}"
                                                 class="px-3 py-1 rounded text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600">Edit</button>
                                     </td>
                                 @endif
@@ -161,7 +159,7 @@
                     <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Learning Area</label>
                     <div id="rc_label" class="text-slate-800 font-semibold"></div>
                 </div>
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid gap-3" style="grid-template-columns: repeat({{ max(1, count($report['periods'])) }}, minmax(0, 1fr))">
                     @foreach($report['periods'] as $i => $p)
                         <div>
                             <label class="block text-[11px] font-semibold text-slate-500 mb-1">{{ $report['period_labels'][$i] }}</label>
@@ -184,9 +182,12 @@
             document.getElementById('rc_subject_id').value = d.subjectId;
             document.getElementById('rc_node_id').value = d.nodeId || '';
             document.getElementById('rc_label').textContent = d.name;
-            document.getElementById('rc_g1').value = d.g1 || '';
-            document.getElementById('rc_g2').value = d.g2 || '';
-            document.getElementById('rc_g3').value = d.g3 || '';
+            var grades = {};
+            try { grades = JSON.parse(d.grades || '{}'); } catch (e) { grades = {}; }
+            Object.keys(grades).forEach(function (p) {
+                var input = document.getElementById('rc_g' + p);
+                if (input) { input.value = (grades[p] === null || grades[p] === undefined) ? '' : grades[p]; }
+            });
             document.getElementById('reportCardEditModal').classList.remove('hidden');
         }
         function closeReportCardEdit() { document.getElementById('reportCardEditModal').classList.add('hidden'); }
