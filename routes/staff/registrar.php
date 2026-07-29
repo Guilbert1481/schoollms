@@ -6,10 +6,10 @@ use App\Http\Controllers\Staff\Registrar\SectionClassesController;
 use App\Http\Controllers\Staff\Registrar\SectioningController;
 use App\Http\Controllers\Staff\Registrar\Settings\ClearanceSignatoryController;
 use App\Http\Controllers\Staff\Registrar\Settings\DocumentRequirementController;
-use App\Http\Controllers\Staff\Registrar\StudentRequestsController;
 use App\Http\Controllers\Staff\Registrar\Settings\ParentPortalSettingController;
 use App\Http\Controllers\Staff\Registrar\Settings\StudentIdSettingController;
 use App\Http\Controllers\Staff\Registrar\StudentLedgerController;
+use App\Http\Controllers\Staff\Registrar\StudentRequestsController;
 use App\Http\Controllers\Staff\Registrar\SubjectCreditController;
 use App\Http\Controllers\Staff\Registrar\TeachingAssignmentController;
 use App\Http\Controllers\Staff\Registrar\TranscriptOfRecordController;
@@ -76,6 +76,12 @@ Route::middleware(['web', 'auth', 'role:registrar,admin,superadmin'])
             ->name('transcripts.form137-grade');
         Route::post('transcripts/{student}/report-card-grade', [TranscriptOfRecordController::class, 'saveReportCardGrade'])
             ->name('transcripts.report-card-grade');
+        // Per-student grade-view visibility toggles (Grades / Form 137) — hidden
+        // from the student until the registrar grants access on request.
+        Route::post('transcripts/grade-visibility/bulk', [TranscriptOfRecordController::class, 'updateGradeVisibilityBulk'])
+            ->name('transcripts.grade-visibility.bulk');
+        Route::post('transcripts/{student}/grade-visibility', [TranscriptOfRecordController::class, 'updateGradeVisibility'])
+            ->name('transcripts.grade-visibility');
 
         // 4. Student Registry — detailed records of officially enrolled students
         Route::get('student-registry', [StudentLedgerController::class, 'index'])
